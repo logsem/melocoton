@@ -1,2 +1,4 @@
 (coq.theory
   (name melocoton))
+
+(include_subdirs qualified)
