@@ -80,12 +80,12 @@ Inductive reachable : lstore → list lval → lloc → Prop :=
 
 (* NB: the induction case for this definition of reachability where one takes a step last:
 
-   --> = -->* -->
+   reachable = -->* -->
 
    TODO: prove an alternative induction principle that corresponds to the
    induction where one does a step first:
 
-   --> = --> -->*
+   reachable = --> -->*
 *)
 
 (* C representation of block-level values, roots and memory *)
