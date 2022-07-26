@@ -15,6 +15,7 @@ Inductive lval :=
   | Lloc : lloc → lval.
 
 Inductive ismut := Mut | Immut.
+
 (* Right now the tag is only used to distinguish between InjLV and InjRV (the
    constructors of the basic sum-type). In the future we might want to expand
    this to handle richer kinds of values. *)
@@ -22,6 +23,16 @@ Inductive tag : Type :=
   | TagDefault (* the default tag, used for InjLV and other blocks (pairs, refs, arrays) *)
   | TagInjRV (* the tag for InjRV *)
   .
+
+Definition tag_as_int (tg : tag) : Z :=
+  match tg with
+  | TagDefault => 0
+  | TagInjRV => 1
+  end.
+
+Instance tag_as_int_inj : Inj (=) (=) tag_as_int.
+Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
+
 Definition block :=
   (ismut * tag * list lval)%type.
 
@@ -68,6 +79,8 @@ Inductive modify_block : block → nat → lval → block → Prop :=
 
 (* reachability *)
 
+(* TODO: unclear whether it is simpler to define reachability wrt a list of
+   values (as is done below) or a single value. *)
 Inductive reachable : lstore → list lval → lloc → Prop :=
   | reachable_invals ζ γ vs :
     Lloc γ ∈ vs →

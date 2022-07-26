@@ -39,7 +39,13 @@ Definition addr : Type := Z.
 Definition word : Type := Z.
 Definition memory : Type := gmap addr word.
 
-Parameter progC : Type.
 Parameter exprC : Type.
+Definition progC : Type := gmap string (list string * exprC).
 Parameter ectxC : Type.
 Parameter head_step_C : progC → exprC → memory → exprC → memory → Prop.
+Parameter exprC_of_call : string → list word → exprC.
+Parameter fillC : ectxC → exprC → exprC.
+Parameter apply_func_C : string → list word → exprC.
+Parameter to_val_C : exprC → option word.
+Parameter to_call_C : exprC → option (string * list word).
+Parameter of_val_C : word → exprC.
