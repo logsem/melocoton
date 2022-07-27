@@ -182,4 +182,11 @@ Definition wrapper_step (prog : progC) : mrel (exprW * stateW) (exprW * stateW) 
        repr_lval (θC ρc) (Lint w) w' →
        φ (RunningW (fillC K (of_val_C w')), (C (ρc, mem)))).
 
+Program Definition wrapper_step_umrel (p : progC) : umrel (exprW * stateW) (exprW * stateW) :=
+  {| rel := wrapper_step p |}.
+Next Obligation.
+  unfold upclosed. intros p [e ρ] φ ψ H Hφψ.
+  destruct_or! H; naive_solver.
+Qed.
+
 End wrappersem.
