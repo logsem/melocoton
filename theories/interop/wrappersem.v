@@ -31,6 +31,7 @@ Inductive exprW : Type :=
   | RunningW (ec : exprC)
   | CallFunctionW (fn : func) (vs : list val).
 
+(* wrapper evaluation contexts should become nontrivial when we add callbacks *)
 Definition ectxW : Type := unit.
 Definition fillW : ectxW → exprW → exprW := λ _ e, e.
 
@@ -163,8 +164,7 @@ Definition wrapper_step (prog : progC) : mrel (exprW * stateW) (exprW * stateW) 
        (ζC ρc) !! γ = Some (mut, tag, lvs) →
        lvs !! (Z.to_nat i) = Some lv →
        repr_lval (θC ρc) lv w' →
-       φ (RunningW (fillC K (of_val_C w')), C (ρc, mem))
-    )
+       φ (RunningW (fillC K (of_val_C w')), C (ρc, mem)))
     ∨
     (* call to "val2int" *)
     (∀ K ec ρc mem w w',
@@ -172,8 +172,7 @@ Definition wrapper_step (prog : progC) : mrel (exprW * stateW) (exprW * stateW) 
        to_call_C ec = Some ("val2int", [w]) →
        ρ = C (ρc, mem) →
        repr_lval (θC ρc) (Lint w') w →
-       φ (RunningW (fillC K (of_val_C w')), (C (ρc, mem)))
-    )
+       φ (RunningW (fillC K (of_val_C w')), (C (ρc, mem))))
     ∨
     (* call to "int2val" *)
     (∀ K ec ρc mem w w',
@@ -181,7 +180,6 @@ Definition wrapper_step (prog : progC) : mrel (exprW * stateW) (exprW * stateW) 
        to_call_C ec = Some ("int2val", [w]) →
        ρ = C (ρc, mem) →
        repr_lval (θC ρc) (Lint w) w' →
-       φ (RunningW (fillC K (of_val_C w')), (C (ρc, mem)))
-    ).
+       φ (RunningW (fillC K (of_val_C w')), (C (ρc, mem)))).
 
 End wrappersem.
