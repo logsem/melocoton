@@ -54,7 +54,7 @@ Inductive freeze_block : block → block → Prop :=
     freeze_block b b.
 
 Definition freeze_lstore (ζ1 ζ2 : lstore) : Prop :=
-  dom (gset lloc) ζ1 = dom (gset lloc) ζ2 ∧
+  dom ζ1 = dom ζ2 ∧
   ∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
     freeze_block b1 b2.
 
@@ -64,7 +64,7 @@ Inductive ML_change_block : block → block → Prop :=
     ML_change_block (Mut, tg, vs) (Mut, tg, vs').
 
 Definition ML_change_lstore (χ : lloc_map) (ζ1 ζ2 : lstore) : Prop :=
-  dom (gset lloc) ζ1 ⊆ dom (gset lloc) ζ2 ∧
+  dom ζ1 ⊆ dom ζ2 ∧
   ∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
     (b1 = b2 ∨ (∃ ℓ, χ !! ℓ = Some γ ∧ ML_change_block b1 b2)).
 
@@ -116,8 +116,8 @@ Inductive repr_roots : addr_map → roots_map → memory → Prop :=
   | repr_roots_elem θ a v w roots mem :
     repr_roots θ roots mem →
     repr_lval θ v w →
-    a ∉ dom (gset addr) roots →
-    a ∉ dom (gset addr) mem →
+    a ∉ dom roots →
+    a ∉ dom mem →
     repr_roots θ (<[ a := v ]> roots) (<[ a := w ]> mem).
 
 Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
@@ -157,7 +157,7 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
 
 (* refs and arrays (stored in the ML store σ) all have the default tag. *)
 Definition is_block_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
-  dom (gset loc) σ = dom (gset loc) χ ∧
+  dom σ = dom χ ∧
   ∀ ℓ vs, σ !! ℓ = Some vs →
     ∃ γ lvs, χ !! ℓ = Some γ ∧
              ζ !! γ = Some (Mut, TagDefault, lvs) ∧

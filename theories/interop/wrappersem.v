@@ -60,12 +60,12 @@ Definition wrapper_step (prog : progC) : mrel (exprW * stateW) (exprW * stateW) 
            (∀ γ (a:addr) v,
               (rootsML ρml) !! a = Some v →
               reachable ζ [v] γ →
-              γ ∈ dom (gset lloc) (θC ρc)) →
+              γ ∈ dom (θC ρc)) →
            Forall2 (repr_lval (θC ρc)) lvs ws →
            repr (θC ρc) (rootsML ρml) (privmemML ρml) mem →
            χC ρc = χ →
            ζC ρc = ζ →
-           rootsC ρc = dom (gset addr) (rootsML ρml) →
+           rootsC ρc = dom (rootsML ρml) →
            privσC ρc = privσ →
            φ (RunningW (apply_func_C fn ws), C (ρc, mem)))
     ∨
@@ -80,7 +80,7 @@ Definition wrapper_step (prog : progC) : mrel (exprW * stateW) (exprW * stateW) 
          is_store (χML ρml) (ζML ρml) (privσC ρc) σ ∧
          repr_lval (θC ρc) lv w ∧
          is_val (χML ρml) (ζML ρml) v lv ∧
-         dom (gset addr) (rootsML ρml) = rootsC ρc ∧
+         dom (rootsML ρml) = rootsC ρc ∧
          repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
          φ (ValW v, ML (ρml, σ)))
     ∨
@@ -92,17 +92,17 @@ Definition wrapper_step (prog : progC) : mrel (exprW * stateW) (exprW * stateW) 
        tgnum = tag_as_int tg →
        (0 < sz)%Z →
        ∃ roots privmem,
-         dom (gset addr) roots = rootsC ρc ∧
+         dom roots = rootsC ρc ∧
          repr (θC ρc) roots privmem mem ∧
          ∀ γ a mem' ρc',
-           γ ∉ dom (gset lloc) (ζC ρc) →
+           γ ∉ dom (ζC ρc) →
            ζC ρc' = {[ γ := (Mut, tg, List.repeat (Lint 0) (Z.to_nat sz)) ]} ∪ (ζC ρc) →
            repr (θC ρc') roots privmem mem' →
            (θC ρc') !! γ = Some a →
            (∀ a v γ,
               roots !! a = Some v →
               reachable (ζC ρc) [v] γ →
-              γ ∈ dom (gset lloc) (θC ρc')) →
+              γ ∈ dom (θC ρc')) →
            χC ρc' = χC ρc →
            rootsC ρc' = rootsC ρc →
            privσC ρc' = privσC ρc →

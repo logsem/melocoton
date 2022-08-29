@@ -16,7 +16,7 @@ Record wrapstateC : Type := WrapstateC {
   θC_injective : ∀ γ1 γ2 a,
     θC !! γ1 = Some a → θC !! γ2 = Some a → γ1 = γ2;
   dom_θC_in_ζC :
-    dom (gset lloc) θC ⊆ dom (gset lloc) ζC;
+    dom θC ⊆ dom ζC;
   codom_χC_is_mut : ∀ ℓ γ,
     χC !! ℓ = Some γ → ∃ tg vs, ζC !! γ = Some (Mut, tg, vs);
   (* TODO: ... *)
