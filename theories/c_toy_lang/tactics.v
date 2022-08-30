@@ -1,5 +1,5 @@
 From stdpp Require Import fin_maps.
-From meloctocon.c_toy_lang Require Export lang.
+From melocoton.c_toy_lang Require Export lang.
 From iris.prelude Require Import options.
 Import C_lang.
 

@@ -1,6 +1,6 @@
 From stdpp Require Export pretty.
 
-From meloctocon.c_toy_lang Require Import lang.
+From melocoton.c_toy_lang Require Import lang.
 From iris.prelude Require Import options.
 
 (** * Pretty printing for HeapLang values *)

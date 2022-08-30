@@ -1,6 +1,6 @@
 From iris.program_logic Require Export language.
-From meloctocon.c_toy_lang Require Export lang.
-From meloctocon.c_toy_lang Require Import tactics notation.
+From melocoton.c_toy_lang Require Export lang.
+From melocoton.c_toy_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 
 Global Instance into_val_val (p:program) v : @IntoVal (C_lang p) (Val v) v.

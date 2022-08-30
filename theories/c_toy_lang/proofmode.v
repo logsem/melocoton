@@ -1,8 +1,8 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.program_logic Require Import atomic.
-From meloctocon.c_toy_lang Require Export tactics derived_laws.
-From meloctocon.c_toy_lang Require Import notation.
+From melocoton.c_toy_lang Require Export tactics derived_laws.
+From melocoton.c_toy_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 
