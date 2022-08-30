@@ -417,4 +417,4 @@ Qed.
 *)
 End lifting.
 
-Typeclasses Opaque array.
+#[export] Typeclasses Opaque array.
