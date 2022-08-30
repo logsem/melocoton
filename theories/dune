@@ -1,4 +1,5 @@
 (coq.theory
-  (name melocoton))
+  (name melocoton)
+  (flags :standard -w -redundant-canonical-projection))
 
 (include_subdirs qualified)
