@@ -3,7 +3,7 @@ From melocoton.c_toy_lang Require Export lang.
 From iris.prelude Require Import options.
 
 (* This file contains some metatheory about the heap_lang language,
-  which is not needed for verifying programs. *)
+  which is not needed for verifying programs. *) 
 
 (* Adding a binder to a set of identifiers. *)
 Local Definition set_binder_insert (x : binder) (X : stringset) : stringset :=
@@ -180,15 +180,20 @@ Proof.
   induction STEP; simpl in *; 
     try apply map_Forall_insert_2; try by naive_solver.
   - subst. repeat apply is_closed_subst'; naive_solver.
-  - apply is_closed_subst_all.
+  - edestruct (zip_args args va) as [σ'|] eqn:Heq. 2: congruence.
+    injection H0. intros <-. clear H0.
+    eapply is_closed_subst_all.
+    specialize (Clp _ _ H).
+    cbn in Clp.
     assert (forall a b, a = b -> is_closed_expr a e -> is_closed_expr b e) as Happ by (now intros ? ? ->).
-    eapply Happ. 2: apply (Clp s (Fun args e) H).
+    eapply Happ, Clp.
     clear Happ H.
-    induction args as [|[|a] ar IH] in H0,va,res|-*; cbn; destruct va as [|vah var]; cbn in H0; try congruence. 
-    + injection H0. intros <-. set_solver.
-    + eapply IH. 1: exact H0.
-    + destruct (zip_args ar var) as [res'|] eqn:Hres'; cbn in *; try congruence.
-      specialize (IH var res' Hres'). set_solver.
+    induction args as [|[|a] ar IH] in Heq,va,σ'|-*; cbn; destruct va; cbn in *; try congruence.
+    + injection Heq. intros <-. set_solver. 
+    + eapply IH. apply Heq.
+    + unfold option_map in Heq. specialize (IH va). destruct (zip_args ar va) as [σ''|] eqn:Heq2; last congruence.
+      specialize (IH σ'' eq_refl). 
+      injection Heq. intros <-. set_solver.
 Qed.
 
 Lemma subst_all_empty e : subst_all ∅ e = e.
@@ -240,3 +245,120 @@ Qed.
 
 Lemma subst_all_is_closed_empty e vs : is_closed_expr ∅ e → subst_all vs e = e.
 Proof. intros. apply subst_all_is_closed with (∅ : stringset); set_solver. Qed.
+
+Fixpoint free_vars (e : expr) : stringset :=
+  match e with
+  | Var x => {[ x ]}
+  | Let (BAnon) e1 e2 => free_vars e2 ∪ free_vars e1
+  | Let (BNamed x) e1 e2 => ((free_vars e2) ∖ {[ x ]}) ∪ free_vars e1
+  | UnOp _ e | Malloc e | Load e =>
+     free_vars e
+  | BinOp _ e1 e2 | Free e1 e2 | Store e1 e2 | While e1 e2 =>
+     free_vars e1 ∪ free_vars e2
+  | If e0 e1 e2  =>
+     free_vars e0 ∪ free_vars e1 ∪ free_vars e2
+  | FunCall ef ea => free_vars ef ∪ union_list (map free_vars ea)
+  | Extern _ ea => union_list (map free_vars ea)
+  | _ => ∅
+  end.
+
+Lemma free_vars_closed e X : free_vars e ⊆ X → is_closed_expr X e.
+Proof.
+  induction e in X|-*; intros Hfree; cbn.
+  3: destruct x; cbn.
+  1-3,5-12: set_solver.
+  - cbn in Hfree. apply andb_prop_intro; split. 2: set_solver.
+    apply IHe2. apply union_subseteq in Hfree.
+    destruct Hfree as [H1 _].
+    etransitivity. 2: eapply union_mono. 3: apply H1. 2: reflexivity.
+    rewrite union_comm.
+    rewrite difference_union.
+    set_solver.
+  - apply andb_prop_intro. split. 1:set_solver. cbn in Hfree.
+    clear IHe. induction ee as [|ea ee IHee]; last (cbn; apply andb_prop_intro; split).
+    + easy.
+    + apply H. 1: now left. cbn in Hfree.
+      set_solver.
+    + apply IHee. 2: cbn in Hfree; set_solver.
+      intros ei Hin X0. apply H. now right.
+  - induction arg as [|ea ee IHee]; last (cbn; apply andb_prop_intro; split).
+    + easy.
+    + apply H. 1: now left. cbn in Hfree.
+      set_solver.
+    + apply IHee. 2: cbn in Hfree; set_solver.
+      intros ei Hin X0. apply H. now right.
+Qed.
+
+Lemma subst_all_free_irrel e g1 g2 : 
+  (forall x, x ∈ free_vars e → g1 !! x = g2 !! x)
+  → subst_all g1 e = subst_all g2 e.
+Proof.
+  intros H.
+  induction e in H,g1,g2|-*.
+  - easy.
+  - cbn. rewrite (H x). 2:set_solver. easy.
+  - cbn. destruct x.
+    + erewrite IHe1, IHe2. 1:reflexivity.
+      all: intros x Hx; apply H; cbn; set_solver.
+    + erewrite IHe1, IHe2. 1:reflexivity.
+      * intros x Hx. destruct (string_eq_dec x s) as [->|Hn].
+        -- now rewrite ! lookup_delete.
+        -- rewrite ! lookup_delete_ne; try congruence.
+           apply H. cbn. set_solver.
+      * intros x Hx; apply H; cbn; set_solver.
+  - cbn. erewrite IHe; [reflexivity|]. intros ? ?; set_solver.
+  - cbn. erewrite IHe1,IHe2; first reflexivity. all: intros ? ?; set_solver.
+  - cbn. erewrite IHe; first reflexivity. all: intros ? ?; set_solver.
+  - cbn. erewrite IHe1,IHe2; first reflexivity. all: intros ? ?; set_solver.
+  - cbn. erewrite IHe; first reflexivity. all: intros ? ?; set_solver.
+  - cbn. erewrite IHe1,IHe2; first reflexivity. all: intros ? ?; set_solver.
+  - cbn. erewrite IHe1,IHe2,IHe3; first reflexivity. all: intros ? ?; set_solver.
+  - cbn. erewrite IHe1,IHe2; first reflexivity. all: intros ? ?; set_solver.
+  - cbn. erewrite IHe. 1: erewrite map_ext_in. 1:reflexivity. 2:intros ??; set_solver.
+    intros a Ha. apply H0. 1:easy. intros x Hx. apply H. cbn. 
+    apply elem_of_union_r, elem_of_union_list. exists (free_vars a); split; last done.
+    apply elem_of_list_In, in_map_iff. eexists; done.
+  - cbn. erewrite map_ext_in. 1:reflexivity.
+    intros a Ha. apply H0. 1:easy. intros x Hx. apply H. cbn. 
+    apply elem_of_union_list. exists (free_vars a); split; last done.
+    apply elem_of_list_In, in_map_iff. eexists; done.
+Qed.
+
+Lemma union_list_map_delete (s : stringset) (x:list stringset) : union_list (map (fun k => k ∖ s) x) = union_list x ∖ s.
+Proof.
+  apply set_eq.
+  intros k. rewrite elem_of_difference !elem_of_union_list. split.
+  + intros (X & (x0 & <- & H1)%elem_of_list_In%in_map_iff & (H2 & H3)%elem_of_difference).
+    split; last easy. exists x0. split; last done. now apply elem_of_list_In.
+  + intros ((X & H2 & H3) & H1). exists (X ∖ s). split; last set_solver.
+    apply elem_of_list_In. apply in_map_iff. exists X. split; first done. now apply elem_of_list_In.
+Qed.
+
+Lemma subst_free_vars xs e : free_vars (subst_all xs e) = free_vars e ∖ dom xs.
+Proof.
+  induction e in xs|-*.
+  - cbn. set_solver.
+  - cbn. destruct lookup eqn:Heq.
+    + cbn. apply set_eq. intros k. split; first set_solver.
+      intros [->%elem_of_singleton H2]%elem_of_difference.
+      exfalso. apply H2, elem_of_dom. eauto.
+    + cbn. apply set_eq. intros k. split; last set_solver.
+      intros ->%elem_of_singleton. apply elem_of_difference. split; first set_solver.
+      intros [? ?]%elem_of_dom. congruence.
+  - destruct x.
+    + cbn. rewrite IHe1. rewrite IHe2. set_solver.
+    + cbn. rewrite IHe1. rewrite IHe2. set_solver.
+  - cbn. rewrite IHe. set_solver.
+  - cbn. rewrite IHe1 IHe2. set_solver.
+  - cbn. rewrite IHe. set_solver.
+  - cbn. rewrite IHe1 IHe2. set_solver.
+  - cbn. rewrite IHe. set_solver.
+  - cbn. rewrite IHe1 IHe2. set_solver.
+  - cbn. rewrite IHe1 IHe2 IHe3. set_solver.
+  - cbn. rewrite IHe1 IHe2. set_solver.
+  - cbn. rewrite IHe. rewrite map_map. erewrite map_ext_in. 2: intros a Ha; by apply H.
+    rewrite difference_union_distr_l_L. f_equal.
+    rewrite <- union_list_map_delete. now rewrite map_map.
+  - cbn. rewrite map_map. erewrite map_ext_in. 2: intros a Ha; by apply H.
+    rewrite <- union_list_map_delete. now rewrite map_map.
+Qed.
