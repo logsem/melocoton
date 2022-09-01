@@ -4,7 +4,7 @@ From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
 From melocoton.c_toy_lang Require Export iris_lang_instantiation.
-From melocoton.interop Require Import lang_with_calls.
+From melocoton.language Require Import language.
 From melocoton.c_toy_lang Require Export lang metatheory.
 
 Definition of_class (e : mixin_expr_class val) : expr := match e with
