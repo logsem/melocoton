@@ -5,7 +5,7 @@ From iris.prelude Require Import options.
 Definition thread_id := nat.
 
 Section language_mixin.
-  Context {expr val func ectx state : Type}.
+  Context {expr val func ectx public_state private_state state : Type}.
 
   (** Classifying expressions into values and calls. *)
   Inductive mixin_expr_class :=
@@ -18,6 +18,7 @@ Section language_mixin.
   Context (empty_ectx : ectx).
   Context (comp_ectx : ectx → ectx → ectx).
   Context (fill : ectx → expr → expr).
+  Context (split_state : state → public_state → private_state → Prop).
 
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
@@ -48,6 +49,16 @@ Section language_mixin.
     mixin_fill_class K e :
       is_Some (to_class (fill K e)) → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
 
+    mixin_split_state_functional σ pubσ privσ pubσ' privσ' :
+      split_state σ pubσ privσ →
+      split_state σ pubσ' privσ' →
+      pubσ = pubσ' ∧ privσ = privσ';
+
+    mixin_split_state_inj σ σ' pubσ privσ :
+      split_state σ pubσ privσ →
+      split_state σ' pubσ privσ →
+      σ = σ';
+
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is not
         a value, then the head redex context is [e1']'s context [K'] filled with
@@ -75,34 +86,38 @@ End language_mixin.
 Arguments mixin_expr_class : clear implicits.
 Local Notation mixin_prog func := (gmap string func).
 
-Structure language {val : Type} {state : Type} := Language {
+Structure language {val : Type} {public_state : Type} := Language {
   expr : Type;
   func : Type;
   ectx : Type;
+  state : Type;
+  private_state : Type;
 
   of_class : mixin_expr_class val → expr;
   to_class : expr → option (mixin_expr_class val);
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
+  split_state : state → public_state → private_state → Prop;
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → expr → state → expr → state → list expr → Prop;
 
   language_mixin :
     LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      apply_func head_step
+      split_state apply_func head_step
 }.
 
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments language : clear implicits.
-Arguments Language {_ _ expr _ _ _ _ _ _ _ apply_func head_step}.
+Arguments Language {_ _ expr _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
 Arguments of_class {_ _} _ _.
 Arguments to_class {_ _ _} _.
 Arguments empty_ectx {_ _ _}.
 Arguments comp_ectx {_ _ _} _ _.
 Arguments fill {_ _ _} _ _.
+Arguments split_state {_ _ _} _ _.
 Arguments apply_func {_ _ _}.
 Arguments head_step {_ _ _} _ _ _ _ _ _.
 
@@ -127,8 +142,8 @@ Definition of_call {val state} (Λ : language val state) f (v : list val) := of_
 (* From an ectx_language, we can construct a language. *)
 Section language.
   Context {val : Type}.
-  Context {state : Type}.
-  Context {Λ : language val state}.
+  Context {public_state : Type}.
+  Context {Λ : language val public_state}.
   Implicit Types v : val.
   Implicit Types vs : list val.
   Implicit Types e : expr Λ.
@@ -209,11 +224,11 @@ Section language.
     head_step p (of_call Λ f vs) σ1 er σ1 [].
   Proof. intros ? ?. eapply call_head_step; eexists; eauto. Qed.
 
-  Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state) :=
+  Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ e' σ' efs, head_step p e σ e' σ' efs.
-  Definition head_irreducible (p : prog Λ) (e : expr Λ) (σ : state) :=
+  Definition head_irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∀ e' σ' efs, ¬head_step p e σ e' σ' efs.
-  Definition head_stuck (p : prog Λ) (e : expr Λ) (σ : state) :=
+  Definition head_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ head_irreducible p e σ.
 
   (* All non-value redexes are at the root.  In other words, all sub-redexes are
@@ -221,7 +236,7 @@ Section language.
   Definition sub_redexes_are_values (e : expr Λ) :=
     ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
 
-  Inductive prim_step (p : prog Λ) : expr Λ → state → expr Λ → state → list (expr Λ) → Prop :=
+  Inductive prim_step (p : prog Λ) : expr Λ → state Λ → expr Λ → state Λ → list (expr Λ) → Prop :=
     Prim_step K e1 e2 σ1 σ2 e1' e2' efs:
       e1 = fill K e1' → e2 = fill K e2' →
       head_step p e1' σ1 e2' σ2 efs → prim_step p e1 σ1 e2 σ2 efs.
@@ -230,13 +245,13 @@ Section language.
     head_step p e1 σ1 e2 σ2 efs → prim_step p (fill K e1) σ1 (fill K e2) σ2 efs.
   Proof. econstructor; eauto. Qed.
 
-  Definition reducible (p : prog Λ) (e : expr Λ) (σ : state) :=
+  Definition reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ e' σ' efs, prim_step p e σ e' σ' efs.
-  Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state) :=
+  Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∀ e' σ' efs, ¬prim_step p e σ e' σ' efs.
-  Definition stuck (p : prog Λ) (e : expr Λ) (σ : state) :=
+  Definition stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ irreducible p e σ.
-  Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state) :=
+  Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     is_Some (to_val e) ∨ reducible p e σ.
 
   (** * Some lemmas about this language *)
@@ -455,18 +470,18 @@ Section language.
   Qed.
 
   (** Lifting of steps to thread pools *)
-  Definition tpool {val state} (Λ : language val state) := list (expr Λ).
+  Definition tpool {val public_state} (Λ : language val public_state) := list (expr Λ).
   Implicit Types (T: tpool Λ).  (* thread pools *)
   Implicit Types (I J: list nat).       (* traces *)
   Implicit Types (O: gset nat).       (* trace sets *)
 
-  Inductive pool_step (p: prog Λ): tpool Λ → state → nat → tpool Λ → state → Prop :=
+  Inductive pool_step (p: prog Λ): tpool Λ → state Λ → nat → tpool Λ → state Λ → Prop :=
     | Pool_step i T_l e e' T_r efs σ σ':
         prim_step p e σ e' σ' efs →
         i = length T_l →
         pool_step p (T_l ++ e :: T_r) σ i (T_l ++ e' :: T_r ++ efs) σ'.
 
-  Inductive pool_steps (p: prog Λ): tpool Λ → state → list nat → tpool Λ → state → Prop :=
+  Inductive pool_steps (p: prog Λ): tpool Λ → state Λ → list nat → tpool Λ → state Λ → Prop :=
     | Pool_steps_refl T σ: pool_steps p T σ [] T σ
     | Pool_steps_step T T' T'' σ σ' σ'' i I:
       pool_step p T σ i T' σ' →
@@ -591,7 +606,7 @@ Section language.
     etrans; first eapply threads_pool_step; eauto.
   Qed.
 
-  (** Reaching Stuck States/Safety *)
+  (** Reaching Stuck State Λs/Safety *)
   (* a thread pool has undefined behavior, if one of its threads has undefined behavior. *)
   Definition not_stuck_pool p T σ := ∀ e i, T !! i = Some e → not_stuck p e σ.
   Definition pool_safe p T σ := ∀ T' σ' I, pool_steps p T σ I T' σ' → not_stuck_pool p T' σ'.
@@ -794,7 +809,7 @@ Section language.
   Definition reach_stuck p e σ := pool_reach_stuck p [e] σ.
   Definition safe p e σ := pool_safe p [e] σ.
   Definition step_no_fork p e σ e' σ' := prim_step p e σ e' σ' [].
-  Inductive steps_no_fork (p: prog Λ): expr Λ → state → expr Λ → state → Prop :=
+  Inductive steps_no_fork (p: prog Λ): expr Λ → state Λ → expr Λ → state Λ → Prop :=
     | no_forks_refl e σ: steps_no_fork p e σ e σ
     | no_forks_step e e' e'' σ σ' σ'':
       step_no_fork p e σ e' σ' →
@@ -989,29 +1004,29 @@ End language.
 
 
 Section safe_reach.
-  Context {val state} {Λ : language val state}.
+  Context {val public_state} {Λ : language val public_state}.
 
   (** [post_in_ectx] allows ignoring arbitrary evaluation contexts
   around e and is meant as a combinator for the postcondition of
   [safe_reach]. *)
-  Definition post_in_ectx (Φ : expr Λ → state → Prop) (e : expr Λ) (σ : state) : Prop :=
+  Definition post_in_ectx (Φ : expr Λ → state Λ → Prop) (e : expr Λ) (σ : state Λ) : Prop :=
     ∃ Ks e', e = fill Ks e' ∧ Φ e' σ.
 
-  Lemma post_in_ectx_intro (Φ : expr Λ → state → Prop) e σ:
+  Lemma post_in_ectx_intro (Φ : expr Λ → state Λ → Prop) e σ:
     Φ e σ →
     post_in_ectx Φ e σ.
   Proof. eexists empty_ectx, e. rewrite fill_empty. naive_solver. Qed.
 
-  Lemma post_in_ectx_mono (Φ1 Φ2 : expr Λ → state → Prop) e σ:
+  Lemma post_in_ectx_mono (Φ1 Φ2 : expr Λ → state Λ → Prop) e σ:
     post_in_ectx Φ1 e σ →
     (∀ e σ, Φ1 e σ → Φ2 e σ) →
     post_in_ectx Φ2 e σ.
   Proof. move => [?[?[??]]] ?. eexists _, _. naive_solver. Qed.
 
-  (** [safe_reach P e σ Φ] says that starting from e in state σ,
+  (** [safe_reach P e σ Φ] says that starting from e in state Λ σ,
     under the assumption that this is a [safe] configuration,
      one can reach e' in σ' such that Φ e' σ' holds. *)
-  Definition safe_reach (P : prog Λ) (e : expr Λ) (σ : state) (Φ : expr Λ → state → Prop) : Prop :=
+  Definition safe_reach (P : prog Λ) (e : expr Λ) (σ : state Λ) (Φ : expr Λ → state Λ → Prop) : Prop :=
     safe P e σ → ∃ e' σ', steps_no_fork P e σ e' σ' ∧ Φ e' σ'.
 
   Lemma safe_reach_refl p e σ (Φ : _ → _ → Prop):
@@ -1092,8 +1107,8 @@ End safe_reach.
 
 
 (* discrete OFE instance for expr and thread_id *)
-Definition exprO {val state} {Λ : language val state} := leibnizO (expr Λ).
-Global Instance expr_equiv {val state} {Λ : language val state} : Equiv (expr Λ). apply exprO. Defined.
+Definition exprO {val public_state} {Λ : language val public_state} := leibnizO (expr Λ).
+Global Instance expr_equiv {val public_state} {Λ : language val public_state} : Equiv (expr Λ). apply exprO. Defined.
 
 Definition thread_idO := leibnizO thread_id.
 Global Instance thread_id_equiv : Equiv thread_id. apply thread_idO. Defined.

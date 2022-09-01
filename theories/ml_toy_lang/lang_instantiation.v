@@ -87,15 +87,17 @@ Proof.
     - easy.
 Qed.
 
+Inductive split_state : state → state → state → Prop :=
+  | MLSplitState σ : split_state σ σ σ.
+
 Definition fill (K : list ectx_item) (e : expr) : expr :=
   @ectxi_language.fill (ml_toy_ectxi_lang (∅ : gmap _ _)) K e.
 
-
 Lemma melocoton_lang_mixin_C :
-  @LanguageMixin expr val ml_function (list ectx_item) state
+  @LanguageMixin expr val ml_function (list ectx_item) state state state
                  of_class to_class
                  nil (fun a b => b++a) fill
-                 apply_function bogo_head_step'.
+                 split_state apply_function bogo_head_step'.
 Proof. split.
   + apply to_of_cancel.
   + apply of_to_cancel.
@@ -108,6 +110,8 @@ Proof. split.
   + intros K1 K2 e. now rewrite /fill fill_app.
   + intros K a b. apply ectx_language.fill_inj.
   + unfold fill. apply fill_class.
+  + intros *. by do 2 (inversion 1).
+  + intros *. by do 2 (inversion 1).
   + intros p. unfold fill.
     change ((@ectxi_language.fill (ml_toy_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (ml_toy_ectxi_lang p))).
     intros K' K_redec e1' e1_redex σ1 e2 σ2 efs H Heq [Hstep ->]%bogo_head_step'_elim'.
