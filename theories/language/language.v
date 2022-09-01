@@ -21,8 +21,8 @@ Section language_mixin.
 
   (** Parallel substitution, to define [log_rel] in a language-independent
       way. *)
-  Context (subst_map : gmap string val → expr → expr).
-  Context (free_vars : expr → gset string).
+  (* Context (subst_map : gmap string val → expr → expr). *)
+  (* Context (free_vars : expr → gset string). *)
 
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
@@ -45,14 +45,14 @@ Section language_mixin.
         p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = [];
 
     (** Substitution and free variables *)
-    mixin_subst_map_empty e : subst_map ∅ e = e;
-    mixin_subst_map_subst_map xs ys e :
-      subst_map xs (subst_map ys e) = subst_map (ys ∪ xs) e;
-    mixin_subst_map_free_vars (xs1 xs2 : gmap string val) (e : expr) :
-      (∀ x, x ∈ free_vars e → xs1 !! x = xs2 !! x) →
-      subst_map xs1 e = subst_map xs2 e;
-    mixin_free_vars_subst_map xs e :
-      free_vars (subst_map xs e) = free_vars e ∖ (dom xs);
+    (* mixin_subst_map_empty e : subst_map ∅ e = e; *)
+    (* mixin_subst_map_subst_map xs ys e : *)
+    (*   subst_map xs (subst_map ys e) = subst_map (ys ∪ xs) e; *)
+    (* mixin_subst_map_free_vars (xs1 xs2 : gmap string val) (e : expr) : *)
+    (*   (∀ x, x ∈ free_vars e → xs1 !! x = xs2 !! x) → *)
+    (*   subst_map xs1 e = subst_map xs2 e; *)
+    (* mixin_free_vars_subst_map xs e : *)
+    (*   free_vars (subst_map xs e) = free_vars e ∖ (dom xs); *)
 
     (** Evaluation contexts *)
     mixin_fill_empty e : fill empty_ectx e = e;
@@ -102,14 +102,14 @@ Structure language := Language {
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
-  subst_map : gmap string val → expr → expr;
-  free_vars : expr → gset string;
+  (* subst_map : gmap string val → expr → expr; *)
+  (* free_vars : expr → gset string; *)
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → expr → state → expr → state → list expr → Prop;
 
   language_mixin :
     LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      subst_map free_vars apply_func head_step
+      (* subst_map free_vars *) apply_func head_step
 }.
 
 Declare Scope expr_scope.
@@ -117,15 +117,15 @@ Bind Scope expr_scope with expr.
 
 Declare Scope val_scope.
 Bind Scope val_scope with val.
-
-Arguments Language {expr _ _ _ _ _ _ _ _ _ _ free_vars apply_func head_step}.
+Arguments language : clear implicits.
+Arguments Language {expr _ _ _ _ _ _ _ _ _ apply_func head_step}.
 Arguments of_class {_} _.
 Arguments to_class {_} _.
 Arguments empty_ectx {_}.
 Arguments comp_ectx {_} _ _.
 Arguments fill {_} _ _.
-Arguments subst_map {_}.
-Arguments free_vars {_}.
+(* Arguments subst_map {_}. *)
+(* Arguments free_vars {_}. *)
 Arguments apply_func {_}.
 Arguments head_step {_} _ _ _ _ _ _.
 
@@ -180,19 +180,19 @@ Section language.
     ∃ fn, p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = nil.
   Proof. apply language_mixin. Qed.
 
-  Lemma subst_map_empty e :
-    subst_map ∅ e = e.
-  Proof. apply language_mixin. Qed.
-  Lemma subst_map_free_vars (xs1 xs2 : gmap string (val Λ)) e :
-    (∀ x, x ∈ free_vars e → xs1 !! x = xs2 !! x) →
-    subst_map xs1 e = subst_map xs2 e.
-  Proof. apply language_mixin. Qed.
-  Lemma subst_map_subst_map xs ys e :
-    subst_map xs (subst_map ys e) = subst_map (ys ∪ xs) e.
-  Proof. apply language_mixin. Qed.
-  Lemma free_vars_subst_map xs e :
-    free_vars (subst_map xs e) = free_vars e ∖ (dom xs).
-  Proof. apply language_mixin. Qed.
+  (* Lemma subst_map_empty e : *)
+  (*   subst_map ∅ e = e. *)
+  (* Proof. apply language_mixin. Qed. *)
+  (* Lemma subst_map_free_vars (xs1 xs2 : gmap string val) e : *)
+  (*   (∀ x, x ∈ free_vars e → xs1 !! x = xs2 !! x) → *)
+  (*   subst_map xs1 e = subst_map xs2 e. *)
+  (* Proof. apply language_mixin. Qed. *)
+  (* Lemma subst_map_subst_map xs ys e : *)
+  (*   subst_map xs (subst_map ys e) = subst_map (ys ∪ xs) e. *)
+  (* Proof. apply language_mixin. Qed. *)
+  (* Lemma free_vars_subst_map xs e : *)
+  (*   free_vars (subst_map xs e) = free_vars e ∖ (dom xs). *)
+  (* Proof. apply language_mixin. Qed. *)
 
   Lemma fill_empty e : fill empty_ectx e = e.
   Proof. apply language_mixin. Qed.
@@ -336,15 +336,15 @@ Section language.
   Lemma not_head_reducible p e σ : ¬head_reducible p e σ ↔ head_irreducible p e σ.
   Proof. unfold head_reducible, head_irreducible. naive_solver. Qed.
 
-  Lemma subst_map_closed xs e :
-    free_vars e = ∅ →
-    subst_map xs e = e.
-  Proof.
-    intros Hclosed.
-    trans (subst_map ∅ e).
-    - apply subst_map_free_vars. rewrite Hclosed. done.
-    - apply subst_map_empty.
-  Qed.
+  (* Lemma subst_map_closed xs e : *)
+  (*   free_vars e = ∅ → *)
+  (*   subst_map xs e = e. *)
+  (* Proof. *)
+  (*   intros Hclosed. *)
+  (*   trans (subst_map ∅ e). *)
+  (*   - apply subst_map_free_vars. rewrite Hclosed. done. *)
+  (*   - apply subst_map_empty. *)
+  (* Qed. *)
 
   (** The decomposition into head redex and context is unique.
 
