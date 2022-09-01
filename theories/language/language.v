@@ -75,12 +75,10 @@ End language_mixin.
 Arguments mixin_expr_class : clear implicits.
 Local Notation mixin_prog func := (gmap string func).
 
-Structure language := Language {
+Structure language {val : Type} {state : Type} := Language {
   expr : Type;
-  val : Type;
   func : Type;
   ectx : Type;
-  state : Type;
 
   of_class : mixin_expr_class val → expr;
   to_class : expr → option (mixin_expr_class val);
@@ -98,55 +96,55 @@ Structure language := Language {
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
-Declare Scope val_scope.
-Bind Scope val_scope with val.
 Arguments language : clear implicits.
-Arguments Language {expr _ _ _ _ _ _ _ _ _ apply_func head_step}.
-Arguments of_class {_} _.
-Arguments to_class {_} _.
-Arguments empty_ectx {_}.
-Arguments comp_ectx {_} _ _.
-Arguments fill {_} _ _.
-Arguments apply_func {_}.
-Arguments head_step {_} _ _ _ _ _ _.
+Arguments Language {_ _ expr _ _ _ _ _ _ _ apply_func head_step}.
+Arguments of_class {_ _} _ _.
+Arguments to_class {_ _ _} _.
+Arguments empty_ectx {_ _ _}.
+Arguments comp_ectx {_ _ _} _ _.
+Arguments fill {_ _ _} _ _.
+Arguments apply_func {_ _ _}.
+Arguments head_step {_ _ _} _ _ _ _ _ _.
 
-Definition expr_class (Λ : language) := mixin_expr_class Λ.(val).
+Definition expr_class {val state} (Λ : language val state) := mixin_expr_class val.
 (* A [Definition] throws off Coq's "old" ("tactic") unification engine *)
 Notation prog Λ := (mixin_prog Λ.(func)).
 
-Definition to_val {Λ : language} (e : expr Λ) :=
+Definition to_val {val state} {Λ : language val state} (e : expr Λ) :=
   match to_class e with
   | Some (ExprVal v) => Some v
   | _ => None
   end.
-Definition of_val {Λ : language} (v : val Λ) := of_class (ExprVal v).
+Definition of_val {val state} (Λ : language val state) (v : val) := of_class Λ (ExprVal v).
 
-Definition to_call {Λ : language} (e : expr Λ) :=
+Definition to_call {val state} {Λ : language val state} (e : expr Λ) :=
   match to_class e with
   | Some (ExprCall f v) => Some (f, v)
   | _ => None
   end.
-Definition of_call {Λ : language} f (v : list (val Λ)) := of_class (ExprCall f v).
+Definition of_call {val state} (Λ : language val state) f (v : list val) := of_class Λ (ExprCall f v).
 
 (* From an ectx_language, we can construct a language. *)
 Section language.
-  Context {Λ : language}.
-  Implicit Types v : val Λ.
-  Implicit Types vs : list (val Λ).
+  Context {val : Type}.
+  Context {state : Type}.
+  Context {Λ : language val state}.
+  Implicit Types v : val.
+  Implicit Types vs : list val.
   Implicit Types e : expr Λ.
   Implicit Types c : expr_class Λ.
   Implicit Types K : ectx Λ.
   Implicit Types p : prog Λ.
   Implicit Types efs : list (expr Λ).
 
-  Lemma to_of_class c : to_class (of_class c) = Some c.
+  Lemma to_of_class c : to_class (of_class Λ c) = Some c.
   Proof. apply language_mixin. Qed.
-  Lemma of_to_class e c : to_class e = Some c → of_class c = e.
+  Lemma of_to_class e c : to_class e = Some c → of_class Λ c = e.
   Proof. apply language_mixin. Qed.
 
-  Lemma to_val_of_call f vs : to_val (of_call f vs) = None.
+  Lemma to_val_of_call f vs : to_val (of_call Λ f vs) = None.
   Proof. rewrite /to_val /of_call to_of_class. done. Qed.
-  Lemma to_call_of_val v : to_call (of_val v) = None.
+  Lemma to_call_of_val v : to_call (of_val Λ v) = None.
   Proof. rewrite /to_call /of_val to_of_class. done. Qed.
   Lemma is_val_is_class e : is_Some (to_val e) → is_Some (to_class e).
   Proof. rewrite /to_val /is_Some. destruct (to_class e) as [[|]|]; naive_solver. Qed.
@@ -154,10 +152,10 @@ Section language.
   Proof. rewrite /to_call /is_Some. destruct (to_class e) as [[|]|]; naive_solver. Qed.
 
   Lemma val_head_step p v σ1 e2 σ2 efs :
-    head_step p (of_class (ExprVal v)) σ1 e2 σ2 efs → False.
+    head_step p (of_class Λ (ExprVal v)) σ1 e2 σ2 efs → False.
   Proof. apply language_mixin. Qed.
   Lemma call_head_step p f vs σ1 e2 σ2 efs :
-    head_step p (of_class (ExprCall f vs)) σ1 e2 σ2 efs ↔
+    head_step p (of_class Λ (ExprCall f vs)) σ1 e2 σ2 efs ↔
     ∃ fn, p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = nil.
   Proof. apply language_mixin. Qed.
 
@@ -202,20 +200,20 @@ Section language.
     rewrite /to_val Hv. eauto.
   Qed.
   Lemma call_head_step_inv p f vs σ1 e2 σ2 efs :
-    head_step p (of_class (ExprCall f vs)) σ1 e2 σ2 efs →
+    head_step p (of_class Λ (ExprCall f vs)) σ1 e2 σ2 efs →
     ∃ fn, p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = nil.
   Proof. eapply call_head_step. Qed.
   Lemma call_head_step_intro p f vs fn σ1 er :
     p !! f = Some fn →
     Some er = apply_func fn vs →
-    head_step p (of_call f vs) σ1 er σ1 [].
+    head_step p (of_call Λ f vs) σ1 er σ1 [].
   Proof. intros ? ?. eapply call_head_step; eexists; eauto. Qed.
 
-  Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state) :=
     ∃ e' σ' efs, head_step p e σ e' σ' efs.
-  Definition head_irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition head_irreducible (p : prog Λ) (e : expr Λ) (σ : state) :=
     ∀ e' σ' efs, ¬head_step p e σ e' σ' efs.
-  Definition head_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition head_stuck (p : prog Λ) (e : expr Λ) (σ : state) :=
     to_val e = None ∧ head_irreducible p e σ.
 
   (* All non-value redexes are at the root.  In other words, all sub-redexes are
@@ -223,7 +221,7 @@ Section language.
   Definition sub_redexes_are_values (e : expr Λ) :=
     ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
 
-  Inductive prim_step (p : prog Λ) : expr Λ → state Λ → expr Λ → state Λ → list (expr Λ) → Prop :=
+  Inductive prim_step (p : prog Λ) : expr Λ → state → expr Λ → state → list (expr Λ) → Prop :=
     Prim_step K e1 e2 σ1 σ2 e1' e2' efs:
       e1 = fill K e1' → e2 = fill K e2' →
       head_step p e1' σ1 e2' σ2 efs → prim_step p e1 σ1 e2 σ2 efs.
@@ -232,13 +230,13 @@ Section language.
     head_step p e1 σ1 e2 σ2 efs → prim_step p (fill K e1) σ1 (fill K e2) σ2 efs.
   Proof. econstructor; eauto. Qed.
 
-  Definition reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition reducible (p : prog Λ) (e : expr Λ) (σ : state) :=
     ∃ e' σ' efs, prim_step p e σ e' σ' efs.
-  Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state) :=
     ∀ e' σ' efs, ¬prim_step p e σ e' σ' efs.
-  Definition stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition stuck (p : prog Λ) (e : expr Λ) (σ : state) :=
     to_val e = None ∧ irreducible p e σ.
-  Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state) :=
     is_Some (to_val e) ∨ reducible p e σ.
 
   (** * Some lemmas about this language *)
@@ -246,14 +244,14 @@ Section language.
     prim_step p e1 σ1 e2 σ2 efs →
     ∃ K e1' e2', e1 = fill K e1' ∧ e2 = fill K e2' ∧ head_step p e1' σ1 e2' σ2 efs.
   Proof. inversion 1; subst; do 3 eexists; eauto. Qed.
-  Lemma to_of_val v : to_val (of_val v) = Some v.
+  Lemma to_of_val v : to_val (of_val Λ v) = Some v.
   Proof. rewrite /to_val /of_val to_of_class //. Qed.
-  Lemma of_to_val e v : to_val e = Some v → of_val v = e.
+  Lemma of_to_val e v : to_val e = Some v → of_val Λ v = e.
   Proof.
     rewrite /to_val /of_val => Hval. apply of_to_class.
     destruct (to_class e) as [[]|]; simplify_option_eq; done.
   Qed.
-  Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
+  Lemma of_to_val_flip v e : of_val Λ v = e → to_val e = Some v.
   Proof. intros <-. by rewrite to_of_val. Qed.
   Lemma val_head_stuck p e σ e' σ' efs: head_step p e σ e' σ' efs → to_val e = None.
   Proof.
@@ -273,14 +271,14 @@ Section language.
     apply eq_None_not_Some. by intros ?%fill_val%eq_None_not_Some.
   Qed.
 
-  Lemma to_of_call f vs : to_call (of_call f vs) = Some (f, vs).
+  Lemma to_of_call f vs : to_call (of_call Λ f vs) = Some (f, vs).
   Proof. rewrite /to_call /of_call to_of_class //. Qed.
-  Lemma of_to_call e f vs : to_call e = Some (f, vs) → of_call f vs = e.
+  Lemma of_to_call e f vs : to_call e = Some (f, vs) → of_call Λ f vs = e.
   Proof.
     rewrite /to_call /of_call => Hval. apply of_to_class.
     destruct (to_class e) as [[] | ]; simplify_option_eq; done.
   Qed.
-  Lemma of_to_call_flip f vs e : of_call f vs = e → to_call e = Some (f, vs).
+  Lemma of_to_call_flip f vs e : of_call Λ f vs = e → to_call e = Some (f, vs).
   Proof. intros <-. apply to_of_call. Qed.
 
   Lemma not_reducible p e σ : ¬reducible p e σ ↔ irreducible p e σ.
@@ -289,7 +287,7 @@ Section language.
   Proof. intros (?&?&?&?); eauto using val_stuck. Qed.
   Lemma val_irreducible p e σ : is_Some (to_val e) → irreducible p e σ.
   Proof. intros [??] ?? ??%val_stuck. by destruct (to_val e). Qed.
-  Global Instance of_val_inj : Inj (=) (=) (@of_val Λ).
+  Global Instance of_val_inj : Inj (=) (=) (@of_val _ _ Λ).
   Proof. by intros v v' Hv; apply (inj Some); rewrite -!to_of_val Hv. Qed.
   Lemma not_not_stuck p e σ : ¬not_stuck p e σ ↔ stuck p e σ.
   Proof.
@@ -422,7 +420,7 @@ Section language.
   Qed.
 
   Lemma prim_step_call_inv p K f vs e' σ σ' efs :
-    prim_step p (fill K (of_call f vs)) σ e' σ' efs →
+    prim_step p (fill K (of_call Λ f vs)) σ e' σ' efs →
     ∃ er fn, Some er = apply_func fn vs ∧ p !! f = Some fn ∧ e' = fill K er ∧ σ' = σ ∧ efs = [].
   Proof.
     intros (K' & e1 & e2 & Hctx & -> & Hstep)%prim_step_inv.
@@ -438,7 +436,7 @@ Section language.
   Qed.
 
   Lemma val_prim_step p v σ e' σ' efs :
-   ¬ prim_step p (of_val v) σ e' σ' efs.
+   ¬ prim_step p (of_val Λ v) σ e' σ' efs.
   Proof.
     intros (K & e1' & e2' & Heq & -> & Hstep') % prim_step_inv.
     edestruct (fill_val K e1') as (v1''& ?).
@@ -457,18 +455,18 @@ Section language.
   Qed.
 
   (** Lifting of steps to thread pools *)
-  Definition tpool Λ := list (expr Λ).
+  Definition tpool {val state} (Λ : language val state) := list (expr Λ).
   Implicit Types (T: tpool Λ).  (* thread pools *)
   Implicit Types (I J: list nat).       (* traces *)
   Implicit Types (O: gset nat).       (* trace sets *)
 
-  Inductive pool_step (p: prog Λ): tpool Λ → state Λ → nat → tpool Λ → state Λ → Prop :=
+  Inductive pool_step (p: prog Λ): tpool Λ → state → nat → tpool Λ → state → Prop :=
     | Pool_step i T_l e e' T_r efs σ σ':
         prim_step p e σ e' σ' efs →
         i = length T_l →
         pool_step p (T_l ++ e :: T_r) σ i (T_l ++ e' :: T_r ++ efs) σ'.
 
-  Inductive pool_steps (p: prog Λ): tpool Λ → state Λ → list nat → tpool Λ → state Λ → Prop :=
+  Inductive pool_steps (p: prog Λ): tpool Λ → state → list nat → tpool Λ → state → Prop :=
     | Pool_steps_refl T σ: pool_steps p T σ [] T σ
     | Pool_steps_step T T' T'' σ σ' σ'' i I:
       pool_step p T σ i T' σ' →
@@ -500,8 +498,8 @@ Section language.
 
   Lemma pool_step_value_preservation p v T σ i j T' σ':
     pool_step p T σ j T' σ' →
-    T !! i = Some (of_val v) →
-    T' !! i = Some (of_val v).
+    T !! i = Some (of_val Λ v) →
+    T' !! i = Some (of_val Λ v).
   Proof.
     rewrite pool_step_iff.
     destruct 1 as (e1 & e2 & efs & Hstep & Hpre & Hpost).
@@ -513,8 +511,8 @@ Section language.
 
   Lemma pool_steps_value_preservation p v T σ i J T' σ':
     pool_steps p T σ J T' σ' →
-    T !! i = Some (of_val v) →
-    T' !! i = Some (of_val v).
+    T !! i = Some (of_val Λ v) →
+    T' !! i = Some (of_val Λ v).
   Proof.
     induction 1; eauto using pool_step_value_preservation.
   Qed.
@@ -728,7 +726,7 @@ Section language.
   Lemma pool_safe_call_in_prg p K T T' i I σ σ' f vs:
     pool_safe p T σ →
     pool_steps p T σ I T' σ' →
-    T' !! i = Some (fill K (of_call f vs)) →
+    T' !! i = Some (fill K (of_call Λ f vs)) →
     ∃ fn', p !! f = Some fn'.
   Proof.
     destruct (p !! f) as [fn'|] eqn: Hloook; first by eauto.
@@ -796,7 +794,7 @@ Section language.
   Definition reach_stuck p e σ := pool_reach_stuck p [e] σ.
   Definition safe p e σ := pool_safe p [e] σ.
   Definition step_no_fork p e σ e' σ' := prim_step p e σ e' σ' [].
-  Inductive steps_no_fork (p: prog Λ): expr Λ → state Λ → expr Λ → state Λ → Prop :=
+  Inductive steps_no_fork (p: prog Λ): expr Λ → state → expr Λ → state → Prop :=
     | no_forks_refl e σ: steps_no_fork p e σ e σ
     | no_forks_step e e' e'' σ σ' σ'':
       step_no_fork p e σ e' σ' →
@@ -931,7 +929,7 @@ Section language.
 
   Lemma safe_call_in_prg p K e σ σ' f vs:
     safe p e σ →
-    steps_no_fork p e σ (fill K (of_call f vs)) σ' →
+    steps_no_fork p e σ (fill K (of_call Λ f vs)) σ' →
     ∃ fn, p !! f = Some fn.
   Proof.
     intros H1 (I & Hsteps)%no_forks_pool_steps_single_thread.
@@ -939,22 +937,22 @@ Section language.
   Qed.
 
   Lemma no_forks_val p v σ e' σ' :
-    steps_no_fork p (of_val v) σ e' σ' → e' = of_val v ∧ σ' = σ.
+    steps_no_fork p (of_val Λ v) σ e' σ' → e' = of_val Λ v ∧ σ' = σ.
   Proof.
     intros (I & Hsteps)%no_forks_pool_steps_single_thread.
     eapply pool_steps_values in Hsteps; first naive_solver.
-    intros e Hel. assert (e = of_val v) as -> by set_solver.
+    intros e Hel. assert (e = of_val Λ v) as -> by set_solver.
     rewrite to_of_val; eauto.
   Qed.
 
-  Lemma val_safe p v σ : safe p (of_val v) σ.
+  Lemma val_safe p v σ : safe p (of_val Λ v) σ.
   Proof.
     intros T' σ' I Hsteps e i Hlookup.
     eapply pool_steps_values in Hsteps as (-> & -> & ->); last first.
-    { intros e' Hel. assert (e' = of_val v) as -> by set_solver.
+    { intros e' Hel. assert (e' = of_val Λ v) as -> by set_solver.
       rewrite to_of_val; eauto. }
     rewrite list_lookup_singleton in Hlookup. destruct i; last done.
-    assert (e = of_val v) as -> by congruence.
+    assert (e = of_val Λ v) as -> by congruence.
     left. rewrite to_of_val. eauto.
   Qed.
 
@@ -991,20 +989,20 @@ End language.
 
 
 Section safe_reach.
-  Context {Λ : language}.
+  Context {val state} {Λ : language val state}.
 
   (** [post_in_ectx] allows ignoring arbitrary evaluation contexts
   around e and is meant as a combinator for the postcondition of
   [safe_reach]. *)
-  Definition post_in_ectx (Φ : expr Λ → state Λ → Prop) (e : expr Λ) (σ : state Λ) : Prop :=
+  Definition post_in_ectx (Φ : expr Λ → state → Prop) (e : expr Λ) (σ : state) : Prop :=
     ∃ Ks e', e = fill Ks e' ∧ Φ e' σ.
 
-  Lemma post_in_ectx_intro (Φ : expr Λ → state Λ → Prop) e σ:
+  Lemma post_in_ectx_intro (Φ : expr Λ → state → Prop) e σ:
     Φ e σ →
     post_in_ectx Φ e σ.
   Proof. eexists empty_ectx, e. rewrite fill_empty. naive_solver. Qed.
 
-  Lemma post_in_ectx_mono (Φ1 Φ2 : expr Λ → state Λ → Prop) e σ:
+  Lemma post_in_ectx_mono (Φ1 Φ2 : expr Λ → state → Prop) e σ:
     post_in_ectx Φ1 e σ →
     (∀ e σ, Φ1 e σ → Φ2 e σ) →
     post_in_ectx Φ2 e σ.
@@ -1013,7 +1011,7 @@ Section safe_reach.
   (** [safe_reach P e σ Φ] says that starting from e in state σ,
     under the assumption that this is a [safe] configuration,
      one can reach e' in σ' such that Φ e' σ' holds. *)
-  Definition safe_reach (P : prog Λ) (e : expr Λ) (σ : state Λ) (Φ : expr Λ → state Λ → Prop) : Prop :=
+  Definition safe_reach (P : prog Λ) (e : expr Λ) (σ : state) (Φ : expr Λ → state → Prop) : Prop :=
     safe P e σ → ∃ e' σ', steps_no_fork P e σ e' σ' ∧ Φ e' σ'.
 
   Lemma safe_reach_refl p e σ (Φ : _ → _ → Prop):
@@ -1094,8 +1092,8 @@ End safe_reach.
 
 
 (* discrete OFE instance for expr and thread_id *)
-Definition exprO {Λ : language} := leibnizO (expr Λ).
-Global Instance expr_equiv {Λ} : Equiv (expr Λ). apply exprO. Defined.
+Definition exprO {val state} {Λ : language val state} := leibnizO (expr Λ).
+Global Instance expr_equiv {val state} {Λ : language val state} : Equiv (expr Λ). apply exprO. Defined.
 
 Definition thread_idO := leibnizO thread_id.
 Global Instance thread_id_equiv : Equiv thread_id. apply thread_idO. Defined.
