@@ -5,6 +5,8 @@ From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
 
 
+Declare Scope expr_scope.
+Declare Scope val_scope.
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
