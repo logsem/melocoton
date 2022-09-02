@@ -92,10 +92,13 @@ Proof.
     - easy.
 Qed.
 
-Lemma melocoton_lang_mixin_C : 
+Definition fill (K : list ectx_item) (e : expr) : expr :=
+  @ectxi_language.fill (C_ectxi_lang (∅ : gmap _ _)) K e.
+
+Lemma melocoton_lang_mixin_C :
   @LanguageMixin expr val function (list ectx_item) state
                  of_class to_class
-                 nil (fun a b => b++a) (@ectxi_language.fill (C_ectxi_lang (∅:gmap _ _)))
+                 nil (fun a b => b++a) fill
                  (* subst_all free_vars *)
                  apply_function bogo_head_step'.
 Proof. split.
@@ -111,17 +114,17 @@ Proof. split.
   (* + intros g1 g2 e. apply subst_all_free_irrel. *)
   (* + intros xs e. apply subst_free_vars. *)
   + now intros e.
-  + intros K1 K2 e. now rewrite fill_app.
+  + intros K1 K2 e. now rewrite /fill fill_app.
   + intros K a b. apply ectx_language.fill_inj.
-  + apply fill_class.
-  + intros p. 
+  + unfold fill. apply fill_class.
+  + intros p. unfold fill.
     change ((@ectxi_language.fill (C_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (C_ectxi_lang p))).
     intros K' K_redec e1' e1_redex σ1 e2 σ2 efs H Heq (Hstep & ->)%bogo_head_step'_elim'.
     destruct (ectx_language.step_by_val K' K_redec e1' e1_redex σ1 nil e2 σ2 nil H) as [K'' HK''].
     1: now destruct e1'; cbn in *.
-    1: econstructor; apply Hstep.
+    1: by econstructor; apply Hstep.
     exists K''. apply HK''.
-  + intros p.
+  + intros p. unfold fill.
     change ((@ectxi_language.fill (C_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (C_ectxi_lang p))).
     intros K e σ1 e2 σ2 efs (Hstep & ->)%bogo_head_step'_elim'.
     change (gmap string function) with program in p.

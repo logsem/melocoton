@@ -2,14 +2,13 @@ From stdpp Require Import base gmap.
 From melocoton.interop Require Import basics.
 
 Section wrapperstate.
-Context {WPms: WrapperParameters}.
 
 Record wrapstateC : Type := WrapstateC {
   χC : lloc_map;
   ζC : lstore;
   θC : addr_map;
   rootsC : gset addr;
-  privσC : store;
+  privσC : ML_lang.store;
 
   χC_injective : ∀ ℓ1 ℓ2 γ,
     χC !! ℓ1 = Some γ → χC !! ℓ2 = Some γ → ℓ1 = ℓ2;

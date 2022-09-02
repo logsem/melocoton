@@ -1,9 +1,19 @@
 From Coq Require Import ZArith.
 From stdpp Require Import base gmap list.
-From melocoton.interop Require Export assums params.
+From melocoton.interop Require Export assums.
+From melocoton.c_toy_lang Require Import lang.
+
+(* the type of memory addresses used by the C semantics *)
+Notation addr := iris.heap_lang.locations.loc.
+(* C memory & values *)
+(* XXX could C_lang.state be directly a gmap? *)
+Notation memory := C_lang.state.
+Notation word := C_lang.val.
+(* ML memory & values *)
+Notation store := ML_lang.store.
+Notation val := ML_lang.val.
 
 Section basics.
-Context {WPms: WrapperParameters}.
 
 (* block-level "logical" values and store *)
 
@@ -36,7 +46,7 @@ Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
 Definition block :=
   (ismut * tag * list lval)%type.
 
-Definition lloc_map : Type := gmap loc lloc.
+Definition lloc_map : Type := gmap ML_lang.loc lloc.
 Implicit Type χ : lloc_map.
 Definition lstore : Type := gmap lloc block.
 Implicit Type ζ : lstore.
@@ -103,57 +113,58 @@ Inductive reachable : lstore → list lval → lloc → Prop :=
 
 (* C representation of block-level values, roots and memory *)
 
-Inductive repr_lval : addr_map → lval → word → Prop :=
+Inductive repr_lval : addr_map → lval → C_lang.val → Prop :=
   | repr_lint θ x :
-    repr_lval θ (Lint x) (encodeInt x)
+    repr_lval θ (Lint x) (LitV (LitInt x))
   | repr_lloc θ γ a :
     θ !! γ = Some a →
-    repr_lval θ (Lloc γ) (encodeAddr a).
+    repr_lval θ (Lloc γ) (LitV (LitLoc a)).
 
 Inductive repr_roots : addr_map → roots_map → memory → Prop :=
   | repr_roots_emp θ :
-    repr_roots θ ∅ ∅
+    repr_roots θ ∅ {| heap := ∅ |}
   | repr_roots_elem θ a v w roots mem :
     repr_roots θ roots mem →
     repr_lval θ v w →
     a ∉ dom roots →
-    a ∉ dom mem →
-    repr_roots θ (<[ a := v ]> roots) (<[ a := w ]> mem).
+    a ∉ dom (heap mem) →
+    repr_roots θ (<[ a := v ]> roots)
+                 {| heap := <[ a := Storing w ]> (heap mem) |}.
 
 Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
   ∃ memr, repr_roots θ roots memr ∧
-  privmem ##ₘ memr ∧
-  mem = memr ∪ privmem.
+  heap privmem ##ₘ heap memr ∧
+  heap mem = heap memr ∪ heap privmem.
 
 (* Block-level representation of ML values and store *)
 
 Inductive is_val : lloc_map → lstore → val → lval → Prop :=
   (* non-loc base literals *)
   | is_val_int χ ζ x :
-    is_val χ ζ (LitV (LitInt x)) (Lint x)
+    is_val χ ζ (ML_lang.LitV (ML_lang.LitInt x)) (Lint x)
   | is_val_bool χ ζ b :
-    is_val χ ζ (LitV (LitBool b)) (Lint (if b then 1 else 0))
+    is_val χ ζ (ML_lang.LitV (ML_lang.LitBool b)) (Lint (if b then 1 else 0))
   | is_val_unit χ ζ :
-    is_val χ ζ (LitV LitUnit) (Lint 0)
+    is_val χ ζ (ML_lang.LitV ML_lang.LitUnit) (Lint 0)
   (* locations *)
   | is_val_loc χ ζ ℓ γ :
     χ !! ℓ = Some γ →
-    is_val χ ζ (LitV (LitLoc ℓ)) (Lloc γ)
+    is_val χ ζ (ML_lang.LitV (ML_lang.LitLoc ℓ)) (Lloc γ)
   (* pairs *)
   | is_val_pair χ ζ v1 v2 γ lv1 lv2 :
     ζ !! γ = Some (Immut, TagDefault, [lv1; lv2]) →
     is_val χ ζ v1 lv1 →
     is_val χ ζ v2 lv2 →
-    is_val χ ζ (PairV v1 v2) (Lloc γ)
+    is_val χ ζ (ML_lang.PairV v1 v2) (Lloc γ)
   (* sum-type constructors *)
   | is_val_injl χ ζ v lv γ :
     ζ !! γ = Some (Immut, TagDefault, [lv]) →
     is_val χ ζ v lv →
-    is_val χ ζ (InjLV v) (Lloc γ)
+    is_val χ ζ (ML_lang.InjLV v) (Lloc γ)
   | is_val_injr χ ζ v lv γ :
     ζ !! γ = Some (Immut, TagInjRV, [lv]) →
     is_val χ ζ v lv →
-    is_val χ ζ (InjRV v) (Lloc γ).
+    is_val χ ζ (ML_lang.InjRV v) (Lloc γ).
 
 (* refs and arrays (stored in the ML store σ) all have the default tag. *)
 Definition is_block_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
