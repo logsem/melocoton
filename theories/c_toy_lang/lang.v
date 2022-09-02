@@ -154,6 +154,54 @@ Proof.
      end).
 Qed.
 
+
+Definition expr_val_ind (P : expr → Prop) (Pv : val → Prop):
+    (∀ v : val, P (Val v))
+  → (∀ x : string, P (Var x))
+  → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ e : expr, P e → P (Load e))
+  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
+  → (∀ e1 : expr, P e1 → P (Malloc e1))
+  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
+  → (∀ (op : un_op) (e : expr), P e → P (UnOp op e))
+  → (∀ (op : bin_op) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
+  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
+  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
+  → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
+  → (∀ (name : string) (arg : list expr), (forall ei, In ei arg -> P ei) -> P (Extern name arg))
+  → ∀ e : expr, P e.
+Proof.
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 => _).
+  refine (fix IH e {struct e} : P e := _).
+  refine (match e as e0 return (P e0) with
+     | Val v => H1 v
+     | Var x => H2 x
+     | Let x0 e3 e4 => H3 x0 e3 (IH e3) e4 (IH e4)
+     | Load e1 => H4 e1 (IH e1)
+     | Store e2 e3 => H5 e2 (IH e2) e3 (IH e3)
+     | Malloc e0 => H6 e0 (IH e0)
+     | Free e2 e3 => H7 e2 (IH e2) e3 (IH e3)
+     | UnOp op0 e1 => H8 op0 e1 (IH e1)
+     | BinOp op0 e3 e4 => H9 op0 e3 (IH e3) e4 (IH e4)
+     | If e3 e4 e5 =>  H10 e3 (IH e3) e4 (IH e4) e5 (IH e5)
+     | While e2 e3 => H11 e2 (IH e2) e3 (IH e3)
+     | FunCall e1 ee0 => H12 e1 (IH e1) ee0 
+          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x :=
+            match ll as ll0 return forall (x:expr) (i:In x ll0), P x
+            with nil => fun x i => False_rect _ i 
+            | ex::er => fun x i => match i with 
+                                     or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
+                                   | or_intror H2 => IHl er x H2 end end) ee0)
+     | Extern name0 arg0 => H13 name0 arg0
+          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x :=
+            match ll as ll0 return forall (x:expr) (i:In x ll0), P x
+            with nil => fun x i => False_rect _ i 
+            | ex::er => fun x i => match i with 
+                                     or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
+                                   | or_intror H2 => IHl er x H2 end end) arg0)
+     end).
+Qed.
+
 Definition expr_rec (P : expr → Set) :
     (∀ v : val, P (Val v))
   → (∀ x : string, P (Var x))
