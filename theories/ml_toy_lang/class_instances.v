@@ -1,5 +1,5 @@
 From iris.program_logic Require Export language.
-From melocoton.ml_toy_lang Require Export lang.
+From melocoton.ml_toy_lang Require Export lang iris_lang_instantiation.
 From melocoton.ml_toy_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 
