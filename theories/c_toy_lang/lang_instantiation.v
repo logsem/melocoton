@@ -99,7 +99,6 @@ Lemma melocoton_lang_mixin_C :
   @LanguageMixin expr val function (list ectx_item) state
                  of_class to_class
                  nil (fun a b => b++a) fill
-                 (* subst_all free_vars *)
                  apply_function bogo_head_step'.
 Proof. split.
   + apply to_of_cancel.
@@ -109,10 +108,6 @@ Proof. split.
     - intros H. inversion H; subst. inversion H0; subst. repeat econstructor; [apply H3|].
       rewrite <- H7. f_equal. eapply map_inj in H2; congruence.
     - intros ([args ee] & H1 & H2 & -> & ->). econstructor. cbn. by eapply FunCallS.
-  (* + apply subst_all_empty. *)
-  (* + intros e g1 g2. apply subst_all_comp. *)
-  (* + intros g1 g2 e. apply subst_all_free_irrel. *)
-  (* + intros xs e. apply subst_free_vars. *)
   + now intros e.
   + intros K1 K2 e. now rewrite /fill fill_app.
   + intros K a b. apply ectx_language.fill_inj.
