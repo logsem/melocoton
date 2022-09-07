@@ -61,11 +61,6 @@ Notation "'while:' e1 'do' e2" := (While e1%E e2%E)
 Notation "'call' ff '(' e1 , .. , en ')'" := (FunCall ff (cons e1 .. (cons en nil) ..))
   (at level 200, ff, e1, en at level 200) : expr_scope.
 
-Notation "'extern' ff '(' e1 , .. , en ')'" := (Extern ff (cons e1 .. (cons en nil) ..))
-  (at level 200, ff, e1, en at level 200) : expr_scope.
-
-
-
 Notation "'let:' x := e1 'in' e2" := (Let x%binder e1%E e2%E)
   (at level 200, x at level 1, e1, e2 at level 200,
    format "'[' 'let:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : expr_scope.

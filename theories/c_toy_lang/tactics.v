@@ -22,7 +22,6 @@ Ltac reshape_expr e tac :=
     | If ?e0 ?e1 ?e2                  => add_item (IfCtx e1 e2) K e0
     | FunCall (Val ?vf) ?ea           => list_add_item (FunCallRCtx vf) (FunCall (Val vf)) (@nil val) (@None expr) (@nil expr) ea K
     | FunCall ?ef ?ea                 => add_item (FunCallLCtx ea) K ef
-    | Extern ?s ?ea                   => list_add_item (ExternCtx s) (Extern s) (@nil val) (@None expr) (@nil expr) ea K
     | _                               => tac K e
     end
   with add_item Ki K e := go (Ki :: K) e

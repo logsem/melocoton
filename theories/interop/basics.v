@@ -122,19 +122,19 @@ Inductive repr_lval : addr_map → lval → C_lang.val → Prop :=
 
 Inductive repr_roots : addr_map → roots_map → memory → Prop :=
   | repr_roots_emp θ :
-    repr_roots θ ∅ {| heap := ∅ |}
+    repr_roots θ ∅ ∅
   | repr_roots_elem θ a v w roots mem :
     repr_roots θ roots mem →
     repr_lval θ v w →
     a ∉ dom roots →
-    a ∉ dom (heap mem) →
+    a ∉ dom (mem) →
     repr_roots θ (<[ a := v ]> roots)
-                 {| heap := <[ a := Storing w ]> (heap mem) |}.
+                 (<[ a := Storing w ]> mem).
 
 Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
   ∃ memr, repr_roots θ roots memr ∧
-  heap privmem ##ₘ heap memr ∧
-  heap mem = heap memr ∪ heap privmem.
+  privmem ##ₘ memr ∧
+  mem = memr ∪ privmem.
 
 (* Block-level representation of ML values and store *)
 

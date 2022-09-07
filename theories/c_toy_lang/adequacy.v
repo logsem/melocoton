@@ -32,13 +32,13 @@ Proof.
   apply adequate_alt; intros t2 σ2 [n [κs ?]]%erased_steps_nsteps.
   eapply (wp_strong_adequacy Σ _); [|done].
   iIntros (Hinv).
-  iMod (gen_heap_init σ.(heap)) as (?) "[Hh _]".
+  iMod (gen_heap_init σ) as (?) "[Hh _]".
   iMod (inv_heap_init loc (heap_cell)) as (?) ">Hi".
   iMod (proph_map_init nil ∅) as (?) "Hp".
   iMod (mono_nat_own_alloc) as (γ) "[Hsteps _]".
   iDestruct (Hwp (HeapGS _ _ _ _ _ _ _ _) with "Hi") as "Hwp".
   iModIntro.
-  iExists (λ σ ns κs nt, (gen_heap_interp σ.(heap) ∗
+  iExists (λ σ ns κs nt, (gen_heap_interp σ ∗
                           mono_nat_auth_own γ 1 ns))%I.
   iExists [(λ v, ⌜φ v⌝%I)], (λ _, True)%I, _ => /=.
   iFrame.

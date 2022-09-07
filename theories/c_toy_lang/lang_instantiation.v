@@ -38,7 +38,7 @@ Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
 Proof.
   induction le in lv|-*.
   - intros H. injection H. intros <-. easy.
-  - cbn. destruct a. 2-13:congruence.
+  - cbn. destruct a. 2-12:congruence.
     destruct (unmap_val le) eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
@@ -47,7 +47,7 @@ Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
 Proof.
   destruct e; cbn; try congruence.
   - intros H. injection H. intros <-. easy.
-  - destruct e. 2-13: congruence. destruct v. destruct l. 1-2: congruence.
+  - destruct e. 2-12: congruence. destruct v. destruct l. 1-2: congruence.
     destruct unmap_val eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
 Qed.

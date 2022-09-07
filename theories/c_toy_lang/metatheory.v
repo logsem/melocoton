@@ -26,7 +26,6 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | If e0 e1 e2  =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | FunCall ef ea => is_closed_expr X ef && forallb (is_closed_expr X) ea
-  | Extern _ ea => forallb (is_closed_expr X) ea
   | _ => true
   end.
 
@@ -43,9 +42,6 @@ Proof.
     - now apply IHe with X, HXY.
     - apply forallb_True, Forall_forall. intros x Hx. apply H with X. 
       3: assumption. 1: now apply elem_of_list_In. rewrite Forall_forall in H2. now apply H2.
-  + cbn. intros X Y H2%forallb_True HXY.
-    apply forallb_True, Forall_forall. intros x Hx. apply H with X. 
-    3: assumption. 1: now apply elem_of_list_In. rewrite Forall_forall in H2. now apply H2.
 Qed.
 
 Lemma is_closed_weaken_empty X e : is_closed_expr ∅ e → is_closed_expr X e.
@@ -69,12 +65,6 @@ Proof with eauto using is_closed_weaken with set_solver.
         -- set_solver.
         -- set_solver.
   - rewrite forallb_True. rewrite forallb_True in H1.
-    rewrite Forall_forall. rewrite Forall_forall in H1.
-    intros x [xx [<- Hin]]%elem_of_list_In%in_map_iff.
-    apply H. 1:easy. apply H1. now apply elem_of_list_In.
-  - rewrite forallb_True.
-    (* stupid ssreflect *) match goal with HH : Is_true ?H |- _ => rename HH into H1 end.
-    rewrite forallb_True in H1.
     rewrite Forall_forall. rewrite Forall_forall in H1.
     intros x [xx [<- Hin]]%elem_of_list_In%in_map_iff.
     apply H. 1:easy. apply H1. now apply elem_of_list_In.
@@ -105,9 +95,6 @@ Proof.
   - fold is_closed_expr in *. erewrite map_ext_in. 1: apply map_id.
     intros ea Hin. cbn. eapply H. 1:easy. 2: apply H1.
     rewrite forallb_True in H3. rewrite List.Forall_forall in H3. now apply H3.
-  - fold is_closed_expr in *. erewrite map_ext_in. 1: apply map_id.
-    intros ea Hin. cbn. eapply H. 1:easy. 2: apply H1.
-    rewrite forallb_True in H0. rewrite List.Forall_forall in H0. now apply H0.
 Qed.
 
 Lemma subst_is_closed X e x es : is_closed_expr X e → x ∉ X → subst x es e = e.
@@ -131,8 +118,6 @@ Proof.
     + cbn. auto using subst_is_closed_empty with f_equal.
     + cbn. rewrite delete_union. auto using subst_is_closed_empty with f_equal.
   - f_equal. 1:easy. erewrite map_map. apply map_ext_in.
-    intros a Ha. now apply H.
-  - f_equal. erewrite map_map. apply map_ext_in.
     intros a Ha. now apply H.
 Qed.
 
@@ -201,7 +186,6 @@ Proof.
   induction e; simplify_map_eq; auto with f_equal.
   + destruct x. 2: rewrite delete_empty. all: simplify_map_eq; rewrite ?Hdel; auto with f_equal.
   + rewrite IHe. f_equal. erewrite map_ext_in. 1: apply map_id. intros a Ha. now apply H.
-  + f_equal. erewrite map_ext_in. 1: apply map_id. intros a Ha. now apply H.
 Qed.
 
 Lemma subst_all_insert x v vs e :
@@ -258,7 +242,6 @@ Fixpoint free_vars (e : expr) : stringset :=
   | If e0 e1 e2  =>
      free_vars e0 ∪ free_vars e1 ∪ free_vars e2
   | FunCall ef ea => free_vars ef ∪ union_list (map free_vars ea)
-  | Extern _ ea => union_list (map free_vars ea)
   | _ => ∅
   end.
 
@@ -276,12 +259,6 @@ Proof.
     set_solver.
   - apply andb_prop_intro. split. 1:set_solver. cbn in Hfree.
     clear IHe. induction ee as [|ea ee IHee]; last (cbn; apply andb_prop_intro; split).
-    + easy.
-    + apply H. 1: now left. cbn in Hfree.
-      set_solver.
-    + apply IHee. 2: cbn in Hfree; set_solver.
-      intros ei Hin X0. apply H. now right.
-  - induction arg as [|ea ee IHee]; last (cbn; apply andb_prop_intro; split).
     + easy.
     + apply H. 1: now left. cbn in Hfree.
       set_solver.
@@ -317,10 +294,6 @@ Proof.
   - cbn. erewrite IHe. 1: erewrite map_ext_in. 1:reflexivity. 2:intros ??; set_solver.
     intros a Ha. apply H0. 1:easy. intros x Hx. apply H. cbn. 
     apply elem_of_union_r, elem_of_union_list. exists (free_vars a); split; last done.
-    apply elem_of_list_In, in_map_iff. eexists; done.
-  - cbn. erewrite map_ext_in. 1:reflexivity.
-    intros a Ha. apply H0. 1:easy. intros x Hx. apply H. cbn. 
-    apply elem_of_union_list. exists (free_vars a); split; last done.
     apply elem_of_list_In, in_map_iff. eexists; done.
 Qed.
 
@@ -358,7 +331,5 @@ Proof.
   - cbn. rewrite IHe1 IHe2. set_solver.
   - cbn. rewrite IHe. rewrite map_map. erewrite map_ext_in. 2: intros a Ha; by apply H.
     rewrite difference_union_distr_l_L. f_equal.
-    rewrite <- union_list_map_delete. now rewrite map_map.
-  - cbn. rewrite map_map. erewrite map_ext_in. 2: intros a Ha; by apply H.
     rewrite <- union_list_map_delete. now rewrite map_map.
 Qed.

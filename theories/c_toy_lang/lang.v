@@ -46,9 +46,7 @@ Inductive expr :=
   (* Control flow *)
   | If (e0 e1 e2 : expr)
   | While (e0 e1 : expr)
-  | FunCall (e0 : expr) (ee : list expr)
-  (* Extern *)
-  | Extern (name : string) (arg : list expr).
+  | FunCall (e0 : expr) (ee : list expr).
 Set Elimination Schemes.
 
 Fixpoint In2 {A} (a : A) (l : list A) : Type := match l with nil => False | b :: m => sum (b = a) (In2 a m) end.
@@ -73,10 +71,9 @@ Definition expr_rect (P : expr → Type) :
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
-  → (∀ (name : string) (arg : list expr), (forall ei, In2 ei arg -> P ei) -> P (Extern name arg))
   → ∀ e : expr, P e.
 Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 => _).
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 => _).
   refine (fix IH e {struct e} : P e := _).
   refine (match e as e0 return (P e0) with
      | Val v => H1 v
@@ -97,13 +94,6 @@ Proof.
             | ex::er => fun x i => match i with 
                                      inl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
                                    | inr H2 => IHl er x H2 end end) ee0)
-     | Extern name0 arg0 => H13 name0 arg0
-          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In2 x ll), P x :=
-            match ll as ll0 return forall (x:expr) (i:In2 x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
-                                     inl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
-                                   | inr H2 => IHl er x H2 end end) arg0)
      end).
 Defined.
 
@@ -120,10 +110,9 @@ Definition expr_ind (P : expr → Prop) :
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
-  → (∀ (name : string) (arg : list expr), (forall ei, In ei arg -> P ei) -> P (Extern name arg))
   → ∀ e : expr, P e.
 Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 => _).
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 => _).
   refine (fix IH e {struct e} : P e := _).
   refine (match e as e0 return (P e0) with
      | Val v => H1 v
@@ -144,13 +133,6 @@ Proof.
             | ex::er => fun x i => match i with 
                                      or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
                                    | or_intror H2 => IHl er x H2 end end) ee0)
-     | Extern name0 arg0 => H13 name0 arg0
-          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x :=
-            match ll as ll0 return forall (x:expr) (i:In x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
-                                     or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
-                                   | or_intror H2 => IHl er x H2 end end) arg0)
      end).
 Qed.
 
@@ -168,10 +150,9 @@ Definition expr_val_ind (P : expr → Prop) (Pv : val → Prop):
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
-  → (∀ (name : string) (arg : list expr), (forall ei, In ei arg -> P ei) -> P (Extern name arg))
   → ∀ e : expr, P e.
 Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 => _).
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 => _).
   refine (fix IH e {struct e} : P e := _).
   refine (match e as e0 return (P e0) with
      | Val v => H1 v
@@ -192,13 +173,6 @@ Proof.
             | ex::er => fun x i => match i with 
                                      or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
                                    | or_intror H2 => IHl er x H2 end end) ee0)
-     | Extern name0 arg0 => H13 name0 arg0
-          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x :=
-            match ll as ll0 return forall (x:expr) (i:In x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
-                                     or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
-                                   | or_intror H2 => IHl er x H2 end end) arg0)
      end).
 Qed.
 
@@ -215,7 +189,6 @@ Definition expr_rec (P : expr → Set) :
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
-  → (∀ (name : string) (arg : list expr), (forall ei, In2 ei arg -> P ei) -> P (Extern name arg))
   → ∀ e : expr, P e.
 Proof.
   apply expr_rect.
@@ -273,14 +246,6 @@ Proof.
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | While e1 e2, While e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | Extern x e, Extern x' e' => 
-        let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
-                       match l1, l2 with
-                       | nil, nil => left eq_refl
-                       | xl::xr, xl'::xr' => cast_if_and (decide (xl = xl')) (decide (xr = xr'))
-                       | _, _ => right _
-                       end)
-        in cast_if_and (decide (x = x')) (@decide (e = e') (gol _ _))
      | FunCall x el, FunCall x' el' => 
         let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
                        match l1, l2 with
@@ -299,9 +264,10 @@ Notation Uninitialized := (Some None : heap_cell).
 Notation Storing v := (Some (Some v) : heap_cell).
 
 (** The state: heaps of heap_cells. *)
-Record state : Type := {
+(*Record state : Type := {
   heap: gmap loc heap_cell
-}.
+}.*)
+Definition state : Type := gmap loc heap_cell.
 
 Class program := prog : gmap string function.
 
@@ -360,7 +326,6 @@ Proof. (* string + binder + un_op + bin_op + val *)
      | If e0 e1 e2 => GenNode 8 [go e0; go e1; go e2]
      | While e1 e2 => GenNode 9 [go e1; go e2]
      | FunCall ef ea => GenNode 10 (go ef :: map go ea)
-     | Extern s ea => GenNode 11 (GenLeaf (inl s) :: map go ea)
      end).
  set (dec :=
    fix go e :=
@@ -377,19 +342,18 @@ Proof. (* string + binder + un_op + bin_op + val *)
      | GenNode 8 [e0; e1; e2] => If (go e0) (go e1) (go e2)
      | GenNode 9 [e1; e2] => While (go e1) (go e2)
      | GenNode 10 (ef :: ea) => FunCall (go ef) (map go ea)
-     | GenNode 11 (GenLeaf (inl s) :: ea) => Extern s (map go ea)
      | _ => Val $ LitV (LitInt 0) (* dummy *)
      end).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ ).
- destruct e as [ | | | | | | | | | | |ef ee|s ee]; simpl; f_equal.
+ destruct e as [ | | | | | | | | | | |ef ee]; simpl; f_equal.
  1-17: done.
  all: unfold map; by induction ee as [|ex er ->]; simpl; f_equal.
 Qed.
 
 
 Global Instance state_inhabited : Inhabited state :=
-  populate {| heap := inhabitant |}.
+  populate inhabitant.
 Global Instance val_inhabited : Inhabited val := populate (LitV (LitInt 0)).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
@@ -412,8 +376,7 @@ Inductive ectx_item :=
   | BinOpLCtx (op : bin_op) (e2 : expr)
   | IfCtx (e1 e2 : expr)
   | FunCallLCtx (ea : list expr)
-  | FunCallRCtx (vf : val) (va : list val) (ve : list expr)
-  | ExternCtx (s : string) (va : list val) (ve : list expr).
+  | FunCallRCtx (vf : val) (va : list val) (ve : list expr).
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -430,7 +393,6 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | IfCtx e1 e2 => If e e1 e2
   | FunCallLCtx ea => FunCall e ea
   | FunCallRCtx vf va ve => FunCall (of_val vf) (map of_val va ++ [e] ++ ve)
-  | ExternCtx s va ve => Extern s (map of_val va ++ [e] ++ ve)
   end.
 
 (** Substitution *)
@@ -449,7 +411,6 @@ Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
   | If e0 e1 e2 => If (subst_all g e0) (subst_all g e1) (subst_all g e2)
   | While e1 e2 => While (subst_all g e1) (subst_all g e2)
   | FunCall ef ea => FunCall (subst_all g ef) (map (subst_all g) ea)
-  | Extern s ea => Extern s (map (subst_all g) ea)
   end.
 
 Definition subst (x : string) (v : val) (e : expr) : expr :=
@@ -505,7 +466,7 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option base_lit :=
   | _,_ => False end.
 
 Definition state_upd_heap (f: gmap loc heap_cell → gmap loc heap_cell) (σ: state) : state :=
-  {| heap := f σ.(heap)  |}.
+  f σ.
 Global Arguments state_upd_heap _ !_ /.
 
 Fixpoint heap_array (l : loc) (vs : list heap_cell) : gmap loc heap_cell :=
@@ -554,7 +515,7 @@ Definition state_init_heap (l : loc) (n : Z) (v : heap_cell) (σ : state) : stat
 Lemma state_init_heap_singleton l v σ :
   state_init_heap l 1 v σ = state_upd_heap <[l:=v]> σ.
 Proof.
-  destruct σ as [h]. rewrite /state_init_heap /=. f_equiv.
+  rewrite /state_init_heap /= /state_upd_heap.
   rewrite right_id insert_union_singleton_l. done.
 Qed.
 
@@ -580,19 +541,19 @@ Inductive head_step (p : program) : expr → state → expr → state → Prop :
      ee = subst' x v1 e2 ->
      head_step p (Let x (Val v1) e2) σ ee σ
   | LoadS l v σ :
-     σ.(heap) !! l = Some $ Storing v →
+     σ !! l = Some $ Storing v →
      head_step p (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
   | StoreS l k w σ :
-     σ.(heap) !! l = Some $ (Some k) →
+     σ !! l = Some $ (Some k) →
      head_step p (Store (Val $ LitV $ LitLoc l) (Val w)) σ
                (Val $ LitV LitUnit) (state_upd_heap <[l:=Storing w]> σ)
   | MallocS n σ l :
      (0 < n)%Z →
-     (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ.(heap) !! (l +ₗ i) = None) →
+     (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ !! (l +ₗ i) = None) →
      head_step p (Malloc (Val $ LitV $ LitInt n)) σ
                (Val $ LitV $ LitLoc l) (state_init_heap l n Uninitialized σ)
   | FreeS l n v σ :
-     σ.(heap) !! l = Some $ (Some v) →
+     σ !! l = Some $ (Some v) →
      head_step p (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt n)) σ
                (Val $ LitV LitUnit) (state_init_heap l n Deallocated σ)
   | UnOpS op v v' σ :
@@ -628,7 +589,7 @@ Proof. destruct 1; naive_solver. Qed.
 
 Lemma head_ctx_step_val p Ki e σ1 e2 σ2 :
   head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_val e).
-Proof. revert e2. induction Ki. 1-12,14: inversion_clear 1; simplify_option_eq; eauto.
+Proof. revert e2. induction Ki. 1-12: inversion_clear 1; simplify_option_eq; eauto.
        - inversion 1. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
          apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
 Qed.
@@ -673,17 +634,10 @@ Proof.
     + by rewrite H1.
     + by rewrite H2.
     + f_equal. apply (map_inj Val). 2:easy. congruence.
-  - intros H1 H2 H3. cbn in H3. injection H3. intros H4 ->.
-    edestruct (list_eq_sliced _ _ _ _ _ _ (fun x => is_Some (to_val x)) H4) as (Heq & -> & ->).
-    + by intros k [k' [<- Hk']]%in_map_iff.
-    + by intros k [k' [<- Hk']]%in_map_iff.
-    + by rewrite H1.
-    + by rewrite H2.
-    + f_equal. apply (map_inj Val). 2:easy. congruence.
 Qed.
 
 Lemma alloc_fresh p n σ :
-  let l := fresh_locs (dom σ.(heap)) in
+  let l := fresh_locs (dom σ) in
   (0 < n)%Z →
   head_step p (Malloc ((Val $ LitV $ LitInt $ n))) σ
             (Val $ LitV $ LitLoc l) (state_init_heap l n Uninitialized σ).

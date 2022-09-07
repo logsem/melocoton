@@ -63,7 +63,7 @@ End steps.
 Global Program Instance heapGS_irisGS {p:program} `{heapGS_gen hlc Σ} : irisGS_gen hlc (C_lang p) Σ := {
   iris_invGS := heapGS_invGS;
   state_interp σ step_cnt κs _ :=
-    (gen_heap_interp σ.(heap) ∗ steps_auth step_cnt)%I;
+    (gen_heap_interp σ ∗ steps_auth step_cnt)%I;
   fork_post _ := True%I;
   num_laters_per_step n := n;
 }.
@@ -383,9 +383,8 @@ Proof.
   iIntros (σ1 ns κs nt) "(Hσ & Hsteps) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto with head_step.
   iIntros (κ v2 σ2 efs Hstep); inv_head_step.
-  rewrite map_union_empty.
-  rewrite <- insert_union_singleton_l.
-  iMod (gen_heap_update (heap σ1) l (Some v) Deallocated with "Hσ Hl") as "[$ Hl]".
+  rewrite state_init_heap_singleton.
+  iMod (gen_heap_update (σ1) l (Some v) Deallocated with "Hσ Hl") as "[$ Hl]".
   iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iModIntro. iSplit; first done. iSplit; first done. iFrame. by iApply "HΦ".
 Qed.
