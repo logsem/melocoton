@@ -80,11 +80,18 @@ Section language_mixin.
        there some pattern or reduncancy here? *)
     mixin_head_ctx_step_val p K e σ1 e2 σ2 efs :
       head_step p (fill K e) σ1 e2 σ2 efs → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
+
+(*
+    mixin_find_call_in_ctx e : 
+      {v & e = of_class (ExprVal v)} +
+      {K : ectx & {s : string & {vl : list val & e = fill K (of_class (ExprCall s vl))}}} +
+      ((forall v, e <> of_class (ExprVal v)) →
+       (forall K s vl, e <> fill K (of_class (ExprCall s vl)))) *)
   }.
 End language_mixin.
 
 Arguments mixin_expr_class : clear implicits.
-Local Notation mixin_prog func := (gmap string func).
+Global Notation mixin_prog func := (gmap string func).
 
 Structure language {val : Type} {public_state : Type} := Language {
   expr : Type;
@@ -468,6 +475,27 @@ Section language.
     eapply head_reducible_prim_step_ctx in Hprim as (e1' & -> & Hhead'); last by rewrite /head_reducible; eauto.
     eexists. rewrite -fill_comp; by eauto using Prim_step'.
   Qed.
+(*
+  Inductive lang_cases : expr Λ -> Type :=
+    E_val (v:val) : lang_cases (of_class Λ (ExprVal v))
+  | E_call K s vl : lang_cases (fill K (of_class Λ (ExprCall s vl)))
+  | E_plain e :
+      (forall v, e <> of_class Λ (ExprVal v)) →
+      (forall K s vl, e <> fill K (of_class Λ (ExprCall s vl))) →
+      lang_cases e.
+
+  Derive Dependent Inversion lang_cases_invert with (forall e, lang_cases e) Sort Type.
+
+  Definition lang_cases_characterize e : {H : lang_cases e & forall H', H = H'}.
+  Proof. Check mixin_find_call_in_ctx.
+    destruct (mixin_find_call_in_ctx _ _ _ _ _ _ _ _ (language_mixin _) e) as [[(v&->)|(K&s&vl&->)]|H].
+    - exists (E_val v). assert (forall e' (H' : lang_cases e') (Heq:e'=(of_class Λ (ExprVal v))), 
+        match Heq in (_ = e'') return lang_cases e'' with eq_refl _ => H' end = E_val v) as Hmatch.
+        2: { intros H. now rewrite (Hmatch _ H  eq_refl). }
+        intros e'. apply (lang_cases_invert e' (fun e' (H' : lang_cases e') => forall (Heq:e'=(of_class Λ (ExprVal v))),
+        match Heq in (_ = e'') return lang_cases e'' with eq_refl _ => H' end = E_val v)).
+        + intros H' v0 <-. H'0. ->.
+    - *)
 
   (** Lifting of steps to thread pools *)
   Definition tpool {val public_state} (Λ : language val public_state) := list (expr Λ).
