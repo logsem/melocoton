@@ -43,9 +43,9 @@ Section atomic.
   Proof. solve_atomic. Qed.
 
   Global Instance alloc_atomic s v w : Atomic s (AllocN (Val v) (Val w)).
-  Proof. solve_atomic. Qed.
+  Proof. solve_atomic. Qed. (*
   Global Instance free_atomic s v : Atomic s (Free (Val v)).
-  Proof. solve_atomic. Qed.
+  Proof. solve_atomic. Qed.*)
   Global Instance load_atomic s v : Atomic s (Load (Val v)).
   Proof. solve_atomic. Qed.
   Global Instance store_atomic s v1 v2 : Atomic s (Store (Val v1) (Val v2)).

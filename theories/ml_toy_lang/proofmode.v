@@ -339,6 +339,7 @@ Proof.
   apply wand_intro_l. by rewrite (sep_elim_l (l ↦ v)%I) right_id wand_elim_r.
 Qed.
 
+(*
 Lemma tac_wp_free Δ Δ' s E i K l v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (false, l ↦ v)%I →
@@ -363,7 +364,7 @@ Proof.
   rewrite envs_lookup_split //; simpl.
   rewrite -Hfin wand_elim_r (envs_lookup_sound' _ _ _ _ _ Hlk).
   apply sep_mono_r, wand_intro_r. rewrite right_id //.
-Qed.
+Qed. *)
 
 Lemma tac_wp_load Δ Δ' s E i K b l q v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
@@ -704,6 +705,7 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
 Tactic Notation "wp_alloc" ident(l) :=
   wp_alloc l as "?".
 
+(*
 Tactic Notation "wp_free" :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
@@ -724,7 +726,7 @@ Tactic Notation "wp_free" :=
     [solve_mapsto ()
     |pm_reduce; wp_finish]
   | _ => fail "wp_free: not a 'wp'"
-  end.
+  end. *)
 
 Tactic Notation "wp_load" :=
   let solve_mapsto _ :=

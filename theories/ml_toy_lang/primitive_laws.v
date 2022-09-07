@@ -13,8 +13,8 @@ From iris.prelude Require Import options.
 
 Class heapGS_gen hlc Σ := HeapGS {
   heapGS_invGS : invGS_gen hlc Σ;
-  heapGS_gen_heapGS :> gen_heapGS loc (option val) Σ;
-  heapGS_inv_heapGS :> inv_heapGS loc (option val) Σ;
+  heapGS_gen_heapGS :> gen_heapGS loc val Σ;
+  heapGS_inv_heapGS :> inv_heapGS loc val Σ;
   heapGS_proph_mapGS :> proph_mapGS proph_id (val * val) Σ;
   heapGS_step_name : gname;
   heapGS_step_cnt : mono_natG Σ;
@@ -63,7 +63,7 @@ End steps.
 Global Program Instance heapGS_irisGS {p:ml_program} `{!heapGS_gen hlc Σ} : irisGS_gen hlc (ml_toy_lang p) Σ := {
   iris_invGS := heapGS_invGS;
   state_interp σ step_cnt κs _ :=
-    (gen_heap_interp σ.(heap) ∗ 
+    (gen_heap_interp σ ∗ 
      steps_auth step_cnt)%I;
   fork_post _ := True%I;
   num_laters_per_step n := n;
@@ -73,17 +73,17 @@ Next Obligation.
   by iMod (steps_auth_update_S with "H") as "$".
 Qed.
 
-(** Since we use an [option val] instance of [gen_heap], we need to overwrite
+(** Since we use an [val] instance of [gen_heap], we need to overwrite
 the notations.  That also helps for scopes and coercions. *)
 (** FIXME: Refactor these notations using custom entries once Coq bug #13654
 has been fixed. *)
-Notation "l ↦{ dq } v" := (mapsto (L:=loc) (V:=option val) l dq (Some v%V))
+Notation "l ↦{ dq } v" := (mapsto (L:=loc) (V:=val) l dq (v%V))
   (at level 20, format "l  ↦{ dq }  v") : bi_scope.
-Notation "l ↦□ v" := (mapsto (L:=loc) (V:=option val) l DfracDiscarded (Some v%V))
+Notation "l ↦□ v" := (mapsto (L:=loc) (V:=val) l DfracDiscarded (v%V))
   (at level 20, format "l  ↦□  v") : bi_scope.
-Notation "l ↦{# q } v" := (mapsto (L:=loc) (V:=option val) l (DfracOwn q) (Some v%V))
+Notation "l ↦{# q } v" := (mapsto (L:=loc) (V:=val) l (DfracOwn q) (v%V))
   (at level 20, format "l  ↦{# q }  v") : bi_scope.
-Notation "l ↦ v" := (mapsto (L:=loc) (V:=option val) l (DfracOwn 1) (Some v%V))
+Notation "l ↦ v" := (mapsto (L:=loc) (V:=val) l (DfracOwn 1) (v%V))
   (at level 20, format "l  ↦  v") : bi_scope.
 
 (** Same for [gen_inv_heap], except that these are higher-order notations so to
@@ -92,15 +92,15 @@ here. *)
 Section definitions.
   Context `{!heapGS_gen hlc Σ}.
   Definition inv_mapsto_own (l : loc) (v : val) (I : val → Prop) : iProp Σ :=
-    inv_mapsto_own l (Some v) (from_option I False).
+    inv_mapsto_own l v I.
   Definition inv_mapsto (l : loc) (I : val → Prop) : iProp Σ :=
-    inv_mapsto l (from_option I False).
+    inv_mapsto l I.
 End definitions.
 
 Global Instance: Params (@inv_mapsto_own) 4 := {}.
 Global Instance: Params (@inv_mapsto) 3 := {}.
 
-Notation inv_heap_inv := (inv_heap_inv loc (option val)).
+Notation inv_heap_inv := (inv_heap_inv loc val).
 Notation "l '↦_' I □" := (inv_mapsto l I%stdpp%type)
   (at level 20, I at level 9, format "l  '↦_' I  '□'") : bi_scope.
 Notation "l ↦_ I v" := (inv_mapsto_own l v I%stdpp%type)
@@ -188,7 +188,7 @@ Qed.
 (** Heap *)
 
 (** We need to adjust the [gen_heap] and [gen_inv_heap] lemmas because of our
-value type being [option val]. *)
+value type being [val]. *)
 
 Lemma mapsto_valid l dq v : l ↦{dq} v -∗ ⌜✓ dq⌝.
 Proof. apply mapsto_valid. Qed.
@@ -219,14 +219,12 @@ Proof. apply mapsto_persist. Qed.
 Global Instance inv_mapsto_own_proper l v :
   Proper (pointwise_relation _ iff ==> (≡)) (inv_mapsto_own l v).
 Proof.
-  intros I1 I2 HI. rewrite /inv_mapsto_own. f_equiv=>-[w|]; last done.
-  simpl. apply HI.
+  intros I1 I2 HI. rewrite /inv_mapsto_own. f_equiv; done.
 Qed.
 Global Instance inv_mapsto_proper l :
   Proper (pointwise_relation _ iff ==> (≡)) (inv_mapsto l).
 Proof.
-  intros I1 I2 HI. rewrite /inv_mapsto. f_equiv=>-[w|]; last done.
-  simpl. apply HI.
+  intros I1 I2 HI. rewrite /inv_mapsto. f_equiv; done.
 Qed.
 
 Lemma make_inv_mapsto l v (I : val → Prop) E :
@@ -246,7 +244,7 @@ Proof.
   iIntros (?) "#Hinv".
   iMod (inv_mapsto_own_acc_strong with "Hinv") as "Hacc"; first done.
   iIntros "!>" (l v I) "Hl". iDestruct ("Hacc" with "Hl") as "(% & Hl & Hclose)".
-  iFrame "%∗". iIntros (w) "% Hl". iApply "Hclose"; done.
+  iFrame "%∗".
 Qed.
 
 Lemma inv_mapsto_own_acc E l v I:
@@ -256,7 +254,7 @@ Lemma inv_mapsto_own_acc E l v I:
 Proof.
   iIntros (?) "#Hinv Hl".
   iMod (inv_mapsto_own_acc with "Hinv Hl") as "(% & Hl & Hclose)"; first done.
-  iFrame "%∗". iIntros "!>" (w) "% Hl". iApply "Hclose"; done.
+  iFrame "%∗". by iModIntro.
 Qed.
 
 Lemma inv_mapsto_acc l I E :
@@ -265,7 +263,7 @@ Lemma inv_mapsto_acc l I E :
     ∃ v, ⌜I v⌝ ∗ l ↦ v ∗ (l ↦ v ={E ∖ ↑inv_heapN, E}=∗ ⌜True⌝).
 Proof.
   iIntros (?) "#Hinv Hl".
-  iMod (inv_mapsto_acc with "Hinv Hl") as ([v|]) "(% & Hl & Hclose)"; [done| |done].
+  iMod (inv_mapsto_acc with "Hinv Hl") as (v) "(% & Hl & Hclose)"; [done|].
   iIntros "!>". iExists (v). iFrame "%∗".
 Qed.
 
@@ -279,7 +277,7 @@ Proof.
   iIntros (<-) "Hvs". iInduction vs as [|v vs] "IH" forall (l)=> //=.
   rewrite big_opM_union; last first.
   { apply map_disjoint_spec=> l' v1 v2 /lookup_singleton_Some [-> _].
-    intros (j&w&?&Hjl&?&?)%heap_array_lookup.
+    intros (j&w&Hjl&?)%heap_array_lookup.
     rewrite loc_add_assoc -{1}[l']loc_add_0 in Hjl. simplify_eq; lia. }
   rewrite loc_add_0 -fmap_S_seq big_sepL_fmap.
   setoid_rewrite Nat2Z.inj_succ. setoid_rewrite <-Z.add_1_l.
@@ -295,7 +293,7 @@ Proof.
   { done. }
   rewrite big_opM_union; last first.
   { apply map_disjoint_spec=> l' v1 v2 /lookup_singleton_Some [-> _].
-    intros (j&w&?&Hjl&_)%heap_array_lookup.
+    intros (j&w&Hjl&_)%heap_array_lookup.
     rewrite loc_add_assoc -{1}[l']loc_add_0 in Hjl. simplify_eq; lia. }
   rewrite loc_add_0 -fmap_S_seq big_sepL_fmap.
   setoid_rewrite Nat2Z.inj_succ. setoid_rewrite <-Z.add_1_l.
@@ -345,6 +343,7 @@ Proof.
   iApply twp_alloc; [by auto..|]; iIntros (l) "H HΦ". by iApply "HΦ".
 Qed.
 
+(*
 Lemma twp_free s E l v :
   [[{ l ↦ v }]] Free (Val $ LitV $ LitLoc l) @ s; E
   [[{ RET LitV LitUnit; True }]].
@@ -363,7 +362,7 @@ Lemma wp_free s E l v :
 Proof.
   iIntros (Φ) ">H HΦ". iApply (twp_wp_step with "HΦ").
   iApply (twp_free with "H"); [by auto..|]; iIntros "H HΦ". by iApply "HΦ".
-Qed.
+Qed. *)
 
 Lemma twp_load s E l dq v :
   [[{ l ↦{dq} v }]] Load (Val $ LitV $ LitLoc l) @ s; E [[{ RET v; l ↦{dq} v }]].

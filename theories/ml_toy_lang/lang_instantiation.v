@@ -39,7 +39,7 @@ Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
 Proof.
   induction le in lv|-*.
   - intros H. injection H. intros <-. easy.
-  - cbn. destruct a. 2-18:congruence.
+  - cbn. destruct a. 2-17:congruence.
     destruct (unmap_val le) eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
