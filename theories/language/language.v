@@ -20,6 +20,11 @@ Section language_mixin.
   Context (fill : ectx → expr → expr).
   Context (split_state : state → public_state → private_state → Prop).
 
+  (** Parallel substitution, to define [log_rel] in a language-independent
+      way. *)
+  (* Context (subst_map : gmap string val → expr → expr). *)
+  (* Context (free_vars : expr → gset string). *)
+
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
 
@@ -39,6 +44,16 @@ Section language_mixin.
       head_step p (of_class (ExprCall f vs)) σ1 e2 σ2 efs ↔
       ∃ (fn : func),
         p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = [];
+
+    (** Substitution and free variables *)
+    (* mixin_subst_map_empty e : subst_map ∅ e = e; *)
+    (* mixin_subst_map_subst_map xs ys e : *)
+    (*   subst_map xs (subst_map ys e) = subst_map (ys ∪ xs) e; *)
+    (* mixin_subst_map_free_vars (xs1 xs2 : gmap string val) (e : expr) : *)
+    (*   (∀ x, x ∈ free_vars e → xs1 !! x = xs2 !! x) → *)
+    (*   subst_map xs1 e = subst_map xs2 e; *)
+    (* mixin_free_vars_subst_map xs e : *)
+    (*   free_vars (subst_map xs e) = free_vars e ∖ (dom xs); *)
 
     (** Evaluation contexts *)
     mixin_fill_empty e : fill empty_ectx e = e;
@@ -106,12 +121,15 @@ Structure language {val : Type} {public_state : Type} := Language {
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
   split_state : state → public_state → private_state → Prop;
+  (* subst_map : gmap string val → expr → expr; *)
+  (* free_vars : expr → gset string; *)
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → expr → state → expr → state → list expr → Prop;
 
   language_mixin :
-    LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      split_state apply_func head_step
+    LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill 
+      split_state
+      (* subst_map free_vars *) apply_func head_step
 }.
 
 Declare Scope expr_scope.
@@ -125,6 +143,8 @@ Arguments empty_ectx {_ _ _}.
 Arguments comp_ectx {_ _ _} _ _.
 Arguments fill {_ _ _} _ _.
 Arguments split_state {_ _ _} _ _.
+(* Arguments subst_map {_ _ _}. *)
+(* Arguments free_vars {_ _ _}. *)
 Arguments apply_func {_ _ _}.
 Arguments head_step {_ _ _} _ _ _ _ _ _.
 
@@ -180,6 +200,20 @@ Section language.
     head_step p (of_class Λ (ExprCall f vs)) σ1 e2 σ2 efs ↔
     ∃ fn, p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = nil.
   Proof. apply language_mixin. Qed.
+
+  (* Lemma subst_map_empty e : *)
+  (*   subst_map ∅ e = e. *)
+  (* Proof. apply language_mixin. Qed. *)
+  (* Lemma subst_map_free_vars (xs1 xs2 : gmap string val) e : *)
+  (*   (∀ x, x ∈ free_vars e → xs1 !! x = xs2 !! x) → *)
+  (*   subst_map xs1 e = subst_map xs2 e. *)
+  (* Proof. apply language_mixin. Qed. *)
+  (* Lemma subst_map_subst_map xs ys e : *)
+  (*   subst_map xs (subst_map ys e) = subst_map (ys ∪ xs) e. *)
+  (* Proof. apply language_mixin. Qed. *)
+  (* Lemma free_vars_subst_map xs e : *)
+  (*   free_vars (subst_map xs e) = free_vars e ∖ (dom xs). *)
+  (* Proof. apply language_mixin. Qed. *)
 
   Lemma fill_empty e : fill empty_ectx e = e.
   Proof. apply language_mixin. Qed.
@@ -322,6 +356,16 @@ Section language.
 
   Lemma not_head_reducible p e σ : ¬head_reducible p e σ ↔ head_irreducible p e σ.
   Proof. unfold head_reducible, head_irreducible. naive_solver. Qed.
+
+  (* Lemma subst_map_closed xs e : *)
+  (*   free_vars e = ∅ → *)
+  (*   subst_map xs e = e. *)
+  (* Proof. *)
+  (*   intros Hclosed. *)
+  (*   trans (subst_map ∅ e). *)
+  (*   - apply subst_map_free_vars. rewrite Hclosed. done. *)
+  (*   - apply subst_map_empty. *)
+  (* Qed. *)
 
   (** The decomposition into head redex and context is unique.
 
@@ -475,6 +519,28 @@ Section language.
     eapply head_reducible_prim_step_ctx in Hprim as (e1' & -> & Hhead'); last by rewrite /head_reducible; eauto.
     eexists. rewrite -fill_comp; by eauto using Prim_step'.
   Qed.
+
+  Lemma reducible_fill p e σ K : reducible p e σ → reducible p (fill K e) σ.
+  Proof.
+  intros (e' & σ' & efs & Hs).
+  inversion Hs; subst.
+  eexists (fill (comp_ectx K K0) e2'), σ', efs. econstructor. 1: rewrite fill_comp; reflexivity. 1: reflexivity. apply H1.
+  Qed.
+
+
+
+  Lemma fill_step_inv K p e1' σ1 e2 σ2 efs :
+    to_val e1' = None → prim_step p (fill K e1') σ1 e2 σ2 efs →
+    ∃ e2', e2 = fill K e2' ∧ prim_step p e1' σ1 e2' σ2 efs.
+  Proof.
+    intros H1 H2.
+    inversion H2; subst.
+    destruct (step_by_val _ _ _ _ _ _ _ _ _ H H1 H3) as (K'' & ->).
+    rewrite <- fill_comp in *.
+    apply fill_inj in H. subst. eexists; split; first done.
+    by econstructor.
+  Qed.
+
 (*
   Inductive lang_cases : expr Λ -> Type :=
     E_val (v:val) : lang_cases (of_class Λ (ExprVal v))
