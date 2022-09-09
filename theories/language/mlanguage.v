@@ -517,47 +517,6 @@ Section language.
     rewrite /AsVal /=; eauto.
   Qed.
 
-  Class Atomic (e : expr Λ) : Prop :=
-    atomic p σ φ :
-      rel (prim_step p) (e, σ) φ →
-      ∀ e' σ', φ (e', σ') → is_Some (to_val e').
-
-  Definition head_atomic (e : expr Λ) : Prop :=
-    ∀ p σ φ,
-      rel (head_step p) (e, σ) φ →
-      ∀ e' σ', φ (e', σ') → is_Some (to_val e').
-
-  Lemma mlanguage_atomic e :
-    head_atomic e → sub_redexes_are_values e → Atomic e.
-  Proof.
-    intros Hatomic_step Hatomic_fill p σ φ (K & e1' & -> & Hstep).
-    assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
-    rewrite fill_empty in Hatomic_step, Hatomic_fill.
-    enough (rel (head_step p) (e1', σ) φ) by eauto.
-    eapply multirelations.umrel_upclosed; eauto. intros [? ?].
-    rewrite fill_empty //.
-  Qed.
-
-  (* Class Atomic (e : expr Λ) : Prop := *)
-  (*   atomic p σ φ : *)
-  (*     rel (prim_step p) (e, σ) φ → *)
-  (*     ∃ e' σ', φ (e', σ') ∧ is_Some (to_val e'). *)
-
-  (* Definition head_atomic (e : expr Λ) : Prop := *)
-  (*   ∀ p σ φ, *)
-  (*     rel (head_step p) (e, σ) φ → *)
-  (*     ∃ e' σ', φ (e', σ') ∧ is_Some (to_val e'). *)
-
-  (* Lemma mlanguage_atomic e : *)
-  (*   head_atomic e → sub_redexes_are_values e → Atomic e. *)
-  (* Proof. *)
-  (*   intros Hatomic_step Hatomic_fill p σ φ (K & e1' & -> & Hstep). *)
-  (*   assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck. *)
-  (*   rewrite fill_empty in Hatomic_step, Hatomic_fill. *)
-  (*   apply Hatomic_step in Hstep as (? & ? & ? & ?). *)
-  (*   do 2 eexists. split; eauto. rewrite fill_empty//. *)
-  (* Qed. *)
-
   Record pure_step_mrel p (e1 : expr Λ) (e2s : expr Λ → Prop) := {
     pure_step_safe σ1 : reducible p e1 σ1;
     pure_step_det σ1 :
