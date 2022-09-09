@@ -175,6 +175,7 @@ Qed.
 Lemma wp_fupd p E e Φ : WP e @ p; E {{ v, |={E}=> Φ v }} ⊢ WP e @ p; E {{ Φ }}.
 Proof. iIntros "H". iApply (wp_strong_mono p E with "H"); auto. Qed.
 
+(*
 Lemma wp_atomic p E1 E2 e Φ `{!Atomic e} :
   (|={E1,E2}=> WP e @ p; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ p; E1 {{ Φ }}.
 Proof.
@@ -196,6 +197,7 @@ Proof.
     apply val_stuck in H.
     unfold irreducible in Hstep. naive_solver.
 Qed.
+*)
 
 (** This lemma gives us access to the later credits that are generated in each step,
   assuming that we have instantiated [num_laters_per_step] with a non-trivial (e.g. linear)
@@ -455,29 +457,29 @@ Section proofmode_classes.
       fupd_frame_r wand_elim_r fupd_wp.
   Qed.
 
-  Global Instance elim_modal_fupd_wp_atomic p prog E1 E2 e P Φ :
-    ElimModal (Atomic e) p false
-            (|={E1,E2}=> P) P
-            (WP e @ prog; E1 {{ Φ }}) (WP e @ prog; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
-  Proof.
-    intros ?. by rewrite intuitionistically_if_elim
-      fupd_frame_r wand_elim_r wp_atomic.
-  Qed.
+  (* Global Instance elim_modal_fupd_wp_atomic p prog E1 E2 e P Φ : *)
+  (*   ElimModal (Atomic e) p false *)
+  (*           (|={E1,E2}=> P) P *)
+  (*           (WP e @ prog; E1 {{ Φ }}) (WP e @ prog; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100. *)
+  (* Proof. *)
+  (*   intros ?. by rewrite intuitionistically_if_elim *)
+  (*     fupd_frame_r wand_elim_r wp_atomic. *)
+  (* Qed. *)
 
   Global Instance add_modal_fupd_wp p E e P Φ :
     AddModal (|={E}=> P) P (WP e @ p; E {{ Φ }}).
   Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_wp. Qed.
 
-  Global Instance elim_acc_wp_atomic {X} E1 E2 α β γ e p Φ :
-    ElimAcc (X:=X) (Atomic e)
-            (fupd E1 E2) (fupd E2 E1)
-            α β γ (WP e @ p; E1 {{ Φ }})
-            (λ x, WP e @ p; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
-  Proof.
-    iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply (wp_wand with "(Hinner Hα)").
-    iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
-  Qed.
+  (* Global Instance elim_acc_wp_atomic {X} E1 E2 α β γ e p Φ : *)
+  (*   ElimAcc (X:=X) (Atomic e) *)
+  (*           (fupd E1 E2) (fupd E2 E1) *)
+  (*           α β γ (WP e @ p; E1 {{ Φ }}) *)
+  (*           (λ x, WP e @ p; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100. *)
+  (* Proof. *)
+  (*   iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]". *)
+  (*   iApply (wp_wand with "(Hinner Hα)"). *)
+  (*   iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose". *)
+  (* Qed. *)
 
   Global Instance elim_acc_wp_nonatomic {X} E α β γ e p Φ :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)
