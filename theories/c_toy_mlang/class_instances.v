@@ -18,60 +18,6 @@ Proof.
   eapply mlanguage.fill_val, Hsub. by rewrite /= fill_app.
 Qed.
 
-(** * Instances of the [Atomic] class *)
-Section atomic.
-  Context {p:program}.
-
-  Local Ltac solve_atomic :=
-    apply mlanguage_atomic;
-      [intros H1 H2 H3 Hstep; inversion Hstep; try naive_solver; congruence
-      |apply clang_sub_redexes_are_values; intros [] **; naive_solver].
-
-  (** The instance below is a more general version of [Skip] *)
-  Global Instance let_atomic x v1 v2 : Atomic (Let x (Val v1) (Val v2)).
-  Proof.
-    apply mlanguage_atomic.
-    { intros ? ? ? Hstep. inversion Hstep; subst.
-
-      [intros H1 H2 H3 Hstep; inversion Hstep; try naive_solver; congruence
-      |apply clang_sub_redexes_are_values; intros [] **; naive_solver].
-
-
-    destruct x; solve_atomic. Qed.
-  Global Instance unop_atomic op v : Atomic (UnOp op (Val v)).
-  Proof. solve_atomic. Qed.
-  Global Instance binop_atomic op v1 v2 : Atomic (BinOp op (Val v1) (Val v2)).
-  Proof. solve_atomic. Qed.
-  Global Instance if_true_atomic v v1 e2 : asTruth v = true ->
-    Atomic (If (Val $ v) (Val v1) e2).
-  Proof. intros H. solve_atomic. Qed.
-  Global Instance if_non_zero_atomic (v0:Z) v1 e2 : v0 ≠ 0%Z ->
-    Atomic (If (Val $ LitV $ LitInt v0) (Val v1) e2).
-  Proof. intros H. apply if_true_atomic. destruct v0; cbn; congruence. Qed.
-  Global Instance if_true_bool_atomic v1 e2 :
-    Atomic (If (Val $ LitV $ LitBool true) (Val v1) e2).
-  Proof. intros H. apply if_true_atomic. easy. Qed.
-  Global Instance if_false_atomic v e1 v2 : asTruth v = false ->
-    Atomic (If (Val $ v) e1 (Val v2)).
-  Proof. intros H. solve_atomic. Qed.
-  Global Instance if_zero_atomic e1 v2 :
-    Atomic (If (Val $ LitV $ LitInt (0%Z)) e1 (Val v2)).
-  Proof. intros H. apply if_false_atomic. easy. Qed.
-  Global Instance if_false_bool_atomic e1 v2 :
-    Atomic (If (Val $ LitV $ LitBool false) e1 (Val v2)).
-  Proof. intros H. apply if_false_atomic. easy. Qed.
-
-  Global Instance alloc_atomic v : Atomic (Malloc (Val v)).
-  Proof. solve_atomic. Qed.
-  Global Instance free_atomic v1 v2 : Atomic (Free (Val v1) (Val v2)).
-  Proof. solve_atomic. Qed.
-  Global Instance load_atomic v : Atomic (Load (Val v)).
-  Proof. solve_atomic. Qed.
-  Global Instance store_atomic v1 v2 : Atomic (Store (Val v1) (Val v2)).
-  Proof. solve_atomic. Qed.
-
-End atomic.
-
 Section pure_exec.
   Context {p:program}.
   (* Local Ltac solve_exec_safe := intros; subst; do 4 eexists; try (econstructor; eauto; done). *)
