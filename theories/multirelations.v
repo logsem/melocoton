@@ -91,6 +91,23 @@ Fixpoint repeat {A} (M: A ->> A) (n: nat) : A ->> A :=
   | S n => seq M (repeat M n)
   end.
 
+Lemma repeat_once {A} (M: A ->> A) x X : rel M x X -> rel (repeat M 1) x X.
+Proof. cbn. eauto. Qed.
+
+Lemma repeat_congruence {A B} (f : A -> B) (M: A ->> A) (M': B ->> B) n x X :
+  (forall x X, rel M x X -> rel M' (f x) (fun y => exists x', y = f x' /\ X x')) ->
+  rel (repeat M n) x X ->
+  rel (repeat M' n) (f x) (fun y => exists x', y = f x' /\ X x').
+Proof.
+  revert x X. induction n.
+  { intros x X Hcongr. cbn. eauto. }
+  { intros x X Hcongr. cbn. intros (Y & HxY & HY).
+    pose proof (Hcongr _ _ HxY) as Hcongr'.
+    eexists. split; [eassumption|]. cbn.
+    intros y (x' & -> & Hx'). specialize (HY _ Hx'). specialize (IHn x' X).
+    eapply multirelations.umrel_upclosed; eauto. }
+Qed.
+
 Program Definition star {A} (M: A ->> A): A ->> A :=
   {| rel := fun a X => exists n, rel (repeat M n) a X |}.
 Next Obligation.
@@ -99,3 +116,5 @@ Next Obligation.
   - cbn. intros [? [? ?]] ?. exists (S n). cbn.
     eexists. split; eauto. intros. eapply umrel_upclosed; eauto.
 Qed.
+
+Arguments rel : simpl never.

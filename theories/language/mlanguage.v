@@ -3,8 +3,6 @@ From iris.algebra Require Import ofe.
 From iris.prelude Require Import options.
 From melocoton Require Import multirelations.
 
-Definition thread_id := nat.
-
 Section language_mixin.
   Context {expr val func ectx state : Type}.
 
@@ -26,7 +24,7 @@ Section language_mixin.
   Context (apply_func : func → list val → option expr).
   Context (head_step : mixin_prog → umrel (expr * state) (expr * state)).
 
-  Record LanguageMixin := {
+  Record MlanguageMixin := {
     (** Expression classification *)
     mixin_to_of_class c : to_class (of_class c) = Some c;
     mixin_of_to_class e c : to_class e = Some c → of_class c = e;
@@ -76,7 +74,7 @@ End language_mixin.
 Arguments mixin_expr_class : clear implicits.
 Local Notation mixin_prog func := (gmap string func).
 
-Structure language := Language {
+Structure mlanguage := Mlanguage {
   expr : Type;
   val : Type;
   func : Type;
@@ -92,7 +90,7 @@ Structure language := Language {
   head_step : mixin_prog func → umrel (expr * state) (expr * state);
 
   language_mixin :
-    LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
+    MlanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
       apply_func head_step
 }.
 
@@ -101,8 +99,8 @@ Bind Scope expr_scope with expr.
 
 Declare Scope val_scope.
 Bind Scope val_scope with val.
-Arguments language : clear implicits.
-Arguments Language {expr _ _ _ _ _ _ _ _ _ apply_func head_step}.
+Arguments mlanguage : clear implicits.
+Arguments Mlanguage {expr _ _ _ _ _ _ _ _ _ apply_func head_step}.
 Arguments of_class {_} _.
 Arguments to_class {_} _.
 Arguments empty_ectx {_}.
@@ -111,27 +109,27 @@ Arguments fill {_} _ _.
 Arguments apply_func {_}.
 Arguments head_step {_} _.
 
-Definition expr_class (Λ : language) := mixin_expr_class Λ.(val).
+Definition expr_class (Λ : mlanguage) := mixin_expr_class Λ.(val).
 (* A [Definition] throws off Coq's "old" ("tactic") unification engine *)
 Notation prog Λ := (mixin_prog Λ.(func)).
 
-Definition to_val {Λ : language} (e : expr Λ) :=
+Definition to_val {Λ : mlanguage} (e : expr Λ) :=
   match to_class e with
   | Some (ExprVal v) => Some v
   | _ => None
   end.
-Definition of_val {Λ : language} (v : val Λ) := of_class (ExprVal v).
+Definition of_val {Λ : mlanguage} (v : val Λ) := of_class (ExprVal v).
 
-Definition to_call {Λ : language} (e : expr Λ) :=
+Definition to_call {Λ : mlanguage} (e : expr Λ) :=
   match to_class e with
   | Some (ExprCall f v) => Some (f, v)
   | _ => None
   end.
-Definition of_call {Λ : language} f (v : list (val Λ)) := of_class (ExprCall f v).
+Definition of_call {Λ : mlanguage} f (v : list (val Λ)) := of_class (ExprCall f v).
 
 (* From an ectx_language, we can construct a language. *)
 Section language.
-  Context {Λ : language}.
+  Context {Λ : mlanguage}.
   Implicit Types v : val Λ.
   Implicit Types vs : list (val Λ).
   Implicit Types e : expr Λ.
@@ -225,28 +223,17 @@ Section language.
 
   Definition prim_step_mrel (p : prog Λ) : mrel (expr Λ * state Λ) (expr Λ * state Λ) :=
     λ '(e1, σ1) φ,
-      ∃ K e1' φ',
+      ∃ K e1',
         e1 = fill K e1' ∧
-        rel (head_step p) (e1', σ1) φ' ∧
-        ∀ e2 e2' σ2, e2 = fill K e2' → φ' (e2', σ2) →
-          φ (e2, σ2).
+        rel (head_step p) (e1', σ1) (λ '(e2', σ2), φ (fill K e2', σ2)).
 
   Program Definition prim_step (p : prog Λ) : umrel (expr Λ * state Λ) (expr Λ * state Λ) :=
     {| rel := prim_step_mrel p |}.
-  Next Obligation. intros p [e1 σ1] *. naive_solver. Qed.
-
-  Lemma Prim_step p K e1 e1' σ1 (φ φ' : _ → Prop) :
-    e1 = fill K e1' →
-    (∀ e2 e2' σ2, e2 = fill K e2' → φ (e2', σ2) → φ' (e2, σ2)) →
-    rel (head_step p) (e1', σ1) φ →
-    rel (prim_step p) (e1, σ1) φ'.
-  Proof. intros -> Hφ Hstep. cbn. do 3 eexists; split_and!; eauto. Qed.
-
-  Lemma Prim_step' p K e1 σ1 (φ φ' : _ → Prop) :
-    (∀ e2 σ2, φ (e2, σ2) → φ' (fill K e2, σ2)) →
-    rel (head_step p) (e1, σ1) φ →
-    rel (prim_step p) (fill K e1, σ1) φ'.
-  Proof. intros Hφ Hstep. cbn. do 3 eexists; split_and!; eauto. naive_solver. Qed.
+  Next Obligation.
+    intros p [e1 σ1] *.
+    intros (K & e' & -> & Hstep) HH. do 2 eexists. split_and!; eauto.
+    eapply multirelations.umrel_upclosed; eauto. intros [? ?]. eauto.
+  Qed.
 
   Definition reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ φ, rel (prim_step p) (e, σ) φ.
@@ -281,7 +268,7 @@ Section language.
   Qed.
   Lemma val_stuck p e σ φ: rel (prim_step p) (e, σ) φ → to_val e = None.
   Proof.
-    intros (K & e1' & φ' & -> & ?%val_head_stuck & ?).
+    intros (K & e1' & -> & ?%val_head_stuck).
     apply eq_None_not_Some. by intros ?%fill_val%eq_None_not_Some.
   Qed.
 
@@ -338,9 +325,10 @@ Section language.
   Lemma head_prim_step p e1 σ1 φ :
     rel (head_step p) (e1, σ1) φ → rel (prim_step p) (e1, σ1) φ.
   Proof.
-    intros Hstep. eapply (Prim_step _ empty_ectx); eauto.
+    intros Hstep. exists empty_ectx, e1. split.
     - by rewrite fill_empty.
-    - intros *. rewrite fill_empty. by intros ->.
+    - intros *. eapply multirelations.umrel_upclosed; eauto.
+      intros [? ?]. rewrite fill_empty //.
   Qed.
   Lemma head_step_not_stuck p e σ φ:
     rel (head_step p) (e, σ) φ → not_stuck p e σ.
@@ -353,9 +341,10 @@ Section language.
     rel (prim_step p) (e1, σ1) φ →
     rel (prim_step p) (fill K e1, σ1) φ'.
   Proof.
-    intros Hφ (K' & e1' & φ'' & -> & Hstep & Hφ''). rewrite fill_comp /=.
-    do 3 eexists. split_and!; eauto.
-    intros * -> ?. rewrite -fill_comp. eapply Hφ. eapply Hφ''; eauto.
+    intros Hφ (K' & e1' & -> & Hstep). rewrite fill_comp /=.
+    do 2 eexists. split_and!; eauto.
+    eapply multirelations.umrel_upclosed; eauto. intros [? ?].
+    rewrite -fill_comp. eauto.
   Qed.
   Lemma fill_reducible p K e σ : reducible p e σ → reducible p (fill K e) σ.
   Proof.
@@ -375,10 +364,10 @@ Section language.
   Lemma prim_head_step p e σ φ :
     rel (prim_step p) (e, σ) φ → sub_redexes_are_values e → rel (head_step p) (e, σ) φ.
   Proof.
-    intros (K & e1' & φ' & -> & Hstep & Hφ) ?.
+    intros (K & e1' & -> & Hstep) ?.
     assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
     rewrite fill_empty. eapply umrel_upclosed; [apply Hstep|].
-    intros [? ?] ?; eapply Hφ; eauto. by rewrite fill_empty.
+    intros [? ?]. rewrite fill_empty //.
   Qed.
   Lemma prim_head_reducible p e σ :
     reducible p e σ → sub_redexes_are_values e → head_reducible p e σ.
@@ -400,13 +389,13 @@ Section language.
     rel (prim_step p) (fill K e1, σ1) φ →
     rel (head_step p) (e1, σ1) (λ '(e2', σ2), ∀ e2, e2 = fill K e2' → φ (e2, σ2)).
   Proof.
-    intros (φ' & HhstepK) (K' & e1' & φ'' & HKe1 & Hstep & Hφ).
+    intros (φ' & HhstepK) (K' & e1' & HKe1 & Hstep).
     edestruct (step_by_val p K) as [K'' ?];
       eauto using val_head_stuck; simplify_eq/=.
     rewrite -fill_comp in HKe1; simplify_eq.
     apply head_ctx_step_val in HhstepK as [?|[v ?]]; simplify_eq.
     - rewrite fill_empty. eapply umrel_upclosed; [apply Hstep|].
-      intros [e σ] Heσ ? ?. eapply Hφ; eauto. rewrite -fill_comp fill_empty //.
+      intros [e σ]. rewrite -fill_comp fill_empty //. by intros ? ? ->.
     - apply val_head_stuck in Hstep; simplify_eq.
   Qed.
 
@@ -426,30 +415,34 @@ Section language.
   Proof.
     intros Hstuck; split.
     + apply fill_not_val, Hstuck.
-    + intros φ (K_redex & e1 & e2 & Heq & Hhead & Hφ).
+    + intros φ (K_redex & e1 & Heq & Hhead).
       edestruct (step_by_val P K K_redex _ _ _ _ Heq ltac:(apply Hstuck) Hhead) as (K'' & ->).
       rewrite -fill_comp in Heq. apply fill_inj in Heq as ->.
-      apply (proj2 Hstuck) with (λ _, True). do 3 eexists; eauto.
+      eapply (proj2 Hstuck) with (λ '(e, σ), φ (fill K e, σ)).
+      do 2 eexists; split_and!; eauto.
+      eapply multirelations.umrel_upclosed; eauto. intros [? ?]. rewrite -fill_comp//.
   Qed.
 
   Lemma fill_not_stuck (P : prog Λ) e σ K : not_stuck P (fill K e) σ → not_stuck P e σ.
   Proof.
     intros [Hval | Hred].
     - left. by eapply fill_val.
-    - destruct Hred as (φ & (K_redex & e1 & φ' & Heq & Hhead & Hφ)).
+    - destruct Hred as (φ & (K_redex & e1 & Heq & Hhead)).
       destruct (decide (to_val e = None)) as [Hnval | Hval]; first last.
       { left. destruct (to_val e) as [v | ]; by eauto. }
       edestruct (step_by_val P K K_redex _ _ _ _ Heq Hnval Hhead) as (K'' & ->).
       rewrite -fill_comp in Heq. apply fill_inj in Heq as ->.
-      right. exists (λ _, True). do 3 eexists; eauto.
+      right. exists (λ '(e, σ), φ (fill K e, σ)). do 2 eexists; split_and!; eauto.
+      eapply multirelations.umrel_upclosed; eauto. intros [? ?]. rewrite -fill_comp//.
   Qed.
 
   Lemma prim_step_call_inv p K f vs e' σ φ :
     rel (prim_step p) (fill K (of_call f vs), σ) φ →
-    ∃ er fn e', Some er = apply_func fn vs ∧ p !! f = Some fn ∧
-    e' = fill K er ∧ φ (e', σ).
+    ∃ er fn,
+      Some er = apply_func fn vs ∧ p !! f = Some fn ∧
+      φ (fill K er, σ).
   Proof.
-    intros (K' & e1 & φ' & Hctx & Hstep & Hφ).
+    intros (K' & e1 & Hctx & Hstep).
     eapply step_by_val in Hstep as H'; eauto; last apply to_val_of_call.
     destruct H' as [K'' Hctx']; subst K'.
     rewrite -fill_comp in Hctx. eapply fill_inj in Hctx.
@@ -457,15 +450,14 @@ Section language.
     - apply is_call_is_class. erewrite of_to_call_flip; eauto.
     - rewrite fill_empty in Hctx. subst e1.
       apply call_head_step_inv in Hstep as (fn & e2 & Hf & He2 & Hφ').
-      do 3 eexists. split_and!; eauto. eapply Hφ; eauto.
-      rewrite -fill_comp fill_empty //.
-    - unfold is_Some in Hval. erewrite val_head_stuck in Hval; naive_solver.
+      do 2 eexists. split_and!; eauto. rewrite -fill_comp fill_empty// in Hφ'.
+    - apply val_head_stuck in Hstep. apply not_eq_None_Some in Hval. done.
   Qed.
 
   Lemma val_prim_step p v σ φ :
    ¬ rel (prim_step p) (of_val v, σ) φ.
   Proof.
-    intros (K & e1' & e2' & Heq & Hstep' & Hφ).
+    intros (K & e1' & Heq & Hstep').
     edestruct (fill_val K e1') as (v1''& ?).
     { rewrite -Heq. rewrite to_of_val. by exists v. }
     eapply val_head_step.
@@ -477,19 +469,163 @@ Section language.
     rel (prim_step p) (fill K e, σ) φ →
     rel (prim_step p) (e, σ) (λ '(e2', σ2), ∀ e2, e2 = fill K e2' → φ (e2, σ2)).
   Proof.
-    intros (φ'' & (K'' & e1'' & e2'' & -> & Hstep & Hφ'')) Hprim.
+    intros (φ'' & (K'' & e1'' & -> & Hstep)) Hprim.
     rewrite fill_comp in Hprim.
     eapply head_reducible_prim_step_ctx in Hprim; last by rewrite /head_reducible; eauto.
-    do 3 eexists. split_and!; eauto. intros ? ? ? -> HH ? ->. rewrite fill_comp; eauto.
+    do 2 eexists. split_and!; eauto.
+    eapply multirelations.umrel_upclosed; [eapply Hprim|]. intros [? ?].
+    rewrite fill_comp; eauto.
+  Qed.
+
+  Lemma fill_step p K e1 σ1 φ :
+    rel (prim_step p) (e1, σ1) φ →
+    rel (prim_step p) (fill K e1, σ1)
+        (λ '(e2', σ2), ∃ e2, e2' = fill K e2 ∧ φ (e2, σ2)).
+  Proof.
+    intros (K' & e' & -> & Hstep). rewrite fill_comp.
+    eexists (comp_ectx K K'), e'. split_and!; eauto.
+    eapply multirelations.umrel_upclosed; eauto. intros [? ?].
+    rewrite -fill_comp. eauto.
+  Qed.
+
+  Lemma fill_step_inv p K e1' σ1 φ :
+    to_val e1' = None →
+    rel (prim_step p) (fill K e1', σ1) φ →
+    rel (prim_step p) (e1', σ1) (λ '(e2', σ2), φ (fill K e2', σ2)).
+  Proof.
+    intros ? (K'' & e'' & Heq & Hstep).
+    eapply step_by_val in Hstep as Hstep'; eauto. destruct Hstep' as [K' ->].
+    rewrite -fill_comp in Heq. apply (inj (fill _)) in Heq as ->.
+    do 2 eexists; split_and!; eauto.
+    eapply multirelations.umrel_upclosed; eauto. intros [? ?].
+    rewrite -fill_comp//.
+  Qed.
+
+  Lemma fill_reducible_inv p K e σ :
+    to_val e = None → reducible p (fill K e) σ → reducible p e σ.
+  Proof. intros ? (φ & Hstep%fill_step_inv); auto. eexists; eauto. Qed.
+
+  Class IntoVal (e : expr Λ) (v : val Λ) :=
+    into_val : of_val v = e.
+
+  Class AsVal (e : expr Λ) := as_val : ∃ v, of_val v = e.
+  (* There is no instance [IntoVal → AsVal] as often one can solve [AsVal] more
+  efficiently since no witness has to be computed. *)
+  Global Instance as_vals_of_val vs : TCForall AsVal (of_val <$> vs).
+  Proof.
+    apply TCForall_Forall, Forall_fmap, Forall_true=> v.
+    rewrite /AsVal /=; eauto.
+  Qed.
+
+  Class Atomic (e : expr Λ) : Prop :=
+    atomic p σ φ :
+      rel (prim_step p) (e, σ) φ →
+      ∀ e' σ', φ (e', σ') → is_Some (to_val e').
+
+  Definition head_atomic (e : expr Λ) : Prop :=
+    ∀ p σ φ,
+      rel (head_step p) (e, σ) φ →
+      ∀ e' σ', φ (e', σ') → is_Some (to_val e').
+
+  Lemma mlanguage_atomic e :
+    head_atomic e → sub_redexes_are_values e → Atomic e.
+  Proof.
+    intros Hatomic_step Hatomic_fill p σ φ (K & e1' & -> & Hstep).
+    assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
+    rewrite fill_empty in Hatomic_step, Hatomic_fill.
+    enough (rel (head_step p) (e1', σ) φ) by eauto.
+    eapply multirelations.umrel_upclosed; eauto. intros [? ?].
+    rewrite fill_empty //.
+  Qed.
+
+  (* Class Atomic (e : expr Λ) : Prop := *)
+  (*   atomic p σ φ : *)
+  (*     rel (prim_step p) (e, σ) φ → *)
+  (*     ∃ e' σ', φ (e', σ') ∧ is_Some (to_val e'). *)
+
+  (* Definition head_atomic (e : expr Λ) : Prop := *)
+  (*   ∀ p σ φ, *)
+  (*     rel (head_step p) (e, σ) φ → *)
+  (*     ∃ e' σ', φ (e', σ') ∧ is_Some (to_val e'). *)
+
+  (* Lemma mlanguage_atomic e : *)
+  (*   head_atomic e → sub_redexes_are_values e → Atomic e. *)
+  (* Proof. *)
+  (*   intros Hatomic_step Hatomic_fill p σ φ (K & e1' & -> & Hstep). *)
+  (*   assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck. *)
+  (*   rewrite fill_empty in Hatomic_step, Hatomic_fill. *)
+  (*   apply Hatomic_step in Hstep as (? & ? & ? & ?). *)
+  (*   do 2 eexists. split; eauto. rewrite fill_empty//. *)
+  (* Qed. *)
+
+  Record pure_step_mrel p (e1 : expr Λ) (e2s : expr Λ → Prop) := {
+    pure_step_safe σ1 : reducible p e1 σ1;
+    pure_step_det σ1 :
+      rel (prim_step p) (e1, σ1) (λ '(e2, σ2), e2s e2 ∧ σ2 = σ1)
+  }.
+
+  Program Definition pure_step p : umrel (expr Λ) (expr Λ) :=
+    {| rel := pure_step_mrel p |}.
+  Next Obligation.
+    intros ? e X Y [H1 H2] HH. constructor; eauto.
+    intros ?. eapply multirelations.umrel_upclosed; eauto.
+    intros [? ?]. intros [? ->]; eauto.
+  Qed.
+
+  Class PureExec (P : Prop) (n : nat) p (e1 : expr Λ) (e2s : expr Λ → Prop) :=
+    pure_exec : P → rel (multirelations.repeat (pure_step p) n) e1 e2s.
+
+  Definition fills K (es : expr Λ → Prop) : expr Λ → Prop :=
+    λ e, ∃ e', e = fill K e' ∧ es e'.
+
+  Lemma pure_step_ctx p K e1 e2s :
+    rel (pure_step p) e1 e2s →
+    rel (pure_step p) (fill K e1) (fills K e2s).
+  Proof.
+    intros [Hred Hstep]. split.
+    - unfold reducible in *. naive_solver eauto using fill_step.
+    - intros σ1. specialize (Hred σ1). specialize (Hstep σ1).
+      apply (fill_step _ K) in Hstep. eapply multirelations.umrel_upclosed; eauto.
+      intros [? ?] (? & -> & ? & ->). unfold fills; eauto.
+  Qed.
+
+  Lemma pure_step_nsteps_ctx K n p e1 e2s :
+    rel (multirelations.repeat (pure_step p) n) e1 e2s →
+    rel (multirelations.repeat (pure_step p) n) (fill K e1) (fills K e2s).
+  Proof. eauto using multirelations.repeat_congruence, pure_step_ctx. Qed.
+
+  Lemma pure_exec_ctx K P n p e1 e2s :
+    PureExec P n p e1 e2s →
+    PureExec P n p (fill K e1) (fills K e2s).
+  Proof. rewrite /PureExec; eauto using pure_step_nsteps_ctx. Qed.
+
+  Record pure_head_step_mrel p (e1 : expr Λ) (e2s : expr Λ → Prop) := {
+    pure_head_step_safe σ1 : head_reducible p e1 σ1;
+    pure_head_step_det σ1 :
+      rel (head_step p) (e1, σ1) (λ '(e2, σ2), e2s e2 ∧ σ2 = σ1)
+  }.
+
+  Program Definition pure_head_step p : umrel (expr Λ) (expr Λ) :=
+    {| rel := pure_head_step_mrel p |}.
+  Next Obligation.
+    intros ? x X Y [? ?] ?. constructor; eauto.
+    intros ?. eapply multirelations.umrel_upclosed; eauto.
+    intros [? ?]. naive_solver.
+  Qed.
+
+  Lemma pure_head_step_pure_step p e1 e2s :
+    rel (pure_head_step p) e1 e2s → rel (pure_step p) e1 e2s.
+  Proof.
+    intros [Hp1 Hp2]. split.
+    - intros σ. destruct (Hp1 σ) as (φ & Hstep).
+      eexists. by eapply head_prim_step.
+    - intros σ. eauto using head_prim_step.
   Qed.
 
 End language.
 
-
+Definition program Λ := gmap string (func Λ).
 
 (* discrete OFE instance for expr and thread_id *)
-Definition exprO {Λ : language} := leibnizO (expr Λ).
+Definition exprO {Λ : mlanguage} := leibnizO (expr Λ).
 Global Instance expr_equiv {Λ} : Equiv (expr Λ). apply exprO. Defined.
-
-Definition thread_idO := leibnizO thread_id.
-Global Instance thread_id_equiv : Equiv thread_id. apply thread_idO. Defined.
