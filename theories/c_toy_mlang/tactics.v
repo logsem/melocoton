@@ -1,13 +1,13 @@
 From stdpp Require Import fin_maps.
+From melocoton.language Require Import mlanguage.
 From melocoton.c_toy_mlang Require Export lang.
 From iris.prelude Require Import options.
 Import C_lang.
 
-(* TODO FIXME this file *)
-
 (** The tactic [reshape_expr e tac] decomposes the expression [e] into an
 evaluation context [K] and a subexpression [e']. It calls the tactic [tac K e']
 for each possible decomposition until [tac] succeeds. *)
+(*
 Ltac reshape_expr e tac :=
   let rec go K e :=
     match e with
@@ -47,6 +47,7 @@ Ltac reshape_expr e tac :=
     end
   in
   go (@nil ectx_item) e.
+*)
 
 (** The tactic [inv_head_step] performs inversion on hypotheses of the shape
 [head_step]. The tactic will discharge head-reductions starting from values, and
@@ -57,18 +58,14 @@ Ltac inv_head_step :=
   repeat match goal with
   | _ => progress simplify_map_eq/= (* simplify memory stuff *)
   | H : to_val _ = Some _ |- _ => apply of_to_val in H
-  | H : @head_step _ ?e _ _ _ |- _ =>
-     try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable
+  | H : multirelations.rel (head_step _) (?e, _) _ |- _ =>
+      try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable
      and should thus better be avoided. *)
-     inversion H; subst; clear H
-  (* | H : @bogo_head_step _ _ _ _ _ _ _ |- _ => destruct (@bogo_head_step_elim' _ _ _ _ _ _ _ H) as (? & ? & ?); subst; clear H *)
+      inversion H; subst; clear H
   end.
 
 Create HintDb head_step.
-(* Global Hint Extern 0 (head_reducible _ _) => eexists _, _, _, _; simpl : head_step. *)
-(* Global Hint Extern 0 (head_reducible_no_obs _ _) => eexists _, _, _; simpl : head_step. *)
-
-(* [simpl apply] is too stupid, so we need extern hints here. *)
-(* Global Hint Extern 1 (head_step _ _ _ _ _) => econstructor : head_step. *)
-(* Global Hint Extern 1 (bogo_head_step _ _ _ _ _ _ _) => econstructor : head_step. *)
-(* Global Hint Extern 0 (head_step _ (Malloc _) _ _ _) => apply alloc_fresh : head_step. *)
+#[global] Hint Extern 0 (head_reducible _ _ _) => exists (λ _, True); simpl : head_step.
+#[global] Hint Extern 1 (multirelations.rel (head_step _) _ _) => econstructor : head_step.
+#[global] Hint Extern 0 (multirelations.rel (head_step _) (Malloc _, _) _) =>
+  eapply multirelations.umrel_upclosed; [eapply alloc_fresh|intros [? ?]] : head_step.

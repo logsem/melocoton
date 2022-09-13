@@ -263,7 +263,7 @@ Record state : Type := {
   heap: gmap loc heap_cell
 }.
 
-Class program := prog : gmap string function.
+Notation program := (gmap string function).
 
 
 Global Instance base_lit_countable : Countable base_lit.
@@ -652,6 +652,19 @@ Proof.
     + f_equal. apply (map_inj Val). 2:easy. congruence.
 Qed.
 
+Lemma alloc_fresh p n σ :
+  let l := fresh_locs (dom σ.(heap)) in
+  (0 < n)%Z →
+  multirelations.rel (head_step p)
+      (Malloc ((Val $ LitV $ LitInt $ n)), σ)
+      (λ '(e, σ'), e = Val $ LitV $ LitLoc l ∧ σ' = state_init_heap l n Uninitialized σ).
+Proof.
+  intros.
+  eapply MallocS; first done; last done.
+  intros. apply not_elem_of_dom.
+  by apply fresh_locs_fresh.
+Qed.
+
 Lemma val_head_stuck p e1 σ1 φ :
    multirelations.rel (head_step p) (e1, σ1) φ → to_val e1 = None.
 Proof. inversion 1; subst; naive_solver. Qed.
@@ -663,20 +676,6 @@ Proof.
   inversion 1. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
   apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
 Qed.
-
-(*
-Lemma alloc_fresh p n σ :
-  let l := fresh_locs (dom σ.(heap)) in
-  (0 < n)%Z →
-  head_step p (Malloc ((Val $ LitV $ LitInt $ n))) σ
-            (Val $ LitV $ LitLoc l) (state_init_heap l n Uninitialized σ).
-Proof.
-  intros.
-  apply MallocS; first done.
-  intros. apply not_elem_of_dom.
-  by apply fresh_locs_fresh.
-Qed.
-*)
 
 End C_lang.
 

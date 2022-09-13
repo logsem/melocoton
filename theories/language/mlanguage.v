@@ -111,7 +111,7 @@ Arguments head_step {_} _.
 
 Definition expr_class (Λ : mlanguage) := mixin_expr_class Λ.(val).
 (* A [Definition] throws off Coq's "old" ("tactic") unification engine *)
-Notation prog Λ := (mixin_prog Λ.(func)).
+Notation program Λ := (mixin_prog Λ.(func)).
 
 Definition to_val {Λ : mlanguage} (e : expr Λ) :=
   match to_class e with
@@ -135,7 +135,7 @@ Section language.
   Implicit Types e : expr Λ.
   Implicit Types c : expr_class Λ.
   Implicit Types K : ectx Λ.
-  Implicit Types p : prog Λ.
+  Implicit Types p : program Λ.
 
   Lemma to_of_class c : to_class (of_class c) = Some c.
   Proof. apply language_mixin. Qed.
@@ -209,11 +209,11 @@ Section language.
     rel (head_step p) (of_call f vs, σ) (λ '(e', σ'), e' = er ∧ σ' = σ).
   Proof. intros ? ?. eapply call_head_step; eexists; eauto. Qed.
 
-  Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition head_reducible (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ φ, rel (head_step p) (e, σ) φ.
-  Definition head_irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition head_irreducible (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     ∀ φ, ¬rel (head_step p) (e, σ) φ.
-  Definition head_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition head_stuck (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ head_irreducible p e σ.
 
   (* All non-value redexes are at the root.  In other words, all sub-redexes are
@@ -221,13 +221,13 @@ Section language.
   Definition sub_redexes_are_values (e : expr Λ) :=
     ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
 
-  Definition prim_step_mrel (p : prog Λ) : mrel (expr Λ * state Λ) (expr Λ * state Λ) :=
+  Definition prim_step_mrel (p : program Λ) : mrel (expr Λ * state Λ) (expr Λ * state Λ) :=
     λ '(e1, σ1) φ,
       ∃ K e1',
         e1 = fill K e1' ∧
         rel (head_step p) (e1', σ1) (λ '(e2', σ2), φ (fill K e2', σ2)).
 
-  Program Definition prim_step (p : prog Λ) : umrel (expr Λ * state Λ) (expr Λ * state Λ) :=
+  Program Definition prim_step (p : program Λ) : umrel (expr Λ * state Λ) (expr Λ * state Λ) :=
     {| rel := prim_step_mrel p |}.
   Next Obligation.
     intros p [e1 σ1] *.
@@ -235,13 +235,13 @@ Section language.
     eapply multirelations.umrel_upclosed; eauto. intros [? ?]. eauto.
   Qed.
 
-  Definition reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition reducible (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ φ, rel (prim_step p) (e, σ) φ.
-  Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition irreducible (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     ∀ φ, ¬rel (prim_step p) (e, σ) φ.
-  Definition stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition stuck (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ irreducible p e σ.
-  Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+  Definition not_stuck (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     is_Some (to_val e) ∨ reducible p e σ.
 
   (** * Some lemmas about this language *)
@@ -411,7 +411,7 @@ Section language.
     - intros [e σ]. rewrite fill_empty. eauto.
   Qed.
 
-  Lemma fill_stuck (P : prog Λ) e σ K : stuck P e σ → stuck P (fill K e) σ.
+  Lemma fill_stuck (P : program Λ) e σ K : stuck P e σ → stuck P (fill K e) σ.
   Proof.
     intros Hstuck; split.
     + apply fill_not_val, Hstuck.
@@ -423,7 +423,7 @@ Section language.
       eapply multirelations.umrel_upclosed; eauto. intros [? ?]. rewrite -fill_comp//.
   Qed.
 
-  Lemma fill_not_stuck (P : prog Λ) e σ K : not_stuck P (fill K e) σ → not_stuck P e σ.
+  Lemma fill_not_stuck (P : program Λ) e σ K : not_stuck P (fill K e) σ → not_stuck P e σ.
   Proof.
     intros [Hval | Hred].
     - left. by eapply fill_val.
@@ -517,73 +517,53 @@ Section language.
     rewrite /AsVal /=; eauto.
   Qed.
 
-  Record pure_step_mrel p (e1 : expr Λ) (e2s : expr Λ → Prop) := {
+  Record pure_step p (e1 : expr Λ) (e2 : expr Λ) := {
     pure_step_safe σ1 : reducible p e1 σ1;
-    pure_step_det σ1 :
-      rel (prim_step p) (e1, σ1) (λ '(e2, σ2), e2s e2 ∧ σ2 = σ1)
+    pure_step_det σ1 φ :
+      rel (prim_step p) (e1, σ1) φ → φ (e2, σ1)
   }.
 
-  Program Definition pure_step p : umrel (expr Λ) (expr Λ) :=
-    {| rel := pure_step_mrel p |}.
-  Next Obligation.
-    intros ? e X Y [H1 H2] HH. constructor; eauto.
-    intros ?. eapply multirelations.umrel_upclosed; eauto.
-    intros [? ?]. intros [? ->]; eauto.
-  Qed.
+  Class PureExec (P : Prop) (n : nat) p (e1 : expr Λ) (e2 : expr Λ) :=
+    pure_exec : P → relations.nsteps (pure_step p) n e1 e2.
 
-  Class PureExec (P : Prop) (n : nat) p (e1 : expr Λ) (e2s : expr Λ → Prop) :=
-    pure_exec : P → rel (multirelations.repeat (pure_step p) n) e1 e2s.
-
-  Definition fills K (es : expr Λ → Prop) : expr Λ → Prop :=
-    λ e, ∃ e', e = fill K e' ∧ es e'.
-
-  Lemma pure_step_ctx p K e1 e2s :
-    rel (pure_step p) e1 e2s →
-    rel (pure_step p) (fill K e1) (fills K e2s).
+  Lemma pure_step_ctx p K e1 e2 :
+    pure_step p e1 e2 →
+    pure_step p (fill K e1) (fill K e2).
   Proof.
     intros [Hred Hstep]. split.
     - unfold reducible in *. naive_solver eauto using fill_step.
-    - intros σ1. specialize (Hred σ1). specialize (Hstep σ1).
-      apply (fill_step _ K) in Hstep. eapply multirelations.umrel_upclosed; eauto.
-      intros [? ?] (? & -> & ? & ->). unfold fills; eauto.
+    - intros σ1 φ HstepK. specialize (Hred σ1). specialize (Hstep σ1).
+      apply fill_reducible_prim_step in HstepK; auto.
+      apply Hstep in HstepK. eauto.
   Qed.
 
-  Lemma pure_step_nsteps_ctx K n p e1 e2s :
-    rel (multirelations.repeat (pure_step p) n) e1 e2s →
-    rel (multirelations.repeat (pure_step p) n) (fill K e1) (fills K e2s).
-  Proof. eauto using multirelations.repeat_congruence, pure_step_ctx. Qed.
+  Lemma pure_step_nsteps_ctx K n p e1 e2 :
+    relations.nsteps (pure_step p) n e1 e2 →
+    relations.nsteps (pure_step p) n (fill K e1) (fill K e2).
+  Proof. eauto using nsteps_congruence, pure_step_ctx. Qed.
 
-  Lemma pure_exec_ctx K P n p e1 e2s :
-    PureExec P n p e1 e2s →
-    PureExec P n p (fill K e1) (fills K e2s).
+  Lemma pure_exec_ctx K P n p e1 e2 :
+    PureExec P n p e1 e2 →
+    PureExec P n p (fill K e1) (fill K e2).
   Proof. rewrite /PureExec; eauto using pure_step_nsteps_ctx. Qed.
 
-  Record pure_head_step_mrel p (e1 : expr Λ) (e2s : expr Λ → Prop) := {
+  Record pure_head_step p (e1 : expr Λ) (e2 : expr Λ) := {
     pure_head_step_safe σ1 : head_reducible p e1 σ1;
-    pure_head_step_det σ1 :
-      rel (head_step p) (e1, σ1) (λ '(e2, σ2), e2s e2 ∧ σ2 = σ1)
+    pure_head_step_det σ1 φ :
+      rel (head_step p) (e1, σ1) φ → φ (e2, σ1)
   }.
 
-  Program Definition pure_head_step p : umrel (expr Λ) (expr Λ) :=
-    {| rel := pure_head_step_mrel p |}.
-  Next Obligation.
-    intros ? x X Y [? ?] ?. constructor; eauto.
-    intros ?. eapply multirelations.umrel_upclosed; eauto.
-    intros [? ?]. naive_solver.
-  Qed.
-
-  Lemma pure_head_step_pure_step p e1 e2s :
-    rel (pure_head_step p) e1 e2s → rel (pure_step p) e1 e2s.
+  Lemma pure_head_step_pure_step p e1 e2 :
+    pure_head_step p e1 e2 → pure_step p e1 e2.
   Proof.
     intros [Hp1 Hp2]. split.
     - intros σ. destruct (Hp1 σ) as (φ & Hstep).
       eexists. by eapply head_prim_step.
-    - intros σ. eauto using head_prim_step.
+    - intros σ φ Hstep. Search prim_step head_reducible.
+      eapply head_reducible_prim_step, Hp2 in Hstep; eauto.
   Qed.
 
 End language.
-
-Definition program Λ := gmap string (func Λ).
 
 (* discrete OFE instance for expr and thread_id *)
 Definition exprO {Λ : mlanguage} := leibnizO (expr Λ).
