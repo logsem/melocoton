@@ -559,7 +559,7 @@ Section language.
     intros [Hp1 Hp2]. split.
     - intros σ. destruct (Hp1 σ) as (φ & Hstep).
       eexists. by eapply head_prim_step.
-    - intros σ φ Hstep. Search prim_step head_reducible.
+    - intros σ φ Hstep.
       eapply head_reducible_prim_step, Hp2 in Hstep; eauto.
   Qed.
 
