@@ -43,6 +43,10 @@ Qed.
 
 Notation "M ;;; N" := (seq M N) (at level 10, format "M  ;;;  N").
 
+Lemma unfold_seq {A B C} (M: A ->> B) (N: B ->> C) x X :
+  rel (M ;;; N) x X = exists Y, rel M x Y /\ forall y, Y y -> rel N y X.
+Proof. reflexivity. Qed.
+
 Definition equiv {A B} (M N: A ->> B) :=
   forall a X, rel M a X <-> rel N a X.
 

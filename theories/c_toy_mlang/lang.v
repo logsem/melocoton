@@ -48,7 +48,7 @@ Inductive expr :=
   | While (e0 e1 : expr)
   | FunCall (e0 : expr) (ee : list expr)
   (* Extern *)
-  | Extern (name : string) (arg : list expr)
+  (* | Extern (name : string) (arg : list expr) *)
   (* Angelic choice (returns an integer) *)
   | Choice.
 Set Elimination Schemes.
@@ -75,11 +75,11 @@ Definition expr_rect (P : expr → Type) :
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
-  → (∀ (name : string) (arg : list expr), (forall ei, In2 ei arg -> P ei) -> P (Extern name arg))
+  (* → (∀ (name : string) (arg : list expr), (forall ei, In2 ei arg -> P ei) -> P (Extern name arg)) *)
   → (P Choice)
   → ∀ e : expr, P e.
 Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 => _).
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 (* H13 *) H14 => _).
   refine (fix IH e {struct e} : P e := _).
   refine (match e as e0 return (P e0) with
      | Val v => H1 v
@@ -100,13 +100,13 @@ Proof.
             | ex::er => fun x i => match i with 
                                      inl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
                                    | inr H2 => IHl er x H2 end end) ee0)
-     | Extern name0 arg0 => H13 name0 arg0
-          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In2 x ll), P x :=
-            match ll as ll0 return forall (x:expr) (i:In2 x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
-                                     inl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
-                                   | inr H2 => IHl er x H2 end end) arg0)
+     (* | Extern name0 arg0 => H13 name0 arg0 *)
+     (*      ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In2 x ll), P x := *)
+     (*        match ll as ll0 return forall (x:expr) (i:In2 x ll0), P x *)
+     (*        with nil => fun x i => False_rect _ i  *)
+     (*        | ex::er => fun x i => match i with  *)
+     (*                                 inl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end *)
+     (*                               | inr H2 => IHl er x H2 end end) arg0) *)
      | Choice => H14
      end).
 Defined.
@@ -124,11 +124,11 @@ Definition expr_ind (P : expr → Prop) :
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
-  → (∀ (name : string) (arg : list expr), (forall ei, In ei arg -> P ei) -> P (Extern name arg))
+  (* → (∀ (name : string) (arg : list expr), (forall ei, In ei arg -> P ei) -> P (Extern name arg)) *)
   → P Choice
   → ∀ e : expr, P e.
 Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 => _).
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 (* H13 *) H14 => _).
   refine (fix IH e {struct e} : P e := _).
   refine (match e as e0 return (P e0) with
      | Val v => H1 v
@@ -149,13 +149,13 @@ Proof.
             | ex::er => fun x i => match i with 
                                      or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
                                    | or_intror H2 => IHl er x H2 end end) ee0)
-     | Extern name0 arg0 => H13 name0 arg0
-          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x :=
-            match ll as ll0 return forall (x:expr) (i:In x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
-                                     or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
-                                   | or_intror H2 => IHl er x H2 end end) arg0)
+     (* | Extern name0 arg0 => H13 name0 arg0 *)
+     (*      ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x := *)
+     (*        match ll as ll0 return forall (x:expr) (i:In x ll0), P x *)
+     (*        with nil => fun x i => False_rect _ i  *)
+     (*        | ex::er => fun x i => match i with  *)
+     (*                                 or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end *)
+     (*                               | or_intror H2 => IHl er x H2 end end) arg0) *)
      | Choice => H14
      end).
 Qed.
@@ -173,7 +173,7 @@ Definition expr_rec (P : expr → Set) :
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
-  → (∀ (name : string) (arg : list expr), (forall ei, In2 ei arg -> P ei) -> P (Extern name arg))
+  (* → (∀ (name : string) (arg : list expr), (forall ei, In2 ei arg -> P ei) -> P (Extern name arg)) *)
   → P Choice
   → ∀ e : expr, P e.
 Proof.
@@ -182,6 +182,22 @@ Defined.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
+
+Fixpoint expr_size (e : expr) : nat :=
+  match e with
+  | Let _ e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | Load e => S (expr_size e)
+  | Store e0 e1 => S (Nat.max (expr_size e0) (expr_size e1))
+  | Malloc e1 => S (expr_size e1)
+  | Free e0 e1 => S (Nat.max (expr_size e0) (expr_size e1))
+  | UnOp _ e => S (expr_size e)
+  | BinOp _ e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | If e0 e1 e2 => S (Nat.max (expr_size e0) (Nat.max (expr_size e1) (expr_size e2)))
+  | While e0 e1 => S (Nat.max (expr_size e0) (expr_size e1))
+  | FunCall e0 ee =>
+     S (foldl (λ acc e, Nat.max acc (expr_size e)) (expr_size e0) ee)
+  | _ => 0
+  end.
 
 Inductive function := Fun (b : list binder) (e : expr).
 
@@ -232,15 +248,15 @@ Proof.
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | While e1 e2, While e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | Extern x e, Extern x' e' => 
-        let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
-                       match l1, l2 with
-                       | nil, nil => left eq_refl
-                       | xl::xr, xl'::xr' => cast_if_and (decide (xl = xl')) (decide (xr = xr'))
-                       | _, _ => right _
-                       end)
-        in cast_if_and (decide (x = x')) (@decide (e = e') (gol _ _))
-     | FunCall x el, FunCall x' el' => 
+     (* | Extern x e, Extern x' e' =>  *)
+     (*    let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) := *)
+     (*                   match l1, l2 with *)
+     (*                   | nil, nil => left eq_refl *)
+     (*                   | xl::xr, xl'::xr' => cast_if_and (decide (xl = xl')) (decide (xr = xr')) *)
+     (*                   | _, _ => right _ *)
+     (*                   end) *)
+     (*    in cast_if_and (decide (x = x')) (@decide (e = e') (gol _ _)) *)
+     | FunCall x el, FunCall x' el' =>
         let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
                        match l1, l2 with
                        | nil, nil => left eq_refl
@@ -320,7 +336,7 @@ Proof. (* string + binder + un_op + bin_op + val *)
      | If e0 e1 e2 => GenNode 8 [go e0; go e1; go e2]
      | While e1 e2 => GenNode 9 [go e1; go e2]
      | FunCall ef ea => GenNode 10 (go ef :: map go ea)
-     | Extern s ea => GenNode 11 (GenLeaf (inl s) :: map go ea)
+     (* | Extern s ea => GenNode 11 (GenLeaf (inl s) :: map go ea) *)
      | Choice => GenNode 12 []
      end).
  set (dec :=
@@ -338,13 +354,13 @@ Proof. (* string + binder + un_op + bin_op + val *)
      | GenNode 8 [e0; e1; e2] => If (go e0) (go e1) (go e2)
      | GenNode 9 [e1; e2] => While (go e1) (go e2)
      | GenNode 10 (ef :: ea) => FunCall (go ef) (map go ea)
-     | GenNode 11 (GenLeaf (inl s) :: ea) => Extern s (map go ea)
+     (* | GenNode 11 (GenLeaf (inl s) :: ea) => Extern s (map go ea) *)
      | GenNode 12 [] => Choice
      | _ => Val $ LitV (LitInt 0) (* dummy *)
      end).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ ).
- destruct e as [ | | | | | | | | | | | |ef ee|s ee]; simpl; f_equal.
+ destruct e as [ | | | | | | | | | | | (* |ef ee *)|s ee]; simpl; f_equal.
  1-17: done.
  all: unfold map; by induction ee as [|ex er ->]; simpl; f_equal.
 Qed.
@@ -374,8 +390,8 @@ Inductive ectx_item :=
   | BinOpLCtx (op : bin_op) (e2 : expr)
   | IfCtx (e1 e2 : expr)
   | FunCallLCtx (ea : list expr)
-  | FunCallRCtx (vf : val) (va : list val) (ve : list expr)
-  | ExternCtx (s : string) (va : list val) (ve : list expr).
+  | FunCallRCtx (vf : val) (va : list val) (ve : list expr).
+  (* | ExternCtx (s : string) (va : list val) (ve : list expr). *)
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -392,8 +408,25 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | IfCtx e1 e2 => If e e1 e2
   | FunCallLCtx ea => FunCall e ea
   | FunCallRCtx vf va ve => FunCall (of_val vf) (map of_val va ++ [e] ++ ve)
-  | ExternCtx s va ve => Extern s (map of_val va ++ [e] ++ ve)
+  (* | ExternCtx s va ve => Extern s (map of_val va ++ [e] ++ ve) *)
   end.
+
+Lemma foldl_max {A} (l: list A) (f : A → nat) (n : nat) :
+  n ≤ foldl (λ acc x, acc `max` f x) n l.
+Proof.
+  revert n. induction l as [|x l IHl].
+  { cbn. lia. }
+  { cbn. intros n. specialize (IHl (n `max` f x)). lia. }
+Qed.
+
+Lemma fill_item_size Ki e :
+   expr_size e < expr_size (fill_item Ki e).
+Proof.
+  destruct Ki; cbn [fill_item]; try (cbn; lia).
+  - cbn. apply le_lt_n_Sm, foldl_max.
+  - cbn. apply le_lt_n_Sm. cbn.
+    rewrite foldl_app /=. etransitivity; [| eapply foldl_max]. lia.
+Qed.
 
 (** Substitution *)
 Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
@@ -411,7 +444,7 @@ Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
   | If e0 e1 e2 => If (subst_all g e0) (subst_all g e1) (subst_all g e2)
   | While e1 e2 => While (subst_all g e1) (subst_all g e2)
   | FunCall ef ea => FunCall (subst_all g ef) (map (subst_all g) ea)
-  | Extern s ea => Extern s (map (subst_all g) ea)
+  (* | Extern s ea => Extern s (map (subst_all g) ea) *)
   | Choice => Choice
   end.
 
@@ -544,55 +577,66 @@ Inductive head_step_mrel (p : program) : (expr * state) → (expr * state → Pr
      ee = subst' x v1 e2 →
      φ (ee, σ) →
      head_step_mrel p (Let x (Val v1) e2, σ) φ
-  | LoadS l v σ φ :
-     σ.(heap) !! l = Some $ Storing v →
-     φ (of_val v, σ) →
-     head_step_mrel p (Load (Val $ LitV $ LitLoc l), σ) φ
-  | StoreS l k w σ φ :
-     σ.(heap) !! l = Some $ (Some k) →
-     φ (Val $ LitV LitUnit, state_upd_heap <[l:=Storing w]> σ) →
-     head_step_mrel p (Store (Val $ LitV $ LitLoc l) (Val w), σ) φ
-  | MallocS n σ l φ :
-     (0 < n)%Z →
-     (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ.(heap) !! (l +ₗ i) = None) →
-     φ (Val $ LitV $ LitLoc l, state_init_heap l n Uninitialized σ) →
-     head_step_mrel p (Malloc (Val $ LitV $ LitInt n), σ) φ
-  | FreeS l n v σ φ :
-     σ.(heap) !! l = Some $ (Some v) →
-     φ (Val $ LitV LitUnit, state_init_heap l n Deallocated σ) →
-     head_step_mrel p (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt n), σ) φ
-  | UnOpS op v v' σ φ :
-     un_op_eval op v = Some v' →
-     φ (Val v', σ) →
+  | LoadS u σ φ :
+     (∀ l v,
+      u = LitV $ LitLoc l →
+      σ.(heap) !! l = Some $ Storing v → φ (of_val v, σ)) →
+     head_step_mrel p (Load (Val u), σ) φ
+  | StoreS u w σ φ :
+     (∀ l k,
+      u = LitV $ LitLoc l →
+      σ.(heap) !! l = Some $ (Some k) →
+      φ (Val $ LitV LitUnit, state_upd_heap <[l:=Storing w]> σ)) →
+     head_step_mrel p (Store (Val u) (Val w), σ) φ
+  | MallocS u σ φ :
+     (∀ n,
+      u = LitV $ LitInt n →
+      (0 < n)%Z →
+      ∃ l, (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ.(heap) !! (l +ₗ i) = None) ∧
+           φ (Val $ LitV $ LitLoc l, state_init_heap l n Uninitialized σ)) →
+     head_step_mrel p (Malloc (Val u), σ) φ
+  | FreeS u u' σ φ :
+     (∀ l n v,
+      u = LitV $ LitLoc l →
+      u' = LitV $ LitInt n →
+      σ.(heap) !! l = Some $ (Some v) →
+      φ (Val $ LitV LitUnit, state_init_heap l n Deallocated σ)) →
+     head_step_mrel p (Free (Val u) (Val u'), σ) φ
+  | UnOpS op v σ φ :
+     (∀ v',
+      un_op_eval op v = Some v' →
+      φ (Val v', σ)) →
      head_step_mrel p (UnOp op (Val v), σ) φ
-  | BinOpS op v1 v2 v' σ φ :
-     bin_op_eval op v1 v2 = Some v' →
-     φ (Val (LitV v'), σ) →
+  | BinOpS op v1 v2 σ φ :
+     (∀ v',
+      bin_op_eval op v1 v2 = Some v' →
+      φ (Val (LitV v'), σ)) →
      head_step_mrel p (BinOp op (Val v1) (Val v2), σ) φ
-  | IfTrueS v0 e1 e2 σ φ :
-     asTruth v0 = true →
-     φ (e1, σ) →
-     head_step_mrel p (If (Val v0) e1 e2, σ) φ
-  | IfFalseS v0 e1 e2 σ φ :
-     asTruth v0 = false →
-     φ (e2, σ) →
+  | IfS v0 e1 e2 σ φ :
+     (asTruth v0 = true → φ (e1, σ)) →
+     (asTruth v0 = false → φ (e2, σ)) →
      head_step_mrel p (If (Val v0) e1 e2, σ) φ
   | WhileS e1 e2 σ φ :
      φ (If e1 (Let BAnon e1 (While e1 e2)) (Val $ LitV $ LitInt 0), σ) →
      head_step_mrel p (While e1 e2, σ) φ
-  | FunCallS s va args res e σ φ :
-     (p : gmap string function) !! s = Some (Fun args e) →
-     apply_function (Fun args e) va = Some res →
-     φ (res, σ) →
-     head_step_mrel p (FunCall (Val $ LitV $ LitFunPtr s) (map Val va), σ) φ
+  | FunCallS u va σ φ :
+     (∀ s args res e,
+      u = LitV $ LitFunPtr s →
+      (p : gmap string function) !! s = Some (Fun args e) →
+      apply_function (Fun args e) va = Some res →
+      φ (res, σ)) →
+     head_step_mrel p (FunCall (Val u) (map Val va), σ) φ
   | ChoiceS σ φ :
      (∀ n, φ (Val (LitV (LitInt n)), σ)) →
-     head_step_mrel p (Choice, σ) φ.
+     head_step_mrel p (Choice, σ) φ
+  | VarUBS x σ φ :
+     head_step_mrel p (Var x, σ) φ.
 
 Program Definition head_step p : multirelations.umrel (expr * state) (expr * state) :=
   {| multirelations.rel := head_step_mrel p |}.
 Next Obligation.
-  intros p [e σ] φ φ' Hstep Hφ. inversion Hstep; subst; solve [econstructor; eauto].
+  intros p [e σ] φ φ' Hstep Hφ. inversion Hstep; subst; try solve [econstructor; eauto].
+  constructor; naive_solver.
 Qed.
 
 (** Basic properties about the language *)
@@ -643,27 +687,27 @@ Proof.
     + by rewrite H1.
     + by rewrite H2.
     + f_equal. apply (map_inj Val). 2:easy. congruence.
-  - intros H1 H2 H3. cbn in H3. injection H3. intros H4 ->.
-    edestruct (list_eq_sliced _ _ _ _ _ _ (fun x => is_Some (to_val x)) H4) as (Heq & -> & ->).
-    + by intros k [k' [<- Hk']]%in_map_iff.
-    + by intros k [k' [<- Hk']]%in_map_iff.
-    + by rewrite H1.
-    + by rewrite H2.
-    + f_equal. apply (map_inj Val). 2:easy. congruence.
+  (* - intros H1 H2 H3. cbn in H3. injection H3. intros H4 ->. *)
+  (*   edestruct (list_eq_sliced _ _ _ _ _ _ (fun x => is_Some (to_val x)) H4) as (Heq & -> & ->). *)
+  (*   + by intros k [k' [<- Hk']]%in_map_iff. *)
+  (*   + by intros k [k' [<- Hk']]%in_map_iff. *)
+  (*   + by rewrite H1. *)
+  (*   + by rewrite H2. *)
+  (*   + f_equal. apply (map_inj Val). 2:easy. congruence. *)
 Qed.
 
-Lemma alloc_fresh p n σ :
+Lemma alloc_fresh p u σ φ :
   let l := fresh_locs (dom σ.(heap)) in
-  (0 < n)%Z →
-  multirelations.rel (head_step p)
-      (Malloc ((Val $ LitV $ LitInt $ n)), σ)
-      (λ '(e, σ'), e = Val $ LitV $ LitLoc l ∧ σ' = state_init_heap l n Uninitialized σ).
+  (∀ n, u = LitV $ LitInt n → φ (Val $ LitV $ LitLoc l, state_init_heap l n Uninitialized σ)) →
+  multirelations.rel (head_step p) (Malloc (Val u), σ) φ.
 Proof.
-  intros.
-  eapply MallocS; first done; last done.
-  intros. apply not_elem_of_dom.
-  by apply fresh_locs_fresh.
+  intros. apply MallocS. intros ? -> ?. exists l. split; eauto.
+  intros. by apply not_elem_of_dom, fresh_locs_fresh.
 Qed.
+
+Lemma alloc_step p u σ :
+  multirelations.rel (head_step p) (Malloc (Val u), σ) (λ _, True).
+Proof. eapply alloc_fresh; auto. Qed.
 
 Lemma val_head_stuck p e1 σ1 φ :
    multirelations.rel (head_step p) (e1, σ1) φ → to_val e1 = None.
@@ -672,9 +716,9 @@ Proof. inversion 1; subst; naive_solver. Qed.
 Lemma head_ctx_step_val' p Ki e σ1 φ :
   multirelations.rel (head_step p) (fill_item Ki e, σ1) φ → is_Some (to_val e).
 Proof.
-  revert φ. induction Ki. 1-12,14: inversion_clear 1; simplify_option_eq; eauto.
+  revert φ. induction Ki. 1-12(* ,14 *): solve [inversion_clear 1; simplify_option_eq; eauto].
   inversion 1. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
-  apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
+  apply in_map_iff. rewrite H2. apply in_or_app. right. now left.
 Qed.
 
 End C_lang.

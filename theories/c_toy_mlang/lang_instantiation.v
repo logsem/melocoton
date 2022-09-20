@@ -39,7 +39,7 @@ Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
 Proof.
   induction le in lv|-*.
   - intros H. injection H. intros <-. easy.
-  - cbn. destruct a. 2-14:congruence.
+  - cbn. destruct a. 2-13:congruence.
     destruct (unmap_val le) eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
@@ -48,7 +48,7 @@ Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
 Proof.
   destruct e; cbn; try congruence.
   - intros H. injection H. intros <-. easy.
-  - destruct e. 2-14: congruence. destruct v. destruct l. 1-2: congruence.
+  - destruct e. 2-13: congruence. destruct v. destruct l. 1-2: congruence.
     destruct unmap_val eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
 Qed.
@@ -85,20 +85,30 @@ Proof.
     - easy.
 Qed.
 
+Lemma fill_size K e :
+  K ≠ [] →
+  expr_size e < expr_size (fill K e).
+Proof.
+  revert e. induction K as [|Ki K IHK]; first done.
+  intros e _. rewrite /= -/fill.
+  destruct (decide (K = [])) as [->|HK].
+  { apply fill_item_size. }
+  specialize (IHK (fill_item Ki e) HK).
+  pose proof (fill_item_size Ki e). lia.
+Qed.
+
 Lemma val_head_step p v σ φ :
   ¬ rel (head_step p) (Val v, σ) φ.
 Proof. inversion 1. Qed.
 
 Lemma call_head_step (p : gmap string function) f vs σ φ :
   rel (head_step p) (of_class (ExprCall f vs), σ) φ ↔
-  ∃ (fn : function) (e2 : expr),
-    p !! f = Some fn ∧ Some e2 = apply_function fn vs ∧ φ (e2, σ).
+  (∀ (fn : function) (e2 : expr),
+     p !! f = Some fn → Some e2 = apply_function fn vs → φ (e2, σ)).
 Proof.
-  split.
-  { inversion 1; subst. do 2 eexists. split_and!; eauto. symmetry.
-    match goal with H : _ |- _ => apply map_inj in H end; [by subst|].
-    congruence. }
-  { intros ([? ?] & ? & ? & ? & ?). econstructor; eauto. }
+  cbn. split.
+  { inversion 1; subst. intros [? ?] ?. naive_solver. }
+  { intros. econstructor. naive_solver. }
 Qed.
 
 Lemma fill_inj K : Inj (=) (=) (fill K).
@@ -144,11 +154,71 @@ Proof.
   eauto.
 Qed.
 
+Lemma decompose_expr_val_list ee va ee':
+  ee = map Val va ++ ee' →
+  (∃ va', ee = map Val va') ∨ (∃ va' ve e', ee = map Val va' ++ e' :: ve ∧ to_val e' = None).
+Proof.
+  revert va. induction ee' as [| e' ee']; intros * ->.
+  { rewrite app_nil_r. left; eauto. }
+  destruct e'.
+  { specialize (IHee' (va ++ [v])).
+    rewrite map_app -app_assoc in IHee'.
+    specialize (IHee' eq_refl) as [(va' & HH) | (va' & ve & e' & HH)]; eauto. }
+  all: right; eexists va, ee', _; eauto.
+Qed.
+
+Lemma not_val_in_vals va va' e' ve:
+  to_val e' = None →
+  map Val va ≠ map Val va' ++ e' :: ve.
+Proof.
+  intros HH (l1 & l2 & -> & Heq1 & (? & ? & -> & <- & <-)%map_eq_cons)%map_eq_app.
+  done.
+Qed.
+
+Lemma head_step_cases p e σ :
+  rel (head_step p) (e, σ) (λ _, True) ∨
+  (¬ rel (head_step p) (e, σ) (λ _, True) ∧
+   (is_Some (to_val e) ∨
+    ∃ (K : ectx) (e' : expr),
+      e = fill K e' ∧
+      to_val e' = None ∧
+      K ≠ [])).
+Proof.
+  Local Ltac notstuck := left; econstructor; eauto.
+  Local Ltac stuck := right; split; [by inversion 1|eauto].
+  Local Ltac inctx Ctxpat := stuck; right; eexists [Ctxpat], _; split; by eauto.
+  Local Ltac isval := left; done.
+  Local Tactic Notation "inctx" uconstr(X) := inctx X.
+  destruct e.
+  - stuck.
+  - notstuck.
+  - destruct e1; try inctx (LetCtx _ _). notstuck.
+  - destruct e; try inctx LoadCtx. notstuck.
+  - destruct e1; try inctx (StoreLCtx _).
+    destruct e2; try inctx (StoreRCtx _). notstuck.
+  - destruct e; try inctx MallocCtx. left. apply alloc_step.
+  - destruct e1; try inctx (FreeLCtx _).
+    destruct e2; try inctx (FreeRCtx _). notstuck.
+  - destruct e; try inctx (UnOpCtx _). notstuck.
+  - destruct e1; try inctx (BinOpLCtx _ _).
+    destruct e2; try inctx (BinOpRCtx _ _). notstuck.
+  - destruct e1; try inctx (IfCtx _ _). notstuck.
+  - notstuck.
+  - destruct e; try inctx (FunCallLCtx _).
+    pose proof (decompose_expr_val_list _ [] ee eq_refl)
+      as [HH|HH]; cbn in HH.
+    { destruct HH as (va & ->). left. by econstructor. }
+    { destruct HH as (va & ve & e' & -> & He'). right. split.
+      { inversion 1; subst. eapply not_val_in_vals; eauto. }
+      right. exists [FunCallRCtx v va ve], e'. done. }
+  - notstuck.
+Qed.
+
 Lemma melocoton_mlang_mixin_C :
   @mlanguage.MlanguageMixin
     expr val function ectx state
     of_class to_class
-    nil (fun a b => b++a) fill
+    nil (fun a b => b++a) fill expr_size
     apply_function head_step.
 Proof. split.
   + apply to_of_cancel.
@@ -161,6 +231,14 @@ Proof. split.
   + apply fill_class.
   + apply step_by_val.
   + apply head_ctx_step_val.
+  + intros *. (* XXX tedious *)
+    destruct (head_step_cases p e σ) as [H | (? & [H|H])]; [by eauto|..];
+      right; (split; [by eauto|]); [left|right].
+    { unfold to_val, to_class in *. destruct H as [? ?].
+      repeat case_match; eauto; congruence. }
+    { destruct H as (K & e' & -> & ? & ?). do 2 eexists; repeat split; eauto.
+      unfold to_class, to_val in *. repeat case_match; eauto; congruence. }
+  + apply fill_size.
 Qed.
 
 Canonical Structure C_mlang_melocoton := Mlanguage melocoton_mlang_mixin_C.

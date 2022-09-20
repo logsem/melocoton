@@ -23,7 +23,7 @@ Section pure_exec.
   Local Ltac solve_exec_safe :=
     intros; subst; try (exists (λ _, True); econstructor; eauto; done).
   Local Ltac solve_exec_puredet :=
-    intros; inv_head_step; try solve [done|congruence].
+    intros; inv_head_step; try solve [done|congruence|by eauto].
   Local Ltac solve_pure_exec :=
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
       constructor; [solve_exec_safe | solve_exec_puredet].
@@ -88,8 +88,8 @@ Section pure_exec.
              (subst_all res e).
   Proof.
     solve_pure_exec; destruct H as [H1 H2].
-    { exists (λ _, True). econstructor; eauto. rewrite /apply_function H2//. }
-    { destruct (zip_args args0 va) eqn:Heq; last congruence. congruence. }
+    destruct (zip_args args va) eqn:Heq; last congruence.
+    eapply H5; eauto. rewrite Heq. by simplify_eq.
   Qed.
 
 End pure_exec.

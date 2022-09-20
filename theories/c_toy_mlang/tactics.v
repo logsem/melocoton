@@ -68,4 +68,4 @@ Create HintDb head_step.
 #[global] Hint Extern 0 (head_reducible _ _ _) => exists (λ _, True); simpl : head_step.
 #[global] Hint Extern 1 (multirelations.rel (head_step _) _ _) => econstructor : head_step.
 #[global] Hint Extern 0 (multirelations.rel (head_step _) (Malloc _, _) _) =>
-  eapply multirelations.umrel_upclosed; [eapply alloc_fresh|intros [? ?]] : head_step.
+  eapply multirelations.umrel_upclosed; [eapply alloc_step|intros [? ?]] : head_step.

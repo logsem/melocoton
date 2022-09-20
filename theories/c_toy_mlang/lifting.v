@@ -189,7 +189,7 @@ Qed.
 
 (***** now: lemmas corresponding to those from ectx_lifting *****)
 
-Local Hint Resolve head_prim_reducible head_reducible_prim_step.
+Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 
 Lemma wp_lift_head_step_fupd {p E Φ} e1 :
   to_val e1 = None →

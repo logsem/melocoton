@@ -369,6 +369,8 @@ Proof.
   iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1 ns) "(Hσ & Hsteps) !>"; iSplit; first by auto with lia head_step.
   iIntros "!>" (φ Hstep) "Hcred"; inv_head_step.
+  match goal with H: ∀ n, _ |- _ => rename H into HH end.
+  specialize (HH n eq_refl ltac:(auto)) as (l & ? & ?).
   iMod (gen_heap_alloc_big _ (heap_array _ (replicate (Z.to_nat n) Uninitialized)) with "Hσ")
     as "(Hσ & Hl & Hm)".
   { apply heap_array_map_disjoint.
@@ -415,6 +417,8 @@ Proof.
   iIntros (σ1 ns) "(Hσ & Hsteps) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto with head_step.
   iIntros "!>" (φ Hstep) "Hcred"; inv_head_step.
+  match goal with H: ∀ l' _, _ = _ → _ |- _ => rename H into HH end.
+  specialize (HH l _ eq_refl ltac:(eassumption)).
   iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iMod (gen_heap_update with "Hσ Hl") as "[Hσ Hl]".
   iModIntro. iExists _, _. iSplit; first done. iFrame. by iApply "HΦ".

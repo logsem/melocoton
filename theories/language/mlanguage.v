@@ -18,6 +18,8 @@ Section language_mixin.
   Context (comp_ectx : ectx → ectx → ectx).
   Context (fill : ectx → expr → expr).
 
+  Context (expr_size : expr → nat).
+
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
 
@@ -35,8 +37,8 @@ Section language_mixin.
       rel (head_step p) (of_class (ExprVal v), σ) φ → False;
     mixin_call_head_step p f vs σ φ :
       rel (head_step p) (of_class (ExprCall f vs), σ) φ ↔
-      ∃ (fn : func) (e2 : expr),
-        p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ φ (e2, σ);
+      (∀ (fn : func) (e2 : expr),
+        p !! f = Some fn → Some e2 = apply_func fn vs → φ (e2, σ));
 
     (** Evaluation contexts *)
     mixin_fill_empty e : fill empty_ectx e = e;
@@ -68,6 +70,17 @@ Section language_mixin.
        there some pattern or reduncancy here? *)
     mixin_head_ctx_step_val p K e σ φ :
       rel (head_step p) (fill K e, σ) φ → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
+
+    (* XXX proper to_val // fix this wrt external calls *)
+    mixin_head_step_cases p e σ :
+      rel (head_step p) (e, σ) (λ _, True) ∨
+      (¬ rel (head_step p) (e, σ) (λ _, True) ∧
+       (match to_class e with Some (ExprVal _) => True | _ => False end ∨ (* is_Some (to_val e) *)
+        ∃ K e', e = fill K e' ∧
+                match to_class e' with Some (ExprVal _) => False | _ => True end (* to_val e' = None *) ∧
+                K ≠ empty_ectx));
+    mixin_fill_size K e :
+      K ≠ empty_ectx → (expr_size e < expr_size (fill K e))%nat;
   }.
 End language_mixin.
 
@@ -86,12 +99,13 @@ Structure mlanguage := Mlanguage {
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
+  expr_size : expr → nat;
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → umrel (expr * state) (expr * state);
 
   language_mixin :
     MlanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      apply_func head_step
+      expr_size apply_func head_step
 }.
 
 Declare Scope expr_scope.
@@ -100,12 +114,13 @@ Bind Scope expr_scope with expr.
 Declare Scope val_scope.
 Bind Scope val_scope with val.
 Arguments mlanguage : clear implicits.
-Arguments Mlanguage {expr _ _ _ _ _ _ _ _ _ apply_func head_step}.
+Arguments Mlanguage {expr _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
 Arguments of_class {_} _.
 Arguments to_class {_} _.
 Arguments empty_ectx {_}.
 Arguments comp_ectx {_} _ _.
 Arguments fill {_} _ _.
+Arguments expr_size {_} _.
 Arguments apply_func {_}.
 Arguments head_step {_} _.
 
@@ -156,7 +171,7 @@ Section language.
   Proof. apply language_mixin. Qed.
   Lemma call_head_step p f vs σ φ :
     rel (head_step p) (of_class (ExprCall f vs), σ) φ ↔
-    ∃ fn e2, p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ φ (e2, σ).
+    (∀ fn e2, p !! f = Some fn → Some e2 = apply_func fn vs → φ (e2, σ)).
   Proof. apply language_mixin. Qed.
 
   Lemma fill_empty e : fill empty_ectx e = e.
@@ -176,6 +191,17 @@ Section language.
   Proof. apply language_mixin. Qed.
   Lemma head_ctx_step_val' p K e σ φ :
     rel (head_step p) (fill K e, σ) φ → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v).
+  Proof. apply language_mixin. Qed.
+  Lemma head_step_cases p e σ :
+    rel (head_step p) (e, σ) (λ _, True) ∨
+    (¬ rel (head_step p) (e, σ) (λ _, True) ∧
+     (match to_class e with Some (ExprVal _) => True | _ => False end ∨ (* is_Some (to_val e) *)
+      ∃ K e', e = fill K e' ∧
+              match to_class e' with Some (ExprVal _) => False | _ => True end (* to_val e' = None *) ∧
+              K ≠ empty_ectx)).
+  Proof. apply language_mixin. Qed.
+  Lemma fill_size K e :
+    K ≠ empty_ectx → expr_size e < expr_size (fill K e).
   Proof. apply language_mixin. Qed.
 
   Lemma fill_class K e :
@@ -201,13 +227,17 @@ Section language.
   Qed.
   Lemma call_head_step_inv p f vs σ φ :
     rel (head_step p) (of_class (ExprCall f vs), σ) φ →
-    ∃ fn e2, p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ φ (e2, σ).
+    (∀ fn e2, p !! f = Some fn → Some e2 = apply_func fn vs → φ (e2, σ)).
   Proof. eapply call_head_step. Qed.
   Lemma call_head_step_intro p f vs fn σ er :
     p !! f = Some fn →
     Some er = apply_func fn vs →
     rel (head_step p) (of_call f vs, σ) (λ '(e', σ'), e' = er ∧ σ' = σ).
-  Proof. intros ? ?. eapply call_head_step; eexists; eauto. Qed.
+  Proof.
+    intros ? ?. eapply call_head_step; intros; simplify_eq.
+    match goal with H1 : Some ?x = ?z, H2 : Some ?y = ?z |- _ => rewrite <-H1 in H2 end.
+    naive_solver.
+  Qed.
 
   Definition head_reducible (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ φ, rel (head_step p) (e, σ) φ.
@@ -243,6 +273,10 @@ Section language.
     to_val e = None ∧ irreducible p e σ.
   Definition not_stuck (p : program Λ) (e : expr Λ) (σ : state Λ) :=
     is_Some (to_val e) ∨ reducible p e σ.
+  Definition reducible_not_ub (p : program Λ) (e : expr Λ) (σ : state Λ) :=
+    ∃ φ e' σ', rel (prim_step p) (e, σ) φ ∧ φ (e', σ').
+  Definition not_ub (p : program Λ) (e : expr Λ) (σ : state Λ) :=
+    is_Some (to_val e) ∨ reducible_not_ub p e σ.
 
   (** * Some lemmas about this language *)
   Lemma to_of_val v : to_val (of_val v) = Some v.
@@ -438,8 +472,8 @@ Section language.
 
   Lemma prim_step_call_inv p K f vs e' σ φ :
     rel (prim_step p) (fill K (of_call f vs), σ) φ →
-    ∃ er fn,
-      Some er = apply_func fn vs ∧ p !! f = Some fn ∧
+    ∀ er fn,
+      Some er = apply_func fn vs → p !! f = Some fn →
       φ (fill K er, σ).
   Proof.
     intros (K' & e1 & Hctx & Hstep).
@@ -448,9 +482,9 @@ Section language.
     rewrite -fill_comp in Hctx. eapply fill_inj in Hctx.
     destruct (fill_class K'' e1) as [->|Hval].
     - apply is_call_is_class. erewrite of_to_call_flip; eauto.
-    - rewrite fill_empty in Hctx. subst e1.
-      apply call_head_step_inv in Hstep as (fn & e2 & Hf & He2 & Hφ').
-      do 2 eexists. split_and!; eauto. rewrite -fill_comp fill_empty// in Hφ'.
+    - rewrite fill_empty in Hctx. subst e1. intros.
+      eapply call_head_step_inv in Hstep; eauto.
+      rewrite -fill_comp fill_empty// in Hstep.
     - apply val_head_stuck in Hstep. apply not_eq_None_Some in Hval. done.
   Qed.
 
@@ -504,6 +538,32 @@ Section language.
   Lemma fill_reducible_inv p K e σ :
     to_val e = None → reducible p (fill K e) σ → reducible p e σ.
   Proof. intros ? (φ & Hstep%fill_step_inv); auto. eexists; eauto. Qed.
+
+  Lemma not_val_reducible p e σ :
+    to_val e = None → reducible p e σ.
+  Proof.
+    intros Hnval. unfold reducible. exists (λ _, True). revert Hnval σ.
+    assert (exists n, expr_size e = n) as [n Hn] by (eexists; reflexivity).
+    revert e Hn. pattern n. refine (lt_wf_ind n _ _). clear n. intros n IH.
+    intros e Hsize Hnval σ. unfold multirelations.rel; cbn.
+    destruct (head_step_cases p e σ) as [Hstep|(Hstuck & [HH|HH])].
+    { exists empty_ectx, e. rewrite fill_empty; split; eauto.
+      eapply multirelations.umrel_upclosed; eauto. by intros [? ?]. }
+    { exfalso. unfold to_val in Hnval. repeat case_match; eauto. congruence. }
+    { destruct HH as (K & e' & -> & He' & HK).
+      assert (Hnve': to_val e' = None).
+      { unfold to_val. repeat case_match; done. } clear He'.
+      assert (Hsze': expr_size e' < expr_size (fill K e')).
+      { by apply fill_size. }
+      subst n. specialize (IH (expr_size e') Hsze' e' eq_refl Hnve' σ).
+      destruct IH as (K' & e'' & -> & Hstep). rewrite fill_comp //. eauto. }
+  Qed.
+
+  Lemma never_stuck p e σ :
+    not_stuck p e σ.
+  Proof.
+    unfold not_stuck. destruct (to_val e) eqn:H; eauto. eauto using not_val_reducible.
+  Qed.
 
   Class IntoVal (e : expr Λ) (v : val Λ) :=
     into_val : of_val v = e.
