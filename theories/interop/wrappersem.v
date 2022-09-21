@@ -71,7 +71,7 @@ Local Notation prog := (gmap string func).
 Definition proj_prog_C (P : prog) : gmap string C_lang.function :=
   fmap (λ '(_, fn), fn) P.
 
-Definition wrapper_step (P : prog) : mrel (expr * state) (expr * state) :=
+Definition wrapper_step_mrel (P : prog) : multirelation (expr * state) :=
   λ '(e, ρ) φ,
     (* step in the underlying wrapped C program *)
     (∀ ec ρc mem ec' mem',
@@ -222,8 +222,8 @@ Definition wrapper_step (P : prog) : mrel (expr * state) (expr * state) :=
        repr_lval (θC ρc) (Lint x) w →
        φ (WrapExprC (language.fill K (C_lang.of_val w)), (C (ρc, mem)))).
 
-Program Definition wrapper_step_umrel (P : prog) : umrel (expr * state) (expr * state) :=
-  {| rel := wrapper_step P |}.
+Program Definition wrapper_step (P : prog) : umrel (expr * state) :=
+  {| mrel := wrapper_step_mrel P |}.
 Next Obligation.
   unfold upclosed. intros p [e ρ] φ ψ H Hφψ.
   destruct_or! H; naive_solver.

@@ -6,8 +6,6 @@ From iris.prelude Require Import options.
 From melocoton.language Require Import mlanguage.
 From melocoton.c_toy_mlang Require Export lang.
 
-Local Notation rel := multirelations.rel.
-
 Definition of_class (e : mixin_expr_class val) : expr := match e with
   ExprVal v => Val v
 | ExprCall vf vl => FunCall (Val $ LitV $ LitFunPtr vf) (map Val vl) end.
@@ -98,11 +96,11 @@ Proof.
 Qed.
 
 Lemma val_head_step p v σ φ :
-  ¬ rel (head_step p) (Val v, σ) φ.
+  ¬ head_step p (Val v, σ) φ.
 Proof. inversion 1. Qed.
 
 Lemma call_head_step (p : gmap string function) f vs σ φ :
-  rel (head_step p) (of_class (ExprCall f vs), σ) φ ↔
+  head_step p (of_class (ExprCall f vs), σ) φ ↔
   (∀ (fn : function) (e2 : expr),
      p !! f = Some fn → Some e2 = apply_function fn vs → φ (e2, σ)).
 Proof.
@@ -125,7 +123,7 @@ Proof. rewrite !eq_None_not_Some. by intros ? ?%fill_val. Qed.
 Lemma step_by_val p K' K_redex e1' e1_redex σ φ :
   fill K' e1' = fill K_redex e1_redex →
   match to_class e1' with Some (ExprVal _) => False | _ => True end →
-  rel (head_step p) (e1_redex, σ) φ →
+  head_step p (e1_redex, σ) φ →
   ∃ K'', K_redex = comp_ectx K' K''.
 Proof.
   intros Hfill Hred Hstep. revert K_redex Hfill.
@@ -144,7 +142,7 @@ Proof.
 Qed.
 
 Lemma head_ctx_step_val p K e σ1 φ :
-  rel (head_step p) (fill K e, σ1) φ →
+  head_step p (fill K e, σ1) φ →
   K = [] ∨ ∃ v, to_class e = Some (ExprVal v).
 Proof.
   destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
@@ -176,8 +174,8 @@ Proof.
 Qed.
 
 Lemma head_step_cases p e σ :
-  rel (head_step p) (e, σ) (λ _, True) ∨
-  (¬ rel (head_step p) (e, σ) (λ _, True) ∧
+  head_step p (e, σ) (λ _, True) ∨
+  (¬ head_step p (e, σ) (λ _, True) ∧
    (is_Some (to_val e) ∨
     ∃ (K : ectx) (e' : expr),
       e = fill K e' ∧

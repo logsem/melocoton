@@ -4,7 +4,6 @@ semantics to the program logic. *)
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_mlang Require Export weakestpre.
 From iris.prelude Require Import options.
-From melocoton Require Import multirelations.
 
 Section lifting.
 Context `{!irisGS_gen hlc Λ Σ}.
@@ -20,7 +19,7 @@ Lemma wp_lift_step_fupdN p E Φ e1 :
   (∀ σ1 ns,
      state_interp σ1 ns ={E,∅}=∗
        ⌜reducible p e1 σ1⌝ ∗
-       ∀ φ, ⌜rel (prim_step p) (e1, σ1) φ⌝ -∗
+       ∀ φ, ⌜prim_step p (e1, σ1) φ⌝ -∗
          £ (S (num_laters_per_step ns))
          ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
          ∃ e2 σ2,
@@ -35,7 +34,7 @@ Lemma wp_lift_step_fupd p E Φ e1 :
   (∀ σ1 ns,
      state_interp σ1 ns ={E,∅}=∗
        ⌜reducible p e1 σ1⌝ ∗
-       ∀ φ, ⌜rel (prim_step p) (e1, σ1) φ⌝ -∗
+       ∀ φ, ⌜prim_step p (e1, σ1) φ⌝ -∗
          £ 1 ={∅}=∗ ▷ |={∅,E}=>
          ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗ state_interp σ2 (S ns) ∗
            WP e2 @ p; E {{ Φ }})
@@ -69,7 +68,7 @@ Lemma wp_lift_step p E Φ e1 :
   (∀ σ1 ns,
      state_interp σ1 ns ={E,∅}=∗
        ⌜reducible p e1 σ1⌝ ∗
-       ▷ ∀ φ, ⌜rel (prim_step p) (e1, σ1) φ⌝ -∗
+       ▷ ∀ φ, ⌜prim_step p (e1, σ1) φ⌝ -∗
          £ 1 ={∅,E}=∗
          ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗ state_interp σ2 (S ns) ∗
            WP e2 @ p; E {{ Φ }})
@@ -81,7 +80,7 @@ Qed.
 
 Lemma wp_lift_pure_step `{!Inhabited (state Λ)} p E E' Φ e1 (e2s : _ → Prop) :
   (∀ σ1, reducible p e1 σ1) →
-  (∀ σ1 φ, rel (prim_step p) (e1, σ1) φ → ∀ e2, e2s e2 → φ (e2, σ1)) →
+  (∀ σ1 φ, prim_step p (e1, σ1) φ → ∀ e2, e2s e2 → φ (e2, σ1)) →
   (|={E}[E']▷=> £ 1 -∗ ∃ e2, ⌜e2s e2⌝ ∗ WP e2 @ p; E {{ Φ }}) ⊢ WP e1 @ p; E {{ Φ }}.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply wp_lift_step.
@@ -115,7 +114,7 @@ Lemma wp_lift_atomic_step_fupd {p E1 E2 Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E1}=∗
     ⌜reducible p e1 σ1⌝ ∗
-    ∀ φ, ⌜rel (prim_step p) (e1, σ1) φ⌝ -∗ £ 1 ={E1}[E2]▷=∗
+    ∀ φ, ⌜prim_step p (e1, σ1) φ⌝ -∗ £ 1 ={E1}[E2]▷=∗
       ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
@@ -138,7 +137,7 @@ Lemma wp_lift_atomic_step {p E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
     ⌜reducible p e1 σ1⌝ ∗
-    ▷ ∀ φ, ⌜rel (prim_step p) (e1, σ1) φ⌝ -∗ £ 1 ={E}=∗
+    ▷ ∀ φ, ⌜prim_step p (e1, σ1) φ⌝ -∗ £ 1 ={E}=∗
       ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
@@ -152,7 +151,7 @@ Qed.
 
 Lemma wp_lift_pure_det_step `{!Inhabited (state Λ)} {p E E' Φ} e1 e2 :
   (∀ σ1, reducible p e1 σ1) →
-  (∀ σ1 φ, rel (prim_step p) (e1, σ1) φ → φ (e2, σ1)) →
+  (∀ σ1 φ, prim_step p (e1, σ1) φ → φ (e2, σ1)) →
   (|={E}[E']▷=> £ 1 -∗ WP e2 @ p; E {{ Φ }}) ⊢ WP e1 @ p; E {{ Φ }}.
 Proof.
   iIntros (? Hpuredet) "H". iApply (wp_lift_pure_step p E E' _ _ (λ e, e = e2)); try done.
@@ -195,7 +194,7 @@ Lemma wp_lift_head_step_fupd {p E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E,∅}=∗
     ⌜head_reducible p e1 σ1⌝ ∗
-    ∀ φ, ⌜rel (head_step p) (e1, σ1) φ⌝ -∗
+    ∀ φ, ⌜head_step p (e1, σ1) φ⌝ -∗
       £ 1 ={∅}=∗ ▷ |={∅,E}=>
       ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗ state_interp σ2 (S ns) ∗
       WP e2 @ p; E {{ Φ }})
@@ -211,7 +210,7 @@ Lemma wp_lift_head_step {p E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E,∅}=∗
     ⌜head_reducible p e1 σ1⌝ ∗
-    ▷ ∀ φ, ⌜rel (head_step p) (e1, σ1) φ⌝ -∗
+    ▷ ∀ φ, ⌜head_step p (e1, σ1) φ⌝ -∗
       £ 1 ={∅,E}=∗
       ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗ state_interp σ2 (S ns) ∗
       WP e2 @ p; E {{ Φ }})
@@ -226,7 +225,7 @@ Lemma wp_lift_atomic_head_step_fupd {p E1 E2 Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E1}=∗
     ⌜head_reducible p e1 σ1⌝ ∗
-    ∀ φ, ⌜rel (head_step p) (e1, σ1) φ⌝ -∗ £ 1 ={E1}[E2]▷=∗
+    ∀ φ, ⌜head_step p (e1, σ1) φ⌝ -∗ £ 1 ={E1}[E2]▷=∗
       ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
@@ -242,7 +241,7 @@ Lemma wp_lift_atomic_head_step {p E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
     ⌜head_reducible p e1 σ1⌝ ∗
-    ▷ ∀ φ, ⌜rel (head_step p) (e1, σ1) φ⌝ -∗ £ 1 ={E}=∗
+    ▷ ∀ φ, ⌜head_step p (e1, σ1) φ⌝ -∗ £ 1 ={E}=∗
       ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
@@ -258,7 +257,7 @@ Lemma wp_lift_pure_det_head_step `{!Inhabited (state Λ)} {p E E' Φ} e1 e2 :
   to_val e1 = None →
   (∀ σ1, head_reducible p e1 σ1) →
   (∀ σ1 φ,
-    rel (head_step p) (e1, σ1) φ → φ (e2, σ1)) →
+    head_step p (e1, σ1) φ → φ (e2, σ1)) →
   (|={E}[E']▷=> £ 1 -∗ WP e2 @ p; E {{ Φ }}) ⊢ WP e1 @ p; E {{ Φ }}.
 Proof.
   intros * ? ? HH. rewrite -(wp_lift_pure_det_step e1 e2); eauto.
@@ -269,7 +268,7 @@ Lemma wp_lift_pure_det_head_step' `{!Inhabited (state Λ)} {p E Φ} e1 e2 :
   to_val e1 = None →
   (∀ σ1, head_reducible p e1 σ1) →
   (∀ σ1 φ,
-    rel (head_step p) (e1, σ1) φ → φ (e2, σ1)) →
+    head_step p (e1, σ1) φ → φ (e2, σ1)) →
   ▷ (£ 1 -∗ WP e2 @ p; E {{ Φ }}) ⊢ WP e1 @ p; E {{ Φ }}.
 Proof.
   intros. rewrite -[(WP e1 @ p; _ {{ _ }})%I]wp_lift_pure_det_head_step //.

@@ -1,14 +1,12 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
 From melocoton.language Require Export mlanguage.
-From melocoton Require multirelations.
+From melocoton Require Import multirelations.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not
    get pretty-printed correctly. *)
 From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
-
-Local Notation rel := multirelations.rel.
 
 Class irisGS_gen (hlc : has_lc) (Λ : mlanguage) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen hlc Σ;
@@ -69,7 +67,7 @@ Definition wp_pre `{!irisGS_gen hlc Λ Σ} (p : program Λ)
   | None => ∀ σ1 ns,
      state_interp σ1 ns ={E,∅}=∗
        ⌜reducible p e1 σ1⌝ ∗
-       ∀ φ, ⌜rel (prim_step p) (e1, σ1) φ⌝ -∗
+       ∀ φ, ⌜prim_step p (e1, σ1) φ⌝ -∗
          £ (S (num_laters_per_step ns))
          ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
          ∃ e2 σ2,

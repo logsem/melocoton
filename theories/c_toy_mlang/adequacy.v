@@ -3,7 +3,6 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import wsat.
 From melocoton.language Require Import mlanguage.
 From melocoton.c_toy_mlang Require Import weakestpre.
-From melocoton Require Import multirelations.
 
 Section adequacy.
 Context `{!irisGS_gen hlc Λ Σ}.
@@ -13,7 +12,7 @@ Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types φ : expr Λ * state Λ → Prop.
 
 Lemma wp_step p e1 σ1 ns φ Φ :
-  rel (prim_step p) (e1, σ1) φ →
+  prim_step p (e1, σ1) φ →
   state_interp σ1 ns -∗
   £ (S (num_laters_per_step ns)) -∗
   WP e1 @ p; ⊤ {{ Φ }}
@@ -36,7 +35,7 @@ Local Fixpoint steps_sum (num_laters_per_step : nat → nat) (start ns : nat) : 
   end.
 
 Lemma wp_steps p n e1 σ1 ns φ Φ :
-  rel (repeat (prim_step p) n) (e1, σ1) φ →
+  umrel.repeat (prim_step p) n (e1, σ1) φ →
   state_interp σ1 ns -∗
   £ (steps_sum num_laters_per_step ns n) -∗
   WP e1 @ p; ⊤ {{ Φ }}
@@ -48,11 +47,11 @@ Lemma wp_steps p n e1 σ1 ns φ Φ :
 Proof using.
   revert e1 σ1 ns φ Φ.
   induction n as [|n IH]=> e1 σ1 ns φ Φ /=.
-  { unfold id, rel; cbn. iIntros (Hφ) "Hσ ? Hwp".
+  { unfold id, mrel; cbn. iIntros (Hφ) "Hσ ? Hwp".
     iApply fupd_mask_intro. done. iIntros "H"; iMod "H".
     iModIntro. iExists e1, σ1. eauto with iFrame. }
   iIntros (Hsteps) "Hσ Hcred He".
-  rewrite unfold_seq in Hsteps.
+  rewrite umrel.unfold_seq in Hsteps.
   destruct Hsteps as (φ' & Hstep1 & Hstep2).
   rewrite Nat.iter_add -{1}plus_Sn_m plus_n_Sm.
   rewrite lc_split. iDestruct "Hcred" as "[Hc1 Hc2]".
@@ -66,7 +65,7 @@ Proof using.
 Qed.
 
 Local Lemma wp_strong_adequacy_internal p n e1 σ1 ns φ Φ :
-  rel (repeat (prim_step p) n) (e1, σ1) φ →
+  umrel.repeat (prim_step p) n (e1, σ1) φ →
   state_interp σ1 ns -∗
   £ (steps_sum num_laters_per_step ns n) -∗
   WP e1 @ p; ⊤ {{ Φ }}
@@ -102,7 +101,7 @@ Lemma wp_strong_adequacy_gen (hlc : has_lc) Σ Λ `{!invGpreS Σ} p e1 σ1 n φ 
         stateI σ2 n -∗
         from_option Φ True (to_val e2) -∗
         |={⊤,∅}=> ⌜ P ⌝)) →
-  rel (repeat (prim_step p) n) (e1, σ1) φ →
+  umrel.repeat (prim_step p) n (e1, σ1) φ →
   P.
 Proof.
   iIntros (Hwp ?).
@@ -128,7 +127,7 @@ Global Arguments wp_strong_adequacy _ _ {_}.
 
 Definition adequate {Λ} (p : program Λ) (e1 : expr Λ) (σ1 : state Λ)
     (P : val Λ → state Λ → Prop) :=
-  ∀ φ, rel (star (prim_step p)) (e1, σ1) φ →
+  ∀ φ, umrel.star (prim_step p) (e1, σ1) φ →
        ∃ e2 σ2,
          φ (e2, σ2) ∧
          (∀ v2, to_val e2 = Some v2 → P v2 σ2).
@@ -144,7 +143,7 @@ Lemma wp_adequacy_gen (hlc : has_lc) Σ Λ `{!invGpreS Σ} p e σ P :
        stateI σ ∗ WP e @ p; ⊤ {{ v, ⌜P v⌝ }}) →
   adequate p e σ (λ v _, P v).
 Proof.
-  intros Hwp. intros φ. rewrite /rel /star /=.
+  intros Hwp. intros φ. rewrite /mrel /umrel.star /=.
   intros [n Hsteps].
   eapply (wp_strong_adequacy_gen hlc Σ _); [ | done]=> ?.
   iMod Hwp as (stateI) "[Hσ Hwp]".

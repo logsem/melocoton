@@ -58,7 +58,7 @@ Ltac inv_head_step :=
   repeat match goal with
   | _ => progress simplify_map_eq/= (* simplify memory stuff *)
   | H : to_val _ = Some _ |- _ => apply of_to_val in H
-  | H : multirelations.rel (head_step _) (?e, _) _ |- _ =>
+  | H : multirelations.mrel (head_step _) (?e, _) _ |- _ =>
       try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable
      and should thus better be avoided. *)
       inversion H; subst; clear H
@@ -66,6 +66,6 @@ Ltac inv_head_step :=
 
 Create HintDb head_step.
 #[global] Hint Extern 0 (head_reducible _ _ _) => exists (λ _, True); simpl : head_step.
-#[global] Hint Extern 1 (multirelations.rel (head_step _) _ _) => econstructor : head_step.
-#[global] Hint Extern 0 (multirelations.rel (head_step _) (Malloc _, _) _) =>
+#[global] Hint Extern 1 (multirelations.mrel (head_step _) _ _) => econstructor : head_step.
+#[global] Hint Extern 0 (multirelations.mrel (head_step _) (Malloc _, _) _) =>
   eapply multirelations.umrel_upclosed; [eapply alloc_step|intros [? ?]] : head_step.

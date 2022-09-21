@@ -3,7 +3,7 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
-From melocoton Require multirelations.
+From melocoton Require Import multirelations.
 
 Declare Scope expr_scope.
 Declare Scope val_scope.
@@ -632,8 +632,8 @@ Inductive head_step_mrel (p : program) : (expr * state) → (expr * state → Pr
   | VarUBS x σ φ :
      head_step_mrel p (Var x, σ) φ.
 
-Program Definition head_step p : multirelations.umrel (expr * state) (expr * state) :=
-  {| multirelations.rel := head_step_mrel p |}.
+Program Definition head_step p : umrel (expr * state) :=
+  {| mrel := head_step_mrel p |}.
 Next Obligation.
   intros p [e σ] φ φ' Hstep Hφ. inversion Hstep; subst; try solve [econstructor; eauto].
   constructor; naive_solver.
@@ -699,22 +699,22 @@ Qed.
 Lemma alloc_fresh p u σ φ :
   let l := fresh_locs (dom σ.(heap)) in
   (∀ n, u = LitV $ LitInt n → φ (Val $ LitV $ LitLoc l, state_init_heap l n Uninitialized σ)) →
-  multirelations.rel (head_step p) (Malloc (Val u), σ) φ.
+  head_step p (Malloc (Val u), σ) φ.
 Proof.
   intros. apply MallocS. intros ? -> ?. exists l. split; eauto.
   intros. by apply not_elem_of_dom, fresh_locs_fresh.
 Qed.
 
 Lemma alloc_step p u σ :
-  multirelations.rel (head_step p) (Malloc (Val u), σ) (λ _, True).
+  head_step p (Malloc (Val u), σ) (λ _, True).
 Proof. eapply alloc_fresh; auto. Qed.
 
 Lemma val_head_stuck p e1 σ1 φ :
-   multirelations.rel (head_step p) (e1, σ1) φ → to_val e1 = None.
+   head_step p (e1, σ1) φ → to_val e1 = None.
 Proof. inversion 1; subst; naive_solver. Qed.
 
 Lemma head_ctx_step_val' p Ki e σ1 φ :
-  multirelations.rel (head_step p) (fill_item Ki e, σ1) φ → is_Some (to_val e).
+  head_step p (fill_item Ki e, σ1) φ → is_Some (to_val e).
 Proof.
   revert φ. induction Ki. 1-12(* ,14 *): solve [inversion_clear 1; simplify_option_eq; eauto].
   inversion 1. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
