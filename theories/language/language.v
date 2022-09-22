@@ -95,7 +95,11 @@ Section language_mixin.
        there some pattern or reduncancy here? *)
     mixin_head_ctx_step_val p K e σ1 e2 σ2 efs :
       head_step p (fill K e) σ1 e2 σ2 efs → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
-
+(*
+    mixin_call_in_ctx K K' e s vv :
+      fill K e = fill K' (of_class (ExprCall s vv))
+      → ∃ K2, e = fill K2 (of_class (ExprCall s vv));
+*)
 (*
     mixin_find_call_in_ctx e : 
       {v & e = of_class (ExprVal v)} +
