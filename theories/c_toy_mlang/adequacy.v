@@ -22,7 +22,7 @@ Lemma wp_step p e1 σ1 ns φ Φ :
 Proof using.
   rewrite {1}wp_unfold /wp_pre. iIntros (?) "Hσ Hcred H".
   rewrite (val_stuck p e1 σ1 φ) //.
-  iMod ("H" $! σ1 ns with "Hσ") as "(_ & H)". iModIntro.
+  iMod ("H" $! σ1 ns with "Hσ") as "H". iModIntro.
   iApply (step_fupdN_wand with "(H [//] Hcred)"). iIntros ">H".
   iDestruct "H" as (e2 σ2 Hφ) "(? & ?)". by eauto with iFrame.
 Qed.

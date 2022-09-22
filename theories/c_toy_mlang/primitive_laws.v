@@ -193,9 +193,8 @@ Proof.
   iIntros (->) "Hlb Hwp".
   iIntros (σ1 ns) "(Hσ & Hsteps)".
   iDestruct (steps_lb_valid with "Hsteps Hlb") as %?.
-  iMod ("Hwp" $! σ1 ns with "[$Hσ $Hsteps]") as "[%Hs Hwp]".
-  iModIntro. iSplit; [done|].
-  iIntros (φ Hstep) "Hcred".
+  iMod ("Hwp" $! σ1 ns with "[$Hσ $Hsteps]") as "Hwp".
+  iModIntro. iIntros (φ Hstep) "Hcred".
   iMod ("Hwp" with "[//] Hcred") as "Hwp".
   iIntros "!> !>". iMod "Hwp" as "Hwp". iIntros "!>".
   iApply (step_fupdN_wand with "Hwp").

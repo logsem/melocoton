@@ -66,20 +66,16 @@ Definition wp_pre `{!irisGS_gen hlc Λ Σ} (p : program Λ)
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 ns,
      state_interp σ1 ns ={E,∅}=∗
-       ⌜reducible p e1 σ1⌝ ∗
        ∀ φ, ⌜prim_step p (e1, σ1) φ⌝ -∗
          £ (S (num_laters_per_step ns))
          ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
-         ∃ e2 σ2,
-           ⌜φ (e2, σ2)⌝ ∗
-           state_interp σ2 (S ns) ∗
-           wp E e2 Φ
+         ∃ e2 σ2, ⌜φ (e2, σ2)⌝ ∗ state_interp σ2 (S ns) ∗ wp E e2 Φ
   end%I.
 
 Local Instance wp_pre_contractive `{!irisGS_gen hlc Λ Σ} p : Contractive (wp_pre p).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  do 15 (f_contractive || f_equiv).
+  do 14 (f_contractive || f_equiv).
   (* FIXME : simplify this proof once we have a good definition and a
      proper instance for step_fupdN. *)
   induction num_laters_per_step as [|k IH]; simpl.
@@ -117,7 +113,7 @@ Proof.
   (* FIXME: figure out a way to properly automate this proof *)
   (* FIXME: reflexivity, as being called many times by f_equiv and f_contractive
   is very slow here *)
-  do 15 (f_contractive || f_equiv).
+  do 14 (f_contractive || f_equiv).
   (* FIXME : simplify this proof once we have a good definition and a
      proper instance for step_fupdN. *)
   induction num_laters_per_step as [|k IHk]; simpl; last by rewrite IHk.
@@ -134,7 +130,7 @@ Global Instance wp_contractive p E e n :
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) p E e).
 Proof.
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
-  do 14 (f_contractive || f_equiv).
+  do 13 (f_contractive || f_equiv).
   (* FIXME : simplify this proof once we have a good definition and a
      proper instance for step_fupdN. *)
   induction num_laters_per_step as [|k IHk]; simpl; last by rewrite IHk.
@@ -155,8 +151,8 @@ Proof.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
   iIntros (σ1 ns) "Hσ".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
-  iMod ("H" with "[$]") as "[% H]".
-  iModIntro. iSplit; [done|]. iIntros (φ Hstep) "Hcred".
+  iMod ("H" with "[$]") as "H".
+  iModIntro. iIntros (φ Hstep) "Hcred".
   iMod ("H" with "[//] Hcred") as "H". iIntros "!> !>".  iMod "H". iModIntro.
   iApply (step_fupdN_wand with "[H]"); first by iApply "H".
   iIntros ">H". iDestruct "H" as (e2 σ2 Hφ) "(? & H)".
@@ -266,7 +262,7 @@ Proof.
   iIntros (σ1 ns) "Hσ".
   destruct (decide (n ≤ num_laters_per_step ns)) as [Hn|Hn]; first last.
   { iDestruct "H" as "[Hn _]". iMod ("Hn" with "Hσ") as %?. lia. }
-  iDestruct "H" as "[_ [>HP Hwp]]". iMod ("Hwp" with "[$]") as "[$ H]". iMod "HP".
+  iDestruct "H" as "[_ [>HP Hwp]]". iMod ("Hwp" with "[$]") as "H". iMod "HP".
   iIntros "!>" (φ Hstep) "Hcred". iMod ("H" $! φ with "[% //] Hcred") as "H".
   iIntros "!>!>". iMod "H". iMod "HP". iModIntro.
   revert n Hn. generalize (num_laters_per_step ns)=>n0 n Hn.
@@ -288,10 +284,9 @@ Proof.
   destruct (to_val e) as [v|] eqn:He.
   { apply of_to_val in He as <-. by iApply fupd_wp. }
   rewrite wp_unfold /wp_pre fill_not_val /=; [|done].
-  iIntros (σ1 n) "Hσ". iMod ("H" with "[$]") as "[%Hred H]".
-  iModIntro; iSplit. { eauto using fill_reducible. }
-  iIntros (φ Hstep) "Hcred".
-  pose proof (fill_reducible_prim_step _ _ _ _ _ Hred Hstep) as HHH.
+  iIntros (σ1 n) "Hσ". iMod ("H" with "[$]") as "H".
+  iModIntro. iIntros (φ Hstep) "Hcred".
+  pose proof (fill_reducible_prim_step _ _ _ _ _ (not_val_reducible _ _ _ He) Hstep) as HHH.
   iSpecialize ("H" $! (λ '(e2', σ2), ∀ e2, e2 = fill K e2' → φ (e2, σ2)) with "[//] Hcred").
   iMod "H". iIntros "!>!>". iMod "H". iModIntro. iApply (step_fupdN_wand with "H").
   iIntros "H". iMod "H" as (? ?) "(% & H & ?)". iModIntro.
@@ -306,9 +301,8 @@ Proof.
   destruct (to_val e) as [v|] eqn:He.
   { apply of_to_val in He as <-. by rewrite !wp_unfold /wp_pre. }
   rewrite fill_not_val //.
-  iIntros (σ1 ns) "Hσ". iMod ("H" with "[$]") as "[% H]".
-  iModIntro; iSplit. { eauto using fill_reducible_inv. }
-  iIntros (φ Hstep) "Hcred".
+  iIntros (σ1 ns) "Hσ". iMod ("H" with "[$]") as "H".
+  iModIntro. iIntros (φ Hstep) "Hcred".
   iMod ("H" $! (λ '(e2', σ2), ∃ e2, e2' = fill K e2 ∧ φ (e2, σ2)) with "[] Hcred") as "H".
   { eauto using fill_step. }
   iIntros "!> !>". iMod "H". iModIntro. iApply (step_fupdN_wand with "H").
