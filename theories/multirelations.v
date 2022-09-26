@@ -1,4 +1,4 @@
-From Coq Require Import Program.
+From Coq Require Import Program Lia.
 From stdpp Require Import base.
 
 Notation multirelation A :=
@@ -108,13 +108,87 @@ Proof.
     eapply umrel_upclosed; eauto. }
 Qed.
 
-Program Definition star {A} (M : umrel A) : umrel A :=
+Program Definition repeats {A} (M : umrel A) : umrel A :=
   {| mrel := λ x X, ∃ n, repeat M n x X |}.
 Next Obligation.
   intros * a X Y [n Hn]. revert Hn. induction n.
   - cbn. intros ? ?. exists 0. cbn. eauto.
   - cbn. intros [? [? ?]] ?. exists (S n). cbn.
     eexists. split; eauto. intros. eapply umrel_upclosed; eauto.
+Qed.
+
+Inductive star_mrel {A} (M : umrel A) : A → (A → Prop) → Prop :=
+  | star_refl x (X : A → Prop) :
+    X x → star_mrel M x X
+  | star_step x Y X :
+    M x Y →
+    (∀ y, Y y → star_mrel M y X) →
+    star_mrel M x X.
+
+Program Definition star {A} (M : umrel A) : umrel A :=
+  {| mrel := star_mrel M |}.
+Next Obligation.
+  intros *. unfold upclosed. intros x X X'. induction 1.
+  { intros HH. eapply star_refl. eauto. }
+  { intros HH. eapply star_step; eauto. }
+Qed.
+
+Lemma star_transitive {A} (M : umrel A) x Y X :
+  star M x Y →
+  (∀ y, Y y → star M y X) →
+  star M x X.
+Proof.
+  intros HH. revert X. induction HH as [| ? ? ? ? ? IH].
+  - eauto.
+  - intros ? ?. eapply star_step; eauto. intros. eapply IH; eauto.
+Qed.
+
+Lemma star_of_repeats A (x : A) X (M : umrel A) :
+  repeats M x X → star M x X.
+Proof.
+  intros [n Hrepeat].
+  revert x X Hrepeat. induction n; simpl; intros * HH.
+  - eapply star_refl. eauto.
+  - destruct HH as (Y & ? & HH). eapply star_step; eauto.
+    intros y Hy. specialize (HH y Hy). eapply IHn; eauto.
+Qed.
+
+Lemma not_repeats_of_star :
+  ¬ (∀ A (M : umrel A) (x : A) X, star M x X → repeats M x X).
+Proof.
+  Inductive counter_ex_state := Start | Loop (n: nat) | End.
+  intros H.
+  specialize (H counter_ex_state).
+  pose (rel := λ st (X : _ → Prop),
+          (st = Start → ∀ n, X (Loop n)) ∧
+          (st = Loop 0 → X End) ∧
+          (∀ n, st = Loop (S n) → X (Loop n))).
+
+  assert (relu: upclosed rel).
+  { unfold upclosed, rel. intros st X X' (Hst & He & Hm) HX.
+    repeat split; eauto. }
+  pose (r := {| mrel := rel; umrel_upclosed := relu |}).
+
+  assert (star r Start (λ st, st = End)) as Hstar.
+  { eapply (star_step _ _ (λ st, ∃ n, st = Loop n)).
+    { repeat split; eauto. congruence. }
+    intros st' (n & ->). induction n.
+    { eapply (star_step _ _ (λ st, st = End)).
+      { repeat split; eauto; congruence. }
+      intros ? ->. eapply star_refl. eauto. }
+    { eapply (star_step _ _ (λ st, st = Loop n)).
+      { repeat split; eauto; congruence. }
+      intros ? ->. eauto. } }
+
+  specialize (H r _ _ Hstar) as [n Hnsteps].
+  destruct n as [| n]; [congruence|]. simpl in Hnsteps.
+  destruct Hnsteps as (X1 & (HX1 & _ & _) & HH).
+  specialize (HX1 eq_refl (S n)). (* key step! *)
+  specialize (HH _ HX1). clear HX1 X1.
+  induction n; simpl in HH; [congruence|].
+  destruct HH as (X & HX & HH).
+  destruct HX as (_ & _ & HX). specialize (HX _ eq_refl).
+  specialize (HH _ HX). eauto.
 Qed.
 
 End umrel.
