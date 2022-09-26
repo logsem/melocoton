@@ -199,8 +199,8 @@ Inductive wrapper_step_mrel (P : prog) : expr * state → (expr * state → Prop
     φ (WrapExprC (language.fill K (C_lang.of_val w)), (C (ρc, mem))) →
     wrapper_step_mrel P (WrapExprC (language.fill K ec), C (ρc, mem)) φ.
 
-Program Definition wrapper_step (P : prog) : umrel (expr * state) (expr * state) :=
-  {| rel := wrapper_step_mrel P |}.
+Program Definition wrapper_step (P : prog) : umrel (expr * state) :=
+  {| mrel := wrapper_step_mrel P |}.
 Next Obligation.
   unfold upclosed. intros p [e ρ] φ ψ H Hφψ.
   destruct H; [
