@@ -32,8 +32,8 @@ Class irisGS_gen
   of the definition [state_interp_mono] does not significantly
   complicate the formalization in Iris, we prefer simplifying the
   client. *)
-  state_interp_mono σ ns:
-    state_interp σ ns ={∅}=∗ state_interp σ (S ns)
+  state_interp_mono σ ns E:
+    state_interp σ ns ={E}=∗ state_interp σ (S ns)
 }.
 Global Opaque iris_invGS.
 Global Arguments IrisG {hlc val pubstate Λ Σ}.
@@ -42,7 +42,7 @@ Notation irisGS := (irisGS_gen HasLc).
 (* TODO replace -n> by -d> ????? We want this *)
 Definition wp_pre `{!irisGS_gen hlc val pubstate Λ Σ} 
     (p:mixin_prog Λ.(func))
-    (T: string -d> list val -d> (val -d> iPropO Σ) -n> iPropO Σ)
+    (T: string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d>
           expr Λ -d>
           (val -d> iPropO Σ) -d>
@@ -68,7 +68,7 @@ Qed.
 
 Record prog_environ `{!irisGS_gen hlc val pubstate Λ Σ} := {
   prog : mixin_prog (func Λ);
-  T : string -d> list val -d> (val -d> iPropO Σ) -n> iPropO Σ
+  T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ
 }.
 
 Local Definition wp_def `{!irisGS_gen hlc val pubstate Λ Σ} : Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
@@ -86,7 +86,7 @@ Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
-Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -n> iPropO Σ.
+Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types pe : prog_environ.
 
@@ -186,9 +186,9 @@ Proof. iIntros "H". iApply (wp_strong_mono s s E with "H"); auto. Qed.
 
 (*
 Lemma wp_atomic pe E1 E2 e Φ :
-  (|={E1,E2}=> WP e @ pe; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ pe; E1 {{ Φ }}.
+  (|={E}=> WP e @ pe; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ pe; E1 {{ Φ }}.
 Proof.
-Qed. *)
+Qed. *) 
 
 (** In this stronger version of [wp_step_fupdN], the masks in the
    step-taking fancy update are a bit weird and somewhat difficult to
@@ -309,6 +309,15 @@ Proof. by intros Φ Φ' ?; apply wp_mono. Qed.
 
 Lemma wp_value' s E Φ v : Φ v ⊢ WP (of_val _ v) @ s; E {{ Φ }}.
 Proof. iIntros "H". iApply wp_value_fupd'. iAssumption. Qed.
+
+Lemma wp_value s E Φ e v : to_val e = Some v -> Φ v ⊢ WP e @ s; E {{ Φ }}.
+Proof. intros H.
+  assert (e = of_val _ v) as ->.
+  - unfold of_val. unfold to_val in H. destruct (to_class e) as [[]|] eqn:Heq; cbn in H; try congruence.
+    apply of_to_class in Heq. congruence.
+  - apply wp_value'.
+Qed.
+
 
 Lemma wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
 Proof. iIntros "[? H]". iApply (wp_strong_mono with "H"); auto with iFrame. Qed.
