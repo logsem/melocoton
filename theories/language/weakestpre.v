@@ -7,7 +7,7 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-Class irisGS_gen 
+Class melocotonGS_gen 
   (hlc : has_lc) (val pubstate : Type) 
   (Λ : language val pubstate) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen hlc Σ;
@@ -38,9 +38,9 @@ Class irisGS_gen
 Global Opaque iris_invGS.
 Global Arguments IrisG {hlc val pubstate Λ Σ}.
 
-Notation irisGS := (irisGS_gen HasLc).
-(* TODO replace -n> by -d> ????? We want this *)
-Definition wp_pre `{!irisGS_gen hlc val pubstate Λ Σ} 
+Notation melocotonGS := (melocotonGS_gen HasLc).
+
+Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ} 
     (p:mixin_prog Λ.(func))
     (T: string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d>
@@ -54,34 +54,34 @@ Definition wp_pre `{!irisGS_gen hlc val pubstate Λ Σ}
     (∀ σ ns, state_interp σ ns ={E}=∗
       (  (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ns ∗ Φ v)
        ∨ (∃ s vv K, ⌜e = fill K (of_class Λ (ExprCall s vv))⌝ ∗ ⌜p !! s = None⌝ ∗
-            ▷ |={E}=> (state_interp σ ns ∗ ∃ Ξ, T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
+            ▷ |={E}=> (state_interp σ (S ns) ∗ ∃ Ξ, T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
        ∨ ((⌜reducible p e σ⌝ ∗
                     ∀ σ' e', ⌜prim_step p e σ e' σ' []⌝ -∗ |={E}=> ▷ |={E}=> 
                         (state_interp σ' (S ns) ∗ wp E e' Φ)))))%I.
 
-Local Instance wp_pre_contractive `{!irisGS_gen hlc val pubstate Λ Σ}
+Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val pubstate Λ Σ}
      {p:mixin_prog Λ.(func)} T : Contractive (wp_pre p T).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Record prog_environ `{!irisGS_gen hlc val pubstate Λ Σ} := {
+Record prog_environ `{!melocotonGS_gen hlc val pubstate Λ Σ} := {
   prog : mixin_prog (func Λ);
   T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ
 }.
 
-Local Definition wp_def `{!irisGS_gen hlc val pubstate Λ Σ} : Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
+Local Definition wp_def `{!melocotonGS_gen hlc val pubstate Λ Σ} : Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
   λ p : (prog_environ), fixpoint (wp_pre (p.(prog)) (p.(T))).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {hlc val pubstate Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!irisGS_gen hlc val pubstate Λ Σ} : wp = @wp_def hlc val pubstate Λ Σ _.
+Local Lemma wp_unseal `{!melocotonGS_gen hlc val pubstate Λ Σ} : wp = @wp_def hlc val pubstate Λ Σ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!irisGS_gen hlc val pubstate Λ Σ}.
+Context `{!melocotonGS_gen hlc val pubstate Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -236,6 +236,31 @@ Proof.
     iIntros "%v Hv". iMod ("Hv" with "HP"). iAssumption.
 Qed.
 
+
+Lemma wp_step_fupd pe E e P Φ :
+  TCEq (to_val e) None →
+  ((|={E}=>  ▷ |={E}=> P) ∗
+    WP e @ pe; E {{ v, P ={E}=∗ Φ v }}) -∗
+  WP e @ pe; E {{ Φ }}.
+Proof.
+  iIntros (H) "(H1 & H2)".
+  iApply (wp_step_fupdN_strong 1). iSplitR.
+  - iIntros; iModIntro; done.
+  - iSplitR "H2"; last iApply "H2". iMod "H1". do 4 iModIntro. iApply "H1".
+Qed.
+
+Lemma wp_step pe E e P Φ :
+  TCEq (to_val e) None →
+  ( ▷ P) -∗
+    WP e @ pe; E {{ v, P ={E}=∗ Φ v }} -∗
+  WP e @ pe; E {{ Φ }}.
+Proof.
+  iIntros (H) "H1 H2".
+  iApply (wp_step_fupd). iSplitL "H1".
+  - do 3 iModIntro. iApply "H1".
+  - iApply "H2".
+Qed.
+
 (*
 
 Lemma wp_bind K `{!LanguageCtx K} pe E e Φ :
@@ -379,7 +404,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!irisGS_gen hlc val pubstate Λ Σ}.
+  Context `{!melocotonGS_gen hlc val pubstate Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.

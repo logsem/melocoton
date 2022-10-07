@@ -1,6 +1,6 @@
 From stdpp Require Import base strings list gmap.
 From melocoton Require Import multirelations.
-From melocoton.c_toy_lang Require Import lang_instantiation.
+From melocoton.c_toy_lang Require Import melocoton.lang_instantiation.
 From melocoton.language Require Import language.
 From melocoton.c_toy_lang Require Import lang.
 From melocoton.interop Require Import assums basics wrapperstate.

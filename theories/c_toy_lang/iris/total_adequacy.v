@@ -1,8 +1,8 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import mono_nat.
 From iris.program_logic Require Export total_adequacy.
-From melocoton.c_toy_lang Require Export adequacy.
-From melocoton.c_toy_lang Require Import proofmode notation.
+From melocoton.c_toy_lang Require Export iris.adequacy.
+From melocoton.c_toy_lang Require Import iris.proofmode notation.
 From iris.prelude Require Import options.
 
 Definition heap_total Σ `{!heapGpreS Σ} {p:program} s e σ φ :
