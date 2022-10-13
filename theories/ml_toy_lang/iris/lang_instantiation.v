@@ -8,7 +8,13 @@ From melocoton.ml_toy_lang Require Export lang.
 
 
 (** Language *)
-Canonical Structure ml_toy_ectxi_lang p:= EctxiLanguage (ml_toy_lang.ml_toy_lang_mixin p).
+Import ml_toy_lang.
+Lemma ml_toy_lang_mixin (p:ml_toy_lang.ml_program): ectxi_language.EctxiLanguageMixin of_val to_val fill_item head_step.
+Proof.
+  split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
+    fill_item_val, fill_item_no_val_inj, head_ctx_step_val.
+Qed.
+Canonical Structure ml_toy_ectxi_lang p:= EctxiLanguage (ml_toy_lang_mixin p).
 Canonical Structure ml_toy_ectx_lang p:= EctxLanguageOfEctxi (ml_toy_ectxi_lang p).
 Canonical Structure ml_toy_lang p:= LanguageOfEctx (ml_toy_ectx_lang p).
 

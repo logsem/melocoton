@@ -3,7 +3,7 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
-From melocoton.ml_toy_lang Require Export iris_lang_instantiation.
+From melocoton.ml_toy_lang Require Import iris.lang_instantiation.
 From melocoton.ml_toy_lang Require Export metatheory lang.
 From melocoton.language Require Import language.
 Import ml_toy_lang.

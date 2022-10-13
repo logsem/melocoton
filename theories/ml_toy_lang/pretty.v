@@ -1,7 +1,8 @@
 From stdpp Require Export pretty.
 
-From melocoton.ml_toy_lang Require Import lang iris_lang_instantiation.
+From melocoton.ml_toy_lang Require Import lang.
 From iris.prelude Require Import options.
+Import ml_toy_lang.
 
 (** * Pretty printing for HeapLang values *)
 

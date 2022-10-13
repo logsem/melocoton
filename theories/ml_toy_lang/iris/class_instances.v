@@ -1,7 +1,8 @@
 From iris.program_logic Require Export language.
-From melocoton.ml_toy_lang Require Export lang iris_lang_instantiation.
-From melocoton.ml_toy_lang Require Import tactics notation.
+From melocoton.ml_toy_lang Require Export iris.lang_instantiation lang.
+From melocoton.ml_toy_lang Require Import tactics iris.tactics notation lang.
 From iris.prelude Require Import options.
+Import ml_toy_lang.
 
 Global Instance into_val_val {p:ml_program} v : IntoVal (Val v) v.
 Proof. done. Qed.
@@ -67,6 +68,7 @@ not if [v] contains a lambda/rec that is hidden behind a definition.
 
 To make sure that [wp_rec] and [wp_lam] do reduce lambdas/recs that are hidden
 behind a definition, we activate [AsRecV_recv] by hand in these tactics. *)
+
 Class AsRecV (v : val) (f x : binder) (erec : expr) :=
   as_recv : v = RecV f x erec.
 Global Hint Mode AsRecV ! - - - : typeclass_instances.

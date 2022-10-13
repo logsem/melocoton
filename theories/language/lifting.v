@@ -18,15 +18,15 @@ Implicit Types Φ : val → iProp Σ.
 Lemma wp_lift_step_fupd s E Φ e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜reducible (prog s) e1 σ1⌝ ∗
+    ⌜reducible_no_threads (prog s) e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜prim_step (prog s) e1 σ1 e2 σ2 []⌝
       ={E}▷=∗^(1) |={E}=>
       state_interp σ2 (S ns) ∗
       WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof. intros H. rewrite wp_unfold /wp_pre.
-  iIntros "H %σ %ns Hσ". iMod ("H" $! σ ns with "Hσ") as "[H1 H2]". iModIntro. do 2 iRight.
-  iFrame. iIntros "%σ' %e' %Hstep". iMod ("H2" $! e' σ' Hstep) as "H2". do 2 iModIntro.
+  iIntros "H %σ %ns Hσ". iMod ("H" $! σ ns with "Hσ") as "[%H1 H2]". do 2 iRight.
+  iModIntro. iSplitR; first done. iIntros "%σ' %e' %Hstep". iMod ("H2" $! e' σ' Hstep) as "H2". do 2 iModIntro.
   do 2 iMod "H2". iModIntro. iFrame.
 Qed.
 
@@ -37,7 +37,7 @@ Qed.
 Lemma wp_lift_atomic_step {s E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜reducible (prog s) e1 σ1⌝ ∗
+    ⌜reducible_no_threads (prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜prim_step (prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
@@ -58,7 +58,7 @@ Qed.
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜head_reducible (prog s) e1 σ1⌝ ∗
+    ⌜head_reducible_no_threads (prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜head_step (prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
@@ -66,8 +66,9 @@ Lemma wp_lift_atomic_head_step {s E Φ} e1 :
 Proof.
   iIntros (?) "H".
   iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1 ns) "Hσ1".
-  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. iSplitR; first (iPureIntro; by eapply head_prim_reducible).
-  iIntros (e' σ' Hstep%head_reducible_prim_step). 2:easy. do 3 iModIntro.
+  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. iSplitR; first (iPureIntro; by eapply head_prim_reducible_no_threads).
+  iIntros (e' σ' Hstep%head_reducible_prim_step). 2: { destruct HH as (?&?&HH). do 3 eexists. done. }
+  do 2 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
   iFrame.
   destruct (to_val e') eqn:?; last by iExFalso.
@@ -82,7 +83,9 @@ Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state Λ)} {s E Φ} e1 e2 :
 Proof.
   iIntros (Hsafe Hstep) "H". iApply wp_lift_step_fupd.
   { specialize (Hsafe inhabitant). destruct s; eauto using reducible_not_val. }
-  iIntros (σ1 ns) "Hσ". iMod "H". iModIntro. iSplitR; first (iPureIntro; apply Hsafe).
+  iIntros (σ1 ns) "Hσ". iMod "H". iModIntro. iSplitR.
+  { iPureIntro. destruct (Hsafe σ1) as (?&?&?&?Hsafe').
+    destruct (Hstep _ _ _ _ Hsafe') as (->&->&->).  do 2 eexists. done. }
   iIntros (e' σ2 Hstep'). do 3 iModIntro. iMod "H".
   iMod (state_interp_mono σ1 ns with "Hσ") as "Hs".
   iModIntro.

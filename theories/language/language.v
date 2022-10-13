@@ -44,7 +44,10 @@ Section language_mixin.
       head_step p (of_class (ExprCall f vs)) σ1 e2 σ2 efs ↔
       ∃ (fn : func),
         p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = [];
-
+(*
+    mixin_head_step_mono p1 p2 e1 σ1 e2 σ2 efs :
+      head_step p1 e1 σ1 e2 σ2 efs → p1 ⊆ p2 → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs;
+*)
     (** Substitution and free variables *)
     (* mixin_subst_map_empty e : subst_map ∅ e = e; *)
     (* mixin_subst_map_subst_map xs ys e : *)
@@ -237,7 +240,13 @@ Section language.
   Lemma head_ctx_step_val' p K e σ1 e2 σ2 efs :
     head_step p (fill K e) σ1 e2 σ2 efs → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v).
   Proof. apply language_mixin. Qed.
-
+(*
+  Lemma head_step_mono p1 p2 e1 σ1 e2 σ2 efs :
+      head_step p1 e1 σ1 e2 σ2 efs → p1 ⊆ p2 → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs.
+  Proof.
+    apply language_mixin.
+  Qed.
+*)
   Lemma fill_class K e :
     is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
   Proof.
@@ -269,6 +278,8 @@ Section language.
     head_step p (of_call Λ f vs) σ1 er σ1 [].
   Proof. intros ? ?. eapply call_head_step; eexists; eauto. Qed.
 
+  Definition head_reducible_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+    ∃ e' σ', head_step p e σ e' σ' [].
   Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ e' σ' efs, head_step p e σ e' σ' efs.
   Definition head_irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
@@ -290,6 +301,8 @@ Section language.
     head_step p e1 σ1 e2 σ2 efs → prim_step p (fill K e1) σ1 (fill K e2) σ2 efs.
   Proof. econstructor; eauto. Qed.
 
+  Definition reducible_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+    ∃ e' σ', prim_step p e σ e' σ' [].
   Definition reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ e' σ' efs, prim_step p e σ e' σ' efs.
   Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
@@ -411,6 +424,8 @@ Section language.
   Qed.
   Lemma head_prim_reducible p e σ : head_reducible p e σ → reducible p e σ.
   Proof. intros (e'&σ'&efs&?). eexists e', σ', efs. by apply head_prim_step. Qed.
+  Lemma head_prim_reducible_no_threads p e σ : head_reducible_no_threads p e σ → reducible_no_threads p e σ.
+  Proof. intros (e'&σ'&?). eexists e', σ'. by apply head_prim_step. Qed.
   Lemma head_prim_fill_reducible p e K σ :
     head_reducible p e σ → reducible p (fill K e) σ.
   Proof. intro. by apply fill_reducible, head_prim_reducible. Qed.
@@ -466,6 +481,28 @@ Section language.
       rewrite ?fill_empty; eauto.
     by simplify_eq; rewrite fill_empty.
   Qed.
+(*
+  Lemma head_reducible_mono p1 p2 e1 σ1 :
+      head_reducible p1 e1 σ1 → p1 ⊆ p2 → to_class e1 = None → head_reducible p2 e1 σ1.
+  Proof.
+    intros (σ2 & e2 & efs & Hstep) H Hnone. exists σ2, e2, efs.
+    eapply head_step_mono; done.
+  Qed.
+
+  Lemma prim_step_mono p1 p2 e1 σ1 e2 σ2 efs :
+      prim_step p1 e1 σ1 e2 σ2 efs → to_class e1 = None → p1 ⊆ p2 → prim_step p2 e1 σ1 e2 σ2 efs.
+  Proof.
+    intros (K & e1' & e2' & H1 & H2 & H3)%prim_step_inv H Hnone.
+    exists K e1' e2'; try done. eapply head_step_mono. ; done.
+  Qed.
+
+  Lemma reducible_mono p1 p2 e1 σ1 :
+      reducible p1 e1 σ1 → p1 ⊆ p2 → to_class e1 = None → reducible p2 e1 σ1.
+  Proof.
+    intros (σ2 & e2 & efs & Hstep) H Hnone. exists σ2, e2, efs.
+    eapply prim_step_mono; done.
+  Qed.
+*)
 
   Lemma fill_stuck (P : prog Λ) e σ K : stuck P e σ → stuck P (fill K e) σ.
   Proof.
@@ -531,7 +568,19 @@ Section language.
   eexists (fill (comp_ectx K K0) e2'), σ', efs. econstructor. 1: rewrite fill_comp; reflexivity. 1: reflexivity. apply H1.
   Qed.
 
+  Lemma reducible_no_threads_fill p e σ K : reducible_no_threads p e σ → reducible_no_threads p (fill K e) σ.
+  Proof.
+  intros (e' & σ' & Hs).
+  inversion Hs; subst.
+  eexists (fill (comp_ectx K K0) e2'), σ'. econstructor. 1: rewrite fill_comp; reflexivity. 1: reflexivity. apply H1.
+  Qed.
 
+
+  Lemma reducible_no_threads_reducible p e σ K : reducible_no_threads p e σ → reducible p e σ.
+  Proof.
+  intros (e' & σ' & Hs).
+  now exists e', σ', [].
+  Qed.
 
   Lemma fill_step_inv K p e1' σ1 e2 σ2 efs :
     to_val e1' = None → prim_step p (fill K e1') σ1 e2 σ2 efs →
@@ -545,6 +594,19 @@ Section language.
     by econstructor.
   Qed.
 
+  Lemma fill_inv p K e σ : to_val e = None -> reducible p (fill K e) σ -> reducible p e σ.
+  Proof.
+    intros H1 (e'&σ'&efs&(e2'&->&H2)%fill_step_inv). 2:easy.
+    exists e2',σ',efs. easy.
+  Qed.
+
+  Lemma head_call_pure p f vs σ e2 σ' σ2 efs : 
+    head_step p (of_class Λ (ExprCall f vs)) σ e2 σ' efs -> head_step p (of_class Λ (ExprCall f vs)) σ2 e2 σ2 [].
+  Proof.
+    intros (fn & H1 & H2 & H3)%call_head_step. apply call_head_step.
+    exists fn. repeat split; easy.
+  Qed.
+    
 (*
   Inductive lang_cases : expr Λ -> Type :=
     E_val (v:val) : lang_cases (of_class Λ (ExprVal v))

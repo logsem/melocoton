@@ -7,8 +7,8 @@ From iris.base_logic.lib Require Import mono_nat.
 From iris.base_logic.lib Require Export gen_heap proph_map gen_inv_heap.
 From iris.program_logic Require Export weakestpre total_weakestpre.
 From iris.program_logic Require Import ectx_lifting total_ectx_lifting.
-From melocoton.ml_toy_lang Require Export class_instances.
-From melocoton.ml_toy_lang Require Import tactics notation.
+From melocoton.ml_toy_lang Require Export iris.class_instances.
+From melocoton.ml_toy_lang Require Import iris.tactics notation.
 From iris.prelude Require Import options.
 
 Class heapGS_gen hlc Σ := HeapGS {

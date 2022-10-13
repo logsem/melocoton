@@ -1,6 +1,7 @@
 From iris.program_logic Require Import language.
-From melocoton.ml_toy_lang Require Export lang iris_lang_instantiation.
+From melocoton.ml_toy_lang Require Export lang .
 From iris.prelude Require Import options.
+Import ml_toy_lang.
 
 (** Coercions to make programs easier to type. *)
 Coercion LitInt : Z >-> base_lit.

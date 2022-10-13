@@ -1,8 +1,8 @@
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
-From iris.program_logic Require Export language ectx_language ectxi_language.
 From iris.heap_lang Require Export locations.
+From iris.program_logic Require ectxi_language.
 From iris.prelude Require Import options.
 
 (** heap_lang.  A fairly simple language used for common Iris examples.
@@ -846,10 +846,5 @@ Proof.
   intros. apply not_elem_of_dom.
   by apply fresh_locs_fresh.
 Qed.
-
-Lemma ml_toy_lang_mixin (p:ml_program): EctxiLanguageMixin of_val to_val fill_item head_step.
-Proof.
-  split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
-    fill_item_val, fill_item_no_val_inj, head_ctx_step_val.
-Qed.
 End ml_toy_lang.
+Export ml_toy_lang.

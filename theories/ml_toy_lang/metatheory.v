@@ -1,6 +1,7 @@
 From stdpp Require Import gmap stringmap.
-From melocoton.ml_toy_lang Require Export lang iris_lang_instantiation.
+From melocoton.ml_toy_lang Require Export lang.
 From iris.prelude Require Import options.
+Import ml_toy_lang.
 
 (* This file contains some metatheory about the heap_lang language,
   which is not needed for verifying programs. *)
@@ -11,7 +12,6 @@ Local Definition set_binder_insert (x : binder) (X : stringset) : stringset :=
   | BAnon => X
   | BNamed f => {[f]} ∪ X
   end.
-
 (* Check if expression [e] is closed w.r.t. the set [X] of variable names,
    and that all the values in [e] are closed *)
 Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
