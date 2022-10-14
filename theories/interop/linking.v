@@ -27,11 +27,16 @@ Section Linking.
   (* Execution of code belonging to the second underlying module. *)
   | LinkExpr2 (e : Λ2.(language.expr)).
 
-  Definition ectx : Type :=
-    list (Λ1.(ectx) + Λ2.(ectx)).
+  (* expr need to be wrapped in fresh inductives for the language
+     canonical structure to work when using WP *)
 
-  Definition expr : Type :=
-    simple_expr * ectx.
+  Definition ectx : Type :=
+    list (language.ectx Λ1 + language.ectx Λ2).
+
+  Inductive expr : Type :=
+    LkE (se: simple_expr) (k: ectx).
+
+  Notation LkSE se := (LkE se []).
 
   Definition private_state : Type :=
     (Λ1.(private_state) * Λ2.(private_state)).
@@ -47,30 +52,44 @@ Section Linking.
     | LinkSplitSt pubσ privσ1 privσ2 :
       split_state (LinkSt pubσ privσ1 privσ2) pubσ (privσ1, privσ2).
 
+  Inductive matching_expr_state : expr → state → Prop :=
+    | Matching_LinkExpr1 e1 k σ1 privσ2 :
+      Λ1.(language.matching_expr_state) e1 σ1 →
+      matching_expr_state (LkE (LinkExpr1 e1) k) (LinkSt1 σ1 privσ2)
+    | Matching_LinkExpr2 e2 k σ2 privσ1 :
+      Λ2.(language.matching_expr_state) e2 σ2 →
+      matching_expr_state (LkE (LinkExpr2 e2) k) (LinkSt2 privσ1 σ2)
+    | Matching_LinkRunFunction fn args k pubσ privσ1 privσ2 :
+      matching_expr_state (LkE (LinkRunFunction fn args) k) (LinkSt pubσ privσ1 privσ2)
+    | Matching_LinkExprV v k pubσ privσ1 privσ2 :
+      matching_expr_state (LkE (LinkExprV v) k) (LinkSt pubσ privσ1 privσ2)
+    | Matching_LinkExprCall fname args k pubσ privσ1 privσ2 :
+      matching_expr_state (LkE (LinkExprCall fname args) k) (LinkSt pubσ privσ1 privσ2).
+
   Definition of_class (c : mixin_expr_class val) : expr :=
     match c with
-    | ExprVal v => (LinkExprV v, [])
-    | ExprCall fn args => (LinkExprCall fn args, [])
+    | ExprVal v => LkSE (LinkExprV v)
+    | ExprCall fn args => LkSE (LinkExprCall fn args)
     end.
 
   Definition to_class (e : expr) : option (mixin_expr_class val) :=
     match e with
-    | (LinkExprV v, []) => Some (ExprVal v)
-    | (LinkExprCall fn_name args, []) => Some (ExprCall fn_name args)
+    | LkSE (LinkExprV v) => Some (ExprVal v)
+    | LkSE (LinkExprCall fn_name args) => Some (ExprCall fn_name args)
     | _ => None
     end.
 
   Definition empty_ectx : ectx := [].
 
   Definition comp_ectx (K1 K2 : ectx) : ectx :=
-    K2 ++ K1.
+    (K2 ++ K1).
 
   Definition fill (K : ectx) (e : expr) : expr :=
-    let '(se, k) := e in
-    (se, k ++ K).
+    let 'LkE se k := e in
+    LkE se (k ++ K).
 
   Definition apply_func (fn : func) (args : list val) : option expr :=
-    Some (LinkRunFunction fn args, []).
+    Some (LkSE (LinkRunFunction fn args)).
 
   Local Notation prog := (gmap string func).
 
@@ -81,44 +100,43 @@ Section Linking.
 
   Inductive head_step (P : prog) : expr → state → expr → state → list expr → Prop :=
   (* Internal step of an underlying module. *)
-  (* XXX the final [] means that we reason about sequential programs. this could
-     probably be unforced simply by changing the language interface to only
-     describe sequential operational semantics by removing threads. *)
   | Step1S e1 e1' σ1 σ1' privσ2 :
     prim_step (proj1_prog P) e1 σ1 e1' σ1' [] →
-    head_step P (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2) (LinkExpr1 e1', []) (LinkSt1 σ1' privσ2) []
-  | Step2S e2 e2' privσ1 σ2 σ2' :
+    head_step P (LkSE (LinkExpr1 e1)) (LinkSt1 σ1 privσ2) (LkSE (LinkExpr1 e1')) (LinkSt1 σ1' privσ2) []
+  | Step2S e2 e2' σ2 σ2' privσ1 :
     prim_step (proj2_prog P) e2 σ2 e2' σ2' [] →
-    head_step P (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2) (LinkExpr2 e2', []) (LinkSt2 privσ1 σ2') []
+    head_step P (LkSE (LinkExpr2 e2)) (LinkSt2 privσ1 σ2) (LkSE (LinkExpr2 e2')) (LinkSt2 privσ1 σ2') []
   (* Entering a function. Change the view of the heap in the process. *)
   | RunFunction1S σ1 pubσ privσ1 privσ2 fn1 args e1 :
     language.apply_func fn1 args = Some e1 →
     language.split_state σ1 pubσ privσ1 →
-    head_step P (LinkRunFunction (inl fn1) args, []) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2) []
+    head_step P (LkSE (LinkRunFunction (inl fn1) args)) (LinkSt pubσ privσ1 privσ2)
+                (LkSE (LinkExpr1 e1)) (LinkSt1 σ1 privσ2) []
   | RunFunction2S σ2 pubσ privσ1 privσ2 fn2 arg e2 :
     language.apply_func fn2 arg = Some e2 →
     language.split_state σ2 pubσ privσ2 →
-    head_step P (LinkRunFunction (inr fn2) arg, []) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2) []
+    head_step P (LkSE (LinkRunFunction (inr fn2) arg)) (LinkSt pubσ privσ1 privσ2)
+                (LkSE (LinkExpr2 e2)) (LinkSt2 privσ1 σ2) []
   (* Producing a value when execution is finished *)
   | Val1S e1 v σ1 pubσ privσ1 privσ2 :
     to_val e1 = Some v →
     language.split_state σ1 pubσ privσ1 →
-    head_step P (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2)
-                (LinkExprV v, []) (LinkSt pubσ privσ1 privσ2) []
+    head_step P (LkSE (LinkExpr1 e1)) (LinkSt1 σ1 privσ2)
+                (LkSE (LinkExprV v)) (LinkSt pubσ privσ1 privσ2) []
   | Val2S e2 v σ2 pubσ privσ1 privσ2 :
     to_val e2 = Some v →
     language.split_state σ2 pubσ privσ2 →
-    head_step P (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2)
-                (LinkExprV v, []) (LinkSt pubσ privσ1 privσ2) []
+    head_step P (LkSE (LinkExpr2 e2)) (LinkSt2 privσ1 σ2)
+                (LkSE (LinkExprV v)) (LinkSt pubσ privσ1 privσ2) []
   (* Continuing execution by returning a value to its caller *)
-  | Ret1S v k1 pubσ privσ1 privσ2 :
-    head_step P (LinkExprV v, [inl k1]) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr1 (language.fill k1 (of_val Λ1 v)), []) (LinkSt pubσ privσ1 privσ2) []
-  | Ret2S v k2 pubσ privσ1 privσ2 :
-    head_step P (LinkExprV v, [inr k2]) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr2 (language.fill k2 (of_val Λ2 v)), []) (LinkSt pubσ privσ1 privσ2) []
+  | Ret1S v k1 σ1 pubσ privσ1 privσ2 :
+    language.split_state σ1 pubσ privσ1 →
+    head_step P (LkE (LinkExprV v) [inl k1]) (LinkSt pubσ privσ1 privσ2)
+                (LkSE (LinkExpr1 (language.fill k1 (of_val Λ1 v)))) (LinkSt1 σ1 privσ2) []
+  | Ret2S v k2 σ2 pubσ privσ1 privσ2 :
+    language.split_state σ2 pubσ privσ2 →
+    head_step P (LkE (LinkExprV v) [inr k2]) (LinkSt pubσ privσ1 privσ2)
+                (LkSE (LinkExpr2 (language.fill k2 (of_val Λ2 v)))) (LinkSt2 privσ1 σ2) []
   (* Stuck module calls bubble up as calls at the level of the linking module.
      (They may get unstuck then, if they match a function implemented by the
      other module.) *)
@@ -126,23 +144,23 @@ Section Linking.
     language.to_class e1 = Some (ExprCall fn_name arg) →
     proj1_prog P !! fn_name = None →
     language.split_state σ1 pubσ privσ1 →
-    head_step P (LinkExpr1 (language.fill k1 e1), []) (LinkSt1 σ1 privσ2)
-                (LinkExprCall fn_name arg, [inl k1]) (LinkSt pubσ privσ1 privσ2) []
+    head_step P (LkSE (LinkExpr1 (language.fill k1 e1))) (LinkSt1 σ1 privσ2)
+                (LkE (LinkExprCall fn_name arg) [inl k1]) (LinkSt pubσ privσ1 privσ2) []
   | MakeCall2S k2 e2 fn_name arg σ2 pubσ privσ1 privσ2 :
     language.to_class e2 = Some (ExprCall fn_name arg) →
     proj2_prog P !! fn_name = None →
     language.split_state σ2 pubσ privσ2 →
-    head_step P (LinkExpr2 (language.fill k2 e2), []) (LinkSt2 privσ1 σ2)
-                (LinkExprCall fn_name arg, [inr k2]) (LinkSt pubσ privσ1 privσ2) []
+    head_step P (LkSE (LinkExpr2 (language.fill k2 e2))) (LinkSt2 privσ1 σ2)
+                (LkE (LinkExprCall fn_name arg) [inr k2]) (LinkSt pubσ privσ1 privσ2) []
   (* Resolve an internal call to a module function *)
   | CallS fn_name fn arg σ :
     P !! fn_name = Some fn →
-    head_step P (LinkExprCall fn_name arg, []) σ
-                (LinkRunFunction fn arg, []) σ [].
+    head_step P (LkSE (LinkExprCall fn_name arg)) σ
+                (LkSE (LinkRunFunction fn arg)) σ [].
 
   Lemma language_mixin :
     LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      split_state apply_func head_step.
+      split_state matching_expr_state apply_func head_step.
   Proof using.
     constructor.
     - intros c. destruct c; reflexivity.
@@ -162,20 +180,46 @@ Section Linking.
       assert (k ++ K ≠ []). { intros [? ?]%app_eq_nil. done. }
       cbn in Hsome. destruct (k ++ K) eqn:?.
       2: destruct e; by inversion Hsome. by destruct e.
-    - intros σ pubσ privσ pubσ' privσ'. by do 2 (inversion 1; subst).
-    - intros σ σ' pubσ privσ. by do 2 (inversion 1; subst).
+    - intros p e1 σ1 e2 σ2 efs Hmatch. inversion 1; simplify_eq/=; try by constructor.
+      1,2: by (constructor; inversion Hmatch; subst; eauto using matching_expr_state_prim_step).
+      1,2: by (constructor; eauto using apply_func_split_matching).
+      1,2: by (constructor; apply matching_expr_state_ctx; eauto using val_split_matching).
+      inversion Hmatch; subst. constructor.
+    - intros K e σ. split.
+      + inversion 1; subst; simpl; constructor; eauto.
+      + destruct e as [? ?]; simpl. inversion 1; subst; constructor; eauto.
+    - intros *. unfold apply_func. intro. simplify_eq. inversion 1; subst. constructor.
+    - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
+    - intros *. inversion 1; subst. constructor.
+    - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
     - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ1 [e2 k2] σ2 efs.
-      rewrite /fill. intros [-> Hk]%pair_equal_spec.
+      rewrite /fill. inversion 1; subst.
       destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.
       all: intros _; inversion 1; subst; unfold comp_ectx; cbn; eauto.
       all: naive_solver.
+    - intros [se k] K K' f vs Hfill. simpl in Hfill. simplify_eq/=. eauto.
     - intros p K [e k] σ1 [e2 k2] σ2 efs. rewrite /fill. inversion 1; subst.
       all: try match goal with H : _ |- _ => symmetry in H; apply app_nil in H end.
       all: try match goal with H : _ |- _ => symmetry in H; apply app_singleton in H end.
       all: naive_solver.
   Qed.
 
-  Canonical Structure link_lang (Λ1 Λ2 : language val public_state) : language val public_state :=
-    Language language_mixin.
+Canonical Structure link_lang : language val public_state := Language language_mixin.
 
 End Linking.
+
+(* Canonical Structure link_lang {val public_state} (Λ1 Λ2 : language val public_state) : language val public_state := *)
+(*   @Language _ _ _ _ _ _ _ *)
+(*     (of_class Λ1 Λ2) (to_class Λ1 Λ2) *)
+(*     (empty_ectx Λ1 Λ2) (comp_ectx Λ1 Λ2) (fill Λ1 Λ2) *)
+(*     (split_state Λ1 Λ2) *)
+(*     (apply_func Λ1 Λ2) *)
+(*     (head_step Λ1 Λ2) *)
+(*     (language_mixin Λ1 Λ2). *)
+
+Arguments LinkSt {_ _ _ _} _ _ _.
+Arguments LinkSt1 {_ _ _ _} _ _.
+Arguments LinkSt2 {_ _ _ _} _ _.
+
+Arguments LkE {_ _ _ _} _ _.
+Notation LkSE se := (LkE se []).

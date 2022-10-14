@@ -97,7 +97,7 @@ Lemma melocoton_lang_mixin_C :
   @LanguageMixin expr val ml_function (list ectx_item) state state state
                  of_class to_class
                  nil (fun a b => b++a) fill
-                 split_state apply_function bogo_head_step'.
+                 split_state (λ _ _, True) apply_function bogo_head_step'.
 Proof. split.
   + apply to_of_cancel.
   + apply of_to_cancel.
@@ -112,6 +112,10 @@ Proof. split.
   + unfold fill. apply fill_class.
   + intros *. by do 2 (inversion 1).
   + intros *. by do 2 (inversion 1).
+  + done.
+  + intros ? ? ? _. do 2 eexists. econstructor.
+  + done.
+  + intros. do 2 eexists. econstructor.
   + intros p. unfold fill.
     change ((@ectxi_language.fill (ml_toy_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (ml_toy_ectxi_lang p))).
     intros K' K_redec e1' e1_redex σ1 e2 σ2 efs H Heq [Hstep ->]%bogo_head_step'_elim'.
@@ -119,6 +123,7 @@ Proof. split.
     1: now destruct e1'; cbn in *.
     1: apply Hstep.
     exists K''. apply HK''.
+  + admit.
   + intros p. unfold fill.
     change ((@ectxi_language.fill (ml_toy_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (ml_toy_ectxi_lang p))).
     intros K e σ1 e2 σ2 efs (Hstep & ->)%bogo_head_step'_elim'.
@@ -127,6 +132,6 @@ Proof. split.
     1: apply Hstep.
     1: right; destruct Hl as (v&Hv); exists v; destruct e; cbn in *; congruence.
     1: left; now rewrite Hr.
-Qed.
+Admitted.
 
 Canonical Structure C_lang_melocoton := Language melocoton_lang_mixin_C.

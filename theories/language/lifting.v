@@ -17,15 +17,15 @@ Implicit Types Φ : val → iProp Σ.
 
 Lemma wp_lift_step_fupd s E Φ e1 :
   to_val e1 = None →
-  (∀ σ1 ns, state_interp σ1 ns ={E}=∗
+  (∀ σ1, state_interp σ1 ∗ ⌜matching_expr_state e1 σ1⌝ ={E}=∗
     ⌜reducible (prog s) e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜prim_step (prog s) e1 σ1 e2 σ2 []⌝
       ={E}▷=∗^(1) |={E}=>
-      state_interp σ2 (S ns) ∗
+      state_interp σ2 ∗
       WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof. intros H. rewrite wp_unfold /wp_pre.
-  iIntros "H %σ %ns Hσ". iMod ("H" $! σ ns with "Hσ") as "[H1 H2]". iModIntro. do 2 iRight.
+  iIntros "H %σ Hσ". iMod ("H" $! σ with "Hσ") as "[H1 H2]". iModIntro. do 2 iRight.
   iFrame. iIntros "%σ' %e' %Hstep". iMod ("H2" $! e' σ' Hstep) as "H2". do 2 iModIntro.
   do 2 iMod "H2". iModIntro. iFrame.
 Qed.
@@ -36,15 +36,15 @@ Qed.
 
 Lemma wp_lift_atomic_step {s E Φ} e1 :
   to_val e1 = None →
-  (∀ σ1 ns, state_interp σ1 ns ={E}=∗
+  (∀ σ1, state_interp σ1 ∗ ⌜matching_expr_state e1 σ1⌝ ={E}=∗
     ⌜reducible (prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜prim_step (prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
-      state_interp σ2 (S ns) ∗
+      state_interp σ2 ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1 ns) "Hσ1".
+  iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1".
   iMod ("H" $! σ1 with "Hσ1") as "[$ H]". iModIntro.
   iIntros (e' σ' Hstep). do 3 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
@@ -54,18 +54,17 @@ Proof.
 Qed.
 
 
-
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
   to_val e1 = None →
-  (∀ σ1 ns, state_interp σ1 ns ={E}=∗
+  (∀ σ1, state_interp σ1 ∗ ⌜matching_expr_state e1 σ1⌝ ={E}=∗
     ⌜head_reducible (prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜head_step (prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
-      state_interp σ2 (S ns) ∗
+      state_interp σ2 ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1 ns) "Hσ1".
+  iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1".
   iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. iSplitR; first (iPureIntro; by eapply head_prim_reducible).
   iIntros (e' σ' Hstep%head_reducible_prim_step). 2:easy. do 3 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
@@ -76,17 +75,18 @@ Qed.
 
 Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state Λ)} {s E Φ} e1 e2 :
   (∀ σ1, reducible (prog s) e1 σ1) →
-  (∀ σ1 e2' σ2 efs', prim_step (prog s) e1 σ1 e2' σ2 efs' →
+  (∀ σ1 e2' σ2 efs', matching_expr_state e1 σ1 →
+    prim_step (prog s) e1 σ1 e2' σ2 efs' →
     σ2 = σ1 ∧ e2' = e2 ∧ efs' = []) →
   (|={E}[E]▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply wp_lift_step_fupd.
   { specialize (Hsafe inhabitant). destruct s; eauto using reducible_not_val. }
-  iIntros (σ1 ns) "Hσ". iMod "H". iModIntro. iSplitR; first (iPureIntro; apply Hsafe).
+  iIntros (σ1) "[Hσ %Hmatch]". iMod "H". iModIntro.
+  iSplitR; first (iPureIntro; apply Hsafe).
   iIntros (e' σ2 Hstep'). do 3 iModIntro. iMod "H".
-  iMod (state_interp_mono σ1 ns with "Hσ") as "Hs".
   iModIntro.
-  destruct (Hstep σ1 e' σ2 [] Hstep') as (He1 & He2 & He3). subst.
+  destruct (Hstep σ1 e' σ2 [] Hmatch Hstep') as (He1 & He2 & He3). subst.
   iFrame.
 Qed.
 
@@ -134,7 +134,7 @@ Proof.
   { iMod lc_zero as "Hz". by iApply "Hwp". }
   iApply wp_lift_pure_det_step_no_fork.
   - intros σ. specialize (Hsafe σ). destruct s; eauto using reducible_not_val.
-  - done.
+  - eauto.
   - iApply (step_fupd_wand with "Hwp").
     iApply "IH".
 Qed.

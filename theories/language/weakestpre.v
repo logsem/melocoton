@@ -7,33 +7,11 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-Class melocotonGS_gen 
-  (hlc : has_lc) (val pubstate : Type) 
+Class melocotonGS_gen
+  (hlc : has_lc) (val pubstate : Type)
   (Λ : language val pubstate) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen hlc Σ;
-
-  (** The state interpretation is an invariant that should hold in
-  between each step of reduction. Here [Λstate] is the global state,
-  the first [nat] is the number of steps already performed by the
-  program, [list (observation Λ)] are the remaining observations, and the
-  last [nat] is the number of forked-off threads (not the total number
-  of threads, which is one higher because there is always a main
-  thread). *)
-  state_interp : state Λ → nat → iProp Σ;
-
-  (** When performing pure steps, the state interpretation needs to be
-  adapted for the change in the [ns] parameter.
-
-  Note that we use an empty-mask fancy update here. We could also use
-  a basic update or a bare magic wand, the expressiveness of the
-  framework would be the same. If we removed the modality here, then
-  the client would have to include the modality it needs as part of
-  the definition of [state_interp]. Since adding the modality as part
-  of the definition [state_interp_mono] does not significantly
-  complicate the formalization in Iris, we prefer simplifying the
-  client. *)
-  state_interp_mono σ ns E:
-    state_interp σ ns ={E}=∗ state_interp σ (S ns)
+  state_interp : state Λ → iProp Σ;
 }.
 Global Opaque iris_invGS.
 Global Arguments IrisG {hlc val pubstate Λ Σ}.
@@ -51,13 +29,13 @@ Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ}
     expr Λ -d>
     (val -d> iPropO Σ) -d>
     iPropO Σ := λ E e Φ,
-    (∀ σ ns, state_interp σ ns ={E}=∗
-      (  (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ns ∗ Φ v)
+    (∀ σ, state_interp σ ∗ ⌜matching_expr_state e σ⌝ ={E}=∗
+      (  (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ∗ Φ v)
        ∨ (∃ s vv K, ⌜e = fill K (of_class Λ (ExprCall s vv))⌝ ∗ ⌜p !! s = None⌝ ∗
-            ▷ |={E}=> (state_interp σ (S ns) ∗ ∃ Ξ, T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
-       ∨ ((⌜reducible p e σ⌝ ∗
+            ▷ |={E}=> (state_interp σ ∗ ∃ Ξ, T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
+       ∨ (⌜reducible p e σ⌝ ∗
                     ∀ σ' e', ⌜prim_step p e σ e' σ' []⌝ -∗ |={E}=> ▷ |={E}=> 
-                        (state_interp σ' (S ns) ∗ wp E e' Φ)))))%I.
+                        (state_interp σ' ∗ wp E e' Φ))))%I.
 
 Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val pubstate Λ Σ}
      {p:mixin_prog Λ.(func)} T : Contractive (wp_pre p T).
@@ -100,10 +78,10 @@ Global Instance wp_ne pe E e n :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
-  do 15 f_equiv. 1: f_equiv.
+  do 13 f_equiv. 1: f_equiv.
   all: f_contractive.
   all: f_equiv.
-  all: f_equiv. 
+  all: f_equiv.
   1: do 4 f_equiv; intros r; f_equiv. 
   all: apply IH; eauto; intros k; eapply dist_le', HΦ; lia.
 Qed.
@@ -131,7 +109,7 @@ Admitted.
 Lemma wp_value_fupd' pe E Φ v : (|={E}=> Φ v)%I ⊢ WP (of_class Λ (ExprVal v)) @ pe; E {{ Φ }}.
 Proof.
   rewrite !wp_unfold /wp_pre /=.
-  iIntros "H %σ %ns Hσ". iLeft. iMod "H". iModIntro. iExists _; iFrame; done.
+  iIntros "H %σ [Hσ %]". iLeft. iMod "H". iModIntro. iExists _; iFrame; done.
 Qed.
 
 
@@ -149,7 +127,7 @@ Lemma wp_strong_mono pe1 pe2 E1 E2 e Φ Ψ :
 Proof.
   iIntros (HE (Hpe1 & Hpe2)) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
   rewrite !wp_unfold /wp_pre /=.
-  iIntros "%σ %ns Hσ". iSpecialize ("H" $! σ ns with "Hσ").
+  iIntros "%σ Hσ". iSpecialize ("H" $! σ with "Hσ").
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod "H". iMod "Hclose".
   iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s & %vv & %K & -> & H2 & H3)|H3]]".
@@ -164,7 +142,7 @@ Proof.
     iFrame. iExists Ξ. iSplitL "HT"; first iApply (Hpe2 s vv with "HT").
     iIntros "%r HΞ". iApply ("IH" $! (fill K (of_class Λ (ExprVal r))) E1 E2 HE Φ Ψ with "[Hr HΞ] HΦ").
     iApply ("Hr" with "HΞ").
-  - do 2 iRight. 
+  - do 2 iRight.
     iDestruct "H3" as "(HH & H3)".
     iModIntro. rewrite Hpe1. iFrame. iIntros "%σ2 %e' Hstep".
     iSpecialize ("H3" $! σ2 e' with "Hstep").
@@ -177,8 +155,8 @@ Qed.
 
 Lemma fupd_wp pe E e Φ : (|={E}=> WP e @ pe; E {{ Φ }}) ⊢ WP e @ pe; E {{ Φ }}.
 Proof.
-  rewrite wp_unfold /wp_pre. iIntros "H %σ %ns Hσ".
-  iMod "H". iApply ("H" $! σ ns with "Hσ").
+  rewrite wp_unfold /wp_pre. iIntros "H %σ Hσ".
+  iMod "H". iApply ("H" $! σ with "Hσ").
 Qed.
 
 Lemma wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
@@ -204,7 +182,7 @@ Qed. *)
 
 Lemma wp_step_fupdN_strong n pe E e P Φ :
   TCEq (to_val e) None →
-  (∀ σ ns, state_interp σ ns
+  (∀ σ, state_interp σ
        ={E}=∗ ⌜n ≤ 1⌝) ∧
   ((|={E}=>  |={E}▷=>^n |={E}=> P) ∗
     WP e @ pe; E {{ v, P ={E}=∗ Φ v }}) -∗
@@ -215,11 +193,11 @@ Proof.
     iApply (wp_strong_mono with "Hwp"); [done..|].
     iIntros (v) "H". iApply ("H" with "[>HP]"). by do 2 iMod "HP". }
   rewrite !wp_unfold /wp_pre /=. iIntros (Heq) "H".
-  iIntros (σ1 ns) "Hσ".
+  iIntros (σ1) "[Hσ %]".
   destruct (decide (n = 0)) as [->|Hn]; first last.
   { iDestruct "H" as "[Hn _]". iMod ("Hn" with "Hσ") as %?. lia. }
   iDestruct "H" as "[_ [>HP Hwp]]".
-  iMod ("Hwp" $! σ1 ns with "Hσ") as "[(%z & -> & Hσ & H)|[(%s & %vv & %K & -> & H2 & H3)|(%Hred & H3)]]".
+  iMod ("Hwp" $! σ1 with "[$Hσ]") as "[(%z & -> & Hσ & H)|[(%s & %vv & %K & -> & H2 & H3)|[% H3]]]"; first done.
   + unfold to_val in Heq. rewrite to_of_class in Heq.
     exfalso. apply TCEq_eq in Heq. congruence.
   + cbn. iRight. iLeft. iMod "HP". iModIntro.
@@ -272,10 +250,11 @@ Lemma wp_bind K pe E e Φ :
   WP e @ pe; E {{ v, WP fill K (of_class _ (ExprVal v)) @ pe; E {{ Φ }} }} ⊢ WP fill K e @ pe; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre.
-  iIntros "%σ %ns Hσ".
-  iMod ("H" $! σ ns with "Hσ") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & -> & H2 & H3)|H3]]".
+  iIntros "%σ [Hσ %Hmatch]".
+  pose proof (proj2 (matching_expr_state_ctx _ _ _) Hmatch) as Hmatch'.
+  iMod ("H" $! σ with "[$Hσ]") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & -> & H2 & H3)|[%Hred H3]]]"; first done.
   - rewrite {1} wp_unfold /wp_pre.
-    iMod ("H" $! σ ns with "Hσ") as "H". iApply "H".
+    iMod ("H" $! σ with "[$Hσ]") as "H"; first done. iApply "H".
   - iRight. iLeft. iExists s, vv, (comp_ectx K K').
     iFrame. iSplitR.
     {iModIntro; iPureIntro. now rewrite fill_comp. }
@@ -284,8 +263,7 @@ Proof.
     iIntros "%r HΞ".
     rewrite <- fill_comp.
     iApply "IH". iApply ("Hr" with "HΞ").
-  - iRight. iRight. iModIntro. iDestruct "H3" as "(%Hred & H3)".
-    iSplitR; first eauto using reducible_fill.
+  - iRight. iRight. iModIntro. iSplitR; first eauto using reducible_fill.
     iIntros "%σ' %e' %Hstep".
     pose proof (reducible_not_val _ _ _ Hred) as  Hnone.
     destruct (fill_step_inv _ _ _ _ _ _ _ Hnone Hstep) as (e2'' & -> & H4).

@@ -19,6 +19,7 @@ Section language_mixin.
   Context (comp_ectx : ectx → ectx → ectx).
   Context (fill : ectx → expr → expr).
   Context (split_state : state → public_state → private_state → Prop).
+  Context (matching_expr_state : expr → state → Prop).
 
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
@@ -44,20 +45,28 @@ Section language_mixin.
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_fill_inj K : Inj (=) (=) (fill K);
-    (* The the things in a class contain only values in redex positions (or the
+    (* The things in a class contain only values in redex positions (or the
        redex is the topmost one). *)
     mixin_fill_class K e :
       is_Some (to_class (fill K e)) → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
 
-    mixin_split_state_functional σ pubσ privσ pubσ' privσ' :
-      split_state σ pubσ privσ →
-      split_state σ pubσ' privσ' →
-      pubσ = pubσ' ∧ privσ = privσ';
+    mixin_matching_expr_state_step p e1 σ1 e2 σ2 efs :
+      matching_expr_state e1 σ1 →
+      head_step p e1 σ1 e2 σ2 efs →
+      matching_expr_state e2 σ2;
 
-    mixin_split_state_inj σ σ' pubσ privσ :
-      split_state σ pubσ privσ →
-      split_state σ' pubσ privσ →
-      σ = σ';
+    mixin_matching_expr_state_ctx K e σ :
+      matching_expr_state e σ ↔ matching_expr_state (fill K e) σ;
+
+    mixin_apply_func_split_matching fn vs e σ pubσ privσ :
+      apply_func fn vs = Some e → split_state σ pubσ privσ → matching_expr_state e σ;
+    mixin_call_matching_split f vs σ :
+      matching_expr_state (of_class (ExprCall f vs)) σ → ∃ pubσ privσ, split_state σ pubσ privσ;
+
+    mixin_val_split_matching v σ pubσ privσ :
+      split_state σ pubσ privσ → matching_expr_state (of_class (ExprVal v)) σ;
+    mixin_val_matching_split v σ :
+      matching_expr_state (of_class (ExprVal v)) σ → ∃ pubσ privσ, split_state σ pubσ privσ;
 
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is not
@@ -72,6 +81,11 @@ Section language_mixin.
       match to_class e1' with Some (ExprVal _) => False | _ => True end →
       head_step p e1_redex σ1 e2 σ2 efs →
       ∃ K'', K_redex = comp_ectx K' K'';
+
+    mixin_call_in_ctx e K K' f vs :
+      fill K' e = fill K (of_class (ExprCall f vs)) →
+      (∃ K'', K = comp_ectx K' K'') ∨
+      match to_class e with Some (ExprVal _) => True | _ => False end;
 
     (** If [fill K e] takes a head step, then either [e] is a value or [K] is
         the empty evaluation context. In other words, if [e] is not a value
@@ -99,25 +113,27 @@ Structure language {val : Type} {public_state : Type} := Language {
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
   split_state : state → public_state → private_state → Prop;
+  matching_expr_state : expr → state → Prop;
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → expr → state → expr → state → list expr → Prop;
 
   language_mixin :
     LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill 
-      split_state apply_func head_step
+      split_state matching_expr_state apply_func head_step
 }.
 
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments language : clear implicits.
-Arguments Language {_ _ expr _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
+Arguments Language {_ _ expr _ _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
 Arguments of_class {_ _} _ _.
 Arguments to_class {_ _ _} _.
 Arguments empty_ectx {_ _ _}.
 Arguments comp_ectx {_ _ _} _ _.
 Arguments fill {_ _ _} _ _.
 Arguments split_state {_ _ _} _ _.
+Arguments matching_expr_state {_ _ _} _ _.
 Arguments apply_func {_ _ _}.
 Arguments head_step {_ _ _} _ _ _ _ _ _.
 
@@ -192,7 +208,6 @@ Section language.
   Lemma head_ctx_step_val' p K e σ1 e2 σ2 efs :
     head_step p (fill K e) σ1 e2 σ2 efs → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v).
   Proof. apply language_mixin. Qed.
-
   Lemma fill_class K e :
     is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
   Proof.
@@ -223,6 +238,33 @@ Section language.
     Some er = apply_func fn vs →
     head_step p (of_call Λ f vs) σ1 er σ1 [].
   Proof. intros ? ?. eapply call_head_step; eexists; eauto. Qed.
+  Lemma call_in_ctx e K K' f vs :
+    fill K' e = fill K (of_class Λ (ExprCall f vs)) →
+    (∃ K'', K = comp_ectx K' K'') ∨ is_Some (to_val e).
+  Proof.
+    intros [?|?]%language_mixin; unfold to_val; repeat case_match; eauto; done.
+  Qed.
+
+  Lemma matching_expr_state_step p e1 σ1 e2 σ2 efs :
+    matching_expr_state e1 σ1 →
+    head_step p e1 σ1 e2 σ2 efs →
+    matching_expr_state e2 σ2.
+  Proof. apply language_mixin. Qed.
+  Lemma matching_expr_state_ctx K e σ :
+    matching_expr_state e σ ↔ matching_expr_state (fill K e) σ.
+  Proof. apply language_mixin. Qed.
+  Lemma apply_func_split_matching fn vs e σ pubσ privσ :
+    apply_func fn vs = Some e → split_state σ pubσ privσ → matching_expr_state e σ.
+  Proof. apply language_mixin. Qed.
+  Lemma call_matching_split f vs σ :
+    matching_expr_state (of_class Λ (ExprCall f vs)) σ → ∃ pubσ privσ, split_state σ pubσ privσ.
+  Proof. apply language_mixin. Qed.
+  Lemma val_split_matching v σ pubσ privσ :
+    split_state σ pubσ privσ → matching_expr_state (of_class Λ (ExprVal v)) σ.
+  Proof. apply language_mixin. Qed.
+  Lemma val_matching_split v σ :
+    matching_expr_state (of_class Λ (ExprVal v)) σ → ∃ pubσ privσ, split_state σ pubσ privσ.
+  Proof. apply language_mixin. Qed.
 
   Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ e' σ' efs, head_step p e σ e' σ' efs.
@@ -308,6 +350,20 @@ Section language.
   Proof.
     rewrite /stuck /not_stuck -not_eq_None_Some -not_reducible.
     destruct (decide (to_val e = None)); naive_solver.
+  Qed.
+  Lemma extcall_ctx_irreducible p K f vs σ :
+    p !! f = None →
+    irreducible p (fill K (of_class Λ (ExprCall f vs))) σ.
+  Proof.
+    intros ? ? ? Hf Hred.
+    apply prim_step_inv in Hred as (K' & e1 & e1' & Hfill & -> & Hstep).
+    symmetry in Hfill. pose proof (call_in_ctx _ _ _ _ _ Hfill) as [[? ->]|[? ?]].
+    - rewrite -fill_comp in Hfill. apply fill_inj in Hfill. subst e1.
+      pose proof (head_ctx_step_val _ _ _ _ _ _ _ Hstep) as [->|[? HH]].
+      + rewrite fill_empty in Hstep.
+        apply call_head_step in Hstep as (? & ? & ? & -> & ->). congruence.
+      + rewrite /to_val to_of_class // in HH.
+    - apply val_head_stuck in Hstep. congruence.
   Qed.
 
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
@@ -488,6 +544,46 @@ Section language.
     rewrite <- fill_comp in *.
     apply fill_inj in H. subst. eexists; split; first done.
     by econstructor.
+  Qed.
+
+  Lemma call_prim_step_fill p K f vs σ1 σ2 e2 efs :
+    prim_step p (fill K (of_class Λ (ExprCall f vs))) σ1 e2 σ2 efs →
+    ∃ (fn : func Λ) e2',
+      p !! f = Some fn ∧
+      apply_func fn vs = Some e2' ∧
+      e2 = fill K e2' ∧
+      σ2 = σ1 ∧ efs = [].
+  Proof.
+    intros (K' & e2' & e2'' & Hfill%eq_sym & -> & Hstep)%prim_step_inv.
+    pose proof (call_in_ctx _ _ _ _ _ Hfill) as [[K'' ->]|[? Hval]].
+    { rewrite -fill_comp in Hfill. apply fill_inj in Hfill. subst e2'.
+      pose proof (head_ctx_step_val _ _ _ _ _ _ _ Hstep) as [->|[? Hval]].
+      { rewrite fill_empty in Hstep. apply call_head_step in Hstep as (fn & ? & ? & -> & ->).
+        eexists _, _; repeat split; eauto. rewrite -!fill_comp fill_empty//. }
+      { exfalso. rewrite /to_val to_of_class// in Hval. } }
+    { exfalso. apply val_head_stuck in Hstep. congruence. }
+  Qed.
+
+  Lemma call_prim_step p f vs σ1 σ2 e2 efs :
+    prim_step p (of_class Λ (ExprCall f vs)) σ1 e2 σ2 efs →
+    ∃ (fn : func Λ),
+      p !! f = Some fn ∧
+      apply_func fn vs = Some e2 ∧
+      σ2 = σ1 ∧ efs = [].
+  Proof.
+    epose proof (call_prim_step_fill p empty_ectx _ _ _ _ _ _) as H.
+    rewrite fill_empty in H. intros (?&?&?&?&?&?&?)%H; subst.
+    eexists. repeat split; eauto. rewrite fill_empty//.
+  Qed.
+
+  Lemma matching_expr_state_prim_step p e1 σ1 e2 σ2 efs :
+    matching_expr_state e1 σ1 →
+    prim_step p e1 σ1 e2 σ2 efs →
+    matching_expr_state e2 σ2.
+  Proof.
+    intros Hmatch (K & e1' & e2' & -> & -> & Hstep)%prim_step_inv.
+    apply matching_expr_state_ctx in Hmatch. apply matching_expr_state_ctx.
+    eauto using matching_expr_state_step.
   Qed.
 
 (*

@@ -22,53 +22,11 @@ Local Existing Instance heapGS_step_cnt.
 
 Notation heapGS := (heapGS_gen HasLc).
 
-Section steps.
-  Context `{!heapGS_gen hlc Σ}.
-
-  Local Definition steps_auth (n : nat) : iProp Σ :=
-    mono_nat_auth_own heapGS_step_name 1 n.
-
-  Definition steps_lb (n : nat) : iProp Σ :=
-    mono_nat_lb_own heapGS_step_name n.
-
-  Local Lemma steps_lb_valid n m :
-    steps_auth n -∗ steps_lb m -∗ ⌜m ≤ n⌝.
-  Proof.
-    iIntros "Hauth Hlb".
-    by iDestruct (mono_nat_lb_own_valid with "Hauth Hlb") as %[_ Hle].
-  Qed.
-
-  Local Lemma steps_lb_get n :
-    steps_auth n -∗ steps_lb n.
-  Proof. apply mono_nat_lb_own_get. Qed.
-
-  Local Lemma steps_auth_update n n' :
-    n ≤ n' → steps_auth n ==∗ steps_auth n' ∗ steps_lb n'.
-  Proof. intros Hle. by apply mono_nat_own_update. Qed.
-
-  Local Lemma steps_auth_update_S n :
-    steps_auth n ==∗ steps_auth (S n).
-  Proof.
-    iIntros "Hauth".
-    iMod (mono_nat_own_update with "Hauth") as "[$ _]"; [lia|done].
-  Qed.
-
-  Lemma steps_lb_le n n' :
-    n' ≤ n → steps_lb n -∗ steps_lb n'.
-  Proof. intros Hle. by apply mono_nat_lb_own_le. Qed.
-
-End steps.
-
-Global Program Instance heapGS_melocotonGS `{heapGS_gen hlc Σ} 
+Global Program Instance heapGS_melocotonGS `{heapGS_gen hlc Σ}
       : melocotonGS_gen hlc val state (C_lang_melocoton) Σ := {
   iris_invGS := heapGS_invGS;
-  state_interp σ step_cnt :=
-    (gen_heap_interp σ ∗ steps_auth step_cnt)%I
+  state_interp σ := gen_heap_interp σ;
 }.
-Next Obligation.
-  iIntros (??? σ ns E)  "/= ($ & H)".
-  by iMod (steps_auth_update_S with "H") as "$".
-Qed.
 
 (** Since we use an [option val] instance of [gen_heap], we need to overwrite
 the notations.  That also helps for scopes and coercions. *)
@@ -152,49 +110,6 @@ Implicit Types l : loc.
 #[global] Instance wp'': Wp (iProp Σ) expr val stuckness := (@wp' (C_lang p) Σ _).
 #[global] Instance twp'': Twp (iProp Σ) expr val stuckness := (@twp' (C_lang p) Σ _).
 *)
-
-Lemma wp_lb_init s E e Φ :
-  TCEq (to_val e) None →
-  (steps_lb 0 -∗ WP e @ s; E {{ v, Φ v }}) -∗
-  WP e @ s; E {{ Φ }}.
-Proof.
-  (** TODO: We should try to use a generic lifting lemma (and avoid [wp_unfold])
-  here, since this breaks the WP abstraction. *)
-  rewrite !wp_unfold /wp_pre /=. iIntros (Heq) "Hwp".
-  iIntros (σ1 ns) "(Hσ & Hsteps)".
-  iDestruct (steps_lb_get with "Hsteps") as "#Hlb".
-  iDestruct (steps_lb_le _ 0 with "Hlb") as "Hlb0"; [lia|].
-  iSpecialize ("Hwp" with "Hlb0"). iApply ("Hwp" $! σ1 ns). iFrame.
-Qed.
-
-Lemma wp_lb_update s n E e Φ :
-  TCEq (to_val e) None →
-  steps_lb n -∗
-  WP e @ s; E {{ v, steps_lb (S n) -∗ Φ v }} -∗
-  WP e @ s; E {{ Φ }}.
-Proof.
-  (** TODO: We should try to use a generic lifting lemma (and avoid [wp_unfold])
-  here, since this breaks the WP abstraction. *)
-  rewrite !wp_unfold /wp_pre /=. iIntros (Heq) "Hlb Hwp".
-  iIntros (σ1 ns) "(Hσ & Hsteps)".
-  iDestruct (steps_lb_valid with "Hsteps Hlb") as %?.
-  iMod ("Hwp" $! σ1 ns with "[$Hσ $Hsteps]") 
-      as "[(%v & -> & Hσ & Hv)|[(%s0 & %vv & %K & -> & Hprog & Hwp)|(%Hred & Hwp)]]".
-  - cbn in Heq. apply TCEq_eq in Heq. congruence.
-  - iModIntro. iRight. iLeft. iExists s0, vv, K. iFrame. iSplitR; first done.
-    iModIntro. iMod "Hwp" as "((Hσ & Hsteps) & %Ξ & HΞ & Hwp)". iModIntro. 
-    iDestruct (steps_lb_get with "Hsteps") as "#HlbS".
-    iDestruct (steps_lb_le _ (S n) with "HlbS") as "#HlbS'"; [lia|]. iFrame.
-    iExists Ξ. iFrame. iIntros (r) "Hr". iSpecialize ("Hwp" $! r with "Hr").
-    iApply (wp_wand with "Hwp"). iIntros (v) "Hv". by iApply "Hv".
-  - iModIntro. iRight. iRight. iSplitR; first done.
-    iIntros (e2 σ2 Hstep). iMod ("Hwp" with "[//]") as "Hwp".
-    iIntros "!> !>". iMod "Hwp" as "((Hσ & Hsteps) & Hwp)". iIntros "!>".
-    iDestruct (steps_lb_get with "Hsteps") as "#HlbS".
-    iDestruct (steps_lb_le _ (S n) with "HlbS") as "#HlbS'"; [lia|].
-    iFrame.
-    iApply (wp_wand with "Hwp"). iIntros (v) "HΦ". by iApply "HΦ".
-Qed.
 
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb
 induction directly, but this demonstrates that we can state the expected
@@ -337,13 +252,12 @@ Lemma wp_Malloc_seq E n :
       (l +ₗ (i : nat)) ↦ ? ∗ meta_token (l +ₗ (i : nat)) ⊤ }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1 ns) "(Hσ & Hsteps)". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
+  iIntros (σ1) "[Hσ _]". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
   iIntros (e2 σ2 Hstep); inv_head_step. iModIntro.
   iMod (gen_heap_alloc_big _ (heap_array _ (replicate (Z.to_nat n) Uninitialized)) with "Hσ")
     as "(Hσ & Hl & Hm)".
   { apply heap_array_map_disjoint.
     rewrite replicate_length Z2Nat.id; auto with lia. }
-  iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iModIntro. iFrame. iApply "HΦ".
   iApply big_sepL_sep. iSplitL "Hl".
   - by iApply heap_array_to_seq_mapsto.
@@ -355,12 +269,11 @@ Lemma wp_free s E l (v:option val) :
   {{{ RET LitV LitUnit; True }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1 ns) "(Hσ & Hsteps) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1) "[Hσ _] !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto with head_step.
   iIntros (e2 σ2 Hstep); inv_head_step.
   rewrite state_init_heap_singleton. iModIntro.
   iMod (gen_heap_update (σ1) l (Some v) Deallocated with "Hσ Hl") as "[$ Hl]".
-  iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
 Qed.
 
@@ -368,10 +281,9 @@ Lemma wp_load s E l dq v :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1 ns) "(Hσ & Hsteps)". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
+  iIntros (σ1) "[Hσ _]". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
   iSplitR; first ( iPureIntro; eauto with head_step).
   iIntros (e2 σ2 Hstep); inv_head_step. iModIntro.
-  iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iModIntro. iFrame. iIntros "HΦ". iModIntro.
   by iApply "HΦ".
 Qed.
@@ -381,10 +293,9 @@ Lemma wp_store s E l (v':option val) v :
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1 ns) "(Hσ & Hsteps) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1) "[Hσ _] !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto with head_step.
   iIntros (e2 σ2 Hstep); inv_head_step. iModIntro.
-  iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iMod (gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
 Qed.
