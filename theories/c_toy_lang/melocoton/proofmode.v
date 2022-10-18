@@ -10,6 +10,13 @@ Lemma tac_wp_expr_eval `{!heapGS Σ} Δ s E Φ e e' :
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
 
+Ltac solve_lookup_fixed := let rec go := match goal with
+  [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (insert ?key ?val ?rem)]] =>
+    (unify key needle; rewrite (@lookup_insert _ _ _ _ _ _ _ _ _ _ _ _ rem key val)) ||
+    (rewrite (@lookup_insert_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle val); [congruence|go])
+| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle ∅]] => 
+    rewrite (@lookup_empty _ _  _ _ _ _ _ _ _ _ _ _ needle) end in repeat (progress (try go; simpl)).
+
 Tactic Notation "wp_expr_eval" tactic3(t) :=
   iStartProof;
   lazymatch goal with
@@ -18,7 +25,7 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
       [let x := fresh in intros x; t; unfold x; notypeclasses refine eq_refl|]
   | _ => fail "wp_expr_eval: not a 'wp'"
   end.
-Ltac wp_expr_simpl := wp_expr_eval simpl.
+Ltac wp_expr_simpl := wp_expr_eval solve_lookup_fixed.
 
 Lemma tac_wp_pure `{!heapGS Σ} Δ Δ' s E K e1 e2 φ n Φ :
   PureExec φ n (weakestpre.prog s) e1 e2 →
