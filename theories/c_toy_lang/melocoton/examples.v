@@ -35,18 +35,17 @@ Lemma fib_prog_correct (n:nat)
   : ⊢ (WP (call: &"fib" with (Val #n)) @ exampleEnv "fib"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
 Proof.
   iStartProof.
-  wp_pure _.
   iLöb as "IH" forall (n).
-  wp_pure _.
+  wp_pures.
   destruct (bool_decide _) eqn:Heq.
-  - wp_pure _. iModIntro. apply bool_decide_eq_true in Heq.
+  - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; done.
-  - wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
-    wp_pure _. wp_apply wp_wand.
-    { assert ((n-1)%Z=(n-1)%nat) as -> by lia. wp_pure _. iApply "IH". }
+  - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
+    wp_apply wp_wand.
+    { assert ((n-1)%Z=(n-1)%nat) as -> by lia. iApply "IH". }
     iIntros (v) "->". wp_bind (FunCall _ _). wp_pure _. wp_apply wp_wand.
-    { assert ((n-2)%Z=(n-2)%nat) as -> by lia.  wp_pure _. iApply "IH". }
-    iIntros (v) "->". wp_pure _. iModIntro. iPureIntro. rewrite <- Nat2Z.inj_add.
+    { assert ((n-2)%Z=(n-2)%nat) as -> by lia. iApply "IH". }
+    iIntros (v) "->". wp_pures. iModIntro. iPureIntro. rewrite <- Nat2Z.inj_add.
     repeat f_equal.
     assert (n = S (S (n-2))) as -> by lia.
     cbn. do 2 f_equal. lia.
@@ -59,17 +58,15 @@ Lemma fiba_prog_correct (n:nat)
   : ⊢ (WP (call: &"fib" with (Val #n)) @ exampleEnv "fiba"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
 Proof.
   iStartProof.
-  wp_pure _.
-  wp_pure _.
+  wp_pures.
   destruct (bool_decide _) eqn:Heq.
-  - wp_pure _. iModIntro. apply bool_decide_eq_true in Heq.
+  - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; done.
-  - wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
-    wp_pure _.
+  - wp_pures. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
     assert ((n-1)%Z=(n-1)%nat) as -> by lia.
     iApply (wp_extern' _ "fiba" [ #((n-1)%nat)] _ _); first by (iPureIntro; vm_compute).
     do 3 iModIntro. cbn. rewrite Nat2Z.id.
-    wp_pure _.
+    wp_pures.
     assert ((n-2)%Z=(n-2)%nat) as -> by lia. wp_bind (FunCall _ _).
     iApply (wp_extern' _ "fiba" [ #((n-2)%nat)] _ _); first by (iPureIntro; vm_compute).
     do 3 iModIntro. cbn. rewrite Nat2Z.id.
