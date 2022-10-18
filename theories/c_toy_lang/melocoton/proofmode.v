@@ -1,11 +1,11 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
-From melocoton.c_toy_lang Require Export lang melocoton.lang_instantiation tactics melocoton.tactics melocoton.primitive_laws melocoton.derived_laws.
+From melocoton.c_toy_lang Require Export lang melocoton.lang_instantiation tactics melocoton.tactics melocoton.primitive_laws melocoton.derived_laws melocoton.class_instances.
 From melocoton.c_toy_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 
-Lemma tac_wp_expr_eval `{!heapGS Σ} `{program} Δ s E Φ e e' :
+Lemma tac_wp_expr_eval `{!heapGS Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
@@ -37,7 +37,7 @@ Lemma tac_wp_value_nofupd `{!heapGS Σ} Δ s E Φ v :
   envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by apply wp_value. Qed.
 
-Lemma tac_wp_value `{!heapGS Σ} `{program} Δ s E (Φ : val → iPropI Σ) v :
+Lemma tac_wp_value `{!heapGS Σ} Δ s E (Φ : val → iPropI Σ) v :
   envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 
@@ -83,8 +83,8 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
       unify e' efoc;
       eapply (tac_wp_pure _ _ _ _ K e');
       [iSolveTC                       (* PureExec *)
-      |try solve_vals_compare_safe    (* The pure condition for PureExec --
-         handles trivial goals, including [vals_compare_safe] *)
+      |try solve_vals_compare_safe; try eauto (* The pure condition for PureExec --
+            handles trivial goals, including [vals_compare_safe] *)
       |iSolveTC                       (* IntoLaters *)
       |wp_finish                      (* new goal *)
       ])
@@ -110,7 +110,7 @@ Tactic Notation "wp_seq" := wp_let.
 Tactic Notation "wp_while" := wp_pure (While _ _).
 Tactic Notation "wp_call" := wp_pure (FunCall _ _).
 
-Lemma tac_wp_bind `{!heapGS Σ} `{program} K Δ s E Φ e f :
+Lemma tac_wp_bind `{!heapGS Σ} K Δ s E Φ e f :
   f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
   envs_entails Δ (WP e @ s; E {{ v, WP f (Val v) @ s; E {{ Φ }} }})%I →
   envs_entails Δ (WP fill K e @ s; E {{ Φ }}).

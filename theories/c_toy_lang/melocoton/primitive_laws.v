@@ -60,7 +60,7 @@ Section steps.
 End steps.
 
 Global Program Instance heapGS_melocotonGS `{heapGS_gen hlc Σ} 
-      : melocotonGS_gen hlc val state (C_lang_melocoton) Σ := {
+      : melocotonGS_gen hlc val (C_lang_melocoton) Σ := {
   iris_invGS := heapGS_invGS;
   state_interp σ step_cnt :=
     (gen_heap_interp σ ∗ steps_auth step_cnt)%I
@@ -206,7 +206,7 @@ Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) :
   ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}.
 Proof.
   iIntros "%Hp #Hrec". iLöb as "IH". iIntros (v res) "HΨ %Hres".
-  iApply lifting.wp_pure_step_later; first apply pure_funcall. 1: eauto.
+  iApply lifting.wp_pure_step_later. 1: eauto.
   iIntros "!>". iApply ("Hrec" with "[] HΨ"). 2:done. iIntros "!>" (w res') "HΨ %Hres'".
   iApply ("IH" with "HΨ"). iPureIntro. apply Hres'.
 Qed.
@@ -387,6 +387,34 @@ Proof.
   iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iMod (gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
+Qed.
+
+Lemma wp_call' (s:prog_environ) n args body body' vv E Φ :
+     ⌜((weakestpre.prog s) : gmap string function) !! n = Some (Fun args body)⌝ 
+  -∗ ⌜apply_function (Fun args body) vv = Some body'⌝
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
+  -∗ WP (FunCall ((&n)) (map Val vv)) @ s ; E {{v, Φ v}}.
+Proof.
+  iIntros (Hlookup Happly) "Hcont". iApply wp_lift_step_fupd.
+  { cbv -[map unmap_val]. now rewrite map_unmap_val. }
+  iIntros (σ1 ns) "(Hσ & Hsteps) !>".
+  iSplit.
+  { iPureIntro. eexists _,_. apply head_prim_step. do 2 econstructor; done. }
+  iIntros (v2 σ2 Hstep). apply head_reducible_prim_step in Hstep. 2: { eexists _,_,_. do 2 econstructor; done. }
+  inv_head_step. iMod "Hcont". do 2 iModIntro.
+  iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
+  iMod "Hcont".
+  do 2 iModIntro. iFrame.
+Qed.
+
+Lemma wp_call (s:prog_environ) n args body body' vv E Φ :
+     ⌜((weakestpre.prog s) : gmap string function) !! n = Some (Fun args body)⌝ 
+  -∗ ⌜apply_function (Fun args body) vv = Some body'⌝
+  -∗ (WP body' @ s ; E {{v, Φ v}})
+  -∗ WP (FunCall ((&n)) (map Val vv)) @ s ; E {{v, Φ v}}.
+Proof.
+  iIntros (Hlookup Happly) "Hcont".
+  iApply wp_call'. 1-2: done. do 3 iModIntro. done.
 Qed.
 
 (*

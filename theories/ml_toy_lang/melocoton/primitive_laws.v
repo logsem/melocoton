@@ -61,7 +61,7 @@ End steps.
 
 
 Global Program Instance heapGS_melocotonGS `{heapGS_gen hlc Σ} 
-      : melocotonGS_gen hlc val state (C_lang_melocoton) Σ := {
+      : melocotonGS_gen hlc val (C_lang_melocoton) Σ := {
   iris_invGS := heapGS_invGS;
   state_interp σ step_cnt :=
     (gen_heap_interp σ ∗ steps_auth step_cnt)%I
@@ -372,6 +372,9 @@ Proof.
   iIntros (Φ) ">H HΦ". iApply (wp_step with "HΦ").
   iApply (wp_store' with "H"). iIntros "!> H HΦ". by iApply "HΦ".
 Qed.
+
+
+
 
 (*
 Lemma twp_xchg s E l v' v :

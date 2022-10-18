@@ -8,8 +8,8 @@ From iris.prelude Require Import options.
 Import uPred.
 
 Class melocotonGS_gen 
-  (hlc : has_lc) (val pubstate : Type) 
-  (Λ : language val pubstate) (Σ : gFunctors) := IrisG {
+  (hlc : has_lc) (val : Type) 
+  (Λ : language val) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen hlc Σ;
 
   (** The state interpretation is an invariant that should hold in
@@ -36,11 +36,11 @@ Class melocotonGS_gen
     state_interp σ ns ={E}=∗ state_interp σ (S ns)
 }.
 Global Opaque iris_invGS.
-Global Arguments IrisG {hlc val pubstate Λ Σ}.
+Global Arguments IrisG {hlc val Λ Σ}.
 
 Notation melocotonGS := (melocotonGS_gen HasLc).
 
-Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ} 
+Definition wp_pre `{!melocotonGS_gen hlc val Λ Σ} 
     (p:mixin_prog Λ.(func))
     (T: string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d>
@@ -59,29 +59,29 @@ Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ}
                     ∀ σ' e', ⌜prim_step p e σ e' σ' []⌝ -∗  |={E}=> ▷ |={E}=> 
                         (state_interp σ' (S ns) ∗ wp E e' Φ)))))%I.
 
-Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val pubstate Λ Σ}
+Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val Λ Σ}
      {p:mixin_prog Λ.(func)} T : Contractive (wp_pre p T).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Record prog_environ `{!melocotonGS_gen hlc val pubstate Λ Σ} := {
+Record prog_environ `{!melocotonGS_gen hlc val Λ Σ} := {
   prog : mixin_prog (func Λ);
   T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ
 }.
 
-Local Definition wp_def `{!melocotonGS_gen hlc val pubstate Λ Σ} : Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
+Local Definition wp_def `{!melocotonGS_gen hlc val Λ Σ} : Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
   λ p : (prog_environ), fixpoint (wp_pre (p.(prog)) (p.(T))).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {hlc val pubstate Λ Σ _}.
+Global Arguments wp' {hlc val Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!melocotonGS_gen hlc val pubstate Λ Σ} : wp = @wp_def hlc val pubstate Λ Σ _.
+Local Lemma wp_unseal `{!melocotonGS_gen hlc val Λ Σ} : wp = @wp_def hlc val Λ Σ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!melocotonGS_gen hlc val pubstate Λ Σ}.
+Context `{!melocotonGS_gen hlc val Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -298,12 +298,10 @@ Proof.
     iApply "IH". iApply "H3".
 Qed.
 
-(* TODO: extract this lemma into language.v *)
 Lemma wp_bind_inv K s E e Φ :
-  (forall K K' e s' vv, fill K e = fill K' (of_class Λ (ExprCall s' vv)) -> (exists K'', K' = comp_ectx K K'') \/ is_Some (to_val e)) ->
   WP fill K e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, WP fill K (of_class _ (ExprVal v)) @ s; E {{ Φ }} }}.
 Proof.
-  intros Hassum. iIntros "H".
+  iIntros "H".
   iLöb as "IH" forall (E e Φ). do 2 rewrite {1} wp_unfold /wp_pre /=.
   assert ((exists v, e = of_val _ v) \/ (forall v, e <> of_val _ v)) as [[v Hv]|Hnv].
   1: { destruct (to_val e) as [v|] eqn:Heq.
@@ -318,7 +316,7 @@ Proof.
     + eexists. rewrite H1. now rewrite to_of_class.
     + rewrite fill_empty in H1. exfalso. eapply Hnv. apply H1.
     + apply of_to_class in Hv. exfalso. eapply Hnv. rewrite <- Hv. easy.
-  - destruct (Hassum _ _ _ _ _ H1) as [[K'' ->]|[x Hx]].
+  - destruct (call_in_ctx _ _ _ _ _ H1) as [[K'' ->]|[x Hx]].
     + rewrite <- fill_comp in H1. apply fill_inj in H1. subst.
       iRight. iLeft. iExists s', vv, K''. iMod "H3".
       iModIntro. iSplitR; first done. iSplitR; first done.
@@ -327,7 +325,9 @@ Proof.
       iIntros (r) "HΞr".
       iApply "IH". rewrite fill_comp. by iApply "Hr".
     + unfold to_val in Hx. destruct (to_class e) as [[v|]|] eqn:Heq; try congruence.
-      exfalso. eapply Hnv. apply of_to_class in Heq. rewrite <- Heq. easy.
+      * exfalso. eapply Hnv. apply of_to_class in Heq. rewrite <- Heq. easy.
+      * exfalso. rewrite <- Hx in Heq. rewrite to_of_class in Heq. congruence.
+      * exfalso. rewrite <- Hx in Heq. rewrite to_of_class in Heq. congruence.
   - iModIntro.
     iRight. iRight. iSplitR. 1: iPureIntro.
     { destruct Hred as (e'&σ'&(e''&->&H2)%fill_step_inv). 1: by eexists e'',σ'.
@@ -424,6 +424,48 @@ Proof.
   iIntros "HR HWP". iApply (wp_wand with "HWP").
   iIntros (v) "HΦ". by iApply "HΦ".
 Qed.
+
+
+Lemma wp_extern' (s:prog_environ) n vv E Φ :
+     ⌜((weakestpre.prog s) : gmap string _) !! n = None⌝ 
+  -∗ (|={E}=> ▷ |={E}=> (weakestpre.T s n vv Φ))
+  -∗ WP of_class _ (ExprCall n vv) @ s ; E {{v, Φ v}}.
+Proof.
+  iIntros (Hlookup) "HT".
+  rewrite !wp_unfold /wp_pre /=.
+  iIntros "%σ %ns Hσ". iMod "HT". iRight. iLeft.
+  iModIntro. iExists _,_,empty_ectx. iSplitR.
+  1: by rewrite fill_empty. iSplitR.
+  1: done. do 2 iModIntro. iMod "HT".
+  iMod (state_interp_mono σ ns with "Hσ") as "Hs".
+  iModIntro. iExists σ, Φ. iFrame.
+  iIntros (r) "Hr". rewrite fill_empty.
+  by iApply wp_value'.
+Qed.
+
+Lemma wp_call' (s:prog_environ) n funn body' vv E Φ :
+     ⌜((weakestpre.prog s) : gmap string _) !! n = Some funn⌝ 
+  -∗ ⌜apply_func funn vv = Some body'⌝
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
+  -∗ WP of_class _ (ExprCall n vv) @ s ; E {{v, Φ v}}.
+Proof.
+  iIntros (Hlookup Happly) "Hcont".
+  rewrite (wp_unfold _ _ (of_class Λ (ExprCall n vv))) /wp_pre /=.
+  iIntros "%σ %ns Hσ". iMod "Hcont". do 2 iRight.
+  iModIntro. iSplitR.
+  { iPureIntro. apply head_prim_reducible_no_threads.
+    eexists _,_. apply call_head_step.
+    eexists funn. done. }
+  iIntros (σ' e' Hstep) "!>!>".
+  apply head_reducible_prim_step in Hstep. 2: { eexists _,_,_. apply call_head_step; eexists funn; done. }
+  apply call_head_step in Hstep. destruct Hstep as (fn' & Hfn' & He' & -> & _).
+  iMod (state_interp_mono with "Hσ") as "Hσ".
+  iMod "Hcont".
+  iModIntro. iFrame. assert (e' = body') as -> by congruence. done.
+Qed.
+  
+  
+
 (*
 Lemma wp_link s1 s2 k E e Φ :
   (forall K K' e s' vv, fill K e = fill K' (of_class Λ (ExprCall s' vv)) -> (exists K'', K' = comp_ectx K K'') \/ is_Some (to_val e)) ->
@@ -457,8 +499,8 @@ Proof.
         iDestruct ("H3" $! σ' (fill K e2') (Prim_step _ K _ _ _ _ _ _ _ eq_refl eq_refl Hhead)) as "H3'".
         iModIntro. iSplitR; last iSplitR.
         1: iPureIntro; apply of_to_class in Heq; by rewrite Heq.
-        1: rewrite HE; iPureIntro; apply lookup_delete. do 2 iModIntro.
-        iMod "H3'" as "(Hσ & HWP)".
+        1: rewrite HE; iPureIntro; apply lookup_delete. 
+        iMod "H3'". do 2 iModIntro. iMod "H3'" as "(Hσ & HWP)".
         iModIntro. iFrame. iExists σ'.
         iExists (λ r, WP fill K (of_class Λ (ExprVal r)) @ s2; E {{ v, Φ v }})%I.
         iFrame. iSplitL. 2: iIntros (r) "Hr"; iApply "Hr".
@@ -469,13 +511,13 @@ Proof.
         apply of_to_class in Heq. rewrite <-Heq in Hhead.
         iSplitR.
         {iPureIntro. exists e2',σp. eapply head_prim_step, head_call_pure, Hhead. }
-        iIntros (σp' e' Hstep2). iModIntro. iMod (state_interp_mono with "Hσp") as "Hσp". iModIntro.
+        iIntros (σp' e' Hstep2). iMod (state_interp_mono with "Hσp") as "Hσp". do 2 iModIntro.
         assert (σp = σp' /\ e2' = e') as [-> ->].
         { apply head_reducible_prim_step in Hstep2.
           1: eapply call_head_step in Hstep2; destruct Hstep2 as (fn & Hfn & He' & -> & _);
              eapply call_head_step in Hhead; destruct Hhead as (fn' & Hfn' & He2 & -> & _); split; congruence.
           eapply head_call_pure in Hhead. do 3 eexists. apply Hhead. }
-        iFrame. iApply (wp_wand with "[HWP]"). 2: { iIntros (v) "Hv". iApply "IH". iApply "Hv". }
+        iFrame. iApply (wp_wand with "[HWP]"). 2: { iIntros "!>"  (v) "Hv". iApply "IH". iApply "Hv". }
         iApply wp_bind_inv. 1: easy. iApply "HWP".
       * iRight. iModIntro. assert (head_step (prog s2) e1' σ e2' σ []) as Hstep'. 
         { apply of_to_class in Heq. subst e1'. apply call_head_step in Hhead.
@@ -491,9 +533,9 @@ Proof.
           apply of_to_class in Heq. subst e1'. apply call_head_step in Hprim.
           apply fill_prim_step. apply head_prim_step.
           apply call_head_step. destruct Hprim as (fn & H1 & H2 & H3 & H4). exists fn. repeat try split; try done.
-          rewrite HE in H1. Search lookup delete. rewrite lookup_delete_ne in H1. 1: apply H1. congruence. } 
-        iSpecialize ("H3" $! _ _ Hprim).
-        iModIntro. iMod "H3" as "(Hσ' & HWP')". iModIntro. iFrame.
+          rewrite HE in H1. rewrite lookup_delete_ne in H1. 1: apply H1. congruence. } 
+        iSpecialize ("H3" $! _ _ Hprim). iMod "H3".
+        do 2 iModIntro. iMod "H3" as "(Hσ' & HWP')". iModIntro. iFrame.
         iApply "IH". iApply "HWP'".
   + iRight. iRight. iModIntro. i
  iApply 
@@ -514,7 +556,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!melocotonGS_gen hlc val pubstate Λ Σ}.
+  Context `{!melocotonGS_gen hlc val Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.

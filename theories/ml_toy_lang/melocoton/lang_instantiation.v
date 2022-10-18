@@ -87,17 +87,60 @@ Proof.
     - easy.
 Qed.
 
-Inductive split_state : state → state → state → Prop :=
-  | MLSplitState σ : split_state σ σ σ.
-
 Definition fill (K : list ectx_item) (e : expr) : expr :=
   @ectxi_language.fill (ml_toy_ectxi_lang (∅ : gmap _ _)) K e.
 
+Lemma fill_comp k K e : fill (k::K) e = fill K (fill_item k e).
+Proof.
+  reflexivity.
+Qed.
+
+Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
+Proof.
+  induction K in e|-*.
+  - intros H; apply H.
+  - intros H. cbn in H. specialize (IHK _ H).
+    eapply fill_item_val. apply IHK.
+Qed.
+
+Lemma fill_tail k K e e' : to_val e = None -> to_val e' = None -> fill_item k e = fill K e' -> K = [] ∨ exists K', K = K' ++ [k] /\ e = fill K' e'.
+Proof. intros He He'.
+  destruct K.
+  + intros _. now left.
+  + destruct (@exists_last _ (e0::K)) as (L & l & Hl); first congruence.
+    rewrite Hl. unfold fill, ectxi_language.fill.
+    rewrite foldl_snoc. cbn. intros H. pose proof H as H_copy.
+    apply fill_item_no_val_inj in H_copy as ->.
+    2: easy. 
+    2: { destruct (to_val (foldl (flip fill_item) e' L)) eqn:Heq; last done.
+         edestruct (fill_val L e'). 1: eexists; apply Heq. congruence. }
+    right. eexists. split; first done. now apply fill_item_inj in H.
+Qed.
+
+Lemma fill_ctx K s vv K' e : 
+  fill K' e = fill K (of_class (ExprCall s vv))
+  -> (exists v, e = Val v) \/ (exists K2, K = K2 ++ K').
+Proof. cbn.
+  induction K' as [|[] K' IH] in K,e|-*; intros H; first last.
+  1-19: destruct  (IH _ _ H) as [(v & Hv)|(K2 & ->)]; try (cbn in *; congruence).
+  1-19:  destruct (to_val e) eqn:Heq; first (apply of_to_val in Heq; by left; eexists).
+  1-19:  rewrite fill_comp in H.
+  1-19:  unfold fill in H; rewrite fill_app in H; apply ectx_language.fill_inj in H.
+  1-19:  apply fill_tail in H as H2; try (cbn; congruence).
+  1-19:  destruct H2 as [->|(K3 & -> & HK3)]; try (cbn in *; congruence).
+  1-21:  try (right; exists K3; by rewrite <- app_assoc).
+  - exfalso. cbn in H. assert (In e (map Val vv)) as Hin.
+    + assert (map Val va ++ e :: ve = map Val vv) as <- by congruence.
+      apply in_app_iff. right. now left.
+    + apply in_map_iff in Hin. destruct Hin as (v & Hv & Hin). rewrite <- Hv in Heq. cbn in Heq. congruence.
+  - cbn. right. eexists. by erewrite app_nil_r.
+Qed.
+
 Lemma melocoton_lang_mixin_C :
-  @LanguageMixin expr val ml_function (list ectx_item) state state state
+  @LanguageMixin expr val ml_function (list ectx_item) state
                  of_class to_class
                  nil (fun a b => b++a) fill
-                 split_state apply_function bogo_head_step'.
+                 apply_function bogo_head_step'.
 Proof. split.
   + apply to_of_cancel.
   + apply of_to_cancel.
@@ -106,12 +149,15 @@ Proof. split.
     - intros H. inversion H; subst. inversion H0; subst. repeat econstructor; [apply H3|].
       rewrite <- H5. f_equal. eapply map_inj in H2; congruence.
     - intros ([args ee] & H1 & H2 & -> & ->). econstructor. cbn. by eapply ExternS.
+  + intros K K' e s' vv Heq.
+    destruct (fill_ctx K' s' vv K e) as [(v&HL)|(K2&HK2)].
+    - apply Heq.
+    - right. exists v. rewrite HL. easy.
+    - left. exists K2. easy.
   + now intros e.
   + intros K1 K2 e. now rewrite /fill fill_app.
   + intros K a b. apply ectx_language.fill_inj.
   + unfold fill. apply fill_class.
-  + intros *. by do 2 (inversion 1).
-  + intros *. by do 2 (inversion 1).
   + intros p. unfold fill.
     change ((@ectxi_language.fill (ml_toy_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (ml_toy_ectxi_lang p))).
     intros K' K_redec e1' e1_redex σ1 e2 σ2 efs H Heq [Hstep ->]%bogo_head_step'_elim'.

@@ -4,7 +4,7 @@ From melocoton.c_toy_lang Require Import tactics melocoton.tactics notation.
 From iris.prelude Require Import options.
 
 Section pure_exec.
-  Context {p:program}.
+  Variable (p:language.prog C_lang_melocoton).
   Local Ltac solve_exec_safe := intros; subst; do 3 eexists; try (repeat (econstructor; eauto); done).
   Local Ltac solve_exec_puredet := simpl; intros; inv_head_step; try done.
   Local Ltac solve_pure_exec :=

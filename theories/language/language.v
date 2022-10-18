@@ -5,7 +5,7 @@ From iris.prelude Require Import options.
 Definition thread_id := nat.
 
 Section language_mixin.
-  Context {expr val func ectx public_state private_state state : Type}.
+  Context {expr val func ectx state : Type}.
 
   (** Classifying expressions into values and calls. *)
   Inductive mixin_expr_class :=
@@ -18,7 +18,6 @@ Section language_mixin.
   Context (empty_ectx : ectx).
   Context (comp_ectx : ectx → ectx → ectx).
   Context (fill : ectx → expr → expr).
-  Context (split_state : state → public_state → private_state → Prop).
 
   (** Parallel substitution, to define [log_rel] in a language-independent
       way. *)
@@ -44,6 +43,9 @@ Section language_mixin.
       head_step p (of_class (ExprCall f vs)) σ1 e2 σ2 efs ↔
       ∃ (fn : func),
         p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1 ∧ efs = [];
+    mixin_call_in_ctx K K' e s' vv : 
+      fill K e = fill K' (of_class (ExprCall s' vv))
+      → (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class (ExprVal v) = e);
 (*
     mixin_head_step_mono p1 p2 e1 σ1 e2 σ2 efs :
       head_step p1 e1 σ1 e2 σ2 efs → p1 ⊆ p2 → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs;
@@ -66,16 +68,6 @@ Section language_mixin.
        redex is the topmost one). *)
     mixin_fill_class K e :
       is_Some (to_class (fill K e)) → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
-
-    mixin_split_state_functional σ pubσ privσ pubσ' privσ' :
-      split_state σ pubσ privσ →
-      split_state σ pubσ' privσ' →
-      pubσ = pubσ' ∧ privσ = privσ';
-
-    mixin_split_state_inj σ σ' pubσ privσ :
-      split_state σ pubσ privσ →
-      split_state σ' pubσ privσ →
-      σ = σ';
 
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is not
@@ -115,27 +107,24 @@ End language_mixin.
 Arguments mixin_expr_class : clear implicits.
 Global Notation mixin_prog func := (gmap string func).
 
-Structure language {val : Type} {public_state : Type} := Language {
+Structure language {val : Type} := Language {
   expr : Type;
   func : Type;
   ectx : Type;
   state : Type;
-  private_state : Type;
 
   of_class : mixin_expr_class val → expr;
   to_class : expr → option (mixin_expr_class val);
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
-  split_state : state → public_state → private_state → Prop;
   (* subst_map : gmap string val → expr → expr; *)
   (* free_vars : expr → gset string; *)
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → expr → state → expr → state → list expr → Prop;
 
   language_mixin :
-    LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill 
-      split_state
+    LanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
       (* subst_map free_vars *) apply_func head_step
 }.
 
@@ -143,41 +132,39 @@ Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments language : clear implicits.
-Arguments Language {_ _ expr _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
-Arguments of_class {_ _} _ _.
-Arguments to_class {_ _ _} _.
-Arguments empty_ectx {_ _ _}.
-Arguments comp_ectx {_ _ _} _ _.
-Arguments fill {_ _ _} _ _.
-Arguments split_state {_ _ _} _ _.
+Arguments Language {_ expr _ _ _ _ _ _ _ _ apply_func head_step}.
+Arguments of_class {_} _ _.
+Arguments to_class {_ _} _.
+Arguments empty_ectx {_ _}.
+Arguments comp_ectx {_ _} _ _.
+Arguments fill {_ _} _ _.
 (* Arguments subst_map {_ _ _}. *)
 (* Arguments free_vars {_ _ _}. *)
-Arguments apply_func {_ _ _}.
-Arguments head_step {_ _ _} _ _ _ _ _ _.
+Arguments apply_func {_ _}.
+Arguments head_step {_ _} _ _ _ _ _ _.
 
-Definition expr_class {val state} (Λ : language val state) := mixin_expr_class val.
+Definition expr_class {val} (Λ : language val) := mixin_expr_class val.
 (* A [Definition] throws off Coq's "old" ("tactic") unification engine *)
 Notation prog Λ := (mixin_prog Λ.(func)).
 
-Definition to_val {val state} {Λ : language val state} (e : expr Λ) :=
+Definition to_val {val} {Λ : language val} (e : expr Λ) :=
   match to_class e with
   | Some (ExprVal v) => Some v
   | _ => None
   end.
-Definition of_val {val state} (Λ : language val state) (v : val) := of_class Λ (ExprVal v).
+Definition of_val {val} (Λ : language val) (v : val) := of_class Λ (ExprVal v).
 
-Definition to_call {val state} {Λ : language val state} (e : expr Λ) :=
+Definition to_call {val} {Λ : language val} (e : expr Λ) :=
   match to_class e with
   | Some (ExprCall f v) => Some (f, v)
   | _ => None
   end.
-Definition of_call {val state} (Λ : language val state) f (v : list val) := of_class Λ (ExprCall f v).
+Definition of_call {val} (Λ : language val) f (v : list val) := of_class Λ (ExprCall f v).
 
 (* From an ectx_language, we can construct a language. *)
 Section language.
   Context {val : Type}.
-  Context {public_state : Type}.
-  Context {Λ : language val public_state}.
+  Context {Λ : language val}.
   Implicit Types v : val.
   Implicit Types vs : list val.
   Implicit Types e : expr Λ.
@@ -240,6 +227,18 @@ Section language.
   Lemma head_ctx_step_val' p K e σ1 e2 σ2 efs :
     head_step p (fill K e) σ1 e2 σ2 efs → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v).
   Proof. apply language_mixin. Qed.
+  Lemma call_in_ctx K K' e s' vv : 
+      fill K e = fill K' (of_class _ (ExprCall s' vv))
+      → (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class _ (ExprVal v) = e).
+  Proof. apply language_mixin. Qed.
+  Lemma call_in_ctx_to_val K K' e s' vv : 
+      fill K e = fill K' (of_class _ (ExprCall s' vv))
+      → (∃ K'', K' = comp_ectx K K'') ∨ is_Some (to_val e).
+  Proof.
+    intros [H1|(x&Hx)]%call_in_ctx.
+    - by left.
+    - right. exists x. unfold to_val. rewrite <- Hx. now rewrite to_of_class.
+  Qed.
 (*
   Lemma head_step_mono p1 p2 e1 σ1 e2 σ2 efs :
       head_step p1 e1 σ1 e2 σ2 efs → p1 ⊆ p2 → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs.
@@ -360,7 +359,7 @@ Section language.
   Proof. intros (?&?&?&?); eauto using val_stuck. Qed.
   Lemma val_irreducible p e σ : is_Some (to_val e) → irreducible p e σ.
   Proof. intros [??] ?? ??%val_stuck. by destruct (to_val e). Qed.
-  Global Instance of_val_inj : Inj (=) (=) (@of_val _ _ Λ).
+  Global Instance of_val_inj : Inj (=) (=) (@of_val _ Λ). 
   Proof. by intros v v' Hv; apply (inj Some); rewrite -!to_of_val Hv. Qed.
   Lemma not_not_stuck p e σ : ¬not_stuck p e σ ↔ stuck p e σ.
   Proof.
@@ -630,7 +629,7 @@ Section language.
     - *)
 
   (** Lifting of steps to thread pools *)
-  Definition tpool {val public_state} (Λ : language val public_state) := list (expr Λ).
+  Definition tpool {val} (Λ : language val) := list (expr Λ).
   Implicit Types (T: tpool Λ).  (* thread pools *)
   Implicit Types (I J: list nat).       (* traces *)
   Implicit Types (O: gset nat).       (* trace sets *)
@@ -1164,7 +1163,7 @@ End language.
 
 
 Section safe_reach.
-  Context {val public_state} {Λ : language val public_state}.
+  Context {val} {Λ : language val}.
 
   (** [post_in_ectx] allows ignoring arbitrary evaluation contexts
   around e and is meant as a combinator for the postcondition of
@@ -1267,8 +1266,8 @@ End safe_reach.
 
 
 (* discrete OFE instance for expr and thread_id *)
-Definition exprO {val public_state} {Λ : language val public_state} := leibnizO (expr Λ).
-Global Instance expr_equiv {val public_state} {Λ : language val public_state} : Equiv (expr Λ). apply exprO. Defined.
+Definition exprO {val} {Λ : language val} := leibnizO (expr Λ).
+Global Instance expr_equiv {val} {Λ : language val} : Equiv (expr Λ). apply exprO. Defined.
 
 Definition thread_idO := leibnizO thread_id.
 Global Instance thread_id_equiv : Equiv thread_id. apply thread_idO. Defined.

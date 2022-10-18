@@ -79,46 +79,46 @@ Section Linking.
   Definition proj2_prog (P : prog) : mlanguage.prog Λ2 :=
     omap (λ fn, match fn with inl _ => None | inr fn2 => Some fn2 end) P.
 
-  Inductive head_step (P : prog) : expr → state → expr → state → list expr → Prop :=
+  Inductive head_step (P : prog) : expr → state → expr → state → Prop :=
   (* Internal step of an underlying module. *)
   (* XXX the final [] means that we reason about sequential programs. this could
      probably be unforced simply by changing the language interface to only
      describe sequential operational semantics by removing threads. *)
   | Step1S e1 e1' σ1 σ1' privσ2 :
-    prim_step (proj1_prog P) e1 σ1 e1' σ1' [] →
-    head_step P (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2) (LinkExpr1 e1', []) (LinkSt1 σ1' privσ2) []
+    prim_step (proj1_prog P) e1 σ1 e1' σ1' →
+    head_step P (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2) (LinkExpr1 e1', []) (LinkSt1 σ1' privσ2)
   | Step2S e2 e2' privσ1 σ2 σ2' :
-    prim_step (proj2_prog P) e2 σ2 e2' σ2' [] →
-    head_step P (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2) (LinkExpr2 e2', []) (LinkSt2 privσ1 σ2') []
+    prim_step (proj2_prog P) e2 σ2 e2' σ2' →
+    head_step P (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2) (LinkExpr2 e2', []) (LinkSt2 privσ1 σ2')
   (* Entering a function. Change the view of the heap in the process. *)
   | RunFunction1S σ1 pubσ privσ1 privσ2 fn1 args e1 :
     mlanguage.apply_func fn1 args = Some e1 →
     mlanguage.split_state σ1 pubσ privσ1 →
     head_step P (LinkRunFunction (inl fn1) args, []) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2) []
+                (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2)
   | RunFunction2S σ2 pubσ privσ1 privσ2 fn2 arg e2 :
     mlanguage.apply_func fn2 arg = Some e2 →
     mlanguage.split_state σ2 pubσ privσ2 →
     head_step P (LinkRunFunction (inr fn2) arg, []) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2) []
+                (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2)
   (* Producing a value when execution is finished *)
   | Val1S e1 v σ1 pubσ privσ1 privσ2 :
     to_val e1 = Some v →
     mlanguage.split_state σ1 pubσ privσ1 →
     head_step P (LinkExpr1 e1, []) (LinkSt1 σ1 privσ2)
-                (LinkExprV v, []) (LinkSt pubσ privσ1 privσ2) []
+                (LinkExprV v, []) (LinkSt pubσ privσ1 privσ2)
   | Val2S e2 v σ2 pubσ privσ1 privσ2 :
     to_val e2 = Some v →
     mlanguage.split_state σ2 pubσ privσ2 →
     head_step P (LinkExpr2 e2, []) (LinkSt2 privσ1 σ2)
-                (LinkExprV v, []) (LinkSt pubσ privσ1 privσ2) []
+                (LinkExprV v, []) (LinkSt pubσ privσ1 privσ2)
   (* Continuing execution by returning a value to its caller *)
   | Ret1S v k1 pubσ privσ1 privσ2 :
     head_step P (LinkExprV v, [inl k1]) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr1 (mlanguage.fill k1 (of_val Λ1 v)), []) (LinkSt pubσ privσ1 privσ2) []
+                (LinkExpr1 (mlanguage.fill k1 (of_val Λ1 v)), []) (LinkSt pubσ privσ1 privσ2)
   | Ret2S v k2 pubσ privσ1 privσ2 :
     head_step P (LinkExprV v, [inr k2]) (LinkSt pubσ privσ1 privσ2)
-                (LinkExpr2 (mlanguage.fill k2 (of_val Λ2 v)), []) (LinkSt pubσ privσ1 privσ2) []
+                (LinkExpr2 (mlanguage.fill k2 (of_val Λ2 v)), []) (LinkSt pubσ privσ1 privσ2)
   (* Stuck module calls bubble up as calls at the level of the linking module.
      (They may get unstuck then, if they match a function implemented by the
      other module.) *)
@@ -127,18 +127,18 @@ Section Linking.
     proj1_prog P !! fn_name = None →
     mlanguage.split_state σ1 pubσ privσ1 →
     head_step P (LinkExpr1 (mlanguage.fill k1 e1), []) (LinkSt1 σ1 privσ2)
-                (LinkExprCall fn_name arg, [inl k1]) (LinkSt pubσ privσ1 privσ2) []
+                (LinkExprCall fn_name arg, [inl k1]) (LinkSt pubσ privσ1 privσ2)
   | MakeCall2S k2 e2 fn_name arg σ2 pubσ privσ1 privσ2 :
     mlanguage.to_class e2 = Some (ExprCall fn_name arg) →
     proj2_prog P !! fn_name = None →
     mlanguage.split_state σ2 pubσ privσ2 →
     head_step P (LinkExpr2 (mlanguage.fill k2 e2), []) (LinkSt2 privσ1 σ2)
-                (LinkExprCall fn_name arg, [inr k2]) (LinkSt pubσ privσ1 privσ2) []
+                (LinkExprCall fn_name arg, [inr k2]) (LinkSt pubσ privσ1 privσ2)
   (* Resolve an internal call to a module function *)
   | CallS fn_name fn arg σ :
     P !! fn_name = Some fn →
     head_step P (LinkExprCall fn_name arg, []) σ
-                (LinkRunFunction fn arg, []) σ [].
+                (LinkRunFunction fn arg, []) σ.
 
   Lemma mlanguage_mixin :
     MlanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
@@ -148,10 +148,10 @@ Section Linking.
     - intros c. destruct c; reflexivity.
     - intros e c. destruct e as [e k]. destruct e; cbn.
       1,2: destruct k. all: inversion 1; cbn; auto.
-    - intros p v σ e σ' efs. cbn. inversion 1.
-    - intros p fn_name v σ e σ' efs. split.
+    - intros p v σ e σ'. cbn. inversion 1.
+    - intros p fn_name v σ e σ'. split.
       + cbn. inversion 1; subst; naive_solver.
-      + intros [fn (? & Hfn & -> & ->)]. cbn.
+      + intros [fn (? & Hfn & ->)]. cbn.
         unfold apply_func in Hfn; simplify_eq; by constructor.
     - intros [e k]. rewrite /fill /empty_ectx app_nil_r //.
     - intros K1 K2 [e k]. rewrite /fill /comp_ectx app_assoc //.
@@ -164,12 +164,12 @@ Section Linking.
       2: destruct e; by inversion Hsome. by destruct e.
     - intros σ pubσ privσ pubσ' privσ'. by do 2 (inversion 1; subst).
     - intros σ σ' pubσ privσ. by do 2 (inversion 1; subst).
-    - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ1 [e2 k2] σ2 efs.
+    - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ1 [e2 k2] σ2.
       rewrite /fill. intros [-> Hk]%pair_equal_spec.
       destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.
       all: intros _; inversion 1; subst; unfold comp_ectx; cbn; eauto.
       all: naive_solver.
-    - intros p K [e k] σ1 [e2 k2] σ2 efs. rewrite /fill. inversion 1; subst.
+    - intros p K [e k] σ1 [e2 k2] σ2. rewrite /fill. inversion 1; subst.
       all: try match goal with H : _ |- _ => symmetry in H; apply app_nil in H end.
       all: try match goal with H : _ |- _ => symmetry in H; apply app_singleton in H end.
       all: naive_solver.
