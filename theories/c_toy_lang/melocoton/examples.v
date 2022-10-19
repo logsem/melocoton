@@ -19,7 +19,7 @@ Fixpoint fib (n:nat) : nat := match n with
 Definition fib_prog name (x:expr) := (if: "x" < #2 then "x" else (call: (&name) with ("x" - #1))
            + (call: (&name) with ("x" - #2) ))%E.
 Definition heap_example := (let: "x" := malloc (#2) in 
-                            (call: &"store_it" with (("x" +ₗ #1), (call: &"fiba" with ( Val (#3) ))) ;;
+                            (call: &"store_it" with (("x" +ₗ #1), (call: &"fib" with ( Val (#3) ))) ;;
                              ("x" +ₗ #0) <- #1337 ;;
                              free ("x" +ₗ #1, #1) ;;
                              *"x"))%E.
@@ -29,9 +29,9 @@ Definition exampleProgram name : gmap string function :=
 
 Definition exampleEnv name : prog_environ := {|
   weakestpre.prog := exampleProgram name;
-  T := λ s v wp, match (s,v) with
-      ("fiba", [ #(LitInt z) ]) => (⌜(z >= Z0)%Z⌝ ∗ wp (#(fib (Z.to_nat z))))%I
-    | ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦ v) ∗ ((l ↦{DfracOwn 1} v') -∗ wp (#0)))%I
+  T := λ s v Φ, match (s,v) with
+      ("fiba", [ #(LitInt z) ]) => (⌜(z >= Z0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I
+    | ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦ v) ∗ ((l ↦{DfracOwn 1} v') -∗ Φ (#0)))%I
     | _ => ⌜False⌝%I end
 |}.
 
@@ -91,11 +91,10 @@ Proof.
   iStartProof. unfold heap_example.
   wp_alloc l as "Hl"; first lia. change (Z.to_nat 2) with 2. destruct l as [l]. cbn. unfold loc_add; cbn.
   iDestruct "Hl" as "(Hl0 & Hl1 & _)".
-  wp_pures.
+  do 2 wp_pure _.
   wp_bind (FunCall _ _).
-  iApply (wp_extern' _ "fiba" [ #(3)] _ _); first by (iPureIntro; vm_compute).
-  do 3 iModIntro. cbn. iSplitR; first (iPureIntro; cbn; lia).
-  wp_pures.
+  wp_apply wp_wand. 1: change 3 with (Z.of_nat 3). 1: iApply (fib_prog_correct 3).
+  iIntros (v) "->".
   wp_bind (FunCall _ _).
   iApply (wp_extern' _ "store_it" [ #(Loc (l + 1)); #2%nat] _ _); first by (iPureIntro; vm_compute).
   do 3 iModIntro. cbn. iExists _. iFrame. iIntros "Hl1".
