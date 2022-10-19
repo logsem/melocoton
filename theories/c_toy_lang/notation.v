@@ -24,7 +24,7 @@ Notation "& f" := (LitV (LitFunPtr f)) (at level 8, format "& f").
 
 Notation "* e" := (Load e%E) (at level 9, right associativity) : expr_scope.
 Notation "'malloc' '(' e ')'" := (Malloc e%E) (at level 10) : expr_scope.
-Notation "'free '(' e1 ',' e2 ')'" := (Free e1%E e2%E) (at level 10) : expr_scope.
+Notation "'free' '(' e1 ',' e2 ')'" := (Free e1%E e2%E) (at level 10) : expr_scope.
 Notation "- e" := (UnOp NegOp e%E) : expr_scope.
 Notation "! e" := (UnOp NotOp e%E) (at level 9, right associativity) : expr_scope.
 Notation "~ e" := (UnOp BitwiseNotOp e%E) (at level 75, right associativity) : expr_scope.

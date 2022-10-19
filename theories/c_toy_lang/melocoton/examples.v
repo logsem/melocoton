@@ -18,6 +18,11 @@ Fixpoint fib (n:nat) : nat := match n with
 
 Definition fib_prog name (x:expr) := (if: "x" < #2 then "x" else (call: (&name) with ("x" - #1))
            + (call: (&name) with ("x" - #2) ))%E.
+Definition heap_example := (let: "x" := malloc (#2) in 
+                            (("x" +ₗ #1) <- #42 ;;
+                             ("x" +ₗ #0) <- #1337 ;;
+                             free ("x" +ₗ #1, #1) ;;
+                             *"x"))%E.
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram name : gmap string function :=
   insert "fib" (fib_func name) ∅.
@@ -75,6 +80,41 @@ Proof.
     repeat f_equal.
     assert (n = S (S (n-2))) as -> by lia.
     cbn. do 2 f_equal. lia.
+Qed.
+
+
+Tactic Notation "wp_storee" :=
+  let solve_mapsto _ :=
+    let l := match goal with |- _ = Some (_, (?l I↦{_} _)%I) => l end in
+    iAssumptionCore || fail "wp_store: cannot find" l "I↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => idtac K e'; eapply (tac_wp_store _ _ _ _ _ K))
+      |fail 1 "wp_store: cannot find 'Store' in" e];
+    [iSolveTC
+    |solve_mapsto ()
+    |pm_reduce; first [wp_seq|wp_finish]]
+  | _ => fail "wp_store: not a 'wp'"
+  end.
+
+
+Lemma heap_prog_correct (n:nat)
+  : ⊢ (WP heap_example @ exampleEnv "fib"; ⊤ {{ v, ⌜v = #1337⌝ }}).
+Proof.
+  iStartProof. unfold heap_example.
+  wp_alloc l as "Hl"; first lia. change (Z.to_nat 2) with 2. destruct l as [l]. cbn. unfold loc_add; cbn.
+  iDestruct "Hl" as "(Hl0 & Hl1 & _)".
+  wp_pures.
+  wp_store.
+  wp_pures.
+  wp_store.
+  wp_free.
+  wp_pures.
+  rewrite Z.add_0_r.
+  wp_load.
+  done.
 Qed.
 
 End examples.
