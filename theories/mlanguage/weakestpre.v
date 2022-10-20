@@ -1,6 +1,7 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
 From melocoton.mlanguage Require Export mlanguage.
+From melocoton Require Import multirelations.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not
    get pretty-printed correctly. *)
 From iris.bi Require Export weakestpre.
@@ -26,8 +27,8 @@ Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ} (p:mixin_prog Λ.(f
        (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ∗ Φ v)
      ∨ (∃ s vv K, ⌜e = fill K (of_class Λ (ExprCall s vv))⌝ ∗ ⌜p !! s = None⌝ ∗
         ▷ |={E}=> (state_interp σ ∗ ∃ Ξ, T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
-     ∨ (⌜reducible p e σ⌝ ∗ ∀ σ' e', ⌜prim_step p e σ e' σ'⌝ -∗ |={E}=>▷|={E}=>
-        state_interp σ' ∗ wp E e' Φ))%I.
+     ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
+        ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ))%I.
 
 Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val pubstate Λ Σ} {p:mixin_prog Λ.(func)} T :
   Contractive (wp_pre p T).
@@ -59,6 +60,7 @@ Implicit Types e : expr Λ.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types pe : prog_environ.
+Implicit Types X : expr Λ * state Λ → Prop.
 
 (* Weakest pre *)
 Lemma wp_unfold pe E e Φ :
@@ -70,11 +72,11 @@ Global Instance wp_ne pe E e n :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
-  do 13 f_equiv. 1: f_equiv.
+  do 11 f_equiv. 1: do 3 f_equiv.
   all: f_contractive.
-  all: f_equiv.
-  all: f_equiv.
-  1: do 4 f_equiv; intros r; f_equiv.
+  1: do 4 f_equiv.
+  all: do 2 f_equiv; intros r; f_equiv.
+  2: do 3 f_equiv.
   all: apply IH; eauto; intros k; eapply dist_le', HΦ; lia.
 Qed.
 Global Instance wp_proper pe E e :
@@ -97,7 +99,7 @@ Proof. intros s; split; eauto. Qed.
 #[local] Hint Resolve prog_environ_mono_refl : core.
 
 Lemma wp_strong_mono pe1 pe2 E1 E2 e Φ Ψ :
-  E1 ⊆ E2 → prog_environ_mono pe1 pe2 ->
+  E1 ⊆ E2 → prog_environ_mono pe1 pe2 →
   WP e @ pe1; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ pe2; E2 {{ Ψ }}.
 Proof.
   iIntros (HE (Hpe1 & Hpe2)) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
@@ -119,13 +121,14 @@ Proof.
     iApply ("Hr" with "HΞ").
   - do 2 iRight.
     iDestruct "H3" as "(HH & H3)".
-    iModIntro. rewrite Hpe1. iFrame. iIntros "%σ2 %e' Hstep".
-    iSpecialize ("H3" $! σ2 e' with "Hstep").
+    iModIntro. rewrite Hpe1. iFrame. iIntros (X) "Hstep".
+    iSpecialize ("H3" $! X with "Hstep").
     iMod (fupd_mask_subseteq E1) as "Hclose2"; first done.
     iMod "H3". iMod "Hclose2". iModIntro. iModIntro.
     iMod (fupd_mask_subseteq E1) as "Hclose3"; first done.
-    iMod "H3" as "(Hσ & HWP)". iMod "Hclose3".
-    iModIntro. iFrame. iApply ("IH" $! e' E1 E2 HE Φ Ψ with "HWP HΦ").
+    iMod "H3" as (e' σ' HX) "(Hσ & HWP)". iMod "Hclose3".
+    iModIntro. iExists e', σ'. iSplit; [iPureIntro; eauto|].
+    iFrame. iApply ("IH" $! e' E1 E2 HE Φ Ψ with "HWP HΦ").
 Qed.
 
 Lemma fupd_wp pe E e Φ : (|={E}=> WP e @ pe; E {{ Φ }}) ⊢ WP e @ pe; E {{ Φ }}.
@@ -151,7 +154,7 @@ Lemma wp_step_fupdN_strong n pe E e P Φ :
   TCEq (to_val e) None →
   (∀ σ, state_interp σ
        ={E}=∗ ⌜n ≤ 1⌝) ∧
-  ((|={E}=>  |={E}▷=>^n |={E}=> P) ∗
+  ((|={E}=> |={E}▷=>^n |={E}=> P) ∗
     WP e @ pe; E {{ v, P ={E}=∗ Φ v }}) -∗
   WP e @ pe; E {{ Φ }}.
 Proof.
@@ -174,9 +177,9 @@ Proof.
     iApply (wp_strong_mono pe pe E E with "HΞ [HP]"). 1-2:easy.
     iIntros "%v Hv". iMod ("Hv" with "HP"). iAssumption.
   + iMod "HP". iModIntro. iRight. iRight. iSplitR; first done.
-    iIntros "%σ' %e' %Hstep". iSpecialize ("H3" $! σ' e' Hstep).
-    iMod "H3". do 2 iModIntro. iMod "H3" as "(Hσ' & H3)". do 2 iMod "HP".
-    iModIntro; iFrame.
+    iIntros (X Hstep). iSpecialize ("H3" $! X Hstep).
+    iMod "H3". do 2 iModIntro. iMod "H3" as (e' σ' HX) "(Hσ' & H3)". do 2 iMod "HP".
+    iModIntro. iExists e', σ'. iSplitR; first by eauto. iFrame.
     iApply (wp_strong_mono pe pe E E with "H3 [HP]"). 1-2:easy.
     iIntros "%v Hv". iMod ("Hv" with "HP"). iAssumption.
 Qed.
@@ -224,13 +227,12 @@ Proof.
     rewrite <- fill_comp.
     iApply "IH". iApply ("Hr" with "HΞ").
   - iRight. iRight. iModIntro. iSplitR; first eauto using reducible_fill.
-    iIntros "%σ' %e' %Hstep".
-    pose proof (reducible_not_val _ _ _ Hred) as  Hnone.
-    destruct (fill_step_inv _ _ _ _ _ _ Hnone Hstep) as (e2'' & -> & H4).
-    iSpecialize ("H3" $! σ' e2'' H4).
-    iMod "H3". iModIntro. iModIntro.
-    iMod "H3" as "(Hσ & H3)". iModIntro. iFrame.
-    iApply "IH". iApply "H3".
+    iIntros (X Hstep).
+    pose proof (reducible_not_val _ _ _ Hred) as Hnone.
+    apply fill_step_inv in Hstep; [| done].
+    iSpecialize ("H3" $! _ Hstep). iMod "H3". iModIntro. iModIntro.
+    iMod "H3" as (e' σ' HX) "(Hσ & H3)". iModIntro. iExists (fill K e'), σ'.
+    iSplitR; first done. iFrame. iApply "IH". iApply "H3".
 Qed.
 
 (*
