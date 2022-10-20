@@ -37,6 +37,9 @@ Section mlanguage_mixin.
       head_step p (of_class (ExprCall f vs)) σ1 e2 σ2 ↔
       ∃ (fn : func),
         p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ σ2 = σ1;
+    mixin_call_in_ctx K K' e f vs :
+      fill K e = fill K' (of_class (ExprCall f vs)) →
+      (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class (ExprVal v) = e);
 
     (** Evaluation contexts *)
     mixin_fill_empty e : fill empty_ectx e = e;
@@ -189,6 +192,17 @@ Section mlanguage.
   Lemma head_ctx_step_val' p K e σ1 e2 σ2 :
     head_step p (fill K e) σ1 e2 σ2 → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v).
   Proof. apply mlanguage_mixin. Qed.
+  Lemma call_in_ctx K K' e f vs :
+    fill K e = fill K' (of_class Λ (ExprCall f vs)) →
+    (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class Λ (ExprVal v) = e).
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma call_in_ctx_to_val K K' e f vs :
+    fill K e = fill K' (of_class _ (ExprCall f vs)) →
+    (∃ K'', K' = comp_ectx K K'') ∨ is_Some (to_val e).
+  Proof.
+    intros [H1|(x&Hx)]%call_in_ctx; auto.
+    right. exists x. rewrite /to_val -Hx to_of_class//.
+  Qed.
   Lemma fill_class K e :
     is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
   Proof.

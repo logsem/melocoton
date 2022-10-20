@@ -153,6 +153,7 @@ Section Linking.
       + cbn. inversion 1; subst; naive_solver.
       + intros [fn (? & Hfn & ->)]. cbn.
         unfold apply_func in Hfn; simplify_eq; by constructor.
+    - intros ? ? [? ?] ? ?. rewrite /fill /=. intros. simplify_eq/=; eauto.
     - intros [e k]. rewrite /fill /empty_ectx app_nil_r //.
     - intros K1 K2 [e k]. rewrite /fill /comp_ectx app_assoc //.
     - intros K [e1 k1] [e2 k2]. cbn. inversion 1; subst.
