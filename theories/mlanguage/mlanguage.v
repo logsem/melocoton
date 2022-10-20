@@ -17,6 +17,7 @@ Section mlanguage_mixin.
   Context (comp_ectx : ectx → ectx → ectx).
   Context (fill : ectx → expr → expr).
   Context (split_state : state → public_state → private_state → Prop).
+  Context (matching_expr_state : expr → state → Prop).
 
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
@@ -50,15 +51,28 @@ Section mlanguage_mixin.
     mixin_fill_class K e :
       is_Some (to_class (fill K e)) → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
 
-    mixin_split_state_functional σ pubσ privσ pubσ' privσ' :
-      split_state σ pubσ privσ →
-      split_state σ pubσ' privσ' →
-      pubσ = pubσ' ∧ privσ = privσ';
+    (* [matching_expr_state] is preserved by reduction *)
+    mixin_matching_expr_state_step p e1 σ1 e2 σ2 :
+      matching_expr_state e1 σ1 →
+      head_step p e1 σ1 e2 σ2 →
+      matching_expr_state e2 σ2;
 
-    mixin_split_state_inj σ σ' pubσ privσ :
-      split_state σ pubσ privσ →
-      split_state σ' pubσ privσ →
-      σ = σ';
+    (* [matching_expr_state] goes under contexts *)
+    mixin_matching_expr_state_ctx K e σ :
+      matching_expr_state e σ ↔ matching_expr_state (fill K e) σ;
+
+    (* [matching_expr_state] corresponds to splittable states at module
+       boundaries: incoming function calls and outgoing values. *)
+    mixin_apply_func_split_matching fn vs e σ pubσ privσ :
+      apply_func fn vs = Some e → split_state σ pubσ privσ → matching_expr_state e σ;
+    mixin_call_matching_split f vs σ :
+      matching_expr_state (of_class (ExprCall f vs)) σ →
+      ∃ pubσ privσ, split_state σ pubσ privσ;
+    mixin_val_split_matching v σ pubσ privσ :
+      split_state σ pubσ privσ → matching_expr_state (of_class (ExprVal v)) σ;
+    mixin_val_matching_split v σ :
+      matching_expr_state (of_class (ExprVal v)) σ →
+      ∃ pubσ privσ, split_state σ pubσ privσ;
 
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is not
@@ -100,25 +114,27 @@ Structure mlanguage {val : Type} {public_state : Type} := Mlanguage {
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
   split_state : state → public_state → private_state → Prop;
+  matching_expr_state : expr → state → Prop;
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → expr → state → expr → state → Prop;
 
   mlanguage_mixin :
     MlanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      split_state apply_func head_step
+      split_state matching_expr_state apply_func head_step
 }.
 
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments mlanguage : clear implicits.
-Arguments Mlanguage {_ _ expr _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
+Arguments Mlanguage {_ _ expr _ _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
 Arguments of_class {_ _} _ _.
 Arguments to_class {_ _ _} _.
 Arguments empty_ectx {_ _ _}.
 Arguments comp_ectx {_ _ _} _ _.
 Arguments fill {_ _ _} _ _.
 Arguments split_state {_ _ _} _ _.
+Arguments matching_expr_state {_ _ _} _ _.
 Arguments apply_func {_ _ _}.
 Arguments head_step {_ _ _} _ _ _ _ _.
 
@@ -203,6 +219,29 @@ Section mlanguage.
     intros [H1|(x&Hx)]%call_in_ctx; auto.
     right. exists x. rewrite /to_val -Hx to_of_class//.
   Qed.
+  Lemma matching_expr_state_step p e1 σ1 e2 σ2 :
+    matching_expr_state e1 σ1 →
+    head_step p e1 σ1 e2 σ2 →
+    matching_expr_state e2 σ2.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma matching_expr_state_ctx K e σ :
+    matching_expr_state e σ ↔ matching_expr_state (fill K e) σ.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma apply_func_split_matching fn vs e σ pubσ privσ :
+    apply_func fn vs = Some e → split_state σ pubσ privσ → matching_expr_state e σ.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma call_matching_split f vs σ :
+    matching_expr_state (of_class Λ (ExprCall f vs)) σ →
+    ∃ pubσ privσ, split_state σ pubσ privσ.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma val_split_matching v σ pubσ privσ :
+    split_state σ pubσ privσ → matching_expr_state (of_class Λ (ExprVal v)) σ.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma val_matching_split v σ :
+    matching_expr_state (of_class Λ (ExprVal v)) σ →
+    ∃ pubσ privσ, split_state σ pubσ privσ.
+  Proof. apply mlanguage_mixin. Qed.
+
   Lemma fill_class K e :
     is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
   Proof.
@@ -513,6 +552,15 @@ Section mlanguage.
     exists fn. repeat split; easy.
   Qed.
 
+  Lemma matching_expr_state_prim_step p e1 σ1 e2 σ2 :
+    matching_expr_state e1 σ1 →
+    prim_step p e1 σ1 e2 σ2 →
+    matching_expr_state e2 σ2.
+  Proof.
+    intros Hmatch (K & e1' & e2' & -> & -> & Hstep)%prim_step_inv.
+    apply matching_expr_state_ctx in Hmatch. apply matching_expr_state_ctx.
+    eauto using matching_expr_state_step.
+  Qed.
 End mlanguage.
 
 (* discrete OFE instance for expr *)

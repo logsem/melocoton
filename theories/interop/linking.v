@@ -50,6 +50,20 @@ Section Linking.
     | LinkSplitSt pubσ privσ1 privσ2 :
       split_state (LinkSt pubσ privσ1 privσ2) pubσ (privσ1, privσ2).
 
+  Inductive matching_expr_state : expr → state → Prop :=
+    | Matching_LinkExpr1 e1 k σ1 privσ2 :
+      Λ1.(mlanguage.matching_expr_state) e1 σ1 →
+      matching_expr_state (LkE (LinkExpr1 e1) k) (LinkSt1 σ1 privσ2)
+    | Matching_LinkExpr2 e2 k σ2 privσ1 :
+      Λ2.(mlanguage.matching_expr_state) e2 σ2 →
+      matching_expr_state (LkE (LinkExpr2 e2) k) (LinkSt2 privσ1 σ2)
+    | Matching_LinkRunFunction fn args k pubσ privσ1 privσ2 :
+      matching_expr_state (LkE (LinkRunFunction fn args) k) (LinkSt pubσ privσ1 privσ2)
+    | Matching_LinkExprV v k pubσ privσ1 privσ2 :
+      matching_expr_state (LkE (LinkExprV v) k) (LinkSt pubσ privσ1 privσ2)
+    | Matching_LinkExprCall fname args k pubσ privσ1 privσ2 :
+      matching_expr_state (LkE (LinkExprCall fname args) k) (LinkSt pubσ privσ1 privσ2).
+
   Definition of_class (c : mixin_expr_class val) : expr :=
     match c with
     | ExprVal v => LkSE (LinkExprV v)
@@ -144,7 +158,7 @@ Section Linking.
 
   Lemma mlanguage_mixin :
     MlanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      split_state apply_func head_step.
+      split_state matching_expr_state apply_func head_step.
   Proof using.
     constructor.
     - intros c. destruct c; reflexivity.
@@ -165,8 +179,18 @@ Section Linking.
       assert (k ++ K ≠ []). { intros [? ?]%app_eq_nil. done. }
       cbn in Hsome. destruct (k ++ K) eqn:?.
       2: destruct e; by inversion Hsome. by destruct e.
-    - intros σ pubσ privσ pubσ' privσ'. by do 2 (inversion 1; subst).
-    - intros σ σ' pubσ privσ. by do 2 (inversion 1; subst).
+    - intros p e1 σ1 e2 σ2 Hmatch. inversion 1; simplify_eq/=; try by constructor.
+      1,2: by (constructor; inversion Hmatch; subst; eauto using matching_expr_state_prim_step).
+      1,2: by (constructor; eauto using apply_func_split_matching).
+      1,2: by (constructor; apply matching_expr_state_ctx; eauto using val_split_matching).
+      inversion Hmatch; subst. constructor.
+    - intros K e σ. split.
+      + inversion 1; subst; simpl; constructor; eauto.
+      + destruct e as [? ?]; simpl. inversion 1; subst; constructor; eauto.
+    - intros *. unfold apply_func. intro. simplify_eq. inversion 1; subst. constructor.
+    - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
+    - intros *. inversion 1; subst. constructor.
+    - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
     - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ1 [e2 k2] σ2.
       rewrite /fill. inversion 1; subst.
       destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.
