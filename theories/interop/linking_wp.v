@@ -5,6 +5,8 @@ From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre lifting.
 From iris.proofmode Require Import proofmode.
 
+(* FIXME: the proofs in this file need cleanup *)
+
 Class state_interp_for_linking
       {val pubstate : Type} {Σ : gFunctors}
       (public_state_interp : pubstate → iProp Σ)
