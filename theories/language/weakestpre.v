@@ -443,6 +443,19 @@ Proof.
   by iApply wp_value'.
 Qed.
 
+
+Lemma wp_extern K (s:prog_environ) n vv E Φ :
+     ⌜((weakestpre.prog s) : gmap string _) !! n = None⌝ 
+  -∗ (|={E}=> ▷ |={E}=> (weakestpre.T s n vv (λ v, WP fill K (of_class Λ (ExprVal v)) @ s; E {{ v', Φ v' }})))
+  -∗ WP fill K (of_class _ (ExprCall n vv)) @ s ; E {{v, Φ v}}.
+Proof.
+  iIntros (Hlookup) "HT".
+  iApply wp_bind.
+  iApply (wp_wand with "[HT]").
+  1: iApply (wp_extern' with "[] [HT]"). 1: done. 1: iApply "HT".
+  iIntros (v) "Hv"; iApply "Hv".
+Qed.
+
 Lemma wp_call' (s:prog_environ) n funn body' vv E Φ :
      ⌜((weakestpre.prog s) : gmap string _) !! n = Some funn⌝ 
   -∗ ⌜apply_func funn vv = Some body'⌝

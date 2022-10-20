@@ -19,10 +19,11 @@ Fixpoint fib (n:nat) : nat := match n with
 Definition fib_prog name (x:expr) := (if: "x" < #2 then "x" else (call: (&name) with ("x" - #1))
            + (call: (&name) with ("x" - #2) ))%E.
 Definition heap_example := (let: "x" := malloc (#2) in 
-                            (call: &"store_it" with (("x" +ₗ #1), (call: &"fib" with ( Val (#3) ))) ;;
-                             ("x" +ₗ #0) <- #1337 ;;
-                             free ("x" +ₗ #1, #1) ;;
-                             *"x"))%E.
+                           (call: &"store_it" with (("x" +ₗ #1), (call: &"fib" with ( Val (#3) ))) ;;
+                           ("x" +ₗ #0) <- #1337 ;;
+                           (let: "y" := *("x" +ₗ #1) in
+                            free ("x" +ₗ #1, #1) ;;
+                            *"x" + "y")))%E.
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram name : gmap string function :=
   insert "fib" (fib_func name) ∅.
@@ -68,13 +69,11 @@ Proof.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; done.
-  - wp_pures. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
+  - wp_pures. apply bool_decide_eq_false in Heq. wp_extern.
     assert ((n-1)%Z=(n-1)%nat) as -> by lia.
-    iApply (wp_extern' _ "fiba" [ #((n-1)%nat)] _ _); first by (iPureIntro; vm_compute).
     do 3 iModIntro. cbn. rewrite Nat2Z.id. iSplitR; first (iPureIntro; cbn; lia).
     wp_pures.
-    assert ((n-2)%Z=(n-2)%nat) as -> by lia. wp_bind (FunCall _ _).
-    iApply (wp_extern' _ "fiba" [ #((n-2)%nat)] _ _); first by (iPureIntro; vm_compute).
+    assert ((n-2)%Z=(n-2)%nat) as -> by lia. wp_extern.
     do 3 iModIntro. cbn. rewrite Nat2Z.id. iSplitR; first (iPureIntro; cbn; lia).
     wp_pures.
     iModIntro. iPureIntro. rewrite <- Nat2Z.inj_add.
@@ -82,28 +81,29 @@ Proof.
     assert (n = S (S (n-2))) as -> by lia.
     cbn. do 2 f_equal. lia.
 Qed.
-
-
-
+Opaque fib.
 Lemma heap_prog_correct (n:nat)
-  : ⊢ (WP heap_example @ exampleEnv "fib"; ⊤ {{ v, ⌜v = #1337⌝ }}).
+  : ⊢ (WP heap_example @ exampleEnv "fib"; ⊤ {{ v, ⌜v = #(1337 + fib 3)⌝ }}).
 Proof.
   iStartProof. unfold heap_example.
-  wp_alloc l as "Hl"; first lia. change (Z.to_nat 2) with 2. destruct l as [l]. cbn. unfold loc_add; cbn.
+  wp_alloc l as "Hl"; first lia. change (Z.to_nat 2) with 2.
+  destruct l as [l]. cbn. unfold loc_add; cbn.
   iDestruct "Hl" as "(Hl0 & Hl1 & _)".
   do 2 wp_pure _.
   wp_bind (FunCall _ _).
   wp_apply wp_wand. 1: change 3 with (Z.of_nat 3). 1: iApply (fib_prog_correct 3).
-  iIntros (v) "->".
-  wp_bind (FunCall _ _).
-  iApply (wp_extern' _ "store_it" [ #(Loc (l + 1)); #2%nat] _ _); first by (iPureIntro; vm_compute).
+  iIntros (v) "->". wp_extern.
   do 3 iModIntro. cbn. iExists _. iFrame. iIntros "Hl1".
   wp_pures.
   wp_store.
+  wp_pures.
+  wp_load.
+  wp_pures.
   wp_free.
   wp_pures.
   rewrite Z.add_0_r.
   wp_load.
+  wp_pures.
   done.
 Qed.
 

@@ -11,10 +11,14 @@ Lemma tac_wp_expr_eval `{!heapGS Σ} Δ s E Φ e e' :
 Proof. by intros ->. Qed.
 
 
+
 Ltac solve_lookup_fixed := let rec go := match goal with
   [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (insert ?key ?val ?rem)]] =>
     (unify key needle; rewrite (@lookup_insert _ _ _ _ _ _ _ _ _ _ _ _ rem key val)) ||
     (rewrite (@lookup_insert_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle val); [congruence|go])
+| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (delete ?key ?rem)]] => 
+      (unify key needle; rewrite (@lookup_delete _ _ _ _ _ _ _ _ _ _ _ _ rem key)) ||
+      (rewrite (@lookup_delete_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle); [go|congruence])
 | [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (singletonM ?key ?val)]] =>
     (unify key needle; rewrite (@lookup_singleton _ _ _ _ _ _ _ _ _ _ _ _ key val)) ||
     (rewrite (@lookup_singleton_ne _ _ _ _ _ _ _ _ _ _ _ _ key needle val); congruence)
@@ -120,6 +124,18 @@ Tactic Notation "wp_let" := wp_pure (Let _ _ _).
 Tactic Notation "wp_seq" := wp_let.
 Tactic Notation "wp_while" := wp_pure (While _ _).
 Tactic Notation "wp_call" := wp_pure (FunCall _ _).
+
+Tactic Notation "wp_extern" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' => match e' with FunCall (Val (& ?s)) (map Val ?vv) => iApply (wp_extern K _ s vv); [iPureIntro; vm_compute; reflexivity | ] end)
+    || fail "wp_extern: expression not a call"
+  | _ => fail "wp_extern: not a 'wp'"
+  end.
+
+
 
 Lemma tac_wp_bind `{!heapGS Σ} K Δ s E Φ e f :
   f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
