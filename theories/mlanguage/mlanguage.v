@@ -360,6 +360,20 @@ Section mlanguage.
     rewrite /stuck /not_stuck -not_eq_None_Some -not_reducible.
     destruct (decide (to_val e = None)); naive_solver.
   Qed.
+  Lemma extcall_ctx_irreducible p K f vs σ :
+    p !! f = None →
+    irreducible p (fill K (of_class Λ (ExprCall f vs))) σ.
+  Proof.
+    intros ? ? Hf Hred.
+    apply prim_step_inv in Hred as (K' & e1 & e1' & Hfill & -> & Hstep).
+    symmetry in Hfill. pose proof (call_in_ctx_to_val _ _ _ _ _ Hfill) as [[? ->]|[? ?]].
+    - rewrite -fill_comp in Hfill. apply fill_inj in Hfill. subst e1.
+      pose proof (head_ctx_step_val _ _ _ _ _ _ Hstep) as [->|[? HH]].
+      + rewrite fill_empty in Hstep.
+        apply call_head_step in Hstep as (? & ? & ? & ->). congruence.
+      + rewrite /to_val to_of_class // in HH.
+    - apply val_head_stuck in Hstep. congruence.
+  Qed.
 
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
@@ -550,6 +564,36 @@ Section mlanguage.
   Proof.
     intros (fn & H1 & H2 & H3)%call_head_step. apply call_head_step.
     exists fn. repeat split; easy.
+  Qed.
+
+  Lemma call_prim_step_fill p K f vs σ1 σ2 e2 :
+    prim_step p (fill K (of_class Λ (ExprCall f vs))) σ1 e2 σ2 →
+    ∃ (fn : func Λ) e2',
+      p !! f = Some fn ∧
+      apply_func fn vs = Some e2' ∧
+      e2 = fill K e2' ∧
+      σ2 = σ1.
+  Proof.
+    intros (K' & e2' & e2'' & Hfill%eq_sym & -> & Hstep)%prim_step_inv.
+    pose proof (call_in_ctx _ _ _ _ _ Hfill) as [[K'' ->]|[? Hval]].
+    { rewrite -fill_comp in Hfill. apply fill_inj in Hfill. subst e2'.
+      pose proof (head_ctx_step_val _ _ _ _ _ _ Hstep) as [->|[? Hval]].
+      { rewrite fill_empty in Hstep. apply call_head_step in Hstep as (fn & ? & ? & ->).
+        eexists _, _; repeat split; eauto. rewrite -!fill_comp fill_empty//. }
+      { exfalso. rewrite /to_val to_of_class// in Hval. } }
+    { exfalso. subst. apply val_head_stuck in Hstep. rewrite /to_val to_of_class// in Hstep. }
+  Qed.
+
+  Lemma call_prim_step p f vs σ1 σ2 e2 :
+    prim_step p (of_class Λ (ExprCall f vs)) σ1 e2 σ2 →
+    ∃ (fn : func Λ),
+      p !! f = Some fn ∧
+      apply_func fn vs = Some e2 ∧
+      σ2 = σ1.
+  Proof.
+    epose proof (call_prim_step_fill p empty_ectx _ _ _ _ _) as H.
+    rewrite fill_empty in H. intros (?&?&?&?&?&?)%H; subst.
+    eexists. repeat split; eauto. rewrite fill_empty//.
   Qed.
 
   Lemma matching_expr_state_prim_step p e1 σ1 e2 σ2 :

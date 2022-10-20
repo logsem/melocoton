@@ -202,7 +202,7 @@ Section Linking.
       all: naive_solver.
   Qed.
 
-  Canonical Structure link_lang (Λ1 Λ2 : mlanguage val public_state) : mlanguage val public_state :=
+  Canonical Structure link_lang : mlanguage val public_state :=
     Mlanguage mlanguage_mixin.
 
 End Linking.
