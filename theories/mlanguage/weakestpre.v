@@ -27,6 +27,9 @@ Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ} (p:mixin_prog Λ.(f
        (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ∗ Φ v)
      ∨ (∃ s vv K, ⌜e = fill K (of_class Λ (ExprCall s vv))⌝ ∗ ⌜p !! s = None⌝ ∗
         ▷ |={E}=> (state_interp σ ∗ ∃ Ξ, T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
+(* FIXME: Change the line above to 
+          |={E}=> ▷ |={E}=> (∃ σ'  Ξ, state_interp σ' (S ns) ∗ T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
+*)
      ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
         ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ))%I.
 

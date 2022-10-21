@@ -1,16 +1,13 @@
 From stdpp Require Import relations strings gmap.
 From iris.algebra Require Import ofe.
 From iris.prelude Require Import options.
+From melocoton Require Export commons.
 
 Definition thread_id := nat.
 
 Section language_mixin.
   Context {expr val func ectx state : Type}.
-
-  (** Classifying expressions into values and calls. *)
-  Inductive mixin_expr_class :=
-  | ExprVal (v : val) : mixin_expr_class
-  | ExprCall (fn_name : string) (arg : list val) : mixin_expr_class.
+  Notation mixin_expr_class := (@mixin_expr_class val).
 
   Context (of_class : mixin_expr_class → expr).
   Context (to_class : expr → option mixin_expr_class).
