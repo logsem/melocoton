@@ -25,11 +25,8 @@ Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ} (p:mixin_prog Λ.(f
     coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ E e Φ,
   (∀ σ, state_interp σ ∗ ⌜matching_expr_state e σ⌝ ={E}=∗
        (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ∗ Φ v)
-     ∨ (∃ s vv K, ⌜e = fill K (of_class Λ (ExprCall s vv))⌝ ∗ ⌜p !! s = None⌝ ∗
-        ▷ |={E}=> (state_interp σ ∗ ∃ Ξ, T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
-(* FIXME: Change the line above to 
-          |={E}=> ▷ |={E}=> (∃ σ'  Ξ, state_interp σ' (S ns) ∗ T s vv Ξ ∗ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
-*)
+     ∨ (∃ f vs K, ⌜e = fill K (of_class Λ (ExprCall f vs))⌝ ∗ ⌜p !! f = None⌝ ∗
+        |={E}=> (state_interp σ ∗ ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
      ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
         ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ))%I.
 
@@ -75,10 +72,10 @@ Global Instance wp_ne pe E e n :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
-  do 11 f_equiv. 1: do 3 f_equiv.
+  do 11 f_equiv. 1: do 8 f_equiv.
   all: f_contractive.
-  1: do 4 f_equiv.
-  all: do 2 f_equiv; intros r; f_equiv.
+  1: do 1 f_equiv. 2: do 2 f_equiv.
+  all: intros r; f_equiv.
   2: do 3 f_equiv.
   all: apply IH; eauto; intros k; eapply dist_le', HΦ; lia.
 Qed.
@@ -114,13 +111,13 @@ Proof.
   - iLeft. iExists x. iFrame. iSplitR; first done.
     iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _); first apply HE.
   - iRight; iLeft. iExists s, vv, K. iSplitR; first done. rewrite Hpe1; iFrame.
-    do 2 iModIntro.
+    iModIntro.
     iMod (fupd_mask_subseteq E1) as "Hclose2"; first done.
     iMod "H3".
     iMod "Hclose2". iModIntro.
     iDestruct "H3" as "(Hσ & %Ξ & HT & Hr)".
     iFrame. iExists Ξ. iSplitL "HT"; first iApply (Hpe2 s vv with "HT").
-    iIntros "%r HΞ". iApply ("IH" $! (fill K (of_class Λ (ExprVal r))) E1 E2 HE Φ Ψ with "[Hr HΞ] HΦ").
+    iNext. iIntros "%r HΞ". iApply ("IH" $! (fill K (of_class Λ (ExprVal r))) E1 E2 HE Φ Ψ with "[Hr HΞ] HΦ").
     iApply ("Hr" with "HΞ").
   - do 2 iRight.
     iDestruct "H3" as "(HH & H3)".
@@ -175,10 +172,10 @@ Proof.
     exfalso. apply TCEq_eq in Heq. congruence.
   + cbn. iRight. iLeft. iMod "HP". iModIntro.
     iExists s, vv, K. iFrame. iSplitR; first done.
-    iModIntro. iMod "HP". iMod "HP". iMod "H3" as "(Hσ & %Ξ & Hvv & HΞ)". iModIntro. iFrame.
-    iExists Ξ. iFrame. iIntros "%r Hr". iSpecialize ("HΞ" $! r with "Hr").
+    iMod "H3" as "(Hσ & %Ξ & Hvv & HΞ)". iModIntro. iFrame.
+    iExists Ξ. iFrame. iNext. iIntros "%r Hr". iSpecialize ("HΞ" $! r with "Hr").
     iApply (wp_strong_mono pe pe E E with "HΞ [HP]"). 1-2:easy.
-    iIntros "%v Hv". iMod ("Hv" with "HP"). iAssumption.
+    iIntros "%v Hv". iMod "HP". iMod ("Hv" with "HP"). iAssumption.
   + iMod "HP". iModIntro. iRight. iRight. iSplitR; first done.
     iIntros (X Hstep). iSpecialize ("H3" $! X Hstep).
     iMod "H3". do 2 iModIntro. iMod "H3" as (e' σ' HX) "(Hσ' & H3)". do 2 iMod "HP".
@@ -224,8 +221,8 @@ Proof.
   - iRight. iLeft. iExists s, vv, (comp_ectx K K').
     iFrame. iSplitR.
     {iModIntro; iPureIntro. now rewrite fill_comp. }
-    do 2 iModIntro. iMod "H3" as "(Hσ & %Ξ & HT & Hr)". iModIntro. iFrame.
-    iExists Ξ. iFrame.
+    do 1 iModIntro. iMod "H3" as "(Hσ & %Ξ & HT & Hr)". iModIntro. iFrame.
+    iExists Ξ. iFrame. iNext.
     iIntros "%r HΞ".
     rewrite <- fill_comp.
     iApply "IH". iApply ("Hr" with "HΞ").

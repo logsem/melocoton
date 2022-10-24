@@ -40,9 +40,10 @@ Proof.
   - iLeft. iModIntro. iExists x. iFrame. iSplitR; first done. iExists n. iFrame.
   - iRight. iLeft. iMod "H3". iModIntro. iExists s', vv, K'.
     iSplitR; first done. iSplitR; first done.
-    iNext. iMod "H3" as "(%σ'& %Ξ & Hσ & HT & Hr)". iModIntro. 
-    iSplitL "Hσ". { iExists (S n). admit. (* Problem: external calls may not change state *) }
-    iExists Ξ. iFrame. iIntros (v) "Hv". iApply "IH". by iApply "Hr".
+    (* iNext. iMod "H3" as "(%σ'& %Ξ & Hσ & HT & Hr)". iModIntro.  *)
+    (* iSplitL "Hσ". { iExists (S n). admit. (* Problem: external calls may not change state *) } *)
+    (* iExists Ξ. iFrame. iIntros (v) "Hv". iApply "IH". by iApply "Hr". *)
+    admit. (* FIXME *)
   - iRight. iRight. iModIntro. iSplitR.
     { iPureIntro. destruct Hred as (e' & σ' & H'). eexists (fun '(e2,σ2) => e2 = e' ∧ σ2 = σ'). inversion H'; subst. econstructor. eexists; split; first done. econstructor; first done. intros ? ? ( <- & <- ); done. }
     iIntros (X Hstep). inversion Hstep as (K & e' & -> & Hx). inversion Hx; subst.

@@ -315,8 +315,8 @@ Lemma wp_link_extcall_1 (INVG: invGS_gen hlc Σ)
   prog pe1 !! fn_name = None →
   prog pe2 !! fn_name = None →
   T pe1 fn_name arg Ξ -∗
-  (∀ r : val, Ξ r -∗ WP fill (comp_ectx k1 empty_ectx) (of_class Λ1 (ExprVal r)) @ pe1; E {{ Φ }}) -∗
-  (∀ r, WP fill k1 (of_class Λ1 (ExprVal r)) @ pe1; E {{ Φ }} -∗
+  (▷ ∀ r : val, Ξ r -∗ WP fill (comp_ectx k1 empty_ectx) (of_class Λ1 (ExprVal r)) @ pe1; E {{ Φ }}) -∗
+  (▷ ∀ r, WP fill k1 (of_class Λ1 (ExprVal r)) @ pe1; E {{ Φ }} -∗
         WP LkE (LinkExprV Λ1 Λ2 r) [inl k1] @ pe; E {{ Φ }}) -∗
   WP LkE (LinkExprCall Λ1 Λ2 fn_name arg) [inl k1] @ pe; E {{ Φ }}.
 Proof using.
@@ -326,10 +326,9 @@ Proof using.
   iApply (@wp_unfold _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "[Hσ %Hmatch']". inversion Hmatch'; subst.
   iModIntro. iRight; iLeft. iExists _, _, [inl k1]. iSplitR; [by eauto|].
-  iSplitR; first by eauto.
-  iNext. iModIntro. iFrame "Hσ". iExists Ξ. iSplitL "HTΞ".
+  iSplitR; first by eauto. iModIntro. iFrame "Hσ". iExists Ξ. iSplitL "HTΞ".
   { rewrite /pe /=. iSplitR; [now iPureIntro; split; eauto|]. iLeft. iApply "HTΞ". }
-  iIntros (r) "Hr". simpl. iSpecialize ("HΞ" with "Hr"). rewrite -fill_comp fill_empty.
+  iNext. iIntros (r) "Hr". simpl. iSpecialize ("HΞ" with "Hr"). rewrite -fill_comp fill_empty.
   by iApply "Hwp".
 Qed.
 
@@ -342,8 +341,8 @@ Lemma wp_link_extcall_2 (INVG: invGS_gen hlc Σ)
   prog pe1 !! fn_name = None →
   prog pe2 !! fn_name = None →
   T pe2 fn_name arg Ξ -∗
-  (∀ r : val, Ξ r -∗ WP fill (comp_ectx k2 empty_ectx) (of_class Λ2 (ExprVal r)) @ pe2; E {{ Φ }}) -∗
-  (∀ r, WP fill k2 (of_class Λ2 (ExprVal r)) @ pe2; E {{ Φ }} -∗
+  (▷ ∀ r : val, Ξ r -∗ WP fill (comp_ectx k2 empty_ectx) (of_class Λ2 (ExprVal r)) @ pe2; E {{ Φ }}) -∗
+  (▷ ∀ r, WP fill k2 (of_class Λ2 (ExprVal r)) @ pe2; E {{ Φ }} -∗
         WP LkE (LinkExprV Λ1 Λ2 r) [inr k2] @ pe; E {{ Φ }}) -∗
   WP LkE (LinkExprCall Λ1 Λ2 fn_name arg) [inr k2] @ pe; E {{ Φ }}.
 Proof using.
@@ -354,9 +353,9 @@ Proof using.
   iIntros (σ) "[Hσ %Hmatch']". inversion Hmatch'; subst.
   iModIntro. iRight; iLeft. iExists _, _, [inr k2]. iSplitR; [by eauto|].
   iSplitR; first by eauto.
-  iNext. iModIntro. iFrame "Hσ". iExists Ξ. iSplitL "HTΞ".
+  iModIntro. iFrame "Hσ". iExists Ξ. iSplitL "HTΞ".
   { rewrite /pe /=. iSplitR; [now iPureIntro; split; eauto|]. iRight. iApply "HTΞ". }
-  iIntros (r) "Hr". simpl. iSpecialize ("HΞ" with "Hr"). rewrite -fill_comp fill_empty.
+  iNext. iIntros (r) "Hr". simpl. iSpecialize ("HΞ" with "Hr"). rewrite -fill_comp fill_empty.
   by iApply "Hwp".
 Qed.
 
@@ -435,7 +434,7 @@ Proof using.
     rewrite wp_unfold. rewrite /wp_pre.
     iApply (@wp_unfold _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
     iIntros (σ) "[Hσ %Hmatch]".
-    inversion Hmatch; subst. iDestruct "Hσ" as "(Hσ1 & Hprivσ2 & %Hvsplit)".
+    inversion Hmatch; subst. iDestruct "Hσ" as "(Hσ1 & Hpriv2 & %Hvsplit)".
     iMod ("Hwp" $! σ1 with "[$Hσ1]") as "[Hwp|[Hwp|Hwp]]"; first done.
 
     (* WP: value case *)
@@ -473,9 +472,9 @@ Proof using.
       iIntros (X Hstep). apply head_reducible_prim_step in Hstep;[|done].
       eapply link_head_step_call_ext_1_inv in Hstep as (pubσ&privσ1&k1&->&?&?); eauto.
 
-      iModIntro. iNext. iMod "Hcall" as "[Hσ Hcall]".
+      iMod "Hcall" as "[Hσ Hcall]". iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]".
       iMod (@state_interp_split _ _ _ public_state_interp Λ1 with "Hσ") as "[Hpriv1 Hpub]"; eauto.
-      iModIntro. iExists _, _. iSplitR; first done. iFrame. iSplitR.
+      iModIntro. iNext. iModIntro. iExists _, _. iSplitR; first done. iFrame. iSplitR.
       { iPureIntro. split; first by (eexists; eauto).
         destruct Hvsplit as (σ1_0 & pubσ0 & privσ1_0 & Hrel0 & Hsplit0 & Hvsplit).
         eapply (lang1_state_rel_valid_split σ1_0); eauto. }
@@ -491,7 +490,6 @@ Proof using.
         (* administrative step CallS: LinkExprCall ~> LinkRunFunction *)
         iApply wp_link_call; first done.
         (* administrative step RunFunction2S: LinkRunFunction ~> LinkExpr2 *)
-        iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]".
         iApply (wp_link_run_function_2 with "HTΞ"); first done. iIntros (e2 He2) "Hwpcall".
 
         progress change (LkE (LinkExpr2 Λ1 Λ2 e2) [inl k1]) with
@@ -507,7 +505,7 @@ Proof using.
         iDestruct "IH" as "#[IH1 _]". iApply "IH1". unfold of_val. done. }
 
       { (* external call *)
-        iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]". iApply (wp_link_extcall_1 with "HTΞ HΞ"); auto.
+        iApply (wp_link_extcall_1 with "HTΞ HΞ"); auto. iNext.
         iIntros (r) "HΞ".
         (* administrative step Ret1S: LinkExprV ~> LinkExpr1 *)
         iApply wp_link_retval_1.
@@ -527,7 +525,7 @@ Proof using.
         rewrite proj1_prog_union in Hstep; [|apply Hcan_link].
         iSpecialize ("Hwp" $! _ Hstep). iMod "Hwp". iIntros "!>!>". iMod "Hwp" as (e' σ' [HX HrX]) "[Hσ Hwp]".
         iModIntro. iExists _, _. iSplitR; [iPureIntro; naive_solver|].
-        iSplitL "Hσ Hprivσ2".
+        iSplitL "Hσ Hpriv2".
         { simpl. iFrame. iPureIntro. destruct Hvsplit as (σ1_0 & pubσ0 & privσ1_0 & Hrel0 & Hsplit0 & Hvsplit).
           eexists σ1_0, pubσ0, _. repeat split; eauto. etransitivity; eauto. }
         iDestruct "IH" as "[IH1 _]". iApply ("IH1" with "Hwp"). }
@@ -579,11 +577,11 @@ Proof using.
       iIntros (X Hstep). apply head_reducible_prim_step in Hstep;[|done].
       eapply link_head_step_call_ext_2_inv in Hstep as (pubσ&privσ2&k2&->&?&?); eauto.
 
-      iModIntro. iNext. iMod "Hcall" as "[Hσ Hcall]".
+      iMod "Hcall" as "[Hσ Hcall]". iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]".
       iMod (@state_interp_split _ _ _ public_state_interp Λ2 with "Hσ") as "[Hpub Hpriv2]"; eauto.
-      iModIntro. iExists _, _. iSplitR; first done. iFrame. iSplitR.
+      iModIntro. iNext. iModIntro. iExists _, _. iSplitR; first done. iFrame. iSplitR.
       { iPureIntro. split; last by (eexists; eauto).
-        destruct Hvsplit as (σ2_0 & pubσ0 & privσ_0 & Hrel0 & Hsplit0 & Hvsplit).
+        destruct Hvsplit as (σ2_0 & pubσ0 & privσ2_0 & Hrel0 & Hsplit0 & Hvsplit).
         eapply (lang2_state_rel_valid_split σ2_0); eauto. }
 
       (* two cases: this is an external call of the linking module itself, or it
@@ -597,7 +595,6 @@ Proof using.
         (* administrative step CallS: LinkExprCall ~> LinkRunFunction *)
         iApply wp_link_call; first done.
         (* administrative step RunFunction1S: LinkRunFunction ~> LinkExpr1 *)
-        iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]".
         iApply (wp_link_run_function_1 with "HTΞ"); first done. iIntros (e1 He1) "Hwpcall".
 
         progress change (LkE (LinkExpr1 Λ1 Λ2 e1) [inr k2]) with
@@ -613,7 +610,7 @@ Proof using.
         iDestruct "IH" as "#[_ IH2]". iApply "IH2". unfold of_val. done. }
 
       { (* external call *)
-        iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]". iApply (wp_link_extcall_2 with "HTΞ HΞ"); auto.
+        iApply (wp_link_extcall_2 with "HTΞ HΞ"); auto. iNext.
         iIntros (r) "HΞ".
         (* administrative step Ret1S: LinkExprV ~> LinkExpr1 *)
         iApply wp_link_retval_2.
