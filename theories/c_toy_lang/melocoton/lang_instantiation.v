@@ -160,6 +160,8 @@ Proof. split.
     - apply Heq.
     - right. exists v. rewrite HL. easy.
     - left. exists K2. easy.
+  + intros p1 p2 e1 σ1 e2 σ2 efs H Hnc. inversion H; subst. econstructor. inversion H0; subst. all: try by econstructor.
+    cbn in Hnc. rewrite map_unmap_val in Hnc. congruence.
   + intros e. easy.
   + intros K1 K2 e. now rewrite /fill fill_app.
   + intros K a b. apply ectx_language.fill_inj.

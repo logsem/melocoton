@@ -38,18 +38,16 @@ Proof.
   rewrite {1} wp_unfold /wp_pre.
   iIntros "H" (σ) "((%n & Hσ) & _)". iMod ("H" $! σ n with "Hσ") as "[(%x & %H1 & Hσ & H)|[(%s' & %vv & %K' & %H1 & %H2 & H3)|(%Hred & H3)]]".
   - iLeft. iModIntro. iExists x. iFrame. iSplitR; first done. iExists n. iFrame.
-  - iRight. iLeft. iMod "H3". iModIntro. iExists s', vv, K'.
-    iSplitR; first done. iSplitR; first done.
-    (* iNext. iMod "H3" as "(%σ'& %Ξ & Hσ & HT & Hr)". iModIntro.  *)
-    (* iSplitL "Hσ". { iExists (S n). admit. (* Problem: external calls may not change state *) } *)
-    (* iExists Ξ. iFrame. iIntros (v) "Hv". iApply "IH". by iApply "Hr". *)
-    admit. (* FIXME *)
+  - iRight. iLeft. iMod "H3" as "(%Ξ & Hσ & HT & Hr)". iExists s', vv, K'. iModIntro.
+    iSplitR; first done. iSplitR; first done. iModIntro. iSplitL "Hσ"; first by iExists n.
+    iExists Ξ. iFrame.
+    iNext. iIntros (v) "Hv". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
     { iPureIntro. destruct Hred as (e' & σ' & H'). eexists (fun '(e2,σ2) => e2 = e' ∧ σ2 = σ'). inversion H'; subst. econstructor. eexists; split; first done. econstructor; first done. intros ? ? ( <- & <- ); done. }
     iIntros (X Hstep). inversion Hstep as (K & e' & -> & Hx). inversion Hx; subst.
     unshelve iMod ("H3" $! σ2 _ (Prim_step _ K _ _ _ _ _ _ _ _ _ H3)) as "H3". 1-2:done.
     do 2 iModIntro. iMod "H3" as "(Hσ & Hwp)". iModIntro. iExists _, _. iSplitR; first (iPureIntro; apply H5; repeat split).
     iSplitL "Hσ"; first by iExists _. iApply "IH". iApply "Hwp".
-Admitted.
+Qed.
 
 End Embed_logic.

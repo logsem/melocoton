@@ -16,14 +16,18 @@ Fixpoint fib (n:nat) : nat := match n with
       0 => 1
     | S n'' => fib n' + fib n'' end end.
 
-Definition fib_prog name (x:expr) := (if: "x" < #2 then "x" else (call: (&name) with ("x" - #1))
-           + (call: (&name) with ("x" - #2) ))%E.
-Definition heap_example := (let: "x" := malloc (#2) in 
-                           (call: &"store_it" with (("x" +ₗ #1), (call: &"fib" with ( Val (#3) ))) ;;
-                           ("x" +ₗ #0) <- #1337 ;;
-                           (let: "y" := *("x" +ₗ #1) in
-                            free ("x" +ₗ #1, #1) ;;
-                            *"x" + "y")))%E.
+Definition fib_prog name (x:expr) := 
+(if: "x" < #2 
+ then "x"
+ else (call: (&name) with ("x" - #1)) + (call: (&name) with ("x" - #2) ))%E.
+Definition heap_example : expr :=
+  let: "x" := malloc (#2) in 
+ (call: &"store_it" with (("x" +ₗ #1), call: &"fib" with ( Val (#3) )) ;;
+ ("x" +ₗ #0) <- #1337 ;;
+  let: "y" := *("x" +ₗ #1) in
+  free ("x" +ₗ #1, #1) ;;
+  *"x" + "y").
+
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram name : gmap string function :=
   insert "fib" (fib_func name) ∅.
@@ -31,7 +35,7 @@ Definition exampleProgram name : gmap string function :=
 Definition exampleEnv name : prog_environ := {|
   weakestpre.prog := exampleProgram name;
   T := λ s v Φ, match (s,v) with
-      ("fiba", [ #(LitInt z) ]) => (⌜(z >= Z0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I
+      ("fiba", [ #(LitInt z) ]) => (⌜(z >= 0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I
     | ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦ v) ∗ ((l ↦{DfracOwn 1} v') -∗ Φ (#0)))%I
     | _ => ⌜False⌝%I end
 |}.
@@ -71,10 +75,10 @@ Proof.
     assert (n=0 \/ n=1) as [-> | ->] by lia; done.
   - wp_pures. apply bool_decide_eq_false in Heq. wp_extern.
     assert ((n-1)%Z=(n-1)%nat) as -> by lia.
-    do 3 iModIntro. cbn. rewrite Nat2Z.id. iSplitR; first (iPureIntro; cbn; lia).
+    cbn. iModIntro. rewrite Nat2Z.id. iSplitR; first (iPureIntro; cbn; lia).
     wp_pures.
     assert ((n-2)%Z=(n-2)%nat) as -> by lia. wp_extern.
-    do 3 iModIntro. cbn. rewrite Nat2Z.id. iSplitR; first (iPureIntro; cbn; lia).
+    iModIntro. cbn. rewrite Nat2Z.id. iSplitR; first (iPureIntro; cbn; lia).
     wp_pures.
     iModIntro. iPureIntro. rewrite <- Nat2Z.inj_add.
     repeat f_equal.
@@ -93,7 +97,7 @@ Proof.
   wp_bind (FunCall _ _).
   wp_apply wp_wand. 1: change 3 with (Z.of_nat 3). 1: iApply (fib_prog_correct 3).
   iIntros (v) "->". wp_extern.
-  do 3 iModIntro. cbn. iExists _. iFrame. iIntros "Hl1".
+  iModIntro. cbn. iExists _. iFrame. iIntros "Hl1".
   wp_pures.
   wp_store.
   wp_pures.

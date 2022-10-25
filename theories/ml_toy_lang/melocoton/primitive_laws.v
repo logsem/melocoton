@@ -131,7 +131,7 @@ Qed.
 Lemma wp_lb_update s n E e Φ :
   TCEq (to_val e) None →
   steps_lb n -∗
-  WP e @ s; E {{ v, steps_lb (S n) -∗ Φ v }} -∗
+  WP e @ s; E {{ v, steps_lb n -∗ Φ v }} -∗
   WP e @ s; E {{ Φ }}.
 Proof.
   (** TODO: We should try to use a generic lifting lemma (and avoid [wp_unfold])
@@ -143,9 +143,9 @@ Proof.
       as "[(%v & -> & Hσ & Hv)|[(%s0 & %vv & %K & -> & Hprog & Hwp)|(%Hred & Hwp)]]".
   - cbn in Heq. apply TCEq_eq in Heq. congruence.
   - iModIntro. iRight. iLeft. iExists s0, vv, K. iFrame. iSplitR; first done.
-    iMod "Hwp". do 2 iModIntro. iMod "Hwp" as "(%σ' & %Ξ & (Hσ & Hsteps) & HΞ & Hwp)". iModIntro. 
+    iMod "Hwp" as "(%Ξ & (Hσ & Hsteps) & HΞ & Hwp)". iModIntro. 
     iDestruct (steps_lb_get with "Hsteps") as "#HlbS".
-    iDestruct (steps_lb_le _ (S n) with "HlbS") as "#HlbS'"; [lia|]. iExists σ', Ξ. iFrame.
+    iExists Ξ. iFrame. iNext.
     iIntros (r) "Hr". iSpecialize ("Hwp" $! r with "Hr").
     iApply (wp_wand with "Hwp"). iIntros (v) "Hv". by iApply "Hv".
   - iModIntro. iRight. iRight. iSplitR; first done.

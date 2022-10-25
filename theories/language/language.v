@@ -43,10 +43,10 @@ Section language_mixin.
     mixin_call_in_ctx K K' e s' vv : 
       fill K e = fill K' (of_class (ExprCall s' vv))
       → (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class (ExprVal v) = e);
-(*
-    mixin_head_step_mono p1 p2 e1 σ1 e2 σ2 efs :
-      head_step p1 e1 σ1 e2 σ2 efs → p1 ⊆ p2 → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs;
-*)
+
+    mixin_head_step_mp_call p1 p2 e1 σ1 e2 σ2 efs :
+      head_step p1 e1 σ1 e2 σ2 efs → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs;
+
     (** Substitution and free variables *)
     (* mixin_subst_map_empty e : subst_map ∅ e = e; *)
     (* mixin_subst_map_subst_map xs ys e : *)
@@ -87,17 +87,6 @@ Section language_mixin.
        there some pattern or reduncancy here? *)
     mixin_head_ctx_step_val p K e σ1 e2 σ2 efs :
       head_step p (fill K e) σ1 e2 σ2 efs → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
-(*
-    mixin_call_in_ctx K K' e s vv :
-      fill K e = fill K' (of_class (ExprCall s vv))
-      → ∃ K2, e = fill K2 (of_class (ExprCall s vv));
-*)
-(*
-    mixin_find_call_in_ctx e : 
-      {v & e = of_class (ExprVal v)} +
-      {K : ectx & {s : string & {vl : list val & e = fill K (of_class (ExprCall s vl))}}} +
-      ((forall v, e <> of_class (ExprVal v)) →
-       (forall K s vl, e <> fill K (of_class (ExprCall s vl)))) *)
   }.
 End language_mixin.
 
@@ -236,13 +225,13 @@ Section language.
     - by left.
     - right. exists x. unfold to_val. rewrite <- Hx. now rewrite to_of_class.
   Qed.
-(*
-  Lemma head_step_mono p1 p2 e1 σ1 e2 σ2 efs :
-      head_step p1 e1 σ1 e2 σ2 efs → p1 ⊆ p2 → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs.
+
+  Lemma head_step_no_call p1 p2 e1 σ1 e2 σ2 efs :
+      head_step p1 e1 σ1 e2 σ2 efs → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs.
   Proof.
     apply language_mixin.
   Qed.
-*)
+
   Lemma fill_class K e :
     is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
   Proof.
