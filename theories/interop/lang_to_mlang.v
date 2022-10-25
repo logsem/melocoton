@@ -26,7 +26,7 @@ Section ToMLang.
     eapply (wrap p e1 σ1 e2 σ2); first done. intros ? ? (<- & <-).
     apply HXY, H4. done.
   Qed.
-Check MlanguageMixin.
+
   Lemma language_mlanguage_mixin :
     MlanguageMixin (val:=val) Λ.(of_class) Λ.(to_class) Λ.(empty_ectx) Λ.(comp_ectx) Λ.(fill)
       split_state matching_expr_state Λ.(apply_func) head_step.

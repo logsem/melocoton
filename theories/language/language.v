@@ -296,6 +296,8 @@ Section language.
     to_val e = None ∧ irreducible p e σ.
   Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     is_Some (to_val e) ∨ reducible p e σ.
+  Definition not_stuck_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+    is_Some (to_val e) ∨ reducible_no_threads p e σ.
 
   (** * Some lemmas about this language *)
   Lemma prim_step_inv p e1 e2 σ1 σ2 efs:
