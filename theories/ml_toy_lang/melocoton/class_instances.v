@@ -2,7 +2,7 @@ From melocoton.language Require Export language weakestpre lifting.
 From melocoton.ml_toy_lang Require Export melocoton.lang_instantiation lang.
 From melocoton.ml_toy_lang Require Import tactics melocoton.tactics notation lang.
 From iris.prelude Require Import options.
-Import ml_toy_lang.
+Import ML_lang.
 
 (** * Instances of the [PureExec] class *)
 (** The behavior of the various [wp_] tactics with regard to lambda differs in

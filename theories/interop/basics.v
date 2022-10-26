@@ -1,16 +1,15 @@
 From Coq Require Import ZArith.
 From stdpp Require Import base gmap list.
-From melocoton.interop Require Export assums.
 From melocoton.c_toy_lang Require Import lang.
+From melocoton.ml_toy_lang Require Import lang.
 
 (* the type of memory addresses used by the C semantics *)
-Notation addr := iris.heap_lang.locations.loc.
+Notation addr := iris.heap_lang.locations.loc (only parsing).
 (* C memory & values *)
-(* XXX could C_lang.state be directly a gmap? *)
 Notation memory := C_lang.state.
 Notation word := C_lang.val.
 (* ML memory & values *)
-Notation store := ML_lang.store.
+Notation store := ML_lang.state.
 Notation val := ML_lang.val.
 
 Section basics.
@@ -46,7 +45,7 @@ Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
 Definition block :=
   (ismut * tag * list lval)%type.
 
-Definition lloc_map : Type := gmap ML_lang.loc lloc.
+Definition lloc_map : Type := gmap loc lloc.
 Implicit Type χ : lloc_map.
 Definition lstore : Type := gmap lloc block.
 Implicit Type ζ : lstore.
@@ -115,10 +114,10 @@ Inductive reachable : lstore → list lval → lloc → Prop :=
 
 Inductive repr_lval : addr_map → lval → C_lang.val → Prop :=
   | repr_lint θ x :
-    repr_lval θ (Lint x) (LitV (LitInt x))
+    repr_lval θ (Lint x) (C_lang.LitV (C_lang.LitInt x))
   | repr_lloc θ γ a :
     θ !! γ = Some a →
-    repr_lval θ (Lloc γ) (LitV (LitLoc a)).
+    repr_lval θ (Lloc γ) (C_lang.LitV (C_lang.LitLoc a)).
 
 Inductive repr_roots : addr_map → roots_map → memory → Prop :=
   | repr_roots_emp θ :
@@ -167,12 +166,18 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ (ML_lang.InjRV v) (Lloc γ).
 
 (* refs and arrays (stored in the ML store σ) all have the default tag. *)
+(* FIXME: properly handle arrays *)
 Definition is_block_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
+  (* dom σ = dom χ ∧ *)
+  (* ∀ ℓ vs, σ !! ℓ = Some vs → *)
+  (*   ∃ γ lvs, χ !! ℓ = Some γ ∧ *)
+  (*            ζ !! γ = Some (Mut, TagDefault, lvs) ∧ *)
+  (*            Forall2 (is_val χ ζ) vs lvs. *)
   dom σ = dom χ ∧
-  ∀ ℓ vs, σ !! ℓ = Some vs →
-    ∃ γ lvs, χ !! ℓ = Some γ ∧
-             ζ !! γ = Some (Mut, TagDefault, lvs) ∧
-             Forall2 (is_val χ ζ) vs lvs.
+  ∀ ℓ v, σ !! ℓ = Some v →
+    ∃ γ lv, χ !! ℓ = Some γ ∧
+             ζ !! γ = Some (Mut, TagDefault, [lv]) ∧
+             is_val χ ζ v lv.
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (privσ σ : store) : Prop :=
   ∃ σbks, is_block_store χ ζ σbks ∧

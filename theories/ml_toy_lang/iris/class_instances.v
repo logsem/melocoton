@@ -2,7 +2,7 @@ From iris.program_logic Require Export language.
 From melocoton.ml_toy_lang Require Export iris.lang_instantiation lang.
 From melocoton.ml_toy_lang Require Import tactics iris.tactics notation lang.
 From iris.prelude Require Import options.
-Import ml_toy_lang.
+Import ML_lang.
 
 Global Instance into_val_val {p:ml_program} v : IntoVal (Val v) v.
 Proof. done. Qed.

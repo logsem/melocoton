@@ -8,7 +8,7 @@ Record wrapstateC : Type := WrapstateC {
   ζC : lstore;
   θC : addr_map;
   rootsC : gset addr;
-  privσC : ML_lang.store;
+  privσC : store;
 
   χC_injective : ∀ ℓ1 ℓ2 γ,
     χC !! ℓ1 = Some γ → χC !! ℓ2 = Some γ → ℓ1 = ℓ2;

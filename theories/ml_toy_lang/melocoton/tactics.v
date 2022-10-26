@@ -2,7 +2,7 @@ From stdpp Require Import fin_maps.
 From melocoton.ml_toy_lang Require Export tactics melocoton.lang_instantiation.
 From melocoton.language Require Export language.
 From iris.prelude Require Import options.
-Import ml_toy_lang.
+Import ML_lang.
 
 (** The tactic [inv_head_step] performs inversion on hypotheses of the shape
 [head_step]. The tactic will discharge head-reductions starting from values, and

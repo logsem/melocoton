@@ -63,7 +63,7 @@ attach several prophecy resolutions to a head-redex. *)
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
-Module ml_toy_lang.
+Module ML_lang.
 
 (** Expressions and vals. *)
 Definition proph_id := positive.
@@ -846,5 +846,5 @@ Proof.
   intros. apply not_elem_of_dom.
   by apply fresh_locs_fresh.
 Qed.
-End ml_toy_lang.
-Export ml_toy_lang.
+End ML_lang.
+Export ML_lang.

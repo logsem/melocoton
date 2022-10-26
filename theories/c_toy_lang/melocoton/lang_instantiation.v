@@ -181,7 +181,6 @@ Proof. split.
     1: econstructor; apply Hstep.
     1: right; destruct Hl as (v&Hv); exists v; destruct e; cbn in *; congruence.
     1: left; now rewrite Hr.
-    
 Qed.
 
 Canonical Structure C_lang_melocoton := Language melocoton_lang_mixin_C.

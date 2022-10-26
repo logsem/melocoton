@@ -1,7 +1,7 @@
 From stdpp Require Import gmap stringmap.
 From melocoton.ml_toy_lang Require Export lang.
 From iris.prelude Require Import options.
-Import ml_toy_lang.
+Import ML_lang.
 
 (* This file contains some metatheory about the heap_lang language,
   which is not needed for verifying programs. *)

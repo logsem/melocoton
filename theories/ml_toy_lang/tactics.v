@@ -1,7 +1,7 @@
 From stdpp Require Import fin_maps.
 From melocoton.ml_toy_lang Require Export lang.
 From iris.prelude Require Import options.
-Import ml_toy_lang.
+Import ML_lang.
 
 (** The tactic [reshape_expr e tac] decomposes the expression [e] into an
 evaluation context [K] and a subexpression [e']. It calls the tactic [tac K e']

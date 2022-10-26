@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 From melocoton.ml_toy_lang Require Import iris.lang_instantiation.
 From melocoton.ml_toy_lang Require Export metatheory lang.
 From melocoton.language Require Import language.
-Import ml_toy_lang.
+Import ML_lang.
 
 Definition of_class (e : mixin_expr_class val) : expr := match e with
   ExprVal v => Val v
