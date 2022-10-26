@@ -22,7 +22,7 @@ Definition fib_prog name (x:expr) :=
  else (call: (&name) with ("x" - #1)) + (call: (&name) with ("x" - #2) ))%E.
 Definition heap_example : expr :=
   let: "x" := malloc (#2) in 
- (call: &"store_it" with (("x" +ₗ #1), call: &"fib" with ( Val (#3) )) ;;
+ (call: &"store_it" with (("x" +ₗ #1), call: &"fib_impl" with ( Val (#3) )) ;;
  ("x" +ₗ #0) <- #1337 ;;
   let: "y" := *("x" +ₗ #1) in
   free ("x" +ₗ #1, #1) ;;
@@ -30,53 +30,60 @@ Definition heap_example : expr :=
 
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram name : gmap string function :=
-  insert "fib" (fib_func name) ∅.
+  insert "fib_impl" (fib_func name) ∅.
 
 Definition exampleEnv name : prog_environ := {|
   weakestpre.prog := exampleProgram name;
   T := λ s v Φ, match (s,v) with
-      ("fiba", [ #(LitInt z) ]) => (⌜(z >= 0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I
+      ("fib_axiom", [ #(LitInt z) ]) => (⌜(z >= 0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I
     | ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦ v) ∗ ((l ↦{DfracOwn 1} v') -∗ Φ (#0)))%I
     | _ => ⌜False⌝%I end
 |}.
 
 
 Definition exampleEnvAfterLinking name : prog_environ := {|
-  weakestpre.prog := insert "fiba" (fib_func "fib") (exampleProgram name);
+  weakestpre.prog := insert "fib_axiom" (fib_func "fib_impl") (exampleProgram name);
   T := λ s v Φ, match (s,v) with
     | ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦ v) ∗ ((l ↦{DfracOwn 1} v') -∗ Φ (#0)))%I
     | _ => ⌜False⌝%I end
 |}.
 
 (* A simple recursive function *)
-
-Lemma fib_prog_correct (n:nat)
-  : ⊢ (WP (call: &"fib" with (Val #n)) @ exampleEnv "fib"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+Lemma fib_prog_correct' (n:nat)
+  : ⊢ (WPCall "fib_impl" with [ #n ] @ exampleEnv "fib_impl"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
 Proof.
   iStartProof.
   iLöb as "IH" forall (n).
+  iApply prove_wp_call. 1-2: iPureIntro; reflexivity.
+  wp_finish.
   wp_pures.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; done.
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
     wp_apply wp_wand.
-    { assert ((n-1)%Z=(n-1)%nat) as -> by lia. iApply "IH". }
+    { assert ((n-1)%Z=(n-1)%nat) as -> by lia. wp_call. iApply "IH". }
     iIntros (v) "->". wp_bind (FunCall _ _). wp_pure _. wp_apply wp_wand.
-    { assert ((n-2)%Z=(n-2)%nat) as -> by lia. iApply "IH". }
+    { assert ((n-2)%Z=(n-2)%nat) as -> by lia. wp_call. iApply "IH". }
     iIntros (v) "->". wp_pures. iModIntro. iPureIntro. rewrite <- Nat2Z.inj_add.
     repeat f_equal.
     assert (n = S (S (n-2))) as -> by lia.
     cbn. do 2 f_equal. lia.
 Qed.
 
-(* A call to an axiomatically specified function *)
-
-
-Lemma fiba_prog_correct (n:nat)
-  : ⊢ (WP (call: &"fib" with (Val #n)) @ exampleEnv "fiba"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+Lemma fib_prog_correct (n:nat)
+  : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ exampleEnv "fib_impl"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
 Proof.
   iStartProof.
+  wp_call. iApply fib_prog_correct'.
+Qed.
+
+(* A call to an axiomatically specified function *)
+Lemma fiba_prog_correct' (n:nat)
+  : ⊢ (WPFun (fib_func "fib_axiom") with [ #n ] @ exampleEnv "fib_axiom"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+Proof.
+  iStartProof.
+  iApply prove_wp_fun'. 1: iPureIntro; reflexivity. do 3 iModIntro.
   wp_pures.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
@@ -94,8 +101,37 @@ Proof.
     cbn. do 2 f_equal. lia.
 Qed.
 
+Lemma fiba_prog_correct (n:nat)
+  : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ exampleEnv "fib_axiom"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+Proof.
+  iStartProof.
+  wp_call. iApply prove_wp_call_wp_fun; first done. iApply fiba_prog_correct'.
+Qed.
+
+(* Calling the function calling the axiomatically specified function *)
+
+Lemma fib_impl_axiom_prog_correct' (n:nat)
+  : ⊢ (WPFun (fib_func "fib_impl") with [ #n ] @ exampleEnv "fib_axiom"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+Proof.
+  iStartProof.
+  iApply prove_wp_fun'. 1: iPureIntro; reflexivity. do 3 iModIntro.
+  wp_pures.
+  destruct (bool_decide _) eqn:Heq.
+  - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
+    assert (n=0 \/ n=1) as [-> | ->] by lia; done.
+  - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
+    wp_apply wp_wand.
+    { assert ((n-1)%Z=(n-1)%nat) as -> by lia. iApply fiba_prog_correct. }
+    iIntros (v) "->". wp_bind (FunCall _ _). wp_pure _. wp_apply wp_wand.
+    { assert ((n-2)%Z=(n-2)%nat) as -> by lia. iApply fiba_prog_correct. }
+    iIntros (v) "->". wp_pures. iModIntro. iPureIntro. rewrite <- Nat2Z.inj_add.
+    repeat f_equal.
+    assert (n = S (S (n-2))) as -> by lia.
+    cbn. do 2 f_equal. lia.
+Qed.
+
 Lemma heap_prog_correct (n:nat)
-  : ⊢ (WP heap_example @ exampleEnv "fib"; ⊤ {{ v, ⌜v = #(1337 + fib 3)⌝ }}).
+  : ⊢ (WP heap_example @ exampleEnv "fib_impl"; ⊤ {{ v, ⌜v = #(1337 + fib 3)⌝ }}).
 Proof.
   iStartProof. unfold heap_example.
   wp_alloc l as "Hl"; first lia. change (Z.to_nat 2) with 2.
@@ -119,48 +155,51 @@ Proof.
   done.
 Qed.
 
-  Section linking.
+Section linking.
 
   (* This section is very ugly *)
   (* Ugly tactic to reduce matches on strings *)
   Ltac string_resolve s := 
-      repeat (destruct s as [|[[] [] [] [] [] [] [] []] s]; try congruence; eauto).
+      let b1 := fresh "b1" in
+      let b2 := fresh "b2" in
+      let b3 := fresh "b3" in
+      let b4 := fresh "b4" in
+      let b5 := fresh "b5" in
+      let b6 := fresh "b6" in
+      let b7 := fresh "b7" in
+      let b8 := fresh "b8" in
+      repeat (destruct s as [|[b1 b2 b3 b4 b5 b6 b7 b8] s]; try congruence; eauto;
+                    destruct b1; try congruence; eauto;
+                    destruct b2; try congruence; eauto;
+                    destruct b3; try congruence; eauto;
+                    destruct b4; try congruence; eauto;
+                    destruct b5; try congruence; eauto;
+                    destruct b6; try congruence; eauto;
+                    destruct b7; try congruence; eauto;
+                    destruct b8; try congruence; eauto). 
 
-
-
-  (* Lemma using the "recursive link" lemma*)
+  (* Lemma using the "recursive link" lemma.
+     Now fib recursively calls fiba, 
+     and fiba recursively calls fib,
+     so we do mutual recursion, whereas previously,
+     recursive calls terminated in external functions *)
   Lemma fiba_correct_link_rec (n:nat)
-    : ⊢ (WP (call: &"fib" with (Val #n)) @ exampleEnvAfterLinking "fiba"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+    : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ exampleEnvAfterLinking "fib_axiom"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
   Proof.
     iStartProof.
-    iApply (wp_link_rec (exampleEnv "fiba") _ _ "fiba").
+    iApply (wp_link_rec (exampleEnv "fib_axiom") _ _ "fib_axiom").
     2: iPureIntro; cbn; reflexivity.
     1: iPureIntro; cbn; unfold exampleEnv, exampleProgram; set_solver.
     - iIntros "!> %s %vv %Ψ [%Hdom %Hne] HT".
       unfold exampleEnv, exampleEnvAfterLinking; cbn.
       string_resolve s. (* <- Takes some time *)
     - (* We now need to show that the successor state of the function call we are replacing,
-         within the old/smaller context. We have already proven this. Unfortunately, we have not proven
-         such that we can use it here, so we repeat the proof *)
-      iIntros "!> %vv %Ψ HT"; destruct vv as [|[[]] []]; cbn -[apply_func]; eauto.
+         within the old/smaller context. We have already proven this.  *)
+      iIntros "!> %vv %Ψ HT". destruct vv as [|[[]] []]; cbn -[apply_func]; eauto.
       iDestruct "HT" as "(%HTL & HT)". clear n. assert (exists n:nat, Z.of_nat n = n0) as (n & <-).
-      1: exists (Z.to_nat n0); lia. 
-      clear HTL. cbn. wp_finish.
-    { (* From here, we mostly copy from the fib_prog_correct code above *)
-    iStartProof.
-    wp_pures.
-    destruct (bool_decide _) eqn:Heq.
-    - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
-      assert (n=0 \/ n=1) as [-> | ->] by lia; done.
-    - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
-      wp_apply wp_wand.
-      { assert ((n-1)%Z=(n-1)%nat) as -> by lia. iApply (fiba_prog_correct (n-1)). }
-      iIntros (v) "->". wp_bind (FunCall _ _). wp_pure _. wp_apply wp_wand.
-      { assert ((n-2)%Z=(n-2)%nat) as -> by lia. iApply (fiba_prog_correct (n-2)). }
-      iIntros (v) "->". wp_pures. iModIntro. rewrite <- Nat2Z.inj_add. rewrite Nat2Z.id.
-      assert (n = S (S (n-2))) as -> by lia. cbn.
-      assert (n-2-0=n-2) as -> by lia. iApply "HT".
-    }
+      1: exists (Z.to_nat n0); lia.
+      iApply wp_wand_fun; first iApply fib_impl_axiom_prog_correct'.
+      iIntros (v) "->". rewrite Nat2Z.id. done.
     - iApply fiba_prog_correct.
   Qed.
 
@@ -168,10 +207,11 @@ Qed.
      the function we are replacing is correct, and not the "successor state after function invokation".
      The flipside is that we have to do this proof in the new environment. 
 
-     In that environment, fib and fiba are mutually recursive, so we have to redo the entire correctness proof. *)
+     In that environment, fib and fiba are mutually recursive, so we have to redo the entire correctness proof.
+     Since they share the same source code, the proof is the same for both. *)
   Lemma fiba_prog_correct_for_link (n:nat)
-    : ⊢ ((WP (call: &"fib" with (Val #n)) @ exampleEnvAfterLinking "fiba"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}) ∗
-         WP (call: &"fiba" with (Val #n)) @ exampleEnvAfterLinking "fiba"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+    : ⊢ ((WP (call: &"fib_impl" with (Val #n)) @ exampleEnvAfterLinking "fib_axiom"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}) ∗
+         WP (call: &"fib_axiom" with (Val #n)) @ exampleEnvAfterLinking "fib_axiom"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
   Proof.
     iStartProof.
     iLöb as "IH" forall (n). iSplitL.
@@ -191,16 +231,15 @@ Qed.
     all: assert (n = S (S (n-2))) as -> by lia.
     all: cbn; do 2 f_equal; lia.
   Qed.
-  Opaque fib.
 
   (* we can now use this result above to prove the linking. Note that we have not actually gained anything,
      our linking proof presupposes a proof that the entire program is correct all on its own *)
 
   Lemma fiba_correct_link (n:nat)
-    : ⊢ (WP (call: &"fib" with (Val #n)) @ exampleEnvAfterLinking "fiba"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+    : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ exampleEnvAfterLinking "fib_axiom"; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
   Proof.
     iStartProof.
-    iApply (wp_link (exampleEnv "fiba") _ _ "fiba").
+    iApply (wp_link (exampleEnv "fib_axiom") _ _ "fib_axiom").
     2: iPureIntro; cbn; reflexivity.
     1: iPureIntro; cbn; unfold exampleEnv, exampleProgram; set_solver.
     - iIntros "!> %s %vv %Ψ [%Hdom %Hne] HT".
@@ -216,7 +255,7 @@ Qed.
   Qed.
 
 
-  End linking.
+End linking.
 
 
 End examples.

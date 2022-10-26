@@ -78,8 +78,33 @@ Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {hlc val Λ Σ _}.
 Global Existing Instance wp'.
+
 Local Lemma wp_unseal `{!melocotonGS_gen hlc val Λ Σ} : wp = @wp_def hlc val Λ Σ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
+
+Definition wp_func `{!melocotonGS_gen hlc val Λ Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
+  match apply_func F vv with
+    Some e' => |={E}=> ▷ |={E}=> wp' pe E e' Φ
+  | None => ⌜False⌝%I end.
+
+Notation "'WPFun' F 'with' args @ s ; E {{ Φ } }" := (wp_func F args%V s E Φ)
+  (at level 20, F, args, Φ at level 200, only parsing) : bi_scope.
+Notation "'WPFun' F 'with' args @ s ; E {{ v , Q } }" := (wp_func F args%V s E (λ v, Q))
+  (at level 20, F, args, Q at level 200,
+   format "'[hv' 'WPFun'  F  'with'  args  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
+
+Definition wp_for_call `{!melocotonGS_gen hlc val Λ Σ} (F:string) (vv : list val) pe E Φ : iProp Σ :=
+  match prog pe !! F with
+    Some F => wp_func F vv pe E Φ
+  | None => ⌜False⌝%I end.
+
+Notation "'WPCall' F 'with' args @ s ; E {{ Φ } }" := (wp_for_call F args%V s E Φ)
+  (at level 20, F, args, Φ at level 200, only parsing) : bi_scope.
+Notation "'WPCall' F 'with' args @ s ; E {{ v , Q } }" := (wp_for_call F args%V s E (λ v, Q))
+  (at level 20, F, args, Q at level 200,
+   format "'[hv' 'WPCall'  F  'with'  args  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
 
 Section wp.
 Context `{!melocotonGS_gen hlc val Λ Σ}.
@@ -453,7 +478,16 @@ Proof.
 Qed.
 
 
-Lemma wp_call' (s:prog_environ) n funn body' vv E Φ :
+Lemma prove_wp_fun' (s:prog_environ) funn body' vv E Φ :
+    ⌜apply_func funn vv = Some body'⌝
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
+  -∗ WPFun funn with vv @ s ; E {{v, Φ v}}.
+Proof.
+  iIntros (Happly) "Hcont". unfold wp_func.
+  rewrite Happly. iApply "Hcont".
+Qed.
+
+Lemma wp_call'' (s:prog_environ) n funn body' vv E Φ :
      ⌜((weakestpre.prog s) : gmap string _) !! n = Some funn⌝ 
   -∗ ⌜apply_func funn vv = Some body'⌝
   -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
@@ -474,7 +508,86 @@ Proof.
   iModIntro. iFrame. assert (e' = body') as -> by congruence. done.
 Qed.
 
+Lemma wp_call' (pe:prog_environ) n F vv E Φ :
+  ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝
+  -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
+Proof.
+  iIntros (HeqF) "HFun".
+  unfold wp_func.
+  destruct (apply_func F vv) as [e'|] eqn:Heq; last done.
+  by iApply wp_call''.
+Qed.
 
+Lemma wp_call (pe:prog_environ) n vv E Φ :
+    (WPCall n with vv @ pe ; E {{v, Φ v}})
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
+Proof.
+  iIntros "Hcall". unfold wp_for_call.
+  destruct (prog pe !! n) as [F|] eqn:Heq; eauto.
+  iApply wp_call'; done.
+Qed.
+
+Lemma wp_call_fun (pe:prog_environ) n vv E Φ :
+  (WPCall n with vv @ pe ; E {{v, Φ v}}) ⊣⊢ (∃ F, WPFun F with vv @ pe ; E {{v, Φ v}} ∗ ⌜ ((weakestpre.prog pe) : gmap string _) !! n = Some F ⌝).
+Proof.
+   unfold wp_for_call. iSplit.
+  - iIntros "H". destruct (prog pe !! n); eauto.
+  - iIntros "(%F & H & ->)"; eauto.
+Qed.
+
+Lemma prove_wp_call' (pe:prog_environ) n F body' vv E Φ :
+     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
+  -∗ ⌜apply_func F vv = Some body'⌝
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
+  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
+Proof.
+   unfold wp_for_call, wp_func. iIntros "-> -> H".
+   iMod "H". iModIntro. iNext. iMod "H". iModIntro. done.
+Qed.
+
+Lemma prove_wp_call (pe:prog_environ) n F body' vv E Φ :
+     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
+  -∗ ⌜apply_func F vv = Some body'⌝
+  -∗ (WP body' @ pe ; E {{v, Φ v}})
+  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
+Proof.
+   iIntros "%H1 %H2 H". iApply (prove_wp_call'). 1-2: iPureIntro; done.
+   do 3 iModIntro. done.
+Qed.
+
+Lemma prove_wp_call_wp_fun (pe:prog_environ) n F vv E Φ :
+     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
+  -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
+  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
+Proof.
+   iIntros "%H1 H". iApply (wp_call_fun). iExists F. by iFrame.
+Qed.
+
+Lemma prove_wp_fun (pe:prog_environ) n F vv E Φ :
+     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝
+  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}) 
+  -∗ (WPFun F with vv @ pe ; E {{v, Φ v}}).
+Proof.
+   iIntros "%H1 H". iPoseProof (wp_call_fun with "H") as "(%F' & H & %HF)".
+   assert (F = F') as -> by congruence. done.
+Qed.
+
+
+Lemma wp_wand_fun s E F vv Φ Ψ :
+  WPFun F with vv @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WPFun F with vv @ s; E {{ Ψ }}.
+Proof.
+  iIntros "Hwp H". unfold wp_func. destruct (apply_func F vv); eauto.
+  iMod "Hwp". iModIntro. iNext. iMod "Hwp". iModIntro. iApply (wp_wand with "Hwp H").
+Qed.
+
+
+Lemma wp_wand_call s E F vv Φ Ψ :
+  WPCall F with vv @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WPCall F with vv @ s; E {{ Ψ }}.
+Proof.
+  iIntros "Hwp H". unfold wp_for_call. destruct (prog s !! F); eauto.
+  iApply (wp_wand_fun with "Hwp H").
+Qed.
 
 Lemma wp_link pe pe_extended F k E e Φ :
   ⌜ k ∉ dom (prog pe) ⌝
@@ -565,11 +678,12 @@ Proof.
       iApply "IH". iFrame.
   Qed.
 
+
 Lemma wp_link_rec pe pe_extended F k E e Φ :
   ⌜ k ∉ dom (prog pe) ⌝
   -∗ ⌜ prog pe_extended = <[ k := F ]> (prog pe) ⌝ 
   -∗ (□ (∀ (s:string) vv Ψ, ⌜s ∉ (dom (prog pe)) ∧ s <> k⌝ -∗ T pe s vv Ψ -∗ T (pe_extended) s vv Ψ))
-  -∗ (□ (∀ vv Ψ, T pe k vv Ψ -∗ match apply_func F vv with None => ⌜False⌝ | Some e =>  WP e @ (pe); E {{v, Ψ v}} end))
+  -∗ (□ (∀ vv Ψ, T pe k vv Ψ -∗ WPFun F with vv @ (pe); E {{v, Ψ v}}))
   -∗ WP e @ pe; E {{v, Φ v}}
   -∗ WP e @ (pe_extended); E {{v, Φ v}}.
 Proof.
@@ -580,16 +694,16 @@ Proof.
   iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s & %vv & %K & -> & %H2 & H3)|(%HH & H3)]]".
   - iLeft. iExists x. iFrame. iModIntro. done.
   - iMod "H3" as "(%Ξ & Hσ & HT & Hcont)". destruct (decide (k = s)) as [->|Hne]. 
-    + iPoseProof ("Hs1T" with "HT") as "HT'".
+    + iPoseProof ("Hs1T" with "HT") as "HT'". unfold wp_func at 2.
       destruct (apply_func F vv) as [e'|] eqn:Heq; try done.
-      iRight. iRight. iModIntro.
+      iRight. iRight. iMod "HT'". iModIntro.
       assert (head_step (prog pe_extended) (of_class Λ (ExprCall s vv)) σ e' σ []) as Hstepy.
       1: apply call_head_step; exists F; split; first (rewrite HE; by rewrite lookup_insert); by repeat split.
       iSplitR.
       1: iPureIntro; eexists _,_; by econstructor.
       iIntros (σ' e'' (e2'' & -> & (F' & HeqF' & HeqF'a & -> & HH)%call_head_step_inv)%head_reducible_prim_step_ctx).
       2: do 3 eexists; done.
-      iModIntro. iNext. iMod (state_interp_mono with "Hσ" ) as "Hσ". iModIntro. iFrame.
+      iModIntro. iNext. iMod "HT'". iMod (state_interp_mono with "Hσ" ) as "Hσ". iModIntro. iFrame.
       iApply "IH". rewrite HE in HeqF'. rewrite (lookup_insert) in HeqF'. iApply wp_bind.
       assert (e' = e2'') as -> by congruence.
       iApply (wp_wand with "HT'").

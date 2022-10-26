@@ -41,12 +41,13 @@ Lemma tac_wp_pure `{!heapGS Σ} Δ Δ' s E K e1 e2 φ n Φ :
   MaybeIntoLaterNEnvs n Δ Δ' →
   envs_entails Δ' (WP (fill K e2) @ s; E {{ Φ }}) →
   envs_entails Δ (WP (fill K e1) @ s; E {{ Φ }}).
-Proof.
+ Proof.
   rewrite envs_entails_unseal=> ??? HΔ'. rewrite into_laterN_env_sound /=.
   (* We want [pure_exec_fill] to be available to TC search locally. *)
   pose proof @pure_exec_fill.
   rewrite HΔ' -lifting.wp_pure_step_later //.
-Qed.
+ Qed.
+
 
 Lemma tac_wp_value_nofupd `{!heapGS Σ} Δ s E Φ v :
   envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
@@ -123,7 +124,33 @@ Tactic Notation "wp_op" := wp_unop || wp_binop.
 Tactic Notation "wp_let" := wp_pure (Let _ _ _).
 Tactic Notation "wp_seq" := wp_let.
 Tactic Notation "wp_while" := wp_pure (While _ _).
-Tactic Notation "wp_call" := wp_pure (FunCall _ _).
+Tactic Notation "wp_call_direct" := wp_pure (FunCall _ _).
+
+
+Lemma tac_wp_call `{!heapGS Σ} Δ s E Φ fn vv e1 :
+  (e1 = of_class _ (ExprCall fn vv)) →
+  envs_entails Δ (WPCall fn with vv @ s; E {{ Φ }}) →
+  envs_entails Δ (WP e1 @ s; E {{ Φ }}).
+Proof.
+  intros ->.
+  rewrite envs_entails_unseal=> Hyp. iIntros "H".
+  iApply (wp_call s fn vv E Φ). by iApply Hyp. 
+Qed.
+
+Tactic Notation "wp_call" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' =>
+      unify K (@nil ectx_item);
+      eapply (tac_wp_call _ _ _ _ _ _ e');
+      [reflexivity                    (* equality *)
+      |pm_prettify                    (* new goal *)
+      ])
+    || fail "wp_pure:" e "is not a call! Use wp_bind first!"
+  | _ => fail "wp_pure: not a 'wp'"
+  end.
 
 Tactic Notation "wp_extern" :=
   iStartProof;
