@@ -1,5 +1,14 @@
 From stdpp Require Import base gmap.
+(* see basics.v for the definitions of logical values, logical store, etc. *)
 From melocoton.interop Require Import basics.
+
+(* This defines the wrapper private state. Like the whole wrapper state (see
+   `state` in wrappersem.v), it can be either:
+
+   - a `wrapstateML` at a boundary when interacting with another ML-like
+     component;
+   - a `wrapstateC` when doing internal steps (ie executing wrapped C code).
+*)
 
 Section wrapperstate.
 

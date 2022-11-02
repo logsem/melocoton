@@ -5,20 +5,48 @@ From melocoton.ml_toy_lang Require Import lang.
 
 (* the type of memory addresses used by the C semantics *)
 Notation addr := iris.heap_lang.locations.loc (only parsing).
-(* C memory & values *)
+(* We call "mem" a C memory and "word" a C value. *)
 Notation memory := C_lang.state.
 Notation word := C_lang.val.
-(* ML memory & values *)
+(* We call "store" an ML memory and "val" an ML value. *)
 Notation store := ML_lang.state.
 Notation val := ML_lang.val.
 
 Section basics.
 
-(* block-level "logical" values and store *)
+(************
+   Block-level "logival" values and store.
 
+   Block-level values and store exist as an intermediate abstraction that helps
+   bridging the gap between ML memory/values and C memory/values.
+
+   These block-level values and store are part of the wrapper private state, and
+   help specify many of the "runtime invariants" modeled by the wrapper.
+
+   Indeed, most runtime/GC invariants make the most sense when expressed at the
+   level of this abstract block layer.
+*)
+
+(* The idea is that a block-level value is either an immediate integer, or a
+   reference to a block in the block-level store. A block then stores an array
+   of block-level values.
+
+   The block-level store contains blocks that can be either mutable or
+   immutable, and always stay at the same location. In fact, the block-level
+   store monotonically grows: blocks are never deallocated at that level.
+
+   NB: this means that blocks in the block-level store represent both mutable ML
+   values (e.g. references, arrays) that are already "heap-allocated" in the ML
+   semantics, but also *immutable values* (e.g. pairs) that are not
+   heap-allocated in ML semantics, but are given an identity (a location) in the
+   block-level layer.
+*)
+
+(* locations in the block-level store *)
 Definition lloc : Type := nat.
 Implicit Type γ : lloc.
 
+(* block-level values *)
 Inductive lval :=
   | Lint : Z → lval
   | Lloc : lloc → lval.
@@ -42,20 +70,47 @@ Definition tag_as_int (tg : tag) : Z :=
 Instance tag_as_int_inj : Inj (=) (=) tag_as_int.
 Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
 
+(* a block in the block-level store *)
 Definition block :=
   (ismut * tag * list lval)%type.
 
-Definition lloc_map : Type := gmap loc lloc.
-Implicit Type χ : lloc_map.
+(* a block-level store *)
 Definition lstore : Type := gmap lloc block.
 Implicit Type ζ : lstore.
+
+
+(************
+   In order to tie the logical block-level store to the ML and C stores, the
+   wrapper also maintains a number of mappings, that e.g. relate ML locations to
+   block-level locations. *)
+
+(* maps an ML location to its corresponding logical location *)
+Definition lloc_map : Type := gmap loc lloc.
+Implicit Type χ : lloc_map.
+
+(* maps a logical location to its address in C memory.
+   Note: since blocks do not move around in the logical store, even though they
+   *are* moved around by the GC in the actual memory, this means that "the
+   current θ" will often arbitrarily change during the execution, each time a GC
+   might occur. *)
 Definition addr_map : Type := gmap lloc addr.
 Implicit Type θ : addr_map.
 
+(* maps each root (a heap cell in C memory) to the logical value it is tracking
+   and keeping alive *)
 Definition roots_map : Type := gmap addr lval.
 
-(* block-level state changes *)
 
+(************
+   Block-level state changes.
+
+   These relations define various transitions that might need to happen on the
+   logical store; these are used to define the wrapper semantics.
+*)
+
+(* freezing: turning a mutable block into an immutable block. (This is typically
+   only legal as long as the mutable block has not been "observable" by other
+   code than the wrapper..) *)
 Inductive freeze_block : block → block → Prop :=
   | freeze_block_mut vs tg m' :
     freeze_block (Mut, tg, vs) (m', tg, vs)
@@ -67,6 +122,14 @@ Definition freeze_lstore (ζ1 ζ2 : lstore) : Prop :=
   ∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
     freeze_block b1 b2.
 
+(* which block-level changes can happen as the result of execution in the
+   "outside world"? answer: only changes to the contents of mutable blocks.
+
+   There is nothing deep here, this is mostly an administrative constraint:
+   external code does not have access to the extra information (immutable
+   blocks, blocks tags, etc) which are part of the wrapper private state ; so
+   indeed, it cannot change it.
+*)
 Inductive ML_change_block : block → block → Prop :=
   | mk_ML_change_block tg vs vs' :
     length vs = length vs' →
@@ -77,16 +140,24 @@ Definition ML_change_lstore (χ : lloc_map) (ζ1 ζ2 : lstore) : Prop :=
   ∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
     (b1 = b2 ∨ (∃ ℓ, χ !! ℓ = Some γ ∧ ML_change_block b1 b2)).
 
+(* Running external code can allocate new memory, which then needs to be
+   registered in χ. This is a sanity condition for the corresponding new χ: it
+   must not "capture" logical locations that were already used in the store for
+   immutable blocks. *)
 Definition ML_extends_lloc_map (ζ : lstore) (χ1 χ2 : lloc_map) : Prop :=
   χ1 ⊆ χ2 ∧
   ∀ ℓ γ, χ1 !! ℓ = None → χ2 !! ℓ = Some γ → ζ !! γ = None.
 
+(* Helper relation to modify the contents of a block at a given index (which has
+   to be in the bounds). *)
 Inductive modify_block : block → nat → lval → block → Prop :=
   | mk_modify_block tg vs i v :
     i < length vs →
     modify_block (Mut, tg, vs) i v (Mut, tg, (<[ i := v ]> vs)).
 
-(* reachability *)
+(* Reachability. Needed to describe the effect of the GC on the map θ: after a
+   GC, everything that is reachable from the roots (in the logical store) is
+   still in the domain of θ (i.e. has not been deallocated). *)
 
 (* TODO: unclear whether it is simpler to define reachability wrt a list of
    values (as is done below) or a single value. *)
@@ -166,7 +237,10 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ (ML_lang.InjRV v) (Lloc γ).
 
 (* refs and arrays (stored in the ML store σ) all have the default tag. *)
-(* FIXME: properly handle arrays *)
+(* FIXME: properly handle arrays; the ML semantics does not represent arrays the
+   way I expect here (it represents arrays as a sequence of consecutive
+   locations, instead of a location storing a list of values).
+*)
 Definition is_block_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
   (* dom σ = dom χ ∧ *)
   (* ∀ ℓ vs, σ !! ℓ = Some vs → *)

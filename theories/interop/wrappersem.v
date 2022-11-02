@@ -102,6 +102,17 @@ Inductive wrapper_step_mrel (p : prog) : expr * state → (expr * state → Prop
          X (WrapExprC ec, CState ρc mem)) →
     wrapper_step_mrel p (WrapRunFunction fn vs, MLState ρml σ) X
   (* wrapped C function returning to ML *)
+  (* Note: I believe that the "freezing step" does properly forbid freezing a
+     mutable block that has already been passed to the outside world --- but
+     seeing why is not obvious. I expect it to work through the combination of:
+     - sharing a logical block as a mutable value requires registering it in χ
+     - χ only always grows monotonically
+     - an immutable block cannot be represented as a ML-level heap-allocated value
+       (see definition of is_store)
+     - thus: trying to freeze a mutable block means that we would have to
+       unregister it from χ in order for [is_store ...] to hold. But χ must only
+       grow. Qed...
+  *)
   | RetS ec w ρc mem X :
     C_lang.to_val ec = Some w →
     (∀ σ lv v ρml,
