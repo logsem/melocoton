@@ -206,6 +206,7 @@ Section Linking.
     - intros K e σ. split.
       + inversion 1; subst; simpl; constructor; eauto.
       + destruct e as [? ?]; simpl. inversion 1; subst; constructor; eauto.
+    - intros ? [? ?]. eexists (LinkSt _ _ _). constructor.
     - intros *. unfold apply_func. intro. simplify_eq. inversion 1; subst. constructor.
     - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
     - intros *. inversion 1; subst. constructor.

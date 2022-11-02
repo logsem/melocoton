@@ -8,19 +8,38 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-Class melocotonGS_gen
-  (hlc : has_lc) (val pubstate : Type)
-  (Λ : mlanguage val pubstate) (Σ : gFunctors) := IrisG {
-  iris_invGS :> invGS_gen hlc Σ;
-  state_interp : state Λ → iProp Σ;
+(* Public state interpretation for type [pubstate], packaged as a typeclass. *)
+Class publicStateInterp (pubstate : Type) (Σ : gFunctors) := PublicStateInterp {
+  public_state_interp : pubstate → iProp Σ;
 }.
-Global Opaque iris_invGS.
-Global Arguments IrisG {hlc val pubstate Λ Σ}.
 
-Notation melocotonGS := (melocotonGS_gen HasLc).
+(* State interpretation for a [mlanguage]:
+   - parameterized by the state interpretation for the public state;
+   - the data of a state interp predicate for the whole state and a state
+     interp for the private state;
+   - with the property that splitting/joining the state allows splitting/joining
+     the state interpretations accordingly.
+*)
+Class mlangGS
+  (hlc : has_lc) (val pubstate : Type) (Σ : gFunctors)
+  (Λ : mlanguage val pubstate)
+  `{!publicStateInterp pubstate Σ} :=
+MlangG {
+  state_interp : state Λ → iProp Σ;
+  private_state_interp : private_state Λ → iProp Σ;
 
-Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ} (p:mixin_prog Λ.(func))
-    (T: string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
+  state_interp_split σ pubσ privσ :
+    split_state σ pubσ privσ →
+    state_interp σ ==∗ public_state_interp pubσ ∗ private_state_interp privσ;
+
+  state_interp_join σ pubσ privσ :
+    split_state σ pubσ privσ →
+    public_state_interp pubσ ∗ private_state_interp privσ ==∗ state_interp σ
+}.
+
+Definition wp_pre `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}
+    (p : mixin_prog Λ.(func))
+    (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ E e Φ,
   (∀ σ, state_interp σ ∗ ⌜matching_expr_state e σ⌝ ={E}=∗
@@ -30,29 +49,35 @@ Definition wp_pre `{!melocotonGS_gen hlc val pubstate Λ Σ} (p:mixin_prog Λ.(f
      ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
         ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ))%I.
 
-Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val pubstate Λ Σ} {p:mixin_prog Λ.(func)} T :
+Local Instance wp_pre_contractive
+      `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}
+      {p:mixin_prog Λ.(func)} T :
   Contractive (wp_pre p T).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Record prog_environ `{!melocotonGS_gen hlc val pubstate Λ Σ} := {
+Record prog_environ
+      `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ} := {
   prog : mixin_prog (func Λ);
   T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ
 }.
 
-Local Definition wp_def `{!melocotonGS_gen hlc val pubstate Λ Σ} : Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
+Local Definition wp_def
+      `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ} :
+  Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
   λ p : (prog_environ), fixpoint (wp_pre (p.(prog)) (p.(T))).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {hlc val pubstate Λ Σ _}.
+Global Arguments wp' {hlc Σ _ pubstate _ val Λ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!melocotonGS_gen hlc val pubstate Λ Σ} : wp = @wp_def hlc val pubstate Λ Σ _.
+Local Lemma wp_unseal `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ} :
+  wp = @wp_def hlc Σ _ pubstate _ val Λ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!melocotonGS_gen hlc val pubstate Λ Σ}.
+Context `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -344,7 +369,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!melocotonGS_gen hlc val pubstate Λ Σ}.
+  Context `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.

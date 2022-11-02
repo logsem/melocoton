@@ -257,6 +257,7 @@ Proof using.
     + eapply PrimVal2intS; naive_solver.
     + eapply PrimInt2valS; naive_solver.
   - eauto.
+  - intros ? ?. eexists (MLState _ _). constructor.
   - intros *. unfold apply_func. intro. simplify_eq. inversion 1; subst. constructor.
   - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
   - intros *. simpl. inversion 1; subst. constructor.

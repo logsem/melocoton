@@ -58,6 +58,9 @@ Section mlanguage_mixin.
     mixin_matching_expr_state_ctx K e σ :
       matching_expr_state e σ ↔ matching_expr_state (fill K e) σ;
 
+    mixin_merge_split_state pubσ privσ :
+      ∃ σ, split_state σ pubσ privσ;
+
     (* [matching_expr_state] corresponds to splittable states at module
        boundaries: incoming function calls and outgoing values. *)
     mixin_apply_func_split_matching fn vs e σ pubσ privσ :
@@ -224,6 +227,9 @@ Section mlanguage.
   Proof. apply mlanguage_mixin. Qed.
   Lemma matching_expr_state_ctx K e σ :
     matching_expr_state e σ ↔ matching_expr_state (fill K e) σ.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma merge_split_state pubσ privσ :
+    ∃ (σ : state Λ), split_state σ pubσ privσ.
   Proof. apply mlanguage_mixin. Qed.
   Lemma apply_func_split_matching fn vs e σ pubσ privσ :
     apply_func fn vs = Some e → split_state σ pubσ privσ → matching_expr_state e σ.

@@ -18,21 +18,29 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Instance link_melocotonGS {INVG: invGS_gen hlc Σ} :
-  mlanguage.weakestpre.melocotonGS_gen hlc val (Λ.(language.state)) (embed_lang Λ) Σ
+Instance language_publicStateInterp :
+  mlanguage.weakestpre.publicStateInterp (language.state Λ) Σ
 := {
-  iris_invGS := INVG;
-  state_interp := λ σ, (∃ n, language.weakestpre.state_interp σ n)%I;
+  public_state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I
 }.
+
+Program Instance embed_mlangGS :
+  mlanguage.weakestpre.mlangGS hlc val Λ.(language.state) Σ (embed_lang Λ)
+:= {
+  state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I;
+  private_state_interp := (λ _, True)%I;
+}.
+Next Obligation. simpl. intros *. inversion 1. iIntros "?". by iFrame. Qed.
+Next Obligation. simpl. intros *. inversion 1; subst. iIntros "[? _]". by iFrame. Qed.
+
 Definition lang_prog_environ p T : language.weakestpre.prog_environ :=
    language.weakestpre.Build_prog_environ hlc _ _ _ _ p T.
 Definition mlang_prog_environ p T : mlanguage.weakestpre.prog_environ :=
-   mlanguage.weakestpre.Build_prog_environ hlc _ _ _ _ _ p T.
+   mlanguage.weakestpre.Build_prog_environ hlc _ _ _ _ _ _ _ p T.
 
-
-Lemma wp_embed e p T E Φ : 
-  ⊢ WP e @ (lang_prog_environ p T) ; E {{v, Φ v}} -∗ WP e @ (mlang_prog_environ p T) ; E {{v, Φ v}}.
-Proof.
+Lemma wp_embed e p T E Φ :
+  ⊢ WP e @ lang_prog_environ p T ; E {{v, Φ v}} -∗ WP e @ mlang_prog_environ p T ; E {{v, Φ v}}.
+Proof using.
   iStartProof. iLöb as "IH" forall (e).
   rewrite {1} @language.weakestpre.wp_unfold /language.weakestpre.wp_pre.
   rewrite {1} wp_unfold /wp_pre.

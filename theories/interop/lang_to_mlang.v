@@ -7,10 +7,8 @@ Section ToMLang.
   Context {val : Type}.
   Context (Λ : language val).
 
-  Inductive private_state := no_state.
-
-  Inductive split_state : Λ.(state) → Λ.(state) → private_state → Prop :=
-    split_state_refl σ : split_state σ σ no_state.
+  Inductive split_state : Λ.(state) → Λ.(state) → unit → Prop :=
+    split_state_refl σ : split_state σ σ tt.
 
   Definition matching_expr_state : Λ.(expr) → Λ.(state) → Prop := fun _ _ => True.
   Local Notation prog := (gmap string Λ.(func)).
@@ -43,6 +41,7 @@ Section ToMLang.
     - intros p e1 σ1 X _. inversion 1; subst. eexists. 1: apply H3.
       intros ? ? ( <- & <- ). split; last econstructor. apply H5. by split.
     - done.
+    - intros ? []. eexists. constructor.
     - done.
     - intros f vv σ _. eexists σ, _. econstructor.
     - done.
