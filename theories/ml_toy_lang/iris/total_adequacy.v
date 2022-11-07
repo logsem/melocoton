@@ -12,12 +12,11 @@ Proof.
   intros Hwp; eapply (twp_total _ _); iIntros (?) "".
   iMod (gen_heap_init σ) as (?) "[Hh _]".
   iMod (inv_heap_init loc val) as (?) ">Hi".
-  iMod (proph_map_init [] ∅) as (?) "Hp".
   iMod (mono_nat_own_alloc 0) as (γ) "[Hsteps _]".
   iModIntro.
   iExists
     (λ σ ns κs _, (gen_heap_interp σ ∗
                    mono_nat_auth_own γ 1 ns)%I),
     id, (λ _, True%I), _; iFrame.
-  by iApply (Hwp (HeapGS _ _ _ _ _ _ _ _)).
+  by iApply (Hwp (HeapGS _ _ _ _ _ _ _)).
 Qed.

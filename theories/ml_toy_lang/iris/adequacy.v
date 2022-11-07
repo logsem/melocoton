@@ -9,13 +9,11 @@ Class heapGpreS Σ := HeapGpreS {
   heapGpreS_iris :> invGpreS Σ;
   heapGpreS_heap :> gen_heapGpreS loc val Σ;
   heapGpreS_inv_heap :> inv_heapGpreS loc val Σ;
-  heapGpreS_proph :> proph_mapGpreS proph_id (val * val) Σ;
   heapGS_step_cnt :> mono_natG Σ;
 }.
 
 Definition heapΣ : gFunctors :=
-  #[invΣ; gen_heapΣ loc val; inv_heapΣ loc val;
-    proph_mapΣ proph_id (val * val); mono_natΣ].
+  #[invΣ; gen_heapΣ loc val; inv_heapΣ loc val; mono_natΣ].
 Global Instance subG_heapGpreS {Σ} : subG heapΣ Σ → heapGpreS Σ.
 Proof. solve_inG. Qed.
 
@@ -34,9 +32,8 @@ Proof.
   iIntros (Hinv).
   iMod (gen_heap_init σ) as (?) "[Hh _]".
   iMod (inv_heap_init loc val) as (?) ">Hi".
-  iMod (proph_map_init nil ∅) as (?) "Hp".
   iMod (mono_nat_own_alloc) as (γ) "[Hsteps _]".
-  iDestruct (Hwp (HeapGS _ _ _ _ _ _ _ _) with "Hi") as "Hwp".
+  iDestruct (Hwp (HeapGS _ _ _ _ _ _ _) with "Hi") as "Hwp".
   iModIntro.
   iExists (λ σ ns κs nt, (gen_heap_interp σ ∗
                           mono_nat_auth_own γ 1 ns))%I.

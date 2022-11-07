@@ -21,44 +21,7 @@ Noteworthy design choices:
   Also, unlike in languages like C, allocated and deallocated "blocks" do not
   have to match up: you can allocate a large array of locations and then
   deallocate a hole out of it in the middle.
-
-- For prophecy variables, we annotate the reduction steps with an "observation"
-  and tweak adequacy such that WP knows all future observations. There is
-  another possible choice: Use non-deterministic choice when creating a prophecy
-  variable ([NewProph]), and when resolving it ([Resolve]) make the
-  program diverge unless the variable matches. That, however, requires an
-  erasure proof that this endless loop does not make specifications useless.
-
-The expression [Resolve e p v] attaches a prophecy resolution (for prophecy
-variable [p] to value [v]) to the top-level head-reduction step of [e]. The
-prophecy resolution happens simultaneously with the head-step being taken.
-Furthermore, it is required that the head-step produces a value (otherwise
-the [Resolve] is stuck), and this value is also attached to the resolution.
-A prophecy variable is thus resolved to a pair containing (1) the result
-value of the wrapped expression (called [e] above), and (2) the value that
-was attached by the [Resolve] (called [v] above). This allows, for example,
-to distinguish a resolution originating from a successful [CmpXchg] from one
-originating from a failing [CmpXchg]. For example:
- - [Resolve (CmpXchg #l #n #(n+1)) #p v] will behave as [CmpXchg #l #n #(n+1)],
-   which means step to a value-boole pair [(n', b)] while updating the heap, but
-   in the meantime the prophecy variable [p] will be resolved to [(n', b), v)].
- - [Resolve (! #l) #p v] will behave as [! #l], that is return the value
-   [w] pointed to by [l] on the heap (assuming it was allocated properly),
-   but it will additionally resolve [p] to the pair [(w,v)].
-
-Note that the sub-expressions of [Resolve e p v] (i.e., [e], [p] and [v])
-are reduced as usual, from right to left. However, the evaluation of [e]
-is restricted so that the head-step to which the resolution is attached
-cannot be taken by the context. For example:
- - [Resolve (CmpXchg #l #n (#n + #1)) #p v] will first be reduced (with by a
-   context-step) to [Resolve (CmpXchg #l #n #(n+1) #p v], and then behave as
-   described above.
- - However, [Resolve ((λ: "n", CmpXchg #l "n" ("n" + #1)) #n) #p v] is stuck.
-   Indeed, it can only be evaluated using a head-step (it is a β-redex),
-   but the process does not yield a value.
-
-The mechanism described above supports nesting [Resolve] expressions to
-attach several prophecy resolutions to a head-redex. *)
+*)
 
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
@@ -66,7 +29,6 @@ Delimit Scope val_scope with V.
 Module ML_lang.
 
 (** Expressions and vals. *)
-Definition proph_id := positive.
 
 (** We have a notion of "poison" as a variant of unit that may not be compared
 with anything. This is useful for erasure proofs: if we erased things to unit,
@@ -180,13 +142,6 @@ Set Elimination Schemes.
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-(** An observation associates a prophecy variable (identifier) to a pair of
-values. The first value is the one that was returned by the (atomic) operation
-during which the prophecy resolution happened (typically, a boolean when the
-wrapped operation is a CmpXchg). The second value is the one that the prophecy
-variable was actually resolved to. *)
-Definition observation : Set := proph_id * (val * val).
-
 Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=
@@ -222,8 +177,6 @@ read and written.  Also notice that the sets of boxed and unboxed values are
 disjoint. *)
 Definition lit_is_unboxed (l: base_lit) : Prop :=
   match l with
-  (** Disallow comparing (erased) prophecies with (erased) prophecies, by
-  considering them boxed. *)
   | LitPoison => False
   | LitInt _ | LitBool _  | LitLoc _ | LitUnit => True
   end.
@@ -499,11 +452,6 @@ Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
 (** Evaluation contexts *)
-(** Note that [ResolveLCtx] is not by itself an evaluation context item: we do
-not reduce directly under Resolve's first argument. We only reduce things nested
-further down. Once no nested contexts exist any more, the expression must take
-exactly one more step to a value, and Resolve then (atomically) also uses that
-value for prophecy resolution.  *)
 Inductive ectx_item :=
   | AppLCtx (v2 : val)
   | AppRCtx (e1 : expr)
@@ -717,7 +665,7 @@ Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) 
 Definition apply_function (f:ml_function) (av : list val) := match f with MlFun an e =>
     match (zip_args an av) with Some σ => Some (subst_all σ e) | _ => None end end.
 
-Inductive head_step {p:ml_program} : expr → state → list observation → expr → state → list expr → Prop :=
+Inductive head_step {p:ml_program} : expr → state → list unit → expr → state → list expr → Prop :=
   | RecS f x e σ :
      head_step (Rec f x e) σ [] (Val $ RecV f x e) σ []
   | PairS v1 v2 σ :
