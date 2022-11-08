@@ -91,13 +91,13 @@ Class can_link_prog `{!invGS_gen hlc Σ}
   can_link_disj :
     dom (prog pe1) ## dom (prog pe2);
   can_link_spec1 fname (func: mlanguage.func Λ2) vs Φ E :
-      prog pe2 !! fname = Some func →
-      T pe1 fname vs Φ -∗
-      ∃ e2, ⌜apply_func func vs = Some e2⌝ ∗ ▷ WP e2 @ pe2; E {{ Φ }};
+    prog pe2 !! fname = Some func →
+    T pe1 fname vs Φ -∗
+    ∃ e2, ⌜apply_func func vs = Some e2⌝ ∗ ▷ WP e2 @ pe2; E {{ Φ }};
   can_link_spec2 fname (func: mlanguage.func Λ1) vs Φ E :
-      prog pe1 !! fname = Some func →
-      T pe2 fname vs Φ -∗
-      ∃ e1, ⌜apply_func func vs = Some e1⌝ ∗ ▷ WP e1 @ pe1; E {{ Φ }};
+    prog pe1 !! fname = Some func →
+    T pe2 fname vs Φ -∗
+    ∃ e1, ⌜apply_func func vs = Some e1⌝ ∗ ▷ WP e1 @ pe1; E {{ Φ }};
 }.
 
 Lemma wp_link_call `{!invGS_gen hlc Σ}
