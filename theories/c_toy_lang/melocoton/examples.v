@@ -1,4 +1,5 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
+From melocoton.language Require Import wp_link.
 From iris.proofmode Require Export tactics.
 From melocoton.c_toy_lang Require Import lang notation melocoton.proofmode.
 From iris.prelude Require Import options.
@@ -47,6 +48,22 @@ Definition exampleEnvAfterLinking name : prog_environ := {|
     | ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦ v) ∗ ((l ↦{DfracOwn 1} v') -∗ Φ (#0)))%I
     | _ => ⌜False⌝%I end
 |}.
+
+(*
+
+ExampleEnv
+
+fib_impl calls fib_axiom
+fib_axiom is specified axiomatically
+
+
+ExampleEnvAfterLinking
+
+fib_impl calls fib_axiom
+fib_axiom calls fib_impl (mutual recursion)
+
+
+*)
 
 (* A simple recursive function *)
 Lemma fib_prog_correct' (n:nat)

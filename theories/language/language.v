@@ -164,6 +164,12 @@ Section language.
   Lemma of_to_class e c : to_class e = Some c → of_class Λ c = e.
   Proof. apply language_mixin. Qed.
 
+  Lemma of_class_inj k1 k2 : of_class Λ k1 = of_class Λ k2 -> k1 = k2.
+  Proof.
+    intros H. enough (Some k1 = Some k2) by congruence.
+    rewrite <- !to_of_class. rewrite H. done.
+  Qed.
+
   Lemma to_val_of_call f vs : to_val (of_call Λ f vs) = None.
   Proof. rewrite /to_val /of_call to_of_class. done. Qed.
   Lemma to_call_of_val v : to_call (of_val Λ v) = None.
