@@ -148,8 +148,8 @@ Section linking.
 
 Lemma fib_left_correct : ⊢ env_fulfills LeftEnv FibLeftSpec.
 Proof.
-  iStartProof.
-  iIntros (s vv Φ) "Hvv". unfold FibLeftSpec.
+  iStartProof. unfold env_fulfills. unfold program_fulfills.
+  iIntros (s vv Φ) "Hvv"; unfold FibLeftSpec.
   Ltac ft := (iDestruct "Hvv" as "%Hvv"; exfalso; done).
   string_resolve s ft. destruct vv as [|[[z| |]] []]; try ft.
   iSplitR; first (iPureIntro; done).
@@ -199,10 +199,9 @@ Proof.
     cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add. iApply "Hvv".
 Qed.
 
-Lemma example_can_link : ⊢ can_link FibLeftSpec FibRightSpec StoreItSpec (spec_union FibLeftSpec FibRightSpec)
+Lemma example_can_link : can_link FibLeftSpec FibRightSpec StoreItSpec (spec_union FibLeftSpec FibRightSpec)
          (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left") (weakestpre.prog FinalEnv).
 Proof.
-  iStartProof.
   assert (
     ((<["fib_right":=fib_func "fib_left"]> (<["fib_left":=fib_func "fib_right"]> ∅)))
   = (union_with (λ _ _ : func C_lang_melocoton, None) (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left"))) as Heq.
@@ -213,22 +212,23 @@ Proof.
     1: done.
     rewrite lookup_union_with.
     rewrite ! lookup_insert_ne. 2-4: done. cbn. done. }
-  repeat iSplit.
-  - iPureIntro. unfold exampleProgram. set_solver.
-  - iModIntro. iIntros (s vv Φ) "Hvv".
+  split.
+  - unfold exampleProgram. set_solver.
+  - iIntros (s vv Φ) "Hvv". iApply "Hvv".
+  - iIntros (s vv Φ) "Hvv".
     unfold StoreItSpec.
     string_resolve s ft.
-  - iModIntro. iIntros (s vv Φ) "Hvv". iApply "Hvv".
-  - iModIntro. iApply fib_left_correct.
-  - iModIntro. iApply fib_right_correct.
-  - iPureIntro. unfold FinalEnv. cbn. rewrite Heq. done.
+  - iApply fib_left_correct.
+  - iApply fib_right_correct.
+  - unfold FinalEnv. cbn. rewrite Heq. done.
 Qed.
 
 Lemma fib_link_correct : ⊢ env_fulfills FinalEnv FinalSpec.
 Proof.
-  iStartProof. unfold FinalSpec, FinalEnv, env_fulfills; cbn.
+  iStartProof.
   iApply (wp_link_progs).
-  iApply example_can_link.
+  apply can_link_can_link_all.
+  apply example_can_link.
 Qed.
 
 
