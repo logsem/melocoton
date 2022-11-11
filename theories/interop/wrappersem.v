@@ -56,16 +56,6 @@ Inductive split_state : state → public_state → private_state → Prop :=
   | WrapSplitSt ρml σ :
     split_state (MLState ρml σ) σ ρml.
 
-Inductive matching_expr_state : expr → state → Prop :=
-  | Matching_WrapExprV v ρml σ :
-    matching_expr_state (WrapExprV v) (MLState ρml σ)
-  | Matching_WrapExprCall fname args ρml σ :
-    matching_expr_state (WrapExprCall fname args) (MLState ρml σ)
-  | Matching_WrapRunFunction fn args ρc mem :
-    matching_expr_state (WrapRunFunction fn args) (MLState ρc mem)
-  | Matching_WrapExprC ec ρc mem :
-    matching_expr_state (WrapExprC ec) (CState ρc mem).
-
 Local Notation prog := (gmap string C_lang.function).
 
 Implicit Types X : expr * state → Prop.
@@ -226,10 +216,9 @@ Next Obligation.
   ]; naive_solver.
 Qed.
 
-#[local] Hint Constructors matching_expr_state : core.
 Lemma wrap_mlanguage_mixin :
   MlanguageMixin (val:=ML_lang.val) of_class to_class tt (λ _ _, tt) fill
-    split_state matching_expr_state apply_func wrapper_step.
+    split_state apply_func wrapper_step.
 Proof using.
   constructor.
   - intros c. destruct c; reflexivity.
@@ -244,24 +233,7 @@ Proof using.
   - eauto.
   - intros [] ? ?. by unfold fill.
   - intros [] ? ?. eauto.
-  - intros p e st X Hmatch. inversion 1; simplify_eq.
-    + econstructor; naive_solver.
-    + econstructor; inversion Hmatch; naive_solver.
-    + econstructor; naive_solver.
-    + eapply RetS; naive_solver.
-    + eapply PrimAllocS; naive_solver.
-    + eapply PrimRegisterrootS; naive_solver.
-    + eapply PrimUnregisterrootS; naive_solver.
-    + eapply PrimModifyS; naive_solver.
-    + eapply PrimReadfieldS; naive_solver.
-    + eapply PrimVal2intS; naive_solver.
-    + eapply PrimInt2valS; naive_solver.
-  - eauto.
   - intros ? ?. eexists (MLState _ _). constructor.
-  - intros *. unfold apply_func. intro. simplify_eq. inversion 1; subst. constructor.
-  - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
-  - intros *. simpl. inversion 1; subst. constructor.
-  - intros *. simpl. inversion 1; subst. do 2 eexists. econstructor.
   - intros p [] [] ? ? ? ?. naive_solver.
   - intros ? []. naive_solver.
 Qed.

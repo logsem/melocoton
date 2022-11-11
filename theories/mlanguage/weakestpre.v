@@ -34,18 +34,25 @@ MlangG {
 
   state_interp_join σ pubσ privσ :
     split_state σ pubσ privσ →
-    public_state_interp pubσ ∗ private_state_interp privσ ==∗ state_interp σ
+    public_state_interp pubσ ∗ private_state_interp privσ ==∗ state_interp σ;
+
+  at_boundary : iProp Σ;
+  splittable_at_boundary σ :
+    at_boundary ∗ state_interp σ -∗ ⌜∃ pubσ privσ, split_state σ pubσ privσ⌝;
 }.
+
+Arguments at_boundary {_ _ _ _} Λ {_ _}.
 
 Definition wp_pre `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}
     (p : mixin_prog Λ.(func))
     (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ E e Φ,
-  (∀ σ, state_interp σ ∗ ⌜matching_expr_state e σ⌝ ={E}=∗
+  (∀ σ, state_interp σ ={E}=∗
        (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ∗ Φ v)
      ∨ (∃ f vs K, ⌜e = fill K (of_class Λ (ExprCall f vs))⌝ ∗ ⌜p !! f = None⌝ ∗
-        |={E}=> (state_interp σ ∗ ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
+        at_boundary Λ ∗ state_interp σ ∗
+        ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r ∗ at_boundary Λ -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ)
      ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
         ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ))%I.
 
@@ -113,7 +120,7 @@ Qed.
 Lemma wp_value_fupd' pe E Φ v : (|={E}=> Φ v)%I ⊢ WP (of_class Λ (ExprVal v)) @ pe; E {{ Φ }}.
 Proof.
   rewrite !wp_unfold /wp_pre /=.
-  iIntros "H %σ [Hσ %]". iLeft. iMod "H". iModIntro. iExists _; iFrame; done.
+  iIntros "H %σ Hσ". iLeft. iMod "H". iModIntro. iExists _; iFrame; done.
 Qed.
 
 Definition prog_environ_mono pe1 pe2 : Prop :=
@@ -132,15 +139,15 @@ Proof.
   iIntros "%σ Hσ". iSpecialize ("H" $! σ with "Hσ").
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod "H". iMod "Hclose".
-  iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s & %vv & %K & -> & H2 & H3)|H3]]".
+  iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s & %vv & %K & -> & H2 & Hb & Hσ & H3)|H3]]".
   - iLeft. iExists x. iFrame. iSplitR; first done.
     iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _); first apply HE.
   - iRight; iLeft. iExists s, vv, K. iSplitR; first done. rewrite Hpe1; iFrame.
     iModIntro.
-    iMod (fupd_mask_subseteq E1) as "Hclose2"; first done.
-    iMod "H3".
-    iMod "Hclose2". iModIntro.
-    iDestruct "H3" as "(Hσ & %Ξ & HT & Hr)".
+    (* iMod (fupd_mask_subseteq E1) as "Hclose2"; first done. *)
+    (* iMod "H3". *)
+    (* iMod "Hclose2". iModIntro. *)
+    iDestruct "H3" as "(%Ξ & HT & Hr)".
     iFrame. iExists Ξ. iSplitL "HT"; first iApply (Hpe2 s vv with "HT").
     iNext. iIntros "%r HΞ". iApply ("IH" $! (fill K (of_class Λ (ExprVal r))) E1 E2 HE Φ Ψ with "[Hr HΞ] HΦ").
     iApply ("Hr" with "HΞ").
@@ -188,16 +195,16 @@ Proof.
     iApply (wp_strong_mono with "Hwp"); [done..|].
     iIntros (v) "H". iApply ("H" with "[>HP]"). by do 2 iMod "HP". }
   rewrite !wp_unfold /wp_pre /=. iIntros (Heq) "H".
-  iIntros (σ1) "[Hσ %]".
+  iIntros (σ1) "Hσ".
   destruct (decide (n = 0)) as [->|Hn]; first last.
   { iDestruct "H" as "[Hn _]". iMod ("Hn" with "Hσ") as %?. lia. }
   iDestruct "H" as "[_ [>HP Hwp]]".
-  iMod ("Hwp" $! σ1 with "[$Hσ]") as "[(%z & -> & Hσ & H)|[(%s & %vv & %K & -> & H2 & H3)|[% H3]]]"; first done.
+  iMod ("Hwp" $! σ1 with "Hσ") as "[(%z & -> & Hσ & H)|[(%s & %vv & %K & -> & H2 & Hb & Hσ & H3)|[% H3]]]".
   + unfold to_val in Heq. rewrite to_of_class in Heq.
     exfalso. apply TCEq_eq in Heq. congruence.
   + cbn. iRight. iLeft. iMod "HP". iModIntro.
     iExists s, vv, K. iFrame. iSplitR; first done.
-    iMod "H3" as "(Hσ & %Ξ & Hvv & HΞ)". iModIntro. iFrame.
+    iDestruct "H3" as "(%Ξ & Hvv & HΞ)".
     iExists Ξ. iFrame. iNext. iIntros "%r Hr". iSpecialize ("HΞ" $! r with "Hr").
     iApply (wp_strong_mono pe pe E E with "HΞ [HP]"). 1-2:easy.
     iIntros "%v Hv". iMod "HP". iMod ("Hv" with "HP"). iAssumption.
@@ -238,15 +245,13 @@ Lemma wp_bind K pe E e Φ :
   WP e @ pe; E {{ v, WP fill K (of_class _ (ExprVal v)) @ pe; E {{ Φ }} }} ⊢ WP fill K e @ pe; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre.
-  iIntros "%σ [Hσ %Hmatch]".
-  pose proof (proj2 (matching_expr_state_ctx _ _ _) Hmatch) as Hmatch'.
-  iMod ("H" $! σ with "[$Hσ]") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & -> & H2 & H3)|[%Hred H3]]]"; first done.
-  - rewrite {1} wp_unfold /wp_pre.
-    iMod ("H" $! σ with "[$Hσ]") as "H"; first done. iApply "H".
+  iIntros "%σ Hσ".
+  iMod ("H" $! σ with "Hσ") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & -> & H2 & Hb & Hσ & H3)|[%Hred H3]]]".
+  - rewrite {1} wp_unfold /wp_pre. iMod ("H" $! σ with "Hσ") as "H"; done.
   - iRight. iLeft. iExists s, vv, (comp_ectx K K').
     iFrame. iSplitR.
     {iModIntro; iPureIntro. now rewrite fill_comp. }
-    do 1 iModIntro. iMod "H3" as "(Hσ & %Ξ & HT & Hr)". iModIntro. iFrame.
+    iModIntro. iDestruct "H3" as "(%Ξ & HT & Hr)".
     iExists Ξ. iFrame. iNext.
     iIntros "%r HΞ".
     rewrite <- fill_comp.
