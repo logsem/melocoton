@@ -18,7 +18,7 @@ Implicit Types X : expr Λ * state Λ → Prop.
 
 Lemma wp_lift_step_fupd s E Φ e1 :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ∗ ⌜matching_expr_state e1 σ1⌝ ={E}=∗
+  (∀ σ1, state_interp σ1 ={E}=∗
     ⌜reducible (prog s) e1 σ1⌝ ∗
     ∀ X, ⌜prim_step (prog s) (e1, σ1) X⌝ ={E}▷=∗^(1) |={E}=>
       ∃ e2 σ2,
@@ -36,7 +36,7 @@ Qed.
 
 Lemma wp_lift_atomic_step {s E Φ} e1 :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ∗ ⌜matching_expr_state e1 σ1⌝ ={E}=∗
+  (∀ σ1, state_interp σ1 ={E}=∗
     ⌜reducible (prog s) e1 σ1⌝ ∗
     ▷ ∀ X, ⌜prim_step (prog s) (e1, σ1) X⌝ ={E}=∗
       ∃ e2 σ2, ⌜X (e2, σ2)⌝ ∗
@@ -55,7 +55,7 @@ Qed.
 
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ∗ ⌜matching_expr_state e1 σ1⌝ ={E}=∗
+  (∀ σ1, state_interp σ1 ={E}=∗
     ⌜head_reducible (prog s) e1 σ1⌝ ∗
     ▷ ∀ X, ⌜head_step (prog s) (e1, σ1) X⌝ ={E}=∗
       ∃ e2 σ2, ⌜X (e2, σ2)⌝ ∗
@@ -74,14 +74,14 @@ Qed.
 
 Lemma wp_lift_pure_det_step `{!Inhabited (state Λ)} {s E Φ} e1 e2 :
   (∀ σ1, reducible (prog s) e1 σ1) →
-  (∀ σ1 X, matching_expr_state e1 σ1 →
+  (∀ σ1 X,
     prim_step (prog s) (e1, σ1) X →
     X (e2, σ1)) →
   (|={E}[E]▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply wp_lift_step_fupd.
   { specialize (Hsafe inhabitant). destruct s; eauto using reducible_not_val. }
-  iIntros (σ1) "[Hσ %Hmatch]". iMod "H". iModIntro.
+  iIntros (σ1) "Hσ". iMod "H". iModIntro.
   iSplitR; first (iPureIntro; apply Hsafe).
   iIntros (X Hstep'). do 3 iModIntro. iMod "H".
   iModIntro. iExists e2, _. iSplitR.

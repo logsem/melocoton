@@ -29,9 +29,11 @@ Program Instance embed_mlangGS :
 := {
   state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I;
   private_state_interp := (λ _, True)%I;
+  at_boundary := True%I;
 }.
 Next Obligation. simpl. intros *. inversion 1. iIntros "?". by iFrame. Qed.
 Next Obligation. simpl. intros *. inversion 1; subst. iIntros "[? _]". by iFrame. Qed.
+Next Obligation. simpl. iIntros (σ) "[_ Hσ]". iPureIntro. exists σ, tt. constructor. Qed.
 
 Definition lang_prog_environ p T : language.weakestpre.prog_environ :=
    language.weakestpre.Build_prog_environ hlc _ _ _ _ p T.
@@ -44,12 +46,11 @@ Proof using.
   iStartProof. iLöb as "IH" forall (e).
   rewrite {1} @language.weakestpre.wp_unfold /language.weakestpre.wp_pre.
   rewrite {1} wp_unfold /wp_pre.
-  iIntros "H" (σ) "((%n & Hσ) & _)". iMod ("H" $! σ n with "Hσ") as "[(%x & %H1 & Hσ & H)|[(%s' & %vv & %K' & %H1 & %H2 & H3)|(%Hred & H3)]]".
+  iIntros "H" (σ) "(%n & Hσ)". iMod ("H" $! σ n with "Hσ") as "[(%x & %H1 & Hσ & H)|[(%s' & %vv & %K' & %H1 & %H2 & H3)|(%Hred & H3)]]".
   - iLeft. iModIntro. iExists x. iFrame. iSplitR; first done. iExists n. iFrame.
   - iRight. iLeft. iMod "H3" as "(%Ξ & Hσ & HT & Hr)". iExists s', vv, K'. iModIntro.
-    iSplitR; first done. iSplitR; first done. iModIntro. iSplitL "Hσ"; first by iExists n.
-    iExists Ξ. iFrame.
-    iNext. iIntros (v) "Hv". iApply "IH". by iApply "Hr".
+    iSplitR; first done. iSplitR; first done. iSplitR; first done. iSplitL "Hσ"; first by iExists n.
+    iExists Ξ. iFrame. iNext. iIntros (v) "[Hv _]". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
     { iPureIntro. destruct Hred as (e' & σ' & H'). eexists (fun '(e2,σ2) => e2 = e' ∧ σ2 = σ'). inversion H'; subst. econstructor. eexists; split; first done. econstructor; first done. intros ? ? ( <- & <- ); done. }
     iIntros (X Hstep). inversion Hstep as (K & e' & -> & Hx). inversion Hx; subst.

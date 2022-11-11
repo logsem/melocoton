@@ -10,7 +10,6 @@ Section ToMLang.
   Inductive split_state : Λ.(state) → Λ.(state) → unit → Prop :=
     split_state_refl σ : split_state σ σ tt.
 
-  Definition matching_expr_state : Λ.(expr) → Λ.(state) → Prop := fun _ _ => True.
   Local Notation prog := (gmap string Λ.(func)).
   Local Notation expr_state := ((Λ.(expr) * Λ.(state)))%type.
   Inductive head_step_mrel : prog -> expr_state -> (expr_state->Prop) -> Prop := 
@@ -27,7 +26,7 @@ Section ToMLang.
 
   Lemma language_mlanguage_mixin :
     MlanguageMixin (val:=val) Λ.(of_class) Λ.(to_class) Λ.(empty_ectx) Λ.(comp_ectx) Λ.(fill)
-      split_state matching_expr_state Λ.(apply_func) head_step.
+      split_state Λ.(apply_func) head_step.
   Proof using.
     constructor; try apply language_mixin.
     - intros p v σ H Hstep. inversion Hstep; subst. eapply val_head_step. apply H3.
@@ -38,14 +37,7 @@ Section ToMLang.
       + destruct H as (fn & e2 & Heq1 & Heq2 & HX).
         destruct (call_head_step p f vs σ e2 σ []) as [HL HR].
         eapply wrap. 1: apply HR; by eexists. intros ? ? ( <- & <- ). apply HX.
-    - intros p e1 σ1 X _. inversion 1; subst. eexists. 1: apply H3.
-      intros ? ? ( <- & <- ). split; last econstructor. apply H5. by split.
-    - done.
     - intros ? []. eexists. constructor.
-    - done.
-    - intros f vv σ _. eexists σ, _. econstructor.
-    - done.
-    - intros v σ _. eexists σ, _. econstructor.
     - intros p K' K_redec e1 e1_redex σ X Heq1 Heq2 Hstep. inversion Hstep; subst.
       eapply step_by_val; try done. unfold to_val. destruct (to_class e1) as [[]|]; try congruence. exfalso. easy.
     - intros p K e σ X H. inversion H; subst.
