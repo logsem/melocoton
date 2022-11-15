@@ -8,11 +8,6 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-(* Public state interpretation for type [pubstate], packaged as a typeclass. *)
-Class publicStateInterp (pubstate : Type) (Σ : gFunctors) := PublicStateInterp {
-  public_state_interp : pubstate → iProp Σ;
-}.
-
 (* State interpretation for a [mlanguage]:
    - parameterized by the state interpretation for the public state;
    - the data of a state interp predicate for the whole state and a state
@@ -23,7 +18,7 @@ Class publicStateInterp (pubstate : Type) (Σ : gFunctors) := PublicStateInterp 
 Class mlangGS
   (hlc : has_lc) (val pubstate : Type) (Σ : gFunctors)
   (Λ : mlanguage val pubstate)
-  `{!publicStateInterp pubstate Σ} :=
+  (public_state_interp : pubstate → iProp Σ) :=
 MlangG {
   state_interp : state Λ → iProp Σ;
   private_state_interp : private_state Λ → iProp Σ;
@@ -43,7 +38,7 @@ MlangG {
 
 Arguments at_boundary {_ _ _ _} Λ {_ _}.
 
-Definition wp_pre `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}
+Definition wp_pre `{!invGS_gen hlc Σ, !mlangGS hlc val pubstate Σ Λ pubinterp}
     (p : mixin_prog Λ.(func))
     (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
@@ -57,7 +52,7 @@ Definition wp_pre `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS 
         ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ))%I.
 
 Local Instance wp_pre_contractive
-      `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}
+      `{!invGS_gen hlc Σ, !mlangGS hlc val pubstate Σ Λ pubinterp}
       {p:mixin_prog Λ.(func)} T :
   Contractive (wp_pre p T).
 Proof.
@@ -66,25 +61,25 @@ Proof.
 Qed.
 
 Record prog_environ
-      `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ} := {
+      `{!invGS_gen hlc Σ, !mlangGS hlc val pubstate Σ Λ pubinterp} := {
   prog : mixin_prog (func Λ);
   T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ
 }.
 
 Local Definition wp_def
-      `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ} :
+      `{!invGS_gen hlc Σ, !mlangGS hlc val pubstate Σ Λ pubinterp} :
   Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
   λ p : (prog_environ), fixpoint (wp_pre (p.(prog)) (p.(T))).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {hlc Σ _ pubstate _ val Λ _}.
+Global Arguments wp' {hlc Σ _ val pubstate Λ pubinterp _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ} :
-  wp = @wp_def hlc Σ _ pubstate _ val Λ _.
+Local Lemma wp_unseal `{!invGS_gen hlc Σ, !mlangGS hlc val pubstate Σ Λ pubinterp} :
+  wp = @wp_def hlc Σ _ val pubstate Λ pubinterp _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}.
+Context `{!invGS_gen hlc Σ, !mlangGS hlc val pubstate Σ Λ pubinterp}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -374,7 +369,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!invGS_gen hlc Σ, !publicStateInterp pubstate Σ, !mlangGS hlc val pubstate Σ Λ}.
+  Context `{!invGS_gen hlc Σ, !mlangGS hlc val pubstate Σ Λ pubinterp}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.

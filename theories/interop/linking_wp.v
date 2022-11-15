@@ -24,9 +24,8 @@ Context {Σ : gFunctors}.
 Context {val pubstate : Type}.
 Context (Λ1 Λ2 : mlanguage val pubstate).
 Context `{linkG Σ}.
-Context `{!publicStateInterp pubstate Σ}.
-Context `{!mlangGS hlc val pubstate Σ Λ1}.
-Context `{!mlangGS hlc val pubstate Σ Λ2}.
+Context `{!mlangGS hlc val pubstate Σ Λ1 public_state_interp}.
+Context `{!mlangGS hlc val pubstate Σ Λ2 public_state_interp}.
 
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
@@ -103,7 +102,9 @@ Proof using.
   all: by apply excl_auth_agree in Hb.
 Qed.
 
-Program Instance link_mlangGS : mlangGS hlc val pubstate Σ (link_lang Λ1 Λ2) := {
+Program Instance link_mlangGS :
+  mlangGS hlc val pubstate Σ (link_lang Λ1 Λ2) public_state_interp
+:= {
   state_interp := link_state_interp;
   private_state_interp := (λ '(privσ1, privσ2),
     own linkG_γ (●E Boundary) ∗
@@ -151,9 +152,9 @@ Proof using.
 Qed.
 
 Definition link_environ `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
-: @prog_environ _ _ _ _ _ _ (link_lang Λ1 Λ2) _ :=
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
+: @prog_environ _ _ _ _ _ (link_lang Λ1 Λ2) _ _ :=
 {|
   prog := fmap inl (prog pe1) ∪ fmap inr (prog pe2);
   T := λ fname vs Φ,
@@ -162,8 +163,8 @@ Definition link_environ `{!invGS_gen hlc Σ}
 |}.
 
 Class can_link_prog `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
 := CanLinkProgs {
   can_link_disj :
     dom (prog pe1) ## dom (prog pe2);
@@ -182,8 +183,8 @@ Class can_link_prog `{!invGS_gen hlc Σ}
 }.
 
 Lemma wp_link_call `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E k fn vs (Φ : val → iProp Σ) fname
 :
   let pe := link_environ pe1 pe2 in
@@ -192,7 +193,7 @@ Lemma wp_link_call `{!invGS_gen hlc Σ}
   WP LkE (LinkExprCall Λ1 Λ2 fname vs) k @ pe; E {{ Φ }}.
 Proof using.
   iIntros (pe Hfn) "Hwp".
-  iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+  iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "Hσ". iModIntro. iRight; iRight.
   iSplitR.
   { iPureIntro. eexists (λ _, True). eexists k, (LkE _ []). split; first done.
@@ -203,8 +204,8 @@ Proof using.
 Qed.
 
 Lemma wp_link_run_function_1 `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E k2 k fn arg fname (Φ : val → iProp Σ) (Ξ : val → iProp Σ)
 :
   let pe := link_environ pe1 pe2 in
@@ -220,7 +221,7 @@ Lemma wp_link_run_function_1 `{!invGS_gen hlc Σ}
   WP LkE (LinkRunFunction Λ1 Λ2 (inl fn) arg) (inr k2 :: k) @ pe; E {{ Φ }}.
 Proof using.
   iIntros (pe Hcan_link Hfn) "Hb Hb1 HTΞ Hwp".
-  iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+  iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "[$Hb $Hσ]") as %(pubσ&privσ1&privσ2&->).
   iRight; iRight.
   iPoseProof (can_link_spec2 _ _ _ _ E Hfn with "HTΞ") as (? Happlyfunc) "Hwpcall".
@@ -239,8 +240,8 @@ Proof using.
 Qed.
 
 Lemma wp_link_run_function_2 `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E k1 k fn arg fname (Φ : val → iProp Σ) (Ξ : val → iProp Σ)
 :
   let pe := link_environ pe1 pe2 in
@@ -256,7 +257,7 @@ Lemma wp_link_run_function_2 `{!invGS_gen hlc Σ}
   WP LkE (LinkRunFunction Λ1 Λ2 (inr fn) arg) (inl k1 :: k) @ pe; E {{ Φ }}.
 Proof using.
   iIntros (pe Hcan_link Hfn) "Hb Hb2 HTΞ Hwp".
-  iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+  iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "[$Hb $Hσ]") as %(pubσ&privσ1&privσ2&->).
   iRight; iRight.
   iPoseProof (can_link_spec1 _ _ _ _ E Hfn with "HTΞ") as (? Happlyfunc) "Hwpcall".
@@ -275,8 +276,8 @@ Proof using.
 Qed.
 
 Lemma wp_link_retval_1 `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E k1 v (Φ : val → iProp Σ)
 :
   let pe := link_environ pe1 pe2 in
@@ -284,7 +285,7 @@ Lemma wp_link_retval_1 `{!invGS_gen hlc Σ}
   (link_state_frag Boundary -∗ WP LkE (LinkExprV Λ1 Λ2 v) [inl k1] @ pe; E {{ Φ }}).
 Proof using.
   iIntros (pe) "Hwp Hb".
-  iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+  iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "[$Hσ $Hb]") as %(pubσ&privσ1&privσ2&->).
   iModIntro. iRight. iRight. iDestruct "Hσ" as "(Hob & Hpub & Hpriv1 & Hpriv2)".
   iSplitR.
@@ -299,8 +300,8 @@ Proof using.
 Qed.
 
 Lemma wp_link_retval_2 `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E k2 v (Φ : val → iProp Σ)
 :
   let pe := link_environ pe1 pe2 in
@@ -308,7 +309,7 @@ Lemma wp_link_retval_2 `{!invGS_gen hlc Σ}
   (link_state_frag Boundary -∗ WP LkE (LinkExprV Λ1 Λ2 v) [inr k2] @ pe; E {{ Φ }}).
 Proof using.
   iIntros (pe) "Hwp Hb".
-  iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+  iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "[$Hσ $Hb]") as %(pubσ&privσ1&privσ2&->).
   iModIntro. iRight. iRight. iDestruct "Hσ" as "(Hob & Hpub & Hpriv1 & Hpriv2)".
   iSplitR.
@@ -323,8 +324,8 @@ Proof using.
 Qed.
 
 Lemma wp_link_extcall_1 `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E k1 fn_name arg (Φ : val → iProp Σ) (Ξ : val → iProp Σ)
 :
   let pe := link_environ pe1 pe2 in
@@ -343,7 +344,7 @@ Proof using.
   iIntros (pe Hfn1 Hfn2) "HTΞ HΞ Hwp (Hb & Hb1 & Hb2)".
   assert (Hpef: prog pe !! fn_name = None).
   { apply lookup_union_None. rewrite !lookup_fmap Hfn1 Hfn2 //. }
-  iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+  iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "[$Hσ $Hb]") as %(pubσ&privσ1&privσ2&->).
   iModIntro. iRight; iLeft. iExists _, _, [inl k1]. iSplitR; [by eauto|].
   iSplitR; first by eauto. iFrame "Hσ Hb Hb1 Hb2". iExists Ξ. iSplitL "HTΞ".
@@ -355,8 +356,8 @@ Proof using.
 Qed.
 
 Lemma wp_link_extcall_2 `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E k2 fn_name arg (Φ : val → iProp Σ) (Ξ : val → iProp Σ)
 :
   let pe := link_environ pe1 pe2 in
@@ -375,7 +376,7 @@ Proof using.
   iIntros (pe Hfn1 Hfn2) "HTΞ HΞ Hwp (Hb & Hb1 & Hb2)".
   assert (Hpef: prog pe !! fn_name = None).
   { apply lookup_union_None. rewrite !lookup_fmap Hfn1 Hfn2 //. }
-  iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+  iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "[$Hσ $Hb]") as %(pubσ&privσ1&privσ2&->).
   iModIntro. iRight; iLeft. iExists _, _, [inr k2]. iSplitR; [by eauto|].
   iSplitR; first by eauto. iFrame "Hσ Hb Hb1 Hb2". iExists Ξ. iSplitL "HTΞ".
@@ -448,8 +449,8 @@ Proof using.
 Qed.
 
 Lemma wp_link_run `{!invGS_gen hlc Σ}
-  (pe1 : @prog_environ _ _ _ _ _ _ Λ1 _)
-  (pe2 : @prog_environ _ _ _ _ _ _ Λ2 _)
+  (pe1 : @prog_environ _ _ _ _ _ Λ1 _ _)
+  (pe2 : @prog_environ _ _ _ _ _ Λ2 _ _)
   E
 :
   let pe := link_environ pe1 pe2 in
@@ -465,7 +466,7 @@ Proof using.
   (* Case 1: running Λ1 *)
   { iIntros (e1 Φ) "Hwp [Hb Hb2]".
     rewrite wp_unfold. rewrite /wp_pre.
-    iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+    iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
     iIntros (σ) "Hσ". iDestruct (link_at_in1 with "[$Hb $Hσ]") as %(σ1 & privσ2 & ->).
     iDestruct "Hσ" as "(Hob & Hσ1 & Hpriv2)".
     iMod ("Hwp" $! σ1 with "[$Hσ1]") as "[Hwp|[Hwp|Hwp]]".
@@ -525,8 +526,8 @@ Proof using.
 
         progress change (LkE (LinkExpr2 Λ1 Λ2 e2) [inl k1]) with
           (linking.fill _ _ ([inl k1]:ectx (link_lang Λ1 Λ2)) (LkSE (LinkExpr2 Λ1 Λ2 e2))).
-        iApply (@wp_bind _ _ _ _ _ _ (link_lang Λ1 Λ2)).
-        iApply ((@wp_wand _ _ _ _ _ _ (link_lang Λ1 Λ2)) with "[Hwpcall Hb Hb1]").
+        iApply (@wp_bind _ _ _ _ _ (link_lang Λ1 Λ2)).
+        iApply ((@wp_wand _ _ _ _ _ (link_lang Λ1 Λ2)) with "[Hwpcall Hb Hb1]").
         { iDestruct "IH" as "#[_ IH2]". iApply ("IH2" with "Hwpcall [$Hb $Hb1]"). }
         iIntros (r) "[Hr (Hb & Hb1 & Hb2)]". iSpecialize ("HΞ" $! r).
         rewrite -fill_comp fill_empty. simpl.
@@ -568,7 +569,7 @@ Proof using.
   (* Case 2: running Λ2 *)
   { iIntros (e2 Φ) "Hwp [Hb Hb1]".
     rewrite wp_unfold. rewrite /wp_pre.
-    iApply (@wp_unfold _ _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
+    iApply (@wp_unfold _ _ _ _ _ (link_lang Λ1 Λ2)). rewrite /wp_pre.
     iIntros (σ) "Hσ". iDestruct (link_at_in2 with "[$Hb $Hσ]") as %(privσ1 & σ2 & ->).
     iDestruct "Hσ" as "(Hob & Hpriv1 & Hσ2)".
     iMod ("Hwp" $! σ2 with "[$Hσ2]") as "[Hwp|[Hwp|Hwp]]".
@@ -627,8 +628,8 @@ Proof using.
 
         progress change (LkE (LinkExpr1 Λ1 Λ2 e1) [inr k2]) with
           (linking.fill _ _ ([inr k2]:ectx (link_lang Λ1 Λ2)) (LkSE (LinkExpr1 Λ1 Λ2 e1))).
-        iApply (@wp_bind _ _ _ _ _ _ (link_lang Λ1 Λ2)).
-        iApply ((@wp_wand _ _ _ _ _ _ (link_lang Λ1 Λ2)) with "[Hwpcall Hb Hb2]").
+        iApply (@wp_bind _ _ _ _ _ (link_lang Λ1 Λ2)).
+        iApply ((@wp_wand _ _ _ _ _ (link_lang Λ1 Λ2)) with "[Hwpcall Hb Hb2]").
         { iDestruct "IH" as "#[IH1 _]". iApply ("IH1" with "Hwpcall [$Hb $Hb2]"). }
         iIntros (r) "[Hr (Hb & Hb1 & Hb2)]". iSpecialize ("HΞ" $! r).
         rewrite -fill_comp fill_empty. simpl.

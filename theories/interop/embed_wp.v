@@ -18,14 +18,10 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Instance language_publicStateInterp :
-  mlanguage.weakestpre.publicStateInterp (language.state Λ) Σ
-:= {
-  public_state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I
-}.
-
 Program Instance embed_mlangGS :
-  mlanguage.weakestpre.mlangGS hlc val Λ.(language.state) Σ (embed_lang Λ)
+  mlanguage.weakestpre.mlangGS
+    hlc val Λ.(language.state) Σ (embed_lang Λ)
+    (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I
 := {
   state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I;
   private_state_interp := (λ _, True)%I;
