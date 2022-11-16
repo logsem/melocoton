@@ -2,8 +2,6 @@ From stdpp Require Import relations strings gmap.
 From iris.algebra Require Import ofe.
 From iris.prelude Require Import options.
 
-Definition thread_id := nat.
-
 Section language_commons.
   Context {val : Type}.
   (** Classifying expressions into values and calls. *)
