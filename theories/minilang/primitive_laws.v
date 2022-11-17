@@ -4,11 +4,10 @@ From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Import mono_nat.
 From iris.base_logic.lib Require Export gen_heap.
 From iris.algebra.lib Require Import excl_auth gmap_view.
-From iris_unstable.algebra Require Import monotone.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre lifting.
 From melocoton.minilang Require Import lang.
-From melocoton Require Import commons.
+From melocoton Require Import commons monotone.
 From iris.prelude Require Import options.
 
 Canonical Structure coPsetO := leibnizO coPset.
