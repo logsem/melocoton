@@ -37,7 +37,7 @@ Section ToMLang.
       + destruct H as (fn & e2 & Heq1 & Heq2 & HX).
         destruct (call_head_step p f vs σ e2 σ []) as [HL HR].
         eapply wrap. 1: apply HR; by eexists. intros ? ? ( <- & <- ). apply HX.
-    - intros ? []. eexists. constructor.
+    - intros ? ? ? []. inversion 1; inversion 1; simplify_eq. done.
     - intros p K' K_redec e1 e1_redex σ X Heq1 Heq2 Hstep. inversion Hstep; subst.
       eapply step_by_val; try done. unfold to_val. destruct (to_class e1) as [[]|]; try congruence. exfalso. easy.
     - intros p K e σ X H. inversion H; subst.

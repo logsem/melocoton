@@ -169,6 +169,7 @@ Section Linking.
       + intros (fn & e2 & (? & Hfn & HX)). cbn.
         unfold apply_func in Hfn; simplify_eq. econstructor; eauto.
     - intros ? ? [? ?] ? ?. rewrite /fill /=. intros. simplify_eq/=; eauto.
+    - intros σ σ' ? [? ?]. inversion 1; simplify_eq; inversion 1; simplify_eq. done.
     - intros [e k]. rewrite /fill /empty_ectx app_nil_r //.
     - intros K1 K2 [e k]. rewrite /fill /comp_ectx app_assoc //.
     - intros K [e1 k1] [e2 k2]. cbn. inversion 1; subst.
@@ -178,7 +179,6 @@ Section Linking.
       assert (k ++ K ≠ []). { intros [? ?]%app_eq_nil. done. }
       cbn in Hsome. destruct (k ++ K) eqn:?.
       2: destruct e; by inversion Hsome. by destruct e.
-    - intros ? [? ?]. eexists (LinkSt _ _ _). constructor.
     - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ X.
       rewrite /fill. inversion 1; subst.
       destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.

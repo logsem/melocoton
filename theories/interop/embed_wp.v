@@ -28,8 +28,10 @@ Program Instance embed_mlangGS :
   at_boundary := True%I;
 }.
 Next Obligation. simpl. intros *. inversion 1. iIntros "?". by iFrame. Qed.
-Next Obligation. simpl. intros *. inversion 1; subst. iIntros "[? _]". by iFrame. Qed.
-Next Obligation. simpl. iIntros (σ) "[_ Hσ]". iPureIntro. exists σ, tt. constructor. Qed.
+Next Obligation.
+  simpl. intros ? []. iIntros "? _". iModIntro. iExists _. by iFrame.
+Qed.
+Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constructor. Qed.
 
 Definition lang_prog_environ p T : language.weakestpre.prog_environ :=
    language.weakestpre.Build_prog_environ hlc _ _ _ _ p T.

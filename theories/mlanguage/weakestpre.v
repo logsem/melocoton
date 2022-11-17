@@ -27,13 +27,13 @@ MlangG {
     split_state σ pubσ privσ →
     state_interp σ ==∗ public_state_interp pubσ ∗ private_state_interp privσ;
 
-  state_interp_join σ pubσ privσ :
-    split_state σ pubσ privσ →
-    public_state_interp pubσ ∗ private_state_interp privσ ==∗ state_interp σ;
+  state_interp_join pubσ privσ :
+    public_state_interp pubσ -∗ private_state_interp privσ ==∗
+    ∃ σ, state_interp σ ∗ ⌜split_state σ pubσ privσ⌝;
 
   at_boundary : iProp Σ;
   splittable_at_boundary σ :
-    at_boundary ∗ state_interp σ -∗ ⌜∃ pubσ privσ, split_state σ pubσ privσ⌝;
+    at_boundary -∗ state_interp σ -∗ ⌜∃ pubσ privσ, split_state σ pubσ privσ⌝;
 }.
 
 Arguments at_boundary {_ _ _ _} Λ {_ _}.

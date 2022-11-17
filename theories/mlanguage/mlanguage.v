@@ -38,6 +38,12 @@ Section mlanguage_mixin.
       fill K e = fill K' (of_class (ExprCall f vs)) →
       (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class (ExprVal v) = e);
 
+    (** properties of split_state *)
+    mixin_split_state_inj σ σ' pubσ privσ :
+      split_state σ pubσ privσ →
+      split_state σ' pubσ privσ →
+      σ = σ';
+
     (** Evaluation contexts *)
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
@@ -46,9 +52,6 @@ Section mlanguage_mixin.
        redex is the topmost one). *)
     mixin_fill_class K e :
       is_Some (to_class (fill K e)) → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);
-
-    mixin_merge_split_state pubσ privσ :
-      ∃ σ, split_state σ pubσ privσ;
 
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is not
@@ -227,8 +230,10 @@ Section mlanguage.
     intros ? ?. eapply call_head_step; intros; simplify_eq.
     do 2 eexists; repeat split; eauto.
   Qed.
-  Lemma merge_split_state pubσ privσ :
-    ∃ (σ: state Λ), split_state σ pubσ privσ.
+  Lemma split_state_inj σ σ' pubσ privσ :
+    Λ.(split_state) σ pubσ privσ →
+    Λ.(split_state) σ' pubσ privσ →
+    σ = σ'.
   Proof. apply mlanguage_mixin. Qed.
 
   Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
@@ -655,3 +660,10 @@ End mlanguage.
 (* discrete OFE instance for expr *)
 Definition exprO {val public_state} {Λ : mlanguage val public_state} := leibnizO (expr Λ).
 Global Instance expr_equiv {val public_state} {Λ : mlanguage val public_state} : Equiv (expr Λ). apply exprO. Defined.
+
+Ltac simplify_split_state :=
+  repeat match goal with
+  | H1 : split_state _ ?x ?y,
+    H2 : split_state _ ?x ?y |- _ =>
+      pose proof (split_state_inj _ _ x y H2 H1) as ->
+  end.

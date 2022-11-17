@@ -229,11 +229,11 @@ Proof using.
     + intros (fn & e & ? & Hfn & ?). cbn. unfold apply_func in Hfn.
       simplify_eq. econstructor; eauto.
   - intros ? [] ? ? ?. rewrite /fill /=. eauto.
+  - intros ? ? ? ?. inversion 1; inversion 1; simplify_eq. done.
   - eauto.
   - eauto.
   - intros [] ? ?. by unfold fill.
   - intros [] ? ?. eauto.
-  - intros ? ?. eexists (MLState _ _). constructor.
   - intros p [] [] ? ? ? ?. naive_solver.
   - intros ? []. naive_solver.
 Qed.
