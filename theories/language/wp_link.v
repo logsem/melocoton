@@ -199,18 +199,6 @@ Definition spec_union (p1 p2 : program_specification) : program_specification :=
 Definition spec_inters (p1 p2 : program_specification) : program_specification := 
   λ s vv Φ, (p1 s vv Φ ∧ p2 s vv Φ)%I.
 
-Lemma reducible_no_threads_mono p1 p2 e σ : p1 ⊆ p2 -> reducible_no_threads p1 e σ -> reducible_no_threads p2 e σ.
-Proof.
-  intros Hsub (e2 & σ2 & (K & e1' & e2' & -> & -> & H)%prim_step_inv).
-  exists (fill K e2'), σ2. econstructor; first done. 1:done.
-  destruct (to_class e1') as [[]|] eqn:Heq.
-  - exfalso. eapply val_head_step. apply of_to_class in Heq. erewrite Heq. done.
-  - apply of_to_class in Heq. subst e1'. apply call_head_step in H.
-    destruct H as (Fn & HFn & Happly & -> & _).
-    apply call_head_step. exists Fn. repeat split; try done.
-    eapply lookup_weaken; done. 
-  - eapply head_step_no_call; done. 
-Qed.
 Notation prog := (gmap string (Λ.(func))).
 
 
@@ -287,7 +275,7 @@ Proof.
   exists p. split; eauto. by apply elem_of_list_In.
 Qed.
 
-Record can_link_all 
+Class can_link_all 
     (Taxiom Tres : program_specification) (pres : prog)
     (A : list (prod program_specification prog)) := {
   all_disjoint : pairwise (map snd A) (fun p1 p2 => dom p1 ## dom p2);

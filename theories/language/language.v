@@ -474,6 +474,20 @@ Section language.
       rewrite ?fill_empty; eauto.
     by simplify_eq; rewrite fill_empty.
   Qed.
+
+
+  Lemma reducible_no_threads_mono p1 p2 e σ : p1 ⊆ p2 -> reducible_no_threads p1 e σ -> reducible_no_threads p2 e σ.
+  Proof.
+    intros Hsub (e2 & σ2 & (K & e1' & e2' & -> & -> & H)%prim_step_inv).
+    exists (fill K e2'), σ2. econstructor; first done. 1:done.
+    destruct (to_class e1') as [[]|] eqn:Heq.
+    - exfalso. eapply val_head_step. apply of_to_class in Heq. erewrite Heq. done.
+    - apply of_to_class in Heq. subst e1'. apply call_head_step in H.
+      destruct H as (Fn & HFn & Happly & -> & _).
+      apply call_head_step. exists Fn. repeat split; try done.
+      eapply lookup_weaken; done. 
+    - eapply head_step_no_call; done. 
+  Qed.
 (*
   Lemma head_reducible_mono p1 p2 e1 σ1 :
       head_reducible p1 e1 σ1 → p1 ⊆ p2 → to_class e1 = None → head_reducible p2 e1 σ1.
