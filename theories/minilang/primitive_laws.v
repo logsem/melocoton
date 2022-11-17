@@ -89,6 +89,12 @@ Definition acc_frag (n:nat) : iProp Σ :=
   own heapGS_acc_name (◯E n).
 Definition available_frag (avail:coPset) : iProp Σ :=
   own heapGS_available_name (◯E avail).
+Definition loc_frag ℓ : iProp Σ :=
+  locs_atleast {[ ℓ ]}.
+
+Global Instance loc_frag_persistent ℓ : Persistent (loc_frag ℓ).
+Proof. apply _. Qed.
+
 End ghost_state_defs.
 
 Notation "l ↦ v" := (mapsto (L:=loc) (V:=nat) l (DfracOwn 1) v)
@@ -97,6 +103,8 @@ Notation "'ACC' n" := (acc_frag n)
   (at level 20, format "ACC  n") : bi_scope.
 Notation "'AVAILABLE' a" := (available_frag a)
   (at level 20, format "AVAILABLE  a") : bi_scope.
+Notation "'REGISTERED' ℓ" := (loc_frag ℓ)
+  (at level 20, format "REGISTERED  ℓ") : bi_scope.
 
 Section lifting.
 Context `{!minilangGS hlc Σ}.
@@ -118,6 +126,21 @@ Proof.
   iMod (excl_auth_upd with "Ha Haa") as "[? ?]".
   iModIntro. iExists _, _. iSplitR; first done. iFrame.
   simpl. iApply "HΦ". iFrame.
+Qed.
+
+Lemma wp_read_registered p ℓ EE m :
+  {{{ REGISTERED ℓ ∗ ACC m }}}
+    E [Read ℓ] @ p; EE
+  {{{ RET (); ∃ n, ACC n }}}.
+Proof.
+  iIntros (Φ) "(Hℓ & Ha) HΦ". iApply wp_lift_atomic_head_step; first done.
+  iIntros ([σ acc]) "(Hσ & Haa & ? & Hlocsa) !>".
+  iDestruct (locs_atleast_sub with "Hlocsa Hℓ") as %[? ?]%singleton_subseteq_l%elem_of_dom.
+  iSplit. { iPureIntro. exists (λ _, True). by econstructor. }
+  iIntros "!>" (X Hstep). inversion Hstep; simplify_eq.
+  iMod (excl_auth_upd with "Ha Haa") as "[? ?]".
+  iModIntro. iExists _, _. iSplitR; first done. iFrame.
+  simpl. iApply "HΦ". iExists _. iFrame.
 Qed.
 
 Lemma wp_write p ℓ EE n m :
@@ -142,7 +165,7 @@ Lemma wp_register p ℓ EE av :
   (Pos.of_nat ℓ) ∈ av →
   {{{ AVAILABLE av }}}
     E [Register ℓ] @ p; EE
-  {{{ RET (); ℓ ↦ 0 ∗ AVAILABLE (av ∖ {[Pos.of_nat ℓ]}) }}}.
+  {{{ RET (); ℓ ↦ 0 ∗ REGISTERED ℓ ∗ AVAILABLE (av ∖ {[Pos.of_nat ℓ]}) }}}.
 Proof.
   iIntros (Hℓ Φ) "Hav HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros ([? ?]) "(Hσ & Haa & Hava & Hlocsa) !>".
@@ -156,6 +179,8 @@ Proof.
   iMod (own_update with "Hlocsa") as "[Hlocsa Hlocsf]".
   { eapply (monotone_update _ ({[ ℓ ]} ∪ dom g) ({[ ℓ ]} ∪ dom g)); try done.
     apply union_subseteq_r. }
+  iMod (own_update with "Hlocsa") as "[Hlocsa Hlocsf1]".
+  { eapply (monotone_update _ _ {[ ℓ ]}). 1: reflexivity. set_solver. }
   iModIntro. iExists _, _. iSplitR; first done. iFrame.
   rewrite dom_insert_L. iFrame. iSplitL "Hava".
   { rewrite /available_auth. iExists (av ∖ {[Pos.of_nat ℓ]}). iFrame.
