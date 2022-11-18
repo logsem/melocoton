@@ -4,7 +4,7 @@ From iris.prelude Require Import options.
 From melocoton Require Export multirelations commons.
 
 Section mlanguage_mixin.
-  Context {expr val func ectx public_state private_state state : Type}.
+  Context {expr val func ectx state : Type}.
   Notation mixin_expr_class := (@mixin_expr_class val).
 
   Context (of_class : mixin_expr_class → expr).
@@ -13,7 +13,6 @@ Section mlanguage_mixin.
   Context (empty_ectx : ectx).
   Context (comp_ectx : ectx → ectx → ectx).
   Context (fill : ectx → expr → expr).
-  Context (split_state : state → public_state → private_state → Prop).
 
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
@@ -37,12 +36,6 @@ Section mlanguage_mixin.
     mixin_call_in_ctx K K' e f vs :
       fill K e = fill K' (of_class (ExprCall f vs)) →
       (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class (ExprVal v) = e);
-
-    (** properties of split_state *)
-    mixin_split_state_inj σ σ' pubσ privσ :
-      split_state σ pubσ privσ →
-      split_state σ' pubσ privσ →
-      σ = σ';
 
     (** Evaluation contexts *)
     mixin_fill_empty e : fill empty_ectx e = e;
@@ -80,64 +73,61 @@ End mlanguage_mixin.
 Arguments mixin_expr_class : clear implicits.
 Global Notation mixin_prog func := (gmap string func).
 
-Structure mlanguage {val : Type} {public_state : Type} := Mlanguage {
+Structure mlanguage {val : Type} := Mlanguage {
   expr : Type;
   func : Type;
   ectx : Type;
   state : Type;
-  private_state : Type;
 
   of_class : mixin_expr_class val → expr;
   to_class : expr → option (mixin_expr_class val);
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
-  split_state : state → public_state → private_state → Prop;
   apply_func : func → list val → option expr;
   head_step : mixin_prog func → umrel (expr * state);
 
   mlanguage_mixin :
     MlanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      split_state apply_func head_step
+      apply_func head_step
 }.
 
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments mlanguage : clear implicits.
-Arguments Mlanguage {_ _ expr _ _ _ _ _ _ _ _ _ _ apply_func head_step}.
-Arguments of_class {_ _} _ _.
-Arguments to_class {_ _ _} _.
-Arguments empty_ectx {_ _ _}.
-Arguments comp_ectx {_ _ _} _ _.
-Arguments fill {_ _ _} _ _.
-Arguments split_state {_ _ _} _ _.
-Arguments apply_func {_ _ _}.
-Arguments head_step {_ _ _} _.
+Arguments Mlanguage {_ expr _ _ _ _ _ _ _ _ apply_func head_step}.
+Arguments of_class {_} _ _.
+Arguments to_class {_ _} _.
+Arguments empty_ectx {_ _}.
+Arguments comp_ectx {_ _} _ _.
+Arguments fill {_ _} _ _.
+Arguments apply_func {_ _}.
+Arguments head_step {_ _} _.
 
-Definition expr_class {val state} (Λ : mlanguage val state) := mixin_expr_class val.
+Definition expr_class {val} (Λ : mlanguage val) := mixin_expr_class val.
 (* A [Definition] throws off Coq's "old" ("tactic") unification engine *)
 Notation prog Λ := (mixin_prog Λ.(func)).
 
-Definition to_val {val state} {Λ : mlanguage val state} (e : expr Λ) :=
+Definition to_val {val} {Λ : mlanguage val} (e : expr Λ) :=
   match to_class e with
   | Some (ExprVal v) => Some v
   | _ => None
   end.
-Definition of_val {val state} (Λ : mlanguage val state) (v : val) := of_class Λ (ExprVal v).
+Definition of_val {val} (Λ : mlanguage val) (v : val) := of_class Λ (ExprVal v).
 
-Definition to_call {val state} {Λ : mlanguage val state} (e : expr Λ) :=
+Definition to_call {val} {Λ : mlanguage val} (e : expr Λ) :=
   match to_class e with
   | Some (ExprCall f v) => Some (f, v)
   | _ => None
   end.
-Definition of_call {val state} (Λ : mlanguage val state) f (v : list val) := of_class Λ (ExprCall f v).
+Definition of_call {val} (Λ : mlanguage val) f (v : list val) := of_class Λ (ExprCall f v).
 
 (* From an ectx_language, we can construct a mlanguage. *)
 Section mlanguage.
   Context {val : Type}.
   Context {public_state : Type}.
-  Context {Λ : mlanguage val public_state}.
+  Context {Λ : mlanguage val}.
   Implicit Types v : val.
   Implicit Types vs : list val.
   Implicit Types e : expr Λ.
@@ -230,11 +220,6 @@ Section mlanguage.
     intros ? ?. eapply call_head_step; intros; simplify_eq.
     do 2 eexists; repeat split; eauto.
   Qed.
-  Lemma split_state_inj σ σ' pubσ privσ :
-    Λ.(split_state) σ pubσ privσ →
-    Λ.(split_state) σ' pubσ privσ →
-    σ = σ'.
-  Proof. apply mlanguage_mixin. Qed.
 
   Definition head_reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ X, head_step p (e, σ) X.
@@ -658,12 +643,5 @@ Section mlanguage.
 End mlanguage.
 
 (* discrete OFE instance for expr *)
-Definition exprO {val public_state} {Λ : mlanguage val public_state} := leibnizO (expr Λ).
-Global Instance expr_equiv {val public_state} {Λ : mlanguage val public_state} : Equiv (expr Λ). apply exprO. Defined.
-
-Ltac simplify_split_state :=
-  repeat match goal with
-  | H1 : split_state _ ?x ?y,
-    H2 : split_state _ ?x ?y |- _ =>
-      pose proof (split_state_inj _ _ x y H2 H1) as ->
-  end.
+Definition exprO {val} {Λ : mlanguage val} := leibnizO (expr Λ).
+Global Instance expr_equiv {val} {Λ : mlanguage val} : Equiv (expr Λ). apply exprO. Defined.

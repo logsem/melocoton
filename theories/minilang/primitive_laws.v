@@ -7,8 +7,10 @@ From iris.algebra.lib Require Import excl_auth gmap_view.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre lifting.
 From melocoton.minilang Require Import lang.
+From melocoton.interop Require Import linking_wp.
 From melocoton Require Import commons monotone.
 From iris.prelude Require Import options.
+Import Mini.
 
 Canonical Structure coPsetO := leibnizO coPset.
 Canonical Structure gsetlocO := leibnizO (gset loc).
@@ -55,16 +57,19 @@ Definition minilang_pub_interp (st : gmap loc nat * nat) : iProp Σ :=
   available_auth (dom σ) ∗
   locs_auth (dom σ).
 
-Global Program Instance minilangGS_mlangGS :
-  mlangGS hlc unit (gmap loc nat * nat) Σ minilang minilang_pub_interp := {
+Global Program Instance minilangGS_mlangGS : mlangGS hlc unit Σ minilang := {
   state_interp '(σ, acc) :=
     (gen_heap_interp σ ∗
      own heapGS_acc_name (●E acc) ∗
      available_auth (dom σ) ∗
      locs_auth (dom σ))%I;
+  at_boundary := True%I;
+}.
+
+Global Program Instance minilangGS_linkableGS :
+  linkableGS minilang minilang_pub_interp := {
   private_state_interp locs :=
     locs_atleast locs;
-  at_boundary := True%I;
 }.
 Next Obligation.
   simpl. intros [σ acc] pubσ privσ Hsplit.

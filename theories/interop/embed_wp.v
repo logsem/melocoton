@@ -4,8 +4,8 @@ From melocoton.interop Require Import lang_to_mlang.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
+From melocoton.interop Require Import linking_wp.
 From iris.proofmode Require Import proofmode.
-
 
 Section Embed_logic.
 Context {hlc : has_lc}.
@@ -18,14 +18,17 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Program Instance embed_mlangGS :
-  mlanguage.weakestpre.mlangGS
-    hlc val Λ.(language.state) Σ (embed_lang Λ)
-    (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I
+Global Program Instance embed_mlangGS :
+  mlanguage.weakestpre.mlangGS hlc val Σ (embed_lang Λ)
 := {
   state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I;
-  private_state_interp := (λ _, True)%I;
   at_boundary := True%I;
+}.
+
+Global Program Instance embed_linkableGS :
+  linkableGS (embed_lang Λ) (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I
+:= {
+  private_state_interp := (λ _, True)%I;
 }.
 Next Obligation. simpl. intros *. inversion 1. iIntros "?". by iFrame. Qed.
 Next Obligation.
@@ -35,11 +38,11 @@ Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constru
 
 Definition lang_prog_environ p T : language.weakestpre.prog_environ :=
    language.weakestpre.Build_prog_environ hlc _ _ _ _ p T.
-Definition mlang_prog_environ p T : mlanguage.weakestpre.prog_environ :=
-   mlanguage.weakestpre.Build_prog_environ hlc _ _ _ _ _ _ _ p T.
+Definition mlang_prog_environ p T : mlanguage.weakestpre.prog_environ (embed_lang Λ) :=
+   mlanguage.weakestpre.Build_prog_environ hlc _ _ _ _ _ p T.
 
 Lemma wp_embed e p T E Φ :
-  ⊢ WP e @ lang_prog_environ p T ; E {{v, Φ v}} -∗ WP e @ mlang_prog_environ p T ; E {{v, Φ v}}.
+  ⊢ WP e @ lang_prog_environ p T ; E {{ Φ }} -∗ WP e @ mlang_prog_environ p T ; E {{ Φ }}.
 Proof using.
   iStartProof. iLöb as "IH" forall (e).
   rewrite {1} @language.weakestpre.wp_unfold /language.weakestpre.wp_pre.

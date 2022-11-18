@@ -3,8 +3,9 @@ From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
 From melocoton.mlanguage Require Import mlanguage.
+From melocoton.interop Require Import linking.
 
-Module Mini_lang.
+Module Mini.
 
 Definition loc := nat.
 
@@ -86,10 +87,10 @@ Proof.
 Qed.
 
 Lemma mlang_mixin :
-  @MlanguageMixin expr unit expr expr public_state private_state state
+  @MlanguageMixin expr unit expr expr state
                   of_class to_class
                   (E[]) (λ K K', app_expr K' K) (λ K e, app_expr e K)
-                  split_state (λ e _, Some e) head_step.
+                  (λ e _, Some e) head_step.
 Proof.
   econstructor.
   - intros [[]|?]; simpl; try done. rewrite repeat_tt_eq //.
@@ -106,7 +107,6 @@ Proof.
   - intros [K] [K'] [ii] f vs. simpl. intros HH. simplify_eq.
     destruct ii; first (right; done); left. simpl in HH.
     inversion HH; subst. eexists (E _). done.
-  - intros ? ? [? ?] ?. inversion 1; inversion 1; by simplify_eq.
   - intros [ii]. rewrite /= app_nil_r//.
   - intros [] [] []. simpl. rewrite app_assoc//.
   - intros [] [] []. simpl. intro HH. simplify_eq. apply app_inv_tail in HH. by subst.
@@ -127,7 +127,14 @@ Proof.
            symmetry in H; by apply middle_not_eq_nil in H end.
 Qed.
 
-End Mini_lang.
-Export Mini_lang.
+End Mini.
 
-Canonical Structure minilang : mlanguage _ _ := Mlanguage Mini_lang.mlang_mixin.
+Canonical Structure minilang : mlanguage _ := Mlanguage Mini.mlang_mixin.
+
+Global Program Instance minilang_linkable : linkable minilang Mini.public_state := {
+  private_state := Mini.private_state;
+  split_state := Mini.split_state;
+}.
+Next Obligation.
+  intros *. inversion 1; inversion 1; by simplify_eq.
+Qed.
