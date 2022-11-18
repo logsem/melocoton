@@ -210,6 +210,11 @@ Section Linking.
 End Linking.
 End Link.
 
+Arguments Link.ExprV {_ _ _} _.
+Arguments Link.ExprCall {_ _ _} _ _.
+Arguments Link.RunFunction {_ _ _} _ _.
+Arguments Link.Expr1 {_ _ _} _.
+Arguments Link.Expr2 {_ _ _} _.
 Arguments Link.St {_ _ _ _ _ _} _ _ _.
 Arguments Link.St1 {_ _ _ _ _ _} _ _.
 Arguments Link.St2 {_ _ _ _ _ _} _ _.

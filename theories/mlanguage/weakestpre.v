@@ -301,6 +301,37 @@ Proof. iIntros "[? H]". iApply (wp_strong_mono with "H"); auto with iFrame. Qed.
 Lemma wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_strong_mono with "H"); auto with iFrame. Qed.
 
+Lemma wp_extern p fn vs E Φ :
+  prog p !! fn = None →
+  T p fn vs Φ -∗
+  at_boundary Λ -∗
+  WP of_class Λ (ExprCall fn vs) @ p ; E {{ λ v, Φ v ∗ at_boundary Λ }}.
+Proof.
+  iIntros (Hfnext) "H Hb". rewrite wp_unfold /wp_pre /=.
+  iIntros (σ) "Hσ". iModIntro. iRight. iLeft.
+  iExists _, _, empty_ectx. iSplitR; first by rewrite fill_empty//.
+  iSplitR; first done. iFrame "Hb Hσ". iExists Φ. iFrame "H".
+  iIntros "!>" (?) "[? ?]". rewrite fill_empty. iApply wp_value'.
+  iFrame.
+Qed.
+
+Lemma wp_internal_call p fn vs func body E Φ :
+  prog p !! fn = Some func →
+  apply_func func vs = Some body →
+  (▷ WP body @ p ; E {{ Φ }}) -∗
+  WP of_class Λ (ExprCall fn vs) @ p ; E {{ Φ }}.
+Proof.
+  iIntros (Hfn Hfunc) "H". iApply wp_unfold. rewrite /wp_pre /=.
+  iIntros (σ) "Hσ !>". iRight. iRight.
+  iSplitR.
+  { iPureIntro. apply head_prim_reducible. exists (λ _, True).
+    apply call_head_step. naive_solver. }
+  iIntros (X Hstep) "!>!>!>". apply head_reducible_prim_step in Hstep.
+  2: { exists (λ _, True). apply call_head_step; naive_solver. }
+  apply call_head_step in Hstep as (? & ? & ? & ?%eq_sym & ?); simplify_eq/=.
+  iExists _, _. by iFrame.
+Qed.
+
 (*
 Lemma wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
@@ -418,4 +449,5 @@ Section proofmode_classes.
     iApply (wp_wand with "(Hinner Hα)").
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.*)
+
 End proofmode_classes.
