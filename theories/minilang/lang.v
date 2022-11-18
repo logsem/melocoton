@@ -129,9 +129,9 @@ Qed.
 
 End Mini.
 
-Canonical Structure minilang : mlanguage _ := Mlanguage Mini.mlang_mixin.
+Canonical Structure mini_lang : mlanguage _ := Mlanguage Mini.mlang_mixin.
 
-Global Program Instance minilang_linkable : linkable minilang Mini.public_state := {
+Global Program Instance mini_linkable : linkable mini_lang Mini.public_state := {
   private_state := Mini.private_state;
   split_state := Mini.split_state;
 }.

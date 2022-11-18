@@ -57,7 +57,7 @@ Definition minilang_pub_interp (st : gmap loc nat * nat) : iProp Σ :=
   available_auth (dom σ) ∗
   locs_auth (dom σ).
 
-Global Program Instance minilangGS_mlangGS : mlangGS hlc unit Σ minilang := {
+Global Program Instance minilangGS_mlangGS : mlangGS hlc unit Σ mini_lang := {
   state_interp '(σ, acc) :=
     (gen_heap_interp σ ∗
      own heapGS_acc_name (●E acc) ∗
@@ -67,7 +67,7 @@ Global Program Instance minilangGS_mlangGS : mlangGS hlc unit Σ minilang := {
 }.
 
 Global Program Instance minilangGS_linkableGS :
-  linkableGS minilang minilang_pub_interp := {
+  linkableGS mini_lang minilang_pub_interp := {
   private_state_interp locs :=
     locs_atleast locs;
 }.
