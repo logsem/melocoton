@@ -208,20 +208,54 @@ Proof.
   simpl. by iApply "HΦ".
 Qed.
 
-Lemma wp_call p fn n instrs EE Φ :
+Lemma wp_internal_call p fn n instrs EE Φ :
   prog p !! fn = Some instrs →
   WP instrs @ p; EE {{ Φ }} -∗
-  WP (E [Call fn n]) @ p; EE {{ Φ }}.
+  WP E [Call fn n] @ p; EE {{ Φ }}.
 Proof.
-  iIntros (Hfn) "Hwp". iApply wp_lift_step_fupd; first done.
+  iIntros (Hfn) "Hwp".
+  rewrite (_: E [Call fn n] = mlanguage.of_class mini_lang (ExprCall fn (repeat () n))).
+  2: { rewrite /= repeat_length//. }
+  by iApply wp_internal_call.
+Qed.
+
+Lemma wp_extern p fn n EE Φ :
+  prog p !! fn = None →
+  T p fn (repeat () n) Φ -∗
+  WP E [Call fn n] @ p; EE {{ Φ }}.
+Proof.
+  iIntros (Hfn) "HT".
+  rewrite (_: E [Call fn n] = mlanguage.of_class mini_lang (ExprCall fn (repeat () n))).
+  2: { rewrite /= repeat_length//. }
+  iApply (wp_wand with "[HT]").
+  1: by iApply (wp_extern with "HT").
+  by iIntros ([]) "[? _]".
+Qed.
+
+Lemma wp_assert p n m EE :
+  n = m →
+  {{{ ACC n }}}
+    E [Assert m] @ p; EE
+  {{{ RET (); ACC n }}}.
+Proof.
+  iIntros (-> Φ) "Ha HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros ([? ?]) "(Hσ & Haa & Hava & Hlocsa) !>".
-  iSplit. { iPureIntro. apply head_prim_reducible.
-            exists (λ _, True). by econstructor. }
-  iIntros (X Hstep) "!> !> !> !>".
-  apply head_reducible_prim_step in Hstep.
-  2: { exists (λ _, True). by econstructor. }
-  inversion Hstep; simplify_eq.
-  iExists _, _. iSplitR; first done. iFrame. simplify_eq/=. done.
+  iDestruct (excl_auth_eq with "Ha Haa") as %<-.
+  iSplit. { iPureIntro. exists (λ _, True). by econstructor. }
+  iIntros "!>" (X Hstep). inversion Hstep; simplify_eq.
+  iModIntro. iExists _, _. iSplitR; first done. iFrame.
+  simpl. by iApply "HΦ".
+Qed.
+
+Lemma wp_bind_head p i ii EE Φ :
+  WP E [i] @ p; EE {{ λ _, WP E ii @ p; EE {{ Φ }} }} -∗
+  WP (E (i :: ii)) @ p; EE {{ Φ }}.
+Proof.
+  iIntros "H".
+  rewrite (_: E (i :: ii) = fill (E ii) (E [i])) //.
+  by iApply wp_bind.
 Qed.
 
 End lifting.
+
+Ltac wp_bind := iApply wp_bind_head.

@@ -14,7 +14,8 @@ Inductive instr :=
   | Write (l : loc)
   | Register (l : loc)
   | Const (n : nat)
-  | Call (fn : string) (n : nat (*ignored*)).
+  | Call (fn : string) (n : nat (*ignored*))
+  | Assert (n : nat).
 
 Inductive expr := E (ii : list instr).
 
@@ -65,7 +66,10 @@ Inductive head_step_mrel (p: prog) : expr * state → (expr * state → Prop) �
   | CallS fn n e' st X :
     p !! fn = Some e' →
     X (e', st) →
-    head_step_mrel p (E [Call fn n], st) X.
+    head_step_mrel p (E [Call fn n], st) X
+  | AssertS n store X :
+    X (E [], (store, n)) →
+    head_step_mrel p (E [Assert n], (store, n)) X.
 
 Program Definition head_step (p: prog) : umrel (expr * state) :=
   {| mrel := head_step_mrel p |}.
