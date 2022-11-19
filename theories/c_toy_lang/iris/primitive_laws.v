@@ -60,7 +60,7 @@ Section steps.
 
 End steps.
 
-Global Program Instance heapGS_irisGS {p:program} `{heapGS_gen hlc Σ} : irisGS_gen hlc (C_lang p) Σ := {
+Global Program Instance heapGS_irisGS {p:program} `{heapGS_gen hlc Σ} : irisGS_gen hlc (C_iris_lang p) Σ := {
   iris_invGS := heapGS_invGS;
   state_interp σ step_cnt κs _ :=
     (gen_heap_interp σ ∗ steps_auth step_cnt)%I;

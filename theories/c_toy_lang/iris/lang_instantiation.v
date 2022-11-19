@@ -29,8 +29,8 @@ Qed.
 (** Language *)
 Canonical Structure C_ectxi_lang p := EctxiLanguage (C_lang_mixin p).
 Canonical Structure C_ectx_lang p := EctxLanguageOfEctxi (C_ectxi_lang p).
-Canonical Structure C_lang p := LanguageOfEctx (C_ectx_lang p).
-Coercion C_lang : C_lang.program >-> language.
+Canonical Structure C_iris_lang p := LanguageOfEctx (C_ectx_lang p).
+Coercion C_iris_lang : C_lang.program >-> language.
 
 
 (** The following lemma is not provable using the axioms of [ectxi_language].

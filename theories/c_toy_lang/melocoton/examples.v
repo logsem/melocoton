@@ -204,7 +204,7 @@ Lemma example_can_link : can_link FibLeftSpec FibRightSpec StoreItSpec (spec_uni
 Proof.
   assert (
     ((<["fib_right":=fib_func "fib_left"]> (<["fib_left":=fib_func "fib_right"]> ∅)))
-  = (union_with (λ _ _ : func C_lang_melocoton, None) (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left"))) as Heq.
+  = (union_with (λ _ _ : func C_lang, None) (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left"))) as Heq.
   { apply map_eq_iff. intros i. 
     destruct (decide (i = "fib_right")) as [-> | Hno].
     1: done.

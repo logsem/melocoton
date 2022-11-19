@@ -60,7 +60,7 @@ Section steps.
 End steps.
 
 Global Program Instance heapGS_melocotonGS `{heapGS_gen hlc Σ} 
-      : melocotonGS_gen hlc val (C_lang_melocoton) Σ := {
+      : melocotonGS_gen hlc val C_lang Σ := {
   iris_invGS := heapGS_invGS;
   state_interp σ step_cnt :=
     (gen_heap_interp σ ∗ steps_auth step_cnt)%I

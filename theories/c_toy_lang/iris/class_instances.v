@@ -3,9 +3,9 @@ From melocoton.c_toy_lang Require Export lang.
 From melocoton.c_toy_lang Require Import tactics iris.tactics notation.
 From iris.prelude Require Import options.
 
-Global Instance into_val_val (p:program) v : @IntoVal (C_lang p) (Val v) v.
+Global Instance into_val_val (p:program) v : @IntoVal (C_iris_lang p) (Val v) v.
 Proof. done. Qed.
-Global Instance as_val_val p v : @AsVal (C_lang p) (Val v).
+Global Instance as_val_val p v : @AsVal (C_iris_lang p) (Val v).
 Proof. by eexists. Qed.
 
 (** * Instances of the [Atomic] class *)

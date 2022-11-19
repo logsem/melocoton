@@ -183,4 +183,4 @@ Proof. split.
     1: left; now rewrite Hr.
 Qed.
 
-Canonical Structure C_lang_melocoton := Language melocoton_lang_mixin_C.
+Canonical Structure C_lang := Language melocoton_lang_mixin_C.

@@ -136,7 +136,7 @@ Proof. cbn.
   - cbn. right. eexists. by erewrite app_nil_r.
 Qed.
 
-Lemma melocoton_lang_mixin_C :
+Lemma melocoton_lang_mixin_ML :
   @LanguageMixin expr val ml_function (list ectx_item) state
                  of_class to_class
                  nil (fun a b => b++a) fill
@@ -177,4 +177,4 @@ Proof. split.
     1: left; now rewrite Hr.
 Qed.
 
-Canonical Structure C_lang_melocoton := Language melocoton_lang_mixin_C.
+Canonical Structure ML_lang := Language melocoton_lang_mixin_ML.
