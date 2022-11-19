@@ -16,7 +16,7 @@ Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
-Implicit Types pe : prog_environ.
+Implicit Types pe : prog_environ Λ.
 
 Lemma wp_link pe pe_extended F k E e Φ :
   ⌜ k ∉ dom (prog pe) ⌝
@@ -190,7 +190,7 @@ Definition program_fulfills
   ∀ s vv Φ, Tshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ (mkPe p Tin); ⊤ {{v, Φ v}}.
 
 Definition env_fulfills
-  (p:prog_environ) (Tshould : program_specification) := program_fulfills (p.(T)) (p.(prog)) Tshould.
+  (p:prog_environ Λ) (Tshould : program_specification) := program_fulfills (p.(T)) (p.(prog)) Tshould.
 
 Notation "Tin '|-' p '::' Tshould" := (program_fulfills Tin p Tshould) (at level 25, p, Tshould at level 26) : bi_scope.
 

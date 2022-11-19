@@ -111,7 +111,7 @@ Implicit Types efs : list expr.
 Implicit Types σ : state.
 Implicit Types v : val.
 Implicit Types l : loc.
-Implicit Types s : prog_environ.
+Implicit Types s : prog_environ ML_lang.
 
 Lemma wp_lb_init s E e Φ :
   TCEq (to_val e) None →

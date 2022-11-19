@@ -47,7 +47,7 @@ Definition StoreItSpec := λ s v Φ, match (s,v) with
 Definition FibLeftSpec := FibSpec "fib_left".
 Definition FibRightSpec := FibSpec "fib_right".
 
-Definition SimpleEnv : prog_environ := {|
+Definition SimpleEnv : prog_environ C_lang := {|
   weakestpre.prog := exampleProgram "fib_impl" "fib_impl"; 
   T := StoreItSpec;
 |}.
@@ -55,17 +55,17 @@ Definition SimpleEnv : prog_environ := {|
 Definition FinalSpec := spec_union (FibLeftSpec) FibRightSpec.
 
 
-Definition LeftEnv : prog_environ := {|
+Definition LeftEnv : prog_environ C_lang := {|
   weakestpre.prog := exampleProgram "fib_left" "fib_right"; (* function called fib_left calls fib_right *)
   T := spec_union FibRightSpec StoreItSpec;
 |}.
 
-Definition RightEnv : prog_environ := {|
+Definition RightEnv : prog_environ C_lang := {|
   weakestpre.prog := exampleProgram "fib_right" "fib_left"; (* function called fib_right calls fib_left *)
   T := spec_union FibLeftSpec StoreItSpec;
 |}.
 
-Definition FinalEnv : prog_environ := {|
+Definition FinalEnv : prog_environ C_lang := {|
   weakestpre.prog := insert "fib_right" (fib_func "fib_left") (insert "fib_left" (fib_func "fib_right") ∅);
   T := StoreItSpec;
 |}.

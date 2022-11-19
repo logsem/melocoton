@@ -8,7 +8,7 @@ From iris.prelude Require Import options.
 Section lifting.
 Context `{!melocotonGS_gen hlc val Λ Σ}.
 Implicit Types prog : mixin_prog (func Λ).
-Implicit Types s : prog_environ.
+Implicit Types s : prog_environ Λ.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.

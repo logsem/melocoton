@@ -73,9 +73,10 @@ Record prog_environ `{!melocotonGS_gen hlc val Λ Σ} := {
   prog : mixin_prog (func Λ);
   T : program_specification
 }.
+Global Arguments prog_environ {_ _} Λ {_ _}.
 
-Local Definition wp_def `{!melocotonGS_gen hlc val Λ Σ} : Wp (iProp Σ) (expr Λ) (val) (prog_environ) :=
-  λ p : (prog_environ), fixpoint (wp_pre (p.(prog)) (p.(T))).
+Local Definition wp_def `{!melocotonGS_gen hlc val Λ Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ) :=
+  λ p : (prog_environ Λ), fixpoint (wp_pre (p.(prog)) (p.(T))).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {hlc val Λ Σ _}.
@@ -116,7 +117,7 @@ Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
-Implicit Types pe : prog_environ.
+Implicit Types pe : prog_environ Λ.
 
 (* Weakest pre *)
 Lemma wp_unfold pe E e Φ :
@@ -449,7 +450,7 @@ Proof.
 Qed.
 
 
-Lemma wp_extern' (s:prog_environ) n vv E Φ :
+Lemma wp_extern' (s:prog_environ Λ) n vv E Φ :
      ⌜((weakestpre.prog s) : gmap string _) !! n = None⌝ 
   -∗ (|={E}=> (weakestpre.T s n vv Φ))
   -∗ WP of_class _ (ExprCall n vv) @ s ; E {{v, Φ v}}.
@@ -466,7 +467,7 @@ Proof.
 Qed.
 
 
-Lemma wp_extern K (s:prog_environ) n vv E Φ :
+Lemma wp_extern K (s:prog_environ Λ) n vv E Φ :
      ⌜((weakestpre.prog s) : gmap string _) !! n = None⌝ 
   -∗ (|={E}=> (weakestpre.T s n vv (λ v, WP fill K (of_class Λ (ExprVal v)) @ s; E {{ v', Φ v' }})))
   -∗ WP fill K (of_class _ (ExprCall n vv)) @ s ; E {{v, Φ v}}.
@@ -479,7 +480,7 @@ Proof.
 Qed.
 
 
-Lemma prove_wp_fun' (s:prog_environ) funn body' vv E Φ :
+Lemma prove_wp_fun' (s:prog_environ Λ) funn body' vv E Φ :
     ⌜apply_func funn vv = Some body'⌝
   -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
   -∗ WPFun funn with vv @ s ; E {{v, Φ v}}.
@@ -488,7 +489,7 @@ Proof.
   rewrite Happly. iApply "Hcont".
 Qed.
 
-Lemma wp_call'' (s:prog_environ) n funn body' vv E Φ :
+Lemma wp_call'' (s:prog_environ Λ) n funn body' vv E Φ :
      ⌜((weakestpre.prog s) : gmap string _) !! n = Some funn⌝ 
   -∗ ⌜apply_func funn vv = Some body'⌝
   -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
@@ -509,7 +510,7 @@ Proof.
   iModIntro. iFrame. assert (e' = body') as -> by congruence. done.
 Qed.
 
-Lemma wp_call' (pe:prog_environ) n F vv E Φ :
+Lemma wp_call' (pe:prog_environ Λ) n F vv E Φ :
   ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝
   -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
   -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
@@ -520,7 +521,7 @@ Proof.
   by iApply wp_call''.
 Qed.
 
-Lemma wp_call (pe:prog_environ) n vv E Φ :
+Lemma wp_call (pe:prog_environ Λ) n vv E Φ :
     (WPCall n with vv @ pe ; E {{v, Φ v}})
   -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
 Proof.
@@ -529,7 +530,7 @@ Proof.
   iApply wp_call'; done.
 Qed.
 
-Lemma wp_call_fun (pe:prog_environ) n vv E Φ :
+Lemma wp_call_fun (pe:prog_environ Λ) n vv E Φ :
   (WPCall n with vv @ pe ; E {{v, Φ v}}) ⊣⊢ (∃ F, WPFun F with vv @ pe ; E {{v, Φ v}} ∗ ⌜ ((weakestpre.prog pe) : gmap string _) !! n = Some F ⌝).
 Proof.
    unfold wp_for_call. iSplit.
@@ -537,7 +538,7 @@ Proof.
   - iIntros "(%F & H & ->)"; eauto.
 Qed.
 
-Lemma prove_wp_call' (pe:prog_environ) n F body' vv E Φ :
+Lemma prove_wp_call' (pe:prog_environ Λ) n F body' vv E Φ :
      ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
   -∗ ⌜apply_func F vv = Some body'⌝
   -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
@@ -547,7 +548,7 @@ Proof.
    iMod "H". iModIntro. iNext. iMod "H". iModIntro. done.
 Qed.
 
-Lemma prove_wp_call (pe:prog_environ) n F body' vv E Φ :
+Lemma prove_wp_call (pe:prog_environ Λ) n F body' vv E Φ :
      ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
   -∗ ⌜apply_func F vv = Some body'⌝
   -∗ (WP body' @ pe ; E {{v, Φ v}})
@@ -557,7 +558,7 @@ Proof.
    do 3 iModIntro. done.
 Qed.
 
-Lemma prove_wp_call_wp_fun (pe:prog_environ) n F vv E Φ :
+Lemma prove_wp_call_wp_fun (pe:prog_environ Λ) n F vv E Φ :
      ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
   -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
   -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
@@ -565,7 +566,7 @@ Proof.
    iIntros "%H1 H". iApply (wp_call_fun). iExists F. by iFrame.
 Qed.
 
-Lemma prove_wp_fun (pe:prog_environ) n F vv E Φ :
+Lemma prove_wp_fun (pe:prog_environ Λ) n F vv E Φ :
      ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝
   -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}) 
   -∗ (WPFun F with vv @ pe ; E {{v, Φ v}}).

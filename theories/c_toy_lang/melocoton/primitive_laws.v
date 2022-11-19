@@ -140,7 +140,7 @@ Notation "l ↦_ I v" := (inv_mapsto_own l v I%stdpp%type)
 
 Section lifting.
 Context `{!heapGS Σ}.
-Context {p:prog_environ}.
+Context {p:prog_environ C_lang}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types efs : list expr.
@@ -389,7 +389,7 @@ Proof.
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_call' (s:prog_environ) n args body body' vv E Φ :
+Lemma wp_call' (s:prog_environ C_lang) n args body body' vv E Φ :
      ⌜((weakestpre.prog s) : gmap string function) !! n = Some (Fun args body)⌝ 
   -∗ ⌜apply_function (Fun args body) vv = Some body'⌝
   -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
@@ -407,7 +407,7 @@ Proof.
   do 2 iModIntro. iFrame.
 Qed.
 
-Lemma wp_call (s:prog_environ) n args body body' vv E Φ :
+Lemma wp_call (s:prog_environ C_lang) n args body body' vv E Φ :
      ⌜((weakestpre.prog s) : gmap string function) !! n = Some (Fun args body)⌝ 
   -∗ ⌜apply_function (Fun args body) vv = Some body'⌝
   -∗ (WP body' @ s ; E {{v, Φ v}})

@@ -36,7 +36,7 @@ Next Obligation.
 Qed.
 Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constructor. Qed.
 
-Definition lang_prog_environ p T : language.weakestpre.prog_environ :=
+Definition lang_prog_environ p T : language.weakestpre.prog_environ Λ :=
    language.weakestpre.Build_prog_environ hlc _ _ _ _ p T.
 Definition mlang_prog_environ p T : mlanguage.weakestpre.prog_environ (embed_lang Λ) :=
    mlanguage.weakestpre.Build_prog_environ hlc _ _ _ _ _ p T.
