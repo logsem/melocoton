@@ -26,7 +26,7 @@ Section specs.
 Context `{!minilangGS hlc Σ}.
 
 Definition penv1 : prog_environ mini_lang := {|
-  prog := <[ "main" := E code1 ]> ∅;
+  prog := {[ "main" := E code1 ]};
   T := (λ fn vs Φ, ⌜fn = "f"⌝ ∗ ∃ n,
          ACC n ∗ 2 ↦ 12 ∗
          AVAILABLE (⊤ ∖ {[ Pos.of_nat 1 ]} ∖ {[ Pos.of_nat 2 ]}) ∗
@@ -36,7 +36,7 @@ Definition penv1 : prog_environ mini_lang := {|
 |}.
 
 Definition penv2 : prog_environ mini_lang := {|
-  prog := <[ "f" := E code2 ]> ∅;
+  prog := {[ "f" := E code2 ]};
   T := (λ _ _ _, False)%I
 |}.
 
@@ -97,7 +97,7 @@ Context `{!minilangGS hlc Σ}.
 Context `{!linkGS Σ}.
 
 Definition penv : prog_environ (link_lang mini_lang mini_lang) := {|
-  prog := <[ "main" := inl (E code1) ]> (<[ "f" := inr (E code2) ]> ∅);
+  prog := {[ "main" := inl (E code1); "f" := inr (E code2) ]};
   T := (λ _ _ _, False)%I;
 |}.
 
