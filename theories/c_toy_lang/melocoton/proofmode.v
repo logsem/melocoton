@@ -5,7 +5,7 @@ From melocoton.c_toy_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 
-Lemma tac_wp_expr_eval `{!heapGS Σ} Δ s E Φ e e' :
+Lemma tac_wp_expr_eval `{!heapGS_gen hlc Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
@@ -35,7 +35,7 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
   end.
 Ltac wp_expr_simpl := wp_expr_eval solve_lookup_fixed.
 
-Lemma tac_wp_pure `{!heapGS Σ} Δ Δ' s E K e1 e2 φ n Φ :
+Lemma tac_wp_pure `{!heapGS_gen hlc Σ} Δ Δ' s E K e1 e2 φ n Φ :
   PureExec φ n (weakestpre.prog s) e1 e2 →
   φ →
   MaybeIntoLaterNEnvs n Δ Δ' →
@@ -49,11 +49,11 @@ Lemma tac_wp_pure `{!heapGS Σ} Δ Δ' s E K e1 e2 φ n Φ :
  Qed.
 
 
-Lemma tac_wp_value_nofupd `{!heapGS Σ} Δ s E Φ v :
+Lemma tac_wp_value_nofupd `{!heapGS_gen hlc Σ} Δ s E Φ v :
   envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by apply wp_value. Qed.
 
-Lemma tac_wp_value `{!heapGS Σ} Δ s E (Φ : val → iPropI Σ) v :
+Lemma tac_wp_value `{!heapGS_gen hlc Σ} Δ s E (Φ : val → iPropI Σ) v :
   envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 
@@ -127,7 +127,7 @@ Tactic Notation "wp_while" := wp_pure (While _ _).
 Tactic Notation "wp_call_direct" := wp_pure (FunCall _ _).
 
 
-Lemma tac_wp_call `{!heapGS Σ} Δ s E Φ fn vv e1 :
+Lemma tac_wp_call `{!heapGS_gen hlc Σ} Δ s E Φ fn vv e1 :
   (e1 = of_class _ (ExprCall fn vv)) →
   envs_entails Δ (WPCall fn with vv @ s; E {{ Φ }}) →
   envs_entails Δ (WP e1 @ s; E {{ Φ }}).
@@ -164,7 +164,7 @@ Tactic Notation "wp_extern" :=
 
 
 
-Lemma tac_wp_bind `{!heapGS Σ} K Δ s E Φ e f :
+Lemma tac_wp_bind `{!heapGS_gen hlc Σ} K Δ s E Φ e f :
   f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
   envs_entails Δ (WP e @ s; E {{ v, WP f (Val v) @ s; E {{ Φ }} }})%I →
   envs_entails Δ (WP fill K e @ s; E {{ Φ }}).
@@ -187,7 +187,7 @@ Tactic Notation "wp_bind" open_constr(efoc) :=
 
 (** Heap tactics *)
 Section heap.
-Context `{!heapGS Σ}.
+Context `{!heapGS_gen hlc Σ}.
 Context `{program}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.

@@ -114,7 +114,7 @@ Notation "l ↦ '?'" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn 1) (Uninitia
 make setoid rewriting in the predicate [I] work we need actual definitions
 here. *)
 Section definitions.
-  Context `{!heapGS Σ}.
+  Context `{!heapGS_gen hlc Σ}.
 
   Definition from_storing (I : val → Prop) (Puninit Pfree : Prop) (k : heap_cell) :=
     match k with
@@ -139,7 +139,7 @@ Notation "l ↦_ I v" := (inv_mapsto_own l v I%stdpp%type)
   (at level 20, I at level 9, format "l  ↦_ I  v") : bi_scope.
 
 Section lifting.
-Context `{!heapGS Σ}.
+Context `{!heapGS_gen hlc Σ}.
 Context {p:prog_environ C_lang}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
