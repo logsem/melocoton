@@ -169,38 +169,38 @@ Proof using.
 Qed.
 
 Class is_link_environ
-  (pe1 : prog_environ Λ1) (pe2 : prog_environ Λ2)
-  (pe : prog_environ (link_lang Λ1 Λ2))
+  (pe1 : prog_environ Λ1 Σ) (pe2 : prog_environ Λ2 Σ)
+  (pe : prog_environ (link_lang Λ1 Λ2) Σ)
 := IsLinkEnviron {
-  is_link_dom_disj : dom (prog pe1) ## dom (prog pe2);
-  is_link_prog : prog pe = fmap inl (prog pe1) ∪ fmap inr (prog pe2);
+  is_link_dom_disj : dom (penv_prog pe1) ## dom (penv_prog pe2);
+  is_link_prog : penv_prog pe = fmap inl (penv_prog pe1) ∪ fmap inr (penv_prog pe2);
 
   is_link_internal1 fname (func: mlanguage.func Λ2) vs Φ E :
-    prog pe2 !! fname = Some func →
-    T pe1 fname vs Φ -∗
+    penv_prog pe2 !! fname = Some func →
+    penv_proto pe1 fname vs Φ -∗
     ∃ e2, ⌜apply_func func vs = Some e2⌝ ∗ ▷
       (at_boundary Λ2 -∗ WP e2 @ pe2; E {{
         λ v, Φ v ∗ at_boundary Λ2 }});
 
   is_link_internal2 fname (func: mlanguage.func Λ1) vs Φ E :
-    prog pe1 !! fname = Some func →
-    T pe2 fname vs Φ -∗
+    penv_prog pe1 !! fname = Some func →
+    penv_proto pe2 fname vs Φ -∗
     ∃ e1, ⌜apply_func func vs = Some e1⌝ ∗ ▷
       (at_boundary Λ1 -∗ WP e1 @ pe1; E {{
         λ v, Φ v ∗ at_boundary Λ1 }});
 
   is_link_external1 fname vs Φ :
-    prog pe1 !! fname = None →
-    prog pe2 !! fname = None →
-    T pe1 fname vs Φ -∗ T pe fname vs Φ;
+    penv_prog pe1 !! fname = None →
+    penv_prog pe2 !! fname = None →
+    penv_proto pe1 fname vs Φ -∗ penv_proto pe fname vs Φ;
   is_link_external2 fname vs Φ :
-    prog pe1 !! fname = None →
-    prog pe2 !! fname = None →
-    T pe2 fname vs Φ -∗ T pe fname vs Φ;
+    penv_prog pe1 !! fname = None →
+    penv_prog pe2 !! fname = None →
+    penv_proto pe2 fname vs Φ -∗ penv_proto pe fname vs Φ;
 }.
 
-Lemma wp_link_call (pe : prog_environ (link_lang Λ1 Λ2)) E k fn vs Φ fname :
-  prog pe !! fname = Some fn →
+Lemma wp_link_call (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k fn vs Φ fname :
+  penv_prog pe !! fname = Some fn →
   WP Link.LkE (Link.RunFunction fn vs) k @ pe; E {{ Φ }} -∗
   WP Link.LkE (Link.ExprCall fname vs) k @ pe; E {{ Φ }}.
 Proof using.
@@ -217,10 +217,10 @@ Qed.
 
 Lemma wp_link_run_function_1 pe1 pe2 pe E k2 k fn arg fname Φ Ξ :
   is_link_environ pe1 pe2 pe →
-  prog pe1 !! fname = Some fn →
+  penv_prog pe1 !! fname = Some fn →
   link_state_frag Boundary -∗
   at_boundary Λ1 -∗
-  T pe2 fname arg Ξ -∗
+  penv_proto pe2 fname arg Ξ -∗
   (∀ e1, ⌜apply_func fn arg = Some e1⌝ -∗
          WP e1 @ pe1; E {{ v, Ξ v ∗ at_boundary Λ1 }} -∗
          link_state_frag In1 -∗
@@ -247,10 +247,10 @@ Qed.
 
 Lemma wp_link_run_function_2 pe1 pe2 pe E k1 k fn arg fname Φ Ξ :
   is_link_environ pe1 pe2 pe →
-  prog pe2 !! fname = Some fn →
+  penv_prog pe2 !! fname = Some fn →
   link_state_frag Boundary -∗
   at_boundary Λ2 -∗
-  T pe1 fname arg Ξ -∗
+  penv_proto pe1 fname arg Ξ -∗
   (∀ e2, ⌜apply_func fn arg = Some e2⌝ -∗
          WP e2 @ pe2; E {{ v, Ξ v ∗ at_boundary Λ2 }} -∗
          link_state_frag In2 -∗
@@ -275,7 +275,7 @@ Proof using.
   by iApply ("Hwp" with "[] Hwpcall Hb").
 Qed.
 
-Lemma wp_link_retval_1 (pe : prog_environ (link_lang Λ1 Λ2)) E k1 v Φ :
+Lemma wp_link_retval_1 (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k1 v Φ :
   (link_state_frag In1 -∗ WP LkSE (Link.Expr1 (fill k1 (of_val Λ1 v))) @ pe; E {{ Φ }}) -∗
   (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inl k1] @ pe; E {{ Φ }}).
 Proof using.
@@ -294,7 +294,7 @@ Proof using.
   iModIntro. iExists _, _. iSplitR; first done. iFrame. iApply "Hwp". iFrame.
 Qed.
 
-Lemma wp_link_retval_2 (pe : prog_environ (link_lang Λ1 Λ2)) E k2 v Φ :
+Lemma wp_link_retval_2 (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k2 v Φ :
   (link_state_frag In2 -∗ WP LkSE (Link.Expr2 (fill k2 (of_val Λ2 v))) @ pe; E {{ Φ }}) -∗
   (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inr k2] @ pe; E {{ Φ }}).
 Proof using.
@@ -315,9 +315,9 @@ Qed.
 
 Lemma wp_link_extcall_1 pe1 pe2 pe E k1 fn_name arg Φ Ξ :
   is_link_environ pe1 pe2 pe →
-  prog pe1 !! fn_name = None →
-  prog pe2 !! fn_name = None →
-  T pe1 fn_name arg Ξ -∗
+  penv_prog pe1 !! fn_name = None →
+  penv_prog pe2 !! fn_name = None →
+  penv_proto pe1 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ1 -∗
         WP fill (comp_ectx k1 empty_ectx) (of_class Λ1 (ExprVal r)) @ pe1; E {{ λ v, Φ v ∗ at_boundary Λ1 }}) -∗
   (▷ ∀ r, WP fill k1 (of_class Λ1 (ExprVal r)) @ pe1; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
@@ -328,7 +328,7 @@ Lemma wp_link_extcall_1 pe1 pe2 pe E k1 fn_name arg Φ Ξ :
   WP Link.LkE (Link.ExprCall fn_name arg) [inl k1] @ pe; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}.
 Proof using.
   iIntros (Hislink Hfn1 Hfn2) "HTΞ HΞ Hwp (Hb & Hb1 & Hb2)".
-  assert (Hpef: prog pe !! fn_name = None).
+  assert (Hpef: penv_prog pe !! fn_name = None).
   { rewrite is_link_prog. apply lookup_union_None. rewrite !lookup_fmap Hfn1 Hfn2 //. }
   iApply wp_unfold. rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "Hσ Hb") as %(pubσ&privσ1&privσ2&->).
@@ -343,9 +343,9 @@ Qed.
 
 Lemma wp_link_extcall_2 pe1 pe2 pe E k2 fn_name arg Φ Ξ :
   is_link_environ pe1 pe2 pe →
-  prog pe1 !! fn_name = None →
-  prog pe2 !! fn_name = None →
-  T pe2 fn_name arg Ξ -∗
+  penv_prog pe1 !! fn_name = None →
+  penv_prog pe2 !! fn_name = None →
+  penv_proto pe2 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ2 -∗
         WP fill (comp_ectx k2 empty_ectx) (of_class Λ2 (ExprVal r)) @ pe2; E {{ λ v, Φ v ∗ at_boundary Λ2 }}) -∗
   (▷ ∀ r, WP fill k2 (of_class Λ2 (ExprVal r)) @ pe2; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
@@ -356,7 +356,7 @@ Lemma wp_link_extcall_2 pe1 pe2 pe E k2 fn_name arg Φ Ξ :
   WP Link.LkE (Link.ExprCall fn_name arg) [inr k2] @ pe; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}.
 Proof using.
   iIntros (Hislink Hfn1 Hfn2) "HTΞ HΞ Hwp (Hb & Hb1 & Hb2)".
-  assert (Hpef: prog pe !! fn_name = None).
+  assert (Hpef: penv_prog pe !! fn_name = None).
   { rewrite is_link_prog. apply lookup_union_None. rewrite !lookup_fmap Hfn1 Hfn2 //. }
   iApply wp_unfold. rewrite /wp_pre.
   iIntros (σ) "Hσ". iDestruct (link_at_boundary with "Hσ Hb") as %(pubσ&privσ1&privσ2&->).
@@ -371,9 +371,9 @@ Qed.
 
 Lemma link_head_step_call_ext_1_inv pe1 pe2 pe K f vs σ1 privσ2 X :
   is_link_environ pe1 pe2 pe →
-  prog pe1 !! f = None →
-  head_step (prog pe) (LkSE (Link.Expr1 (fill K (of_class Λ1 (ExprCall f vs)))),
-                       Link.St1 σ1 privσ2) X →
+  penv_prog pe1 !! f = None →
+  head_step (penv_prog pe) (LkSE (Link.Expr1 (fill K (of_class Λ1 (ExprCall f vs)))),
+                            Link.St1 σ1 privσ2) X →
   ∃ pubσ privσ1 k,
     K = comp_ectx k empty_ectx ∧
     X (Link.LkE (Link.ExprCall f vs) [inl k], Link.St pubσ privσ1 privσ2) ∧
@@ -402,9 +402,9 @@ Qed.
 
 Lemma link_head_step_call_ext_2_inv pe1 pe2 pe K f vs σ2 privσ1 X :
   is_link_environ pe1 pe2 pe →
-  prog pe2 !! f = None →
-  head_step (prog pe) (LkSE (Link.Expr2 (fill K (of_class Λ2 (ExprCall f vs)))),
-                       Link.St2 privσ1 σ2) X →
+  penv_prog pe2 !! f = None →
+  head_step (penv_prog pe) (LkSE (Link.Expr2 (fill K (of_class Λ2 (ExprCall f vs)))),
+                            Link.St2 privσ1 σ2) X →
   ∃ pubσ privσ2 k,
     K = comp_ectx k empty_ectx ∧
     X (Link.LkE (Link.ExprCall f vs) [inr k], Link.St pubσ privσ1 privσ2) ∧
@@ -452,7 +452,7 @@ Proof using.
       iModIntro. iRight; iRight.
       (* administrative step Val1S: Link.Expr1 ~> Link.ExprV *)
       iDestruct (@splittable_at_boundary with "Hb1 Hσ") as %(pubσ&privσ1&Hsplitσ1).
-      assert (Hhred: head_reducible (prog pe) (LkSE (Link.Expr1 (of_class Λ1 (ExprVal v)))) (Link.St1 σ1 privσ2)).
+      assert (Hhred: head_reducible (penv_prog pe) (LkSE (Link.Expr1 (of_class Λ1 (ExprVal v)))) (Link.St1 σ1 privσ2)).
       { exists (λ _, True). eapply Link.Val1S; eauto. rewrite /to_val to_of_class //=. }
       iSplitR; [iPureIntro; by apply head_prim_reducible|].
       iIntros (X Hstep). apply head_reducible_prim_step in Hstep; [|done].
@@ -473,7 +473,7 @@ Proof using.
     { iDestruct "Hwp" as (f vs K -> Hf) "(Hb1 & Hσ1 & Hcall)". iModIntro. iRight; iRight.
       (* administrative step MakeCall1S: Link.Expr1 ~> Link.ExprCall *)
       iDestruct (@splittable_at_boundary with "Hb1 Hσ1") as %(pubσ&privσ1&Hsplitσ1).
-      assert (head_reducible (prog pe) (LkSE (Link.Expr1 (fill K (of_class Λ1 (ExprCall f vs))))) (Link.St1 σ1 privσ2)).
+      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr1 (fill K (of_class Λ1 (ExprCall f vs))))) (Link.St1 σ1 privσ2)).
       { exists (λ _, True). eapply Link.MakeCall1S; eauto. by rewrite to_of_class.
         rewrite is_link_prog proj1_prog_union; [done | apply Hislink]. }
       iSplitR; [iPureIntro; by apply head_prim_reducible|].
@@ -489,10 +489,10 @@ Proof using.
 
       (* two cases: this is an external call of the linking module itself, or it
          is a call to a function of pe2 *)
-      destruct (prog pe2 !! f) as [fn2|] eqn:Hf2.
+      destruct (penv_prog pe2 !! f) as [fn2|] eqn:Hf2.
 
       { (* call to a function of pe2 *)
-        assert (prog pe !! f = Some (inr fn2)) as Hpef.
+        assert (penv_prog pe !! f = Some (inr fn2)) as Hpef.
         { rewrite is_link_prog lookup_union_r lookup_fmap. by rewrite Hf2. by rewrite Hf. }
 
         (* administrative step CallS: Link.ExprCall ~> LinkRunFunction *)
@@ -526,7 +526,7 @@ Proof using.
 
     { (* WP: step case *)
       iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight.
-      assert (head_reducible (prog pe) (LkSE (Link.Expr1 e1)) (Link.St1 σ1 privσ2)).
+      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr1 e1)) (Link.St1 σ1 privσ2)).
       { destruct Hred as (? & Hstep). exists (λ _, True).
         eapply Link.Step1S. rewrite is_link_prog proj1_prog_union; [| apply Hislink].
         all: eauto. }
@@ -555,7 +555,7 @@ Proof using.
     { iDestruct "Hwp" as (v ->) "[Hσ [HΦ Hb2]]". iModIntro. iRight; iRight.
       (* administrative step Val2S: Link.Expr2 ~> Link.ExprV *)
       iDestruct (@splittable_at_boundary with "Hb2 Hσ") as %(pubσ&privσ2&Hsplitσ2).
-      assert (Hhred: head_reducible (prog pe) (LkSE (Link.Expr2 (of_class Λ2 (ExprVal v)))) (Link.St2 privσ1 σ2)).
+      assert (Hhred: head_reducible (penv_prog pe) (LkSE (Link.Expr2 (of_class Λ2 (ExprVal v)))) (Link.St2 privσ1 σ2)).
       { exists (λ _, True). eapply Link.Val2S; eauto. rewrite /to_val to_of_class //=. }
       iSplitR; [iPureIntro; by apply head_prim_reducible|].
       iIntros (X Hstep). apply head_reducible_prim_step in Hstep; [|done].
@@ -576,7 +576,7 @@ Proof using.
     { iDestruct "Hwp" as (f vs K -> Hf) "(Hb2 & Hσ2 & Hcall)". iModIntro. iRight; iRight.
       (* administrative step MakeCall1S: Link.Expr2 ~> Link.ExprCall *)
       iDestruct (@splittable_at_boundary with "Hb2 Hσ2") as %(pubσ&privσ2&Hsplitσ2).
-      assert (head_reducible (prog pe) (LkSE (Link.Expr2 (fill K (of_class Λ2 (ExprCall f vs))))) (Link.St2 privσ1 σ2)).
+      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr2 (fill K (of_class Λ2 (ExprCall f vs))))) (Link.St2 privσ1 σ2)).
       { exists (λ _, True). eapply Link.MakeCall2S; eauto. by rewrite to_of_class.
         rewrite is_link_prog proj2_prog_union; [done | apply Hislink]. }
       iSplitR; [iPureIntro; by apply head_prim_reducible|].
@@ -592,10 +592,10 @@ Proof using.
 
       (* two cases: this is an external call of the linking module itself, or it
          is a call to a function of pe2 *)
-      destruct (prog pe1 !! f) as [fn1|] eqn:Hf1.
+      destruct (penv_prog pe1 !! f) as [fn1|] eqn:Hf1.
 
       { (* call to a function of pe1 *)
-        assert (prog pe !! f = Some (inl fn1)) as Hpef.
+        assert (penv_prog pe !! f = Some (inl fn1)) as Hpef.
         { rewrite is_link_prog lookup_union_l lookup_fmap. by rewrite Hf1. by rewrite Hf. }
 
         (* administrative step CallS: Link.ExprCall ~> LinkRunFunction *)
@@ -628,7 +628,7 @@ Proof using.
 
     { (* WP: step case *)
       iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight.
-      assert (head_reducible (prog pe) (LkSE (Link.Expr2 e2)) (Link.St2 privσ1 σ2)).
+      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr2 e2)) (Link.St2 privσ1 σ2)).
       { destruct Hred as (? & Hstep).
         exists (λ _, True). eapply Link.Step2S.
         rewrite is_link_prog proj2_prog_union; [| apply Hislink]. all: eauto. }
@@ -668,7 +668,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_internal_call p fn vs (func: Link.func Λ1 Λ2) Φ E :
-  prog p !! fn = Some func →
+  penv_prog p !! fn = Some func →
   (▷ WP LkSE (Link.RunFunction func vs) @ p; E {{ Φ }}) -∗
   WP LkSE (Link.ExprCall fn vs) @ p; E {{ Φ }}.
 Proof using.
@@ -724,3 +724,5 @@ Proof using.
 Qed.
 
 End Linking_logic.
+
+Global Arguments is_link_environ {_ _ _ _ _ _ _ _ _ _ _} pe1 pe2 pe.

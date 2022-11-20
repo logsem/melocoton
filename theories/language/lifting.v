@@ -8,7 +8,7 @@ From iris.prelude Require Import options.
 Section lifting.
 Context `{!melocotonGS_gen hlc val Λ Σ}.
 Implicit Types prog : mixin_prog (func Λ).
-Implicit Types s : prog_environ Λ.
+Implicit Types s : prog_environ Λ Σ.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
@@ -18,8 +18,8 @@ Implicit Types Φ : val → iProp Σ.
 Lemma wp_lift_step_fupd s E Φ e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜reducible_no_threads (prog s) e1 σ1⌝ ∗
-    ∀ e2 σ2, ⌜prim_step (prog s) e1 σ1 e2 σ2 []⌝
+    ⌜reducible_no_threads (penv_prog s) e1 σ1⌝ ∗
+    ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2 []⌝
       ={E}▷=∗^(1) |={E}=>
       state_interp σ2 (S ns) ∗
       WP e2 @ s; E {{ Φ }})
@@ -37,8 +37,8 @@ Qed.
 Lemma wp_lift_atomic_step {s E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜reducible_no_threads (prog s) e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜prim_step (prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
+    ⌜reducible_no_threads (penv_prog s) e1 σ1⌝ ∗
+    ▷ ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
@@ -58,8 +58,8 @@ Qed.
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜head_reducible_no_threads (prog s) e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜head_step (prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
+    ⌜head_reducible_no_threads (penv_prog s) e1 σ1⌝ ∗
+    ▷ ∀ e2 σ2, ⌜head_step (penv_prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
@@ -76,8 +76,8 @@ Proof.
 Qed.
 
 Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state Λ)} {s E Φ} e1 e2 :
-  (∀ σ1, reducible (prog s) e1 σ1) →
-  (∀ σ1 e2' σ2 efs', prim_step (prog s) e1 σ1 e2' σ2 efs' →
+  (∀ σ1, reducible (penv_prog s) e1 σ1) →
+  (∀ σ1 e2' σ2 efs', prim_step (penv_prog s) e1 σ1 e2' σ2 efs' →
     σ2 = σ1 ∧ e2' = e2 ∧ efs' = []) →
   (|={E}[E]▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -128,7 +128,7 @@ Proof.
 Qed.
 
 Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} s E e1 e2 φ n Φ :
-  PureExec φ n (prog s) e1 e2 →
+  PureExec φ n (penv_prog s) e1 e2 →
   φ →
   (|={E}[E]▷=>^n WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -144,7 +144,7 @@ Qed.
 
 
 Lemma wp_pure_step_later `{!Inhabited (state Λ)} s E e1 e2 φ n Φ :
-  PureExec φ n (prog s) e1 e2 →
+  PureExec φ n (penv_prog s) e1 e2 →
   φ →
   ▷^n (WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.

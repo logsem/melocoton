@@ -47,27 +47,27 @@ Definition StoreItSpec := λ s v Φ, match (s,v) with
 Definition FibLeftSpec := FibSpec "fib_left".
 Definition FibRightSpec := FibSpec "fib_right".
 
-Definition SimpleEnv : prog_environ C_lang := {|
-  weakestpre.prog := exampleProgram "fib_impl" "fib_impl"; 
-  T := StoreItSpec;
+Definition SimpleEnv : prog_environ C_lang Σ := {|
+  penv_prog := exampleProgram "fib_impl" "fib_impl";
+  penv_proto := StoreItSpec;
 |}.
 
 Definition FinalSpec := spec_union (FibLeftSpec) FibRightSpec.
 
 
-Definition LeftEnv : prog_environ C_lang := {|
-  weakestpre.prog := exampleProgram "fib_left" "fib_right"; (* function called fib_left calls fib_right *)
-  T := spec_union FibRightSpec StoreItSpec;
+Definition LeftEnv : prog_environ C_lang Σ := {|
+  penv_prog := exampleProgram "fib_left" "fib_right"; (* function called fib_left calls fib_right *)
+  penv_proto := spec_union FibRightSpec StoreItSpec;
 |}.
 
-Definition RightEnv : prog_environ C_lang := {|
-  weakestpre.prog := exampleProgram "fib_right" "fib_left"; (* function called fib_right calls fib_left *)
-  T := spec_union FibLeftSpec StoreItSpec;
+Definition RightEnv : prog_environ C_lang Σ := {|
+  penv_prog := exampleProgram "fib_right" "fib_left"; (* function called fib_right calls fib_left *)
+  penv_proto := spec_union FibLeftSpec StoreItSpec;
 |}.
 
-Definition FinalEnv : prog_environ C_lang := {|
-  weakestpre.prog := insert "fib_right" (fib_func "fib_left") (insert "fib_left" (fib_func "fib_right") ∅);
-  T := StoreItSpec;
+Definition FinalEnv : prog_environ C_lang Σ := {|
+  penv_prog := insert "fib_right" (fib_func "fib_left") (insert "fib_left" (fib_func "fib_right") ∅);
+  penv_proto := StoreItSpec;
 |}.
 
 (* A simple recursive function *)
@@ -200,7 +200,7 @@ Proof.
 Qed.
 
 Lemma example_can_link : can_link FibLeftSpec FibRightSpec StoreItSpec (spec_union FibLeftSpec FibRightSpec)
-         (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left") (weakestpre.prog FinalEnv).
+         (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left") (penv_prog FinalEnv).
 Proof.
   assert (
     ((<["fib_right":=fib_func "fib_left"]> (<["fib_left":=fib_func "fib_right"]> ∅)))

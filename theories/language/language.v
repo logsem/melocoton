@@ -3,8 +3,6 @@ From iris.algebra Require Import ofe.
 From iris.prelude Require Import options.
 From melocoton Require Export commons.
 
-Definition thread_id := nat.
-
 Section language_mixin.
   Context {expr val func ectx state : Type}.
   Notation mixin_expr_class := (@mixin_expr_class val).
@@ -1277,5 +1275,3 @@ End safe_reach.
 Definition exprO {val} {Λ : language val} := leibnizO (expr Λ).
 Global Instance expr_equiv {val} {Λ : language val} : Equiv (expr Λ). apply exprO. Defined.
 
-Definition thread_idO := leibnizO thread_id.
-Global Instance thread_id_equiv : Equiv thread_id. apply thread_idO. Defined.

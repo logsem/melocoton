@@ -16,15 +16,15 @@ Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
-Implicit Types pe : prog_environ Λ.
+Implicit Types pe : prog_environ Λ Σ.
 
-Lemma wp_link pe pe_extended F k E e Φ :
-  ⌜ k ∉ dom (prog pe) ⌝
-  -∗ ⌜ prog pe_extended = <[ k := F ]> (prog pe) ⌝ 
-  -∗ (□ (∀ (s:string) vv Ψ, ⌜s ∉ (dom (prog pe)) ∧ s <> k⌝ -∗ T pe s vv Ψ -∗ T (pe_extended) s vv Ψ))
-  -∗ (□ (∀ vv Ψ, T pe k vv Ψ -∗ WP (of_class Λ (ExprCall k vv)) @ (pe_extended); E {{v, Ψ v}}))
+Lemma wp_link (pe pe_extended : prog_environ Λ Σ) F k E e Φ :
+  ⌜ k ∉ dom (penv_prog pe) ⌝
+  -∗ ⌜penv_prog pe_extended = <[ k := F ]> (penv_prog pe)⌝
+  -∗ (□ (∀ (s:string) vv Ψ, ⌜s ∉ (dom (penv_prog pe)) ∧ s <> k⌝ -∗ penv_proto pe s vv Ψ -∗ penv_proto pe_extended s vv Ψ))
+  -∗ (□ (∀ vv Ψ, penv_proto pe k vv Ψ -∗ WP (of_class Λ (ExprCall k vv)) @ pe_extended; E {{v, Ψ v}}))
   -∗ WP e @ pe; E {{v, Φ v}}
-  -∗ WP e @ (pe_extended); E {{v, Φ v}}.
+  -∗ WP e @ pe_extended; E {{v, Φ v}}.
 Proof.
   iIntros (HnE HE) "#Hs2T #Hs1T H". iLöb as "IH" forall (e Φ).
   rewrite !wp_unfold /wp_pre /=.
@@ -79,7 +79,7 @@ Proof.
       { iPureIntro. eexists _,_. econstructor. 1-2:done. apply call_head_step.
         exists fn; repeat split; try done. rewrite HE. by rewrite lookup_insert_ne. }
       iIntros (σ' e' Hstep).
-      assert (prim_step (prog pe) (fill K (of_class Λ (ExprCall s vv))) σ (fill K e2') σ []) as Hstep'.
+      assert (prim_step (penv_prog pe) (fill K (of_class Λ (ExprCall s vv))) σ (fill K e2') σ []) as Hstep'.
       { econstructor. 1-2:done. eapply call_head_step. exists fn; repeat split; done. }
       apply head_reducible_prim_step_ctx in Hstep; last first.
       1: eexists _, _, _; apply call_head_step; eexists; repeat split; try done;
@@ -107,14 +107,13 @@ Proof.
       iApply "IH". iFrame.
 Qed.
 
-
-Lemma wp_link_rec pe pe_extended F k E e Φ :
-  ⌜ k ∉ dom (prog pe) ⌝
-  -∗ ⌜ prog pe_extended = <[ k := F ]> (prog pe) ⌝ 
-  -∗ (□ (∀ (s:string) vv Ψ, ⌜s ∉ (dom (prog pe)) ∧ s <> k⌝ -∗ T pe s vv Ψ -∗ T (pe_extended) s vv Ψ))
-  -∗ (□ (∀ vv Ψ, T pe k vv Ψ -∗ WPFun F with vv @ (pe); E {{v, Ψ v}}))
+Lemma wp_link_rec (pe pe_extended : prog_environ Λ Σ) F k E e Φ :
+  ⌜ k ∉ dom (penv_prog pe) ⌝
+  -∗ ⌜penv_prog pe_extended = <[ k := F ]> (penv_prog pe)⌝
+  -∗ (□ (∀ (s:string) vv Ψ, ⌜s ∉ (dom (penv_prog pe)) ∧ s <> k⌝ -∗ penv_proto pe s vv Ψ -∗ penv_proto pe_extended s vv Ψ))
+  -∗ (□ (∀ vv Ψ, penv_proto pe k vv Ψ -∗ WPFun F with vv @ (pe); E {{v, Ψ v}}))
   -∗ WP e @ pe; E {{v, Φ v}}
-  -∗ WP e @ (pe_extended); E {{v, Φ v}}.
+  -∗ WP e @ pe_extended; E {{v, Φ v}}.
 Proof.
   iIntros (HnE HE) "#Hs2T #Hs1T H". iLöb as "IH" forall (e Φ).
   rewrite !wp_unfold /wp_pre /=.
@@ -126,7 +125,7 @@ Proof.
     + iPoseProof ("Hs1T" with "HT") as "HT'". unfold wp_func at 2.
       destruct (apply_func F vv) as [e'|] eqn:Heq; try done.
       iRight. iRight. iMod "HT'". iModIntro.
-      assert (head_step (prog pe_extended) (of_class Λ (ExprCall s vv)) σ e' σ []) as Hstepy.
+      assert (head_step (penv_prog pe_extended) (of_class Λ (ExprCall s vv)) σ e' σ []) as Hstepy.
       1: apply call_head_step; exists F; split; first (rewrite HE; by rewrite lookup_insert); by repeat split.
       iSplitR.
       1: iPureIntro; eexists _,_; by econstructor.
@@ -155,7 +154,7 @@ Proof.
       { iPureIntro. eexists _,_. econstructor. 1-2:done. apply call_head_step.
         exists fn; repeat split; try done. rewrite HE. by rewrite lookup_insert_ne. }
       iIntros (σ' e' Hstep).
-      assert (prim_step (prog pe) (fill K (of_class Λ (ExprCall s vv))) σ (fill K e2') σ []) as Hstep'.
+      assert (prim_step (penv_prog pe) (fill K (of_class Λ (ExprCall s vv))) σ (fill K e2') σ []) as Hstep'.
       { econstructor. 1-2:done. eapply call_head_step. exists fn; repeat split; done. }
       apply head_reducible_prim_step_ctx in Hstep; last first.
       1: eexists _, _, _; apply call_head_step; eexists; repeat split; try done;
@@ -183,14 +182,14 @@ Proof.
       iApply "IH". iFrame.
 Qed.
 
-Notation mkPe p T := (Build_prog_environ _ _ _ _ _ p T).
+Notation mkPe p T := ({| penv_prog := p; penv_proto := T |} : prog_environ Λ Σ).
 
 Definition program_fulfills
   (Tin : program_specification) (p : mixin_prog (func Λ)) (Tshould : program_specification) : iProp Σ := 
   ∀ s vv Φ, Tshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ (mkPe p Tin); ⊤ {{v, Φ v}}.
 
 Definition env_fulfills
-  (p:prog_environ Λ) (Tshould : program_specification) := program_fulfills (p.(T)) (p.(prog)) Tshould.
+  (p:prog_environ Λ Σ) (Tshould : program_specification) := program_fulfills p.(penv_proto) p.(penv_prog) Tshould.
 
 Notation "Tin '|-' p '::' Tshould" := (program_fulfills Tin p Tshould) (at level 25, p, Tshould at level 26) : bi_scope.
 

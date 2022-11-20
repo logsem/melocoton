@@ -69,14 +69,15 @@ Qed.
 
 Definition program_specification `{!melocotonGS_gen hlc val Λ Σ} := string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Record prog_environ `{!melocotonGS_gen hlc val Λ Σ} := {
-  prog : mixin_prog (func Λ);
-  T : program_specification
+Record prog_environ {val} (Λ : language val) Σ := {
+  penv_prog : gmap string Λ.(func);
+  penv_proto : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ;
 }.
-Global Arguments prog_environ {_ _} Λ {_ _}.
+Global Arguments penv_prog {_ _ _} _.
+Global Arguments penv_proto {_ _ _} _.
 
-Local Definition wp_def `{!melocotonGS_gen hlc val Λ Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ) :=
-  λ p : (prog_environ Λ), fixpoint (wp_pre (p.(prog)) (p.(T))).
+Local Definition wp_def `{!melocotonGS_gen hlc val Λ Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ Σ) :=
+  λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {hlc val Λ Σ _}.
@@ -98,8 +99,8 @@ Notation "'WPFun' F 'with' args @ s ; E {{ v , Q } }" := (wp_func F args%V s E (
 
 
 Definition wp_for_call `{!melocotonGS_gen hlc val Λ Σ} (F:string) (vv : list val) pe E Φ : iProp Σ :=
-  match prog pe !! F with
-    Some F => wp_func F vv pe E Φ
+  match penv_prog pe !! F with
+  | Some F => wp_func F vv pe E Φ
   | None => ⌜False⌝%I end.
 
 Notation "'WPCall' F 'with' args @ s ; E {{ Φ } }" := (wp_for_call F args%V s E Φ)
@@ -117,12 +118,12 @@ Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
-Implicit Types pe : prog_environ Λ.
+Implicit Types pe : prog_environ Λ Σ.
 
 (* Weakest pre *)
 Lemma wp_unfold pe E e Φ :
-  WP e @ pe; E {{ Φ }} ⊣⊢ wp_pre (pe.(prog)) (pe.(T)) (wp (PROP:=iProp Σ) pe) E e Φ.
-Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre (pe.(prog)) (pe.(T)))). Qed.
+  WP e @ pe; E {{ Φ }} ⊣⊢ wp_pre pe.(penv_prog) pe.(penv_proto) (wp (PROP:=iProp Σ) pe) E e Φ.
+Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre pe.(penv_prog) pe.(penv_proto))). Qed.
 Global Instance wp_ne pe E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) pe E e).
 Proof.
@@ -164,8 +165,8 @@ Qed.
 
 
 Definition prog_environ_mono pe1 pe2 : Prop := 
-   prog pe1 = prog pe2
-/\ ∀ (s:string) vv Φ, ⌜s ∉ (dom (prog pe1))⌝ -∗ T pe1 s vv Φ -∗ T pe2 s vv Φ.
+   penv_prog pe1 = penv_prog pe2
+/\ ∀ (s:string) vv Φ, ⌜s ∉ (dom (penv_prog pe1))⌝ -∗ penv_proto pe1 s vv Φ -∗ penv_proto pe2 s vv Φ.
 
 Lemma prog_environ_mono_refl : Reflexive (prog_environ_mono).
 Proof. intros s; split; eauto. Qed.
@@ -450,10 +451,10 @@ Proof.
 Qed.
 
 
-Lemma wp_extern' (s:prog_environ Λ) n vv E Φ :
-     ⌜((weakestpre.prog s) : gmap string _) !! n = None⌝ 
-  -∗ (|={E}=> (weakestpre.T s n vv Φ))
-  -∗ WP of_class _ (ExprCall n vv) @ s ; E {{v, Φ v}}.
+Lemma wp_extern' pe n vv E Φ :
+     ⌜penv_prog pe !! n = None⌝
+  -∗ (|={E}=> penv_proto pe n vv Φ)
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
 Proof.
   iIntros (Hlookup) "HT".
   rewrite !wp_unfold /wp_pre /=.
@@ -467,10 +468,10 @@ Proof.
 Qed.
 
 
-Lemma wp_extern K (s:prog_environ Λ) n vv E Φ :
-     ⌜((weakestpre.prog s) : gmap string _) !! n = None⌝ 
-  -∗ (|={E}=> (weakestpre.T s n vv (λ v, WP fill K (of_class Λ (ExprVal v)) @ s; E {{ v', Φ v' }})))
-  -∗ WP fill K (of_class _ (ExprCall n vv)) @ s ; E {{v, Φ v}}.
+Lemma wp_extern K pe n vv E Φ :
+     ⌜penv_prog pe !! n = None⌝
+  -∗ (|={E}=> penv_proto pe n vv (λ v, WP fill K (of_class Λ (ExprVal v)) @ pe; E {{ v', Φ v' }}))
+  -∗ WP fill K (of_class _ (ExprCall n vv)) @ pe ; E {{v, Φ v}}.
 Proof.
   iIntros (Hlookup) "HT".
   iApply wp_bind.
@@ -480,20 +481,20 @@ Proof.
 Qed.
 
 
-Lemma prove_wp_fun' (s:prog_environ Λ) funn body' vv E Φ :
+Lemma prove_wp_fun' pe funn body' vv E Φ :
     ⌜apply_func funn vv = Some body'⌝
-  -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
-  -∗ WPFun funn with vv @ s ; E {{v, Φ v}}.
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
+  -∗ WPFun funn with vv @ pe ; E {{v, Φ v}}.
 Proof.
   iIntros (Happly) "Hcont". unfold wp_func.
   rewrite Happly. iApply "Hcont".
 Qed.
 
-Lemma wp_call'' (s:prog_environ Λ) n funn body' vv E Φ :
-     ⌜((weakestpre.prog s) : gmap string _) !! n = Some funn⌝ 
+Lemma wp_call'' pe n funn body' vv E Φ :
+     ⌜penv_prog pe !! n = Some funn⌝
   -∗ ⌜apply_func funn vv = Some body'⌝
-  -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
-  -∗ WP of_class _ (ExprCall n vv) @ s ; E {{v, Φ v}}.
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
 Proof.
   iIntros (Hlookup Happly) "Hcont".
   rewrite (wp_unfold _ _ (of_class Λ (ExprCall n vv))) /wp_pre /=.
@@ -510,8 +511,8 @@ Proof.
   iModIntro. iFrame. assert (e' = body') as -> by congruence. done.
 Qed.
 
-Lemma wp_call' (pe:prog_environ Λ) n F vv E Φ :
-  ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝
+Lemma wp_call' pe n F vv E Φ :
+  ⌜penv_prog pe !! n = Some F⌝
   -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
   -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
 Proof.
@@ -521,25 +522,25 @@ Proof.
   by iApply wp_call''.
 Qed.
 
-Lemma wp_call (pe:prog_environ Λ) n vv E Φ :
+Lemma wp_call pe n vv E Φ :
     (WPCall n with vv @ pe ; E {{v, Φ v}})
   -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
 Proof.
   iIntros "Hcall". unfold wp_for_call.
-  destruct (prog pe !! n) as [F|] eqn:Heq; eauto.
+  destruct (penv_prog pe !! n) as [F|] eqn:Heq; eauto.
   iApply wp_call'; done.
 Qed.
 
-Lemma wp_call_fun (pe:prog_environ Λ) n vv E Φ :
-  (WPCall n with vv @ pe ; E {{v, Φ v}}) ⊣⊢ (∃ F, WPFun F with vv @ pe ; E {{v, Φ v}} ∗ ⌜ ((weakestpre.prog pe) : gmap string _) !! n = Some F ⌝).
+Lemma wp_call_fun pe n vv E Φ :
+  (WPCall n with vv @ pe ; E {{v, Φ v}}) ⊣⊢ (∃ F, WPFun F with vv @ pe ; E {{v, Φ v}} ∗ ⌜penv_prog pe !! n = Some F ⌝).
 Proof.
    unfold wp_for_call. iSplit.
-  - iIntros "H". destruct (prog pe !! n); eauto.
+  - iIntros "H". destruct (penv_prog pe !! n); eauto.
   - iIntros "(%F & H & ->)"; eauto.
 Qed.
 
-Lemma prove_wp_call' (pe:prog_environ Λ) n F body' vv E Φ :
-     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
+Lemma prove_wp_call' pe n F body' vv E Φ :
+     ⌜penv_prog pe !! n = Some F⌝
   -∗ ⌜apply_func F vv = Some body'⌝
   -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
   -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
@@ -548,8 +549,8 @@ Proof.
    iMod "H". iModIntro. iNext. iMod "H". iModIntro. done.
 Qed.
 
-Lemma prove_wp_call (pe:prog_environ Λ) n F body' vv E Φ :
-     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
+Lemma prove_wp_call pe n F body' vv E Φ :
+     ⌜penv_prog pe !! n = Some F⌝
   -∗ ⌜apply_func F vv = Some body'⌝
   -∗ (WP body' @ pe ; E {{v, Φ v}})
   -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
@@ -558,16 +559,16 @@ Proof.
    do 3 iModIntro. done.
 Qed.
 
-Lemma prove_wp_call_wp_fun (pe:prog_environ Λ) n F vv E Φ :
-     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝ 
+Lemma prove_wp_call_wp_fun pe n F vv E Φ :
+     ⌜penv_prog pe !! n = Some F⌝
   -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
   -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
 Proof.
    iIntros "%H1 H". iApply (wp_call_fun). iExists F. by iFrame.
 Qed.
 
-Lemma prove_wp_fun (pe:prog_environ Λ) n F vv E Φ :
-     ⌜((weakestpre.prog pe) : gmap string _) !! n = Some F⌝
+Lemma prove_wp_fun pe n F vv E Φ :
+     ⌜penv_prog pe !! n = Some F⌝
   -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}) 
   -∗ (WPFun F with vv @ pe ; E {{v, Φ v}}).
 Proof.
@@ -576,18 +577,18 @@ Proof.
 Qed.
 
 
-Lemma wp_wand_fun s E F vv Φ Ψ :
-  WPFun F with vv @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WPFun F with vv @ s; E {{ Ψ }}.
+Lemma wp_wand_fun pe E F vv Φ Ψ :
+  WPFun F with vv @ pe; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WPFun F with vv @ pe; E {{ Ψ }}.
 Proof.
   iIntros "Hwp H". unfold wp_func. destruct (apply_func F vv); eauto.
   iMod "Hwp". iModIntro. iNext. iMod "Hwp". iModIntro. iApply (wp_wand with "Hwp H").
 Qed.
 
 
-Lemma wp_wand_call s E F vv Φ Ψ :
-  WPCall F with vv @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WPCall F with vv @ s; E {{ Ψ }}.
+Lemma wp_wand_call pe E F vv Φ Ψ :
+  WPCall F with vv @ pe; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WPCall F with vv @ pe; E {{ Ψ }}.
 Proof.
-  iIntros "Hwp H". unfold wp_for_call. destruct (prog s !! F); eauto.
+  iIntros "Hwp H". unfold wp_for_call. destruct (penv_prog pe !! F); eauto.
   iApply (wp_wand_fun with "Hwp H").
 Qed.
 End wp.

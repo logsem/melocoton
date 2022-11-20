@@ -25,19 +25,19 @@ Definition code2 : list instr := [
 Section specs.
 Context `{!minilangGS hlc Σ}.
 
-Definition penv1 : prog_environ mini_lang := {|
-  prog := {[ "main" := E code1 ]};
-  T := (λ fn vs Φ, ⌜fn = "f"⌝ ∗ ∃ n,
-         ACC n ∗ 2 ↦ 12 ∗
-         AVAILABLE (⊤ ∖ {[ Pos.of_nat 1 ]} ∖ {[ Pos.of_nat 2 ]}) ∗
-         (∀ m, ACC m ∗ 2 ↦ 13 ∗ REGISTERED 3 ∗
-               AVAILABLE (⊤ ∖ {[ Pos.of_nat 1 ]} ∖ {[ Pos.of_nat 2 ]} ∖ {[ Pos.of_nat 3 ]})
-            -∗ Φ ()))%I;
+Definition penv1 : prog_environ mini_lang Σ := {|
+  penv_prog := {[ "main" := E code1 ]};
+  penv_proto := (λ fn vs Φ, ⌜fn = "f"⌝ ∗ ∃ n,
+    ACC n ∗ 2 ↦ 12 ∗
+    AVAILABLE (⊤ ∖ {[ Pos.of_nat 1 ]} ∖ {[ Pos.of_nat 2 ]}) ∗
+    (∀ m, ACC m ∗ 2 ↦ 13 ∗ REGISTERED 3 ∗
+          AVAILABLE (⊤ ∖ {[ Pos.of_nat 1 ]} ∖ {[ Pos.of_nat 2 ]} ∖ {[ Pos.of_nat 3 ]})
+       -∗ Φ ()))%I;
 |}.
 
-Definition penv2 : prog_environ mini_lang := {|
-  prog := {[ "f" := E code2 ]};
-  T := (λ _ _ _, False)%I
+Definition penv2 : prog_environ mini_lang Σ := {|
+  penv_prog := {[ "f" := E code2 ]};
+  penv_proto := (λ _ _ _, False)%I
 |}.
 
 Ltac wp_const H :=
@@ -96,12 +96,12 @@ Section linking.
 Context `{!minilangGS hlc Σ}.
 Context `{!linkGS Σ}.
 
-Definition penv : prog_environ (link_lang mini_lang mini_lang) := {|
-  prog := {[ "main" := inl (E code1); "f" := inr (E code2) ]};
-  T := (λ _ _ _, False)%I;
+Definition penv : prog_environ (link_lang mini_lang mini_lang) Σ := {|
+  penv_prog := {[ "main" := inl (E code1); "f" := inr (E code2) ]};
+  penv_proto := (λ _ _ _, False)%I;
 |}.
 
-Instance penv_is_link : is_link_environ _ _ _ penv1 penv2 penv.
+Instance penv_is_link : is_link_environ penv1 penv2 penv.
 Proof.
   constructor.
   { set_solver. }

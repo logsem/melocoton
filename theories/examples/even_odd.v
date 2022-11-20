@@ -31,14 +31,14 @@ Definition is_even_proto fn vs Φ : iProp Σ :=
   ⌜fn = "is_even"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
   Φ (# (Z.even x)).
 
-Definition even_env : prog_environ C_lang := {|
-  prog := <[ "is_even" := is_even_func ]> ∅;
-  T := (λ fn vs Φ, is_odd_proto fn vs Φ);
+Definition even_env : prog_environ C_lang Σ := {|
+  penv_prog := {[ "is_even" := is_even_func ]};
+  penv_proto := (λ fn vs Φ, is_odd_proto fn vs Φ);
 |}.
 
-Definition odd_env : prog_environ C_lang := {|
-  prog := <[ "is_odd" := is_odd_func ]> ∅;
-  T := (λ fn vs Φ, is_even_proto fn vs Φ);
+Definition odd_env : prog_environ C_lang Σ := {|
+  penv_prog := {[ "is_odd" := is_odd_func ]};
+  penv_proto := (λ fn vs Φ, is_even_proto fn vs Φ);
 |}.
 
 Lemma is_even_spec (x:Z) E :

@@ -209,7 +209,7 @@ Proof.
 Qed.
 
 Lemma wp_internal_call p fn n instrs EE Φ :
-  prog p !! fn = Some instrs →
+  penv_prog p !! fn = Some instrs →
   WP instrs @ p; EE {{ Φ }} -∗
   WP E [Call fn n] @ p; EE {{ Φ }}.
 Proof.
@@ -220,8 +220,8 @@ Proof.
 Qed.
 
 Lemma wp_extern p fn n EE Φ :
-  prog p !! fn = None →
-  T p fn (repeat () n) Φ -∗
+  penv_prog p !! fn = None →
+  penv_proto p fn (repeat () n) Φ -∗
   WP E [Call fn n] @ p; EE {{ Φ }}.
 Proof.
   iIntros (Hfn) "HT".

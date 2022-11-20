@@ -45,18 +45,17 @@ Proof.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Record prog_environ
-      `{!invGS_gen hlc Σ, !mlangGS hlc val Σ Λ} := {
-  prog : mixin_prog (func Λ);
-  T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ
+Record prog_environ {val} (Λ : mlanguage val) Σ := {
+  penv_prog : gmap string Λ.(func);
+  penv_proto : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ;
 }.
-
-Arguments prog_environ {_ _ _ _} Λ {_}.
+Global Arguments penv_prog {_ _ _} _.
+Global Arguments penv_proto {_ _ _} _.
 
 Local Definition wp_def
       `{!invGS_gen hlc Σ, !mlangGS hlc val Σ Λ} :
-  Wp (iProp Σ) (expr Λ) (val) (prog_environ Λ) :=
-  λ p : (prog_environ Λ), fixpoint (wp_pre (p.(prog)) (p.(T))).
+  Wp (iProp Σ) (expr Λ) (val) (prog_environ Λ Σ) :=
+  λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {hlc Σ _ val Λ _}.
@@ -73,13 +72,13 @@ Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
-Implicit Types pe : prog_environ Λ.
+Implicit Types pe : prog_environ Λ Σ.
 Implicit Types X : expr Λ * state Λ → Prop.
 
 (* Weakest pre *)
 Lemma wp_unfold pe E e Φ :
-  WP e @ pe; E {{ Φ }} ⊣⊢ wp_pre (pe.(prog)) (pe.(T)) (wp (PROP:=iProp Σ) pe) E e Φ.
-Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre (pe.(prog)) (pe.(T)))). Qed.
+  WP e @ pe; E {{ Φ }} ⊣⊢ wp_pre pe.(penv_prog) pe.(penv_proto) (wp (PROP:=iProp Σ) pe) E e Φ.
+Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre pe.(penv_prog) pe.(penv_proto))). Qed.
 
 Global Instance wp_ne pe E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) pe E e).
@@ -106,7 +105,7 @@ Proof.
 Qed.
 
 Definition prog_environ_mono pe1 pe2 : Prop :=
-   prog pe1 = prog pe2 ∧ ∀ f vs Φ, T pe1 f vs Φ -∗ T pe2 f vs Φ.
+   penv_prog pe1 = penv_prog pe2 ∧ ∀ f vs Φ, penv_proto pe1 f vs Φ -∗ penv_proto pe2 f vs Φ.
 
 Lemma prog_environ_mono_refl : Reflexive (prog_environ_mono).
 Proof. intros s; split; eauto. Qed.
@@ -301,11 +300,11 @@ Proof. iIntros "[? H]". iApply (wp_strong_mono with "H"); auto with iFrame. Qed.
 Lemma wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_strong_mono with "H"); auto with iFrame. Qed.
 
-Lemma wp_extern p fn vs E Φ :
-  prog p !! fn = None →
-  T p fn vs Φ -∗
+Lemma wp_extern pe fn vs E Φ :
+  penv_prog pe !! fn = None →
+  penv_proto pe fn vs Φ -∗
   at_boundary Λ -∗
-  WP of_class Λ (ExprCall fn vs) @ p ; E {{ λ v, Φ v ∗ at_boundary Λ }}.
+  WP of_class Λ (ExprCall fn vs) @ pe; E {{ λ v, Φ v ∗ at_boundary Λ }}.
 Proof.
   iIntros (Hfnext) "H Hb". rewrite wp_unfold /wp_pre /=.
   iIntros (σ) "Hσ". iModIntro. iRight. iLeft.
@@ -315,11 +314,11 @@ Proof.
   iFrame.
 Qed.
 
-Lemma wp_internal_call p fn vs func body E Φ :
-  prog p !! fn = Some func →
+Lemma wp_internal_call pe fn vs func body E Φ :
+  penv_prog pe !! fn = Some func →
   apply_func func vs = Some body →
-  (▷ WP body @ p ; E {{ Φ }}) -∗
-  WP of_class Λ (ExprCall fn vs) @ p ; E {{ Φ }}.
+  (▷ WP body @ pe; E {{ Φ }}) -∗
+  WP of_class Λ (ExprCall fn vs) @ pe; E {{ Φ }}.
 Proof.
   iIntros (Hfn Hfunc) "H". iApply wp_unfold. rewrite /wp_pre /=.
   iIntros (σ) "Hσ !>". iRight. iRight.

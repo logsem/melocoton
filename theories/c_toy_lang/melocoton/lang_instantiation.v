@@ -3,6 +3,7 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
+From melocoton.interop Require Import lang_to_mlang.
 From melocoton.c_toy_lang Require Import iris.lang_instantiation.
 From melocoton.language Require Import language.
 From melocoton.c_toy_lang Require Export lang metatheory.
@@ -184,3 +185,4 @@ Proof. split.
 Qed.
 
 Canonical Structure C_lang := Language melocoton_lang_mixin_C.
+Canonical Structure C_mlang := lang_to_mlang C_lang.

@@ -36,7 +36,7 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
 Ltac wp_expr_simpl := wp_expr_eval solve_lookup_fixed.
 
 Lemma tac_wp_pure `{!heapGS_gen hlc Σ} Δ Δ' s E K e1 e2 φ n Φ :
-  PureExec φ n (weakestpre.prog s) e1 e2 →
+  PureExec φ n (penv_prog s) e1 e2 →
   φ →
   MaybeIntoLaterNEnvs n Δ Δ' →
   envs_entails Δ' (WP (fill K e2) @ s; E {{ Φ }}) →

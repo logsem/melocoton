@@ -200,7 +200,7 @@ Qed.
 induction directly, but this demonstrates that we can state the expected
 reasoning principle for recursive functions, without any visible ▷. *)
 Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) :
-   ⌜(weakestpre.prog s) !! f = Some (Fun args e)⌝ -∗
+   ⌜penv_prog s !! f = Some (Fun args e)⌝ -∗
   □ ( □ (∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}) -∗
      ∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (subst_all res e) @ s; E {{ Φ }}) -∗
   ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}.
@@ -389,8 +389,8 @@ Proof.
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_call' (s:prog_environ C_lang) n args body body' vv E Φ :
-     ⌜((weakestpre.prog s) : gmap string function) !! n = Some (Fun args body)⌝ 
+Lemma wp_call' (s:prog_environ C_lang Σ) n args body body' vv E Φ :
+     ⌜(penv_prog s) !! n = Some (Fun args body)⌝
   -∗ ⌜apply_function (Fun args body) vv = Some body'⌝
   -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
   -∗ WP (FunCall ((&n)) (map Val vv)) @ s ; E {{v, Φ v}}.
@@ -407,8 +407,8 @@ Proof.
   do 2 iModIntro. iFrame.
 Qed.
 
-Lemma wp_call (s:prog_environ C_lang) n args body body' vv E Φ :
-     ⌜((weakestpre.prog s) : gmap string function) !! n = Some (Fun args body)⌝ 
+Lemma wp_call (s:prog_environ C_lang Σ) n args body body' vv E Φ :
+     ⌜penv_prog s !! n = Some (Fun args body)⌝
   -∗ ⌜apply_function (Fun args body) vv = Some body'⌝
   -∗ (WP body' @ s ; E {{v, Φ v}})
   -∗ WP (FunCall ((&n)) (map Val vv)) @ s ; E {{v, Φ v}}.

@@ -43,13 +43,13 @@ Section ToMLang.
       + right. exists v. unfold to_val in Hv. destruct (to_class e) as [[]|]; try congruence.
   Qed.
 
-  Canonical Structure embed_lang : mlanguage val :=
+  Definition lang_to_mlang : mlanguage val :=
     Mlanguage language_mlanguage_mixin.
 
   Inductive embed_split_state : Λ.(state) → Λ.(state) → unit → Prop :=
     split_state_refl σ : embed_split_state σ σ ().
 
-  Global Program Instance embed_linkable : linkable embed_lang Λ.(state) := {
+  Global Program Instance embed_linkable : linkable lang_to_mlang Λ.(state) := {
     linking.private_state := unit;
     linking.split_state := embed_split_state;
   }.
