@@ -125,4 +125,38 @@ Proof.
   { iIntros (? ? ? ? ?) "(-> & _)". simplify_map_eq/=. }
 Qed.
 
+Lemma is_even_linked_spec (x:Z) E :
+  (0 ≤ x)%Z →
+  {{{ link_in_state _ _ Boundary }}}
+    LkSE (Link.ExprCall "is_even" [ #x ]) @ penv; E
+  {{{ RET #(Z.even x); link_in_state _ _ Boundary }}}.
+Proof.
+  iIntros (Hx Φ) "Hlkst HΦ".
+  iApply wp_link_internal_call; first done.
+  iIntros "!>". iApply (wp_link_run_function1 with "Hlkst"); first done.
+  iIntros "!> Hlkst _".
+  iApply (wp_link_run1' with "Hlkst").
+  { iApply wp_wand.
+    2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
+    iApply wp_embed. by iApply is_even_spec. }
+  iIntros (?) "[-> ?]". by iApply "HΦ".
+Qed.
+
+Lemma is_odd_linked_spec (x:Z) E :
+  (0 ≤ x)%Z →
+  {{{ link_in_state _ _ Boundary }}}
+    LkSE (Link.ExprCall "is_odd" [ #x ]) @ penv; E
+  {{{ RET #(Z.odd x); link_in_state _ _ Boundary }}}.
+Proof.
+  iIntros (Hx Φ) "Hlkst HΦ".
+  iApply wp_link_internal_call; first done.
+  iIntros "!>". iApply (wp_link_run_function2 with "Hlkst"); first done.
+  iIntros "!> Hlkst _".
+  iApply (wp_link_run2' with "Hlkst").
+  { iApply wp_wand.
+    2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
+    iApply wp_embed. by iApply is_odd_spec. }
+  iIntros (?) "[-> ?]". by iApply "HΦ".
+Qed.
+
 End linking.
