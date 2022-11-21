@@ -657,6 +657,18 @@ Proof using.
   iApply ("H" with "Hwp Hlkst").
 Qed.
 
+Lemma wp_link_run1' pe1 pe2 pe E e1 Φ Ψ :
+  is_link_environ pe1 pe2 pe →
+  link_in_state In1 -∗
+  WP e1 @ pe1; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
+  (∀ v, Φ v ∗ link_in_state Boundary -∗ Ψ v) -∗
+  WP LkSE (Link.Expr1 e1) @ pe; E {{ Ψ }}.
+Proof using.
+  iIntros (?) "Hin Hwp HΦ". iApply (wp_wand with "[-HΦ]").
+  { iApply (wp_link_run1 with "Hin Hwp"). }
+  done.
+Qed.
+
 Lemma wp_link_run2 pe1 pe2 pe E e2 Φ :
   is_link_environ pe1 pe2 pe →
   link_in_state In2 -∗
@@ -665,6 +677,18 @@ Lemma wp_link_run2 pe1 pe2 pe E e2 Φ :
 Proof using.
   iIntros (Hislink) "Hlkst Hwp". iDestruct (wp_link_run_mut _ _ _ _ Hislink) as "[_ H]".
   iApply ("H" with "Hwp Hlkst").
+Qed.
+
+Lemma wp_link_run2' pe1 pe2 pe E e2 Φ Ψ :
+  is_link_environ pe1 pe2 pe →
+  link_in_state In2 -∗
+  WP e2 @ pe2; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
+  (∀ v, Φ v ∗ link_in_state Boundary -∗ Ψ v) -∗
+  WP LkSE (Link.Expr2 e2) @ pe; E {{ Ψ }}.
+Proof using.
+  iIntros (?) "Hin Hwp HΦ". iApply (wp_wand with "[-HΦ]").
+  { iApply (wp_link_run2 with "Hin Hwp"). }
+  done.
 Qed.
 
 Lemma wp_link_internal_call p fn vs (func: Link.func Λ1 Λ2) Φ E :
