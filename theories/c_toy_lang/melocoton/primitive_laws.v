@@ -140,7 +140,7 @@ Notation "l ↦_ I v" := (inv_mapsto_own l v I%stdpp%type)
 
 Section lifting.
 Context `{!heapGS_gen hlc Σ}.
-Context {p:prog_environ C_lang}.
+Context {p:prog_environ C_lang Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types efs : list expr.
