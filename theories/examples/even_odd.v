@@ -1,3 +1,4 @@
+From Coq Require Import Lia.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang notation.
 From melocoton.c_toy_lang.melocoton Require Import proofmode primitive_laws.
@@ -49,14 +50,38 @@ Lemma is_even_spec (x:Z) E :
 Proof.
   iIntros (?). iStartProof.
   rewrite /is_even_code /=. cbn; simplify_map_eq.
-  Fail wp_pures.
-Admitted.
+  wp_pures. case_bool_decide as Hx; wp_if.
+  { by inversion Hx. }
+  wp_pures. case_bool_decide as Hx'; wp_if.
+  { by inversion Hx'. }
+  wp_pures. wp_extern. iModIntro. cbn.
+  rewrite /is_odd_proto /=. iSplitR; first done.
+  iExists _. iSplitR.
+  { iPureIntro. split; first done.
+    assert (x ≠ 0). { intro. apply Hx. by f_equal. }
+    lia. }
+  wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.odd_pred //.
+Qed.
 
 Lemma is_odd_spec (x:Z) E :
   (0 ≤ x)%Z →
   ⊢ WP subst "x" (#x) (is_odd_code "x") @ odd_env; E
       {{ λ v, ⌜v = #(Z.odd x)⌝ }}.
-Admitted.
+Proof.
+  iIntros (?). iStartProof.
+  rewrite /is_even_code /=. cbn; simplify_map_eq.
+  wp_pures. case_bool_decide as Hx; wp_if.
+  { by inversion Hx. }
+  wp_pures. case_bool_decide as Hx'; wp_if.
+  { by inversion Hx'. }
+  wp_pures. wp_extern. iModIntro. cbn.
+  rewrite /is_odd_proto /=. iSplitR; first done.
+  iExists _. iSplitR.
+  { iPureIntro. split; first done.
+    assert (x ≠ 0). { intro. apply Hx. by f_equal. }
+    lia. }
+  wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.even_pred //.
+Qed.
 
 End specs.
 
