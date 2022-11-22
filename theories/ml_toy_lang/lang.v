@@ -1,8 +1,8 @@
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
-From iris.heap_lang Require Export locations.
 From iris.program_logic Require ectxi_language.
+From melocoton.ml_toy_lang Require Export locoff.
 From iris.prelude Require Import options.
 
 (** heap_lang.  A fairly simple language used for common Iris examples.
@@ -47,8 +47,7 @@ Inductive bin_op : Set :=
   | PlusOp | MinusOp | MultOp | QuotOp | RemOp (* Arithmetic *)
   | AndOp | OrOp | XorOp (* Bitwise *)
   | ShiftLOp | ShiftROp (* Shifts *)
-  | LeOp | LtOp | EqOp (* Relations *)
-  | OffsetOp. (* Pointer offset *)
+  | LeOp | LtOp | EqOp (* Relations *).
 
 Unset Elimination Schemes.
 
@@ -73,14 +72,10 @@ Inductive expr :=
   | Case (e0 : expr) (e1 : expr) (e2 : expr)
   (* Heap *)
   | AllocN (e1 e2 : expr) (* array length (positive number), initial value *)
-(*  | Free (e : expr) *)
-  | Load (e : expr)
-  | Store (e1 : expr) (e2 : expr)
-(*  | CmpXchg (e0 : expr) (e1 : expr) (e2 : expr) (* Compare-exchange *)
-  | Xchg (e0 : expr) (e1 : expr) (* exchange *)
-  | FAA (e1 : expr) (e2 : expr) (* Fetch-and-add *) 
-  (* Concurrency *)
-  | Fork (e : expr)*)
+  | LoadN (e1 : expr) (e2 : expr) (* location, offset *)
+  | StoreN (e1 : expr) (e2 : expr) (e3 : expr) (* location, offset, value *)
+  | Length (e : expr)
+  (* Call to a (possibly external) module function *)
   | Extern (s : string) (ea : list expr)
 with val :=
   | LitV (l : base_lit)
@@ -108,10 +103,11 @@ Definition expr_ind (P : expr → Prop)
   (f9 : ∀ e : expr, P e → P (InjL e)) (f10 : ∀ e : expr, P e → P (InjR e)) 
   (f11 : ∀ e0 : expr,
            P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (Case e0 e1 e2)) 
-  (f12 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (AllocN e1 e2)) 
-  (*f13 : ∀ e : expr, P e → P (Free e)*) (f14 : ∀ e : expr, P e → P (Load e)) 
-  (f15 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (Store e1 e2)) 
-  (f16 : ∀ (s : string) (ea : list expr), Forall P ea → P (Extern s ea))
+  (f12 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (AllocN e1 e2))
+  (f14 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (LoadN e1 e2))
+  (f15 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → ∀ e3 : expr, P e3 → P (StoreN e1 e2 e3))
+  (f16 : ∀ e : expr, P e → P (Length e))
+  (f17 : ∀ (s : string) (ea : list expr), Forall P ea → P (Extern s ea))
   :=
   fix F (e : expr) : P e :=
     match e as e0 return (P e0) with
@@ -129,10 +125,10 @@ Definition expr_ind (P : expr → Prop)
     | InjR e0 => f10 e0 (F e0)
     | Case e0 e1 e2 => f11 e0 (F e0) e1 (F e1) e2 (F e2)
     | AllocN e1 e2 => f12 e1 (F e1) e2 (F e2)
-   (* | Free e0 => f13 e0 (F e0) *)
-    | Load e0 => f14 e0 (F e0)
-    | Store e1 e2 => f15 e1 (F e1) e2 (F e2)
-    | Extern s ea => f16 s ea (Forall_true P ea F)
+    | LoadN e0 e1 => f14 e0 (F e0) e1 (F e1)
+    | StoreN e1 e2 e3 => f15 e1 (F e1) e2 (F e2) e3 (F e3)
+    | Length e => f16 e (F e)
+    | Extern s ea => f17 s ea (Forall_true P ea F)
     end.
 
 Set Elimination Schemes.
@@ -201,12 +197,7 @@ Definition vals_compare_safe (vl v1 : val) : Prop :=
   val_is_unboxed vl ∨ val_is_unboxed v1.
 Global Arguments vals_compare_safe !_ !_ /.
 
-(** The state: heaps of [option val]s, with [None] representing deallocated locations. *)
-(*Record state : Type := {
-  heap: gmap loc (val);
-}. *)
-
-Definition state : Type := gmap loc val.
+Definition state : Type := gmap loc (list val).
 
 (** Equality and other typeclass stuff *)
 Lemma to_of_val v : to_val (of_val v) = Some v.
@@ -249,11 +240,11 @@ Proof.
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | AllocN e1 e2, AllocN e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-(*     | Free e, Free e' =>
-        cast_if (decide (e = e')) *)
-     | Load e, Load e' => cast_if (decide (e = e'))
-     | Store e1 e2, Store e1' e2' =>
-        cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | LoadN e1 e2, LoadN e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | StoreN e1 e2 e3, StoreN e1' e2' e3' =>
+        cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
+     | Length e, Length e' =>
+        cast_if (decide (e = e'))
      | Extern x e, Extern x' e' => 
         let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
                        match l1, l2 with
@@ -302,11 +293,11 @@ Proof.
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | AllocN e1 e2, AllocN e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-(*     | Free e, Free e' =>
-        cast_if (decide (e = e')) *)
-     | Load e, Load e' => cast_if (decide (e = e'))
-     | Store e1 e2, Store e1' e2' =>
-        cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | LoadN e1 e2, LoadN e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | StoreN e1 e2 e3, StoreN e1' e2' e3' =>
+        cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
+     | Length e, Length e' =>
+        cast_if (decide (e = e'))
      | Extern x e, Extern x' e' => 
         let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
                        match l1, l2 with
@@ -357,11 +348,11 @@ Proof.
  refine (inj_countable' (λ op, match op with
   | PlusOp => 0 | MinusOp => 1 | MultOp => 2 | QuotOp => 3 | RemOp => 4
   | AndOp => 5 | OrOp => 6 | XorOp => 7 | ShiftLOp => 8 | ShiftROp => 9
-  | LeOp => 10 | LtOp => 11 | EqOp => 12 | OffsetOp => 13
+  | LeOp => 10 | LtOp => 11 | EqOp => 12
   end) (λ n, match n with
   | 0 => PlusOp | 1 => MinusOp | 2 => MultOp | 3 => QuotOp | 4 => RemOp
   | 5 => AndOp | 6 => OrOp | 7 => XorOp | 8 => ShiftLOp | 9 => ShiftROp
-  | 10 => LeOp | 11 => LtOp | 12 => EqOp | _ => OffsetOp
+  | 10 => LeOp | 11 => LtOp | _ => EqOp
   end) _); by intros [].
 Qed.
 Global Instance expr_countable : Countable expr.
@@ -383,10 +374,10 @@ Proof.
      | InjR e => GenNode 10 [go e]
      | Case e0 e1 e2 => GenNode 11 [go e0; go e1; go e2]
      | AllocN e1 e2 => GenNode 13 [go e1; go e2]
-(*     | Free e => GenNode 14 [go e] *)
-     | Load e => GenNode 15 [go e]
-     | Store e1 e2 => GenNode 16 [go e1; go e2]
-     | Extern s el => GenNode 17 (GenLeaf (inl (inl s)) :: map go el)
+     | LoadN e1 e2 => GenNode 15 [go e1; go e2]
+     | StoreN e1 e2 e3 => GenNode 16 [go e1; go e2; go e3]
+     | Length e => GenNode 17 [go e]
+     | Extern s el => GenNode 18 (GenLeaf (inl (inl s)) :: map go el)
      end
    with gov v :=
      match v with
@@ -415,10 +406,10 @@ Proof.
      | GenNode 10 [e] => InjR (go e)
      | GenNode 11 [e0; e1; e2] => Case (go e0) (go e1) (go e2)
      | GenNode 13 [e1; e2] => AllocN (go e1) (go e2)
-(*     | GenNode 14 [e] => Free (go e) *)
-     | GenNode 15 [e] => Load (go e)
-     | GenNode 16 [e1; e2] => Store (go e1) (go e2)
-     | GenNode 17 (GenLeaf (inl (inl s)) :: ea) => Extern s (map go ea)
+     | GenNode 15 [e1; e2] => LoadN (go e1) (go e2)
+     | GenNode 16 [e1; e2; e3] => StoreN (go e1) (go e2) (go e3)
+     | GenNode 17 [e] => Length (go e)
+     | GenNode 18 (GenLeaf (inl (inl s)) :: ea) => Extern s (map go ea)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -433,7 +424,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | |]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | |]; simpl; f_equal;
      [exact (gov v)|try done..].
    unfold map; by induction ea as [|ex er ->]; simpl; f_equal.
  - destruct v; by f_equal.
@@ -468,10 +459,12 @@ Inductive ectx_item :=
   | CaseCtx (e1 : expr) (e2 : expr)
   | AllocNLCtx (v2 : val)
   | AllocNRCtx (e1 : expr)
-(*  | FreeCtx *)
-  | LoadCtx
-  | StoreLCtx (v2 : val)
-  | StoreRCtx (e1 : expr)
+  | LoadNLCtx (v2 : val)
+  | LoadNRCtx (e1 : expr)
+  | StoreNLLCtx (v2 : val) (v3 : val)
+  | StoreNLRCtx (e1 : expr) (v3 : val)
+  | StoreNRRCtx (e1 : expr) (e2 : expr)
+  | LengthCtx
   | ExternCtx (s : string) (va : list val) (ve : list expr).
 
 (** Contextual closure will only reduce [e] in [Resolve e (Val _) (Val _)] if
@@ -498,10 +491,12 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | CaseCtx e1 e2 => Case e e1 e2
   | AllocNLCtx v2 => AllocN e (Val v2)
   | AllocNRCtx e1 => AllocN e1 e
-(*  | FreeCtx => Free e *)
-  | LoadCtx => Load e
-  | StoreLCtx v2 => Store e (Val v2)
-  | StoreRCtx e1 => Store e1 e
+  | LoadNLCtx v2 => LoadN e (Val v2)
+  | LoadNRCtx e1 => LoadN e1 e
+  | StoreNLLCtx v2 v3 => StoreN e (Val v2) (Val v3)
+  | StoreNLRCtx e1 v3 => StoreN e1 e (Val v3)
+  | StoreNRRCtx e1 e2 => StoreN e1 e2 e
+  | LengthCtx => Length e
   | ExternCtx s va ve => Extern s (map of_val va ++ [e] ++ ve)
   end.
 
@@ -527,9 +522,9 @@ Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
   | InjR e => InjR (subst_all g e)
   | Case e0 e1 e2 => Case (subst_all g e0) (subst_all g e1) (subst_all g e2)
   | AllocN e1 e2 => AllocN (subst_all g e1) (subst_all g e2)
-(*  | Free e => Free (subst_all g e) *)
-  | Load e => Load (subst_all g e)
-  | Store e1 e2 => Store (subst_all g e1) (subst_all g e2)
+  | LoadN e1 e2 => LoadN (subst_all g e1) (subst_all g e2)
+  | StoreN e1 e2 e3 => StoreN (subst_all g e1) (subst_all g e2) (subst_all g e3)
+  | Length e => Length (subst_all g e)
   | Extern s ea => Extern s (map (subst_all g) ea)
   end.
 
@@ -563,7 +558,6 @@ Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : option base_lit :=
   | LeOp => Some $ LitBool (bool_decide (n1 ≤ n2))
   | LtOp => Some $ LitBool (bool_decide (n1 < n2))
   | EqOp => Some $ LitBool (bool_decide (n1 = n2))
-  | OffsetOp => None (* Pointer arithmetic *)
   end%Z.
 
 Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
@@ -575,13 +569,6 @@ Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
   | ShiftLOp | ShiftROp => None (* Shifts *)
   | LeOp | LtOp => None (* InEquality *)
   | EqOp => Some (LitBool (bool_decide (b1 = b2)))
-  | OffsetOp => None (* Pointer arithmetic *)
-  end.
-
-Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option base_lit :=
-  match op, v2 with
-  | OffsetOp, LitInt off => Some $ LitLoc (l1 +ₗ off)
-  | _, _ => None
   end.
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
@@ -595,62 +582,11 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     match v1, v2 with
     | LitV (LitInt n1), LitV (LitInt n2) => LitV <$> bin_op_eval_int op n1 n2
     | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
-    | LitV (LitLoc l1), LitV v2 => LitV <$> bin_op_eval_loc op l1 v2
     | _, _ => None
     end.
 
-Definition state_upd_heap (f: gmap loc val → gmap loc val) (σ: state) : state := f σ.
+Definition state_upd_heap (f: gmap loc (list val) → gmap loc (list val)) (σ: state) : state := f σ.
 Global Arguments state_upd_heap _ !_ /.
-
-Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
-  match vs with
-  | [] => ∅
-  | v :: vs' => {[l := v]} ∪ heap_array (l +ₗ 1) vs'
-  end.
-
-Lemma heap_array_singleton l v : heap_array l [v] = {[l := v]}.
-Proof. by rewrite /heap_array right_id. Qed.
-
-Lemma heap_array_lookup l vs (ow:val) k :
-  heap_array l vs !! k = Some ow ↔
-  ∃ j, (0 ≤ j)%Z ∧ k = l +ₗ j  ∧ vs !! (Z.to_nat j) = Some ow.
-Proof.
-  revert k l; induction vs as [|v' vs IH]=> l' l /=.
-  { rewrite lookup_empty. naive_solver lia. }
-  rewrite -insert_union_singleton_l lookup_insert_Some IH. split.
-  - intros [[-> ?] | (Hl & j & w & ? & ?)].
-    { eexists 0. rewrite loc_add_0. naive_solver lia. }
-    eexists (1 + j)%Z. rewrite -loc_add_assoc !Z.add_1_l Z2Nat.inj_succ; auto with lia.
-  - intros (j & w & ? & Hil). destruct (decide (j = 0)); simplify_eq/=.
-    { rewrite loc_add_0; eauto. }
-    right. split.
-    { rewrite -{1}(loc_add_0 l). intros ?%(inj (loc_add _)); lia. }
-    assert (Z.to_nat j = S (Z.to_nat (j - 1))) as Hj.
-    { rewrite -Z2Nat.inj_succ; last lia. f_equal; lia. }
-    rewrite Hj /= in Hil.
-    eexists (j - 1)%Z. rewrite loc_add_assoc Z.add_sub_assoc Z.add_simpl_l.
-    auto with lia.
-Qed.
-
-Lemma heap_array_map_disjoint (h : gmap loc val) (l : loc) (vs : list val) :
-  (∀ i, (0 ≤ i)%Z → (i < length vs)%Z → h !! (l +ₗ i) = None) →
-  (heap_array l vs) ##ₘ h.
-Proof.
-  intros Hdisj. apply map_disjoint_spec=> l' v1 v2.
-  intros (j&w&->&Hj%lookup_lt_Some%inj_lt)%heap_array_lookup.
-  move: Hj. rewrite Z2Nat.id // => ?. by rewrite Hdisj.
-Qed.
-
-(* [h] is added on the right here to make [state_init_heap_singleton] true. *)
-Definition state_init_heap (l : loc) (n : Z) (v : val) (σ : state) : state :=
-  state_upd_heap (λ h, heap_array l (replicate (Z.to_nat n) v) ∪ h) σ.
-
-Lemma state_init_heap_singleton l v σ :
-  state_init_heap l 1 v σ = state_upd_heap <[l:=v]> σ.
-Proof.
-  rewrite /state_init_heap /= /state_upd_heap.
-  rewrite right_id insert_union_singleton_l. done.
-Qed.
 
 Inductive ml_function := MlFun (b : list binder) (e : expr).
 Class ml_program := prog : gmap string ml_function.
@@ -696,27 +632,26 @@ Inductive head_step {p:ml_program} : expr → state → list unit → expr → s
   | CaseRS v e1 e2 σ :
      head_step (Case (Val $ InjRV v) e1 e2) σ [] (App e2 (Val v)) σ []
   | AllocNS n v σ l :
-     (0 < n)%Z →
-     (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ !! (l +ₗ i) = None) →
+     (0 ≤ n)%Z →
+     l ∉ dom σ →
      head_step (AllocN (Val $ LitV $ LitInt n) (Val v)) σ
                []
-               (Val $ LitV $ LitLoc l) (state_init_heap l n v σ)
+               (Val $ LitV $ LitLoc l) (<[l := replicate (Z.to_nat n) v]> σ)
                []
-(*  | FreeS l v σ :
-     σ.(heap) !! l = Some $ Some v →
-     head_step (Free (Val $ LitV $ LitLoc l)) σ
+  | LoadNS l i v σ :
+     σ !! Locoff l i = Some v →
+     head_step (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i)) σ []
+               (of_val v) σ []
+  | StoreNS l i v w σ :
+     σ !! Locoff l i = Some v →
+     head_step (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
                []
-               (Val $ LitV LitUnit) (state_upd_heap <[l:=None]> σ)
-               [] *)
-  | LoadS l v σ :
-     σ !! l = Some v →
-     head_step (Load (Val $ LitV $ LitLoc l)) σ [] (of_val v) σ []
-  | StoreS l v w σ :
-     σ !! l = Some v →
-     head_step (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+               (Val $ LitV LitUnit) (<[Locoff l i := w]> σ)
                []
-               (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-               []
+  | LengthS l vs σ :
+    σ !! l = Some vs →
+    head_step (Length (Val $ LitV $ LitLoc l)) σ []
+              (Val $ LitV $ LitInt (length vs)) σ []
   | ExternS s va args res e σ :
      (p : gmap string ml_function) !! s = Some (MlFun args e) →
      apply_function (MlFun args e) va = Some res →
@@ -785,14 +720,15 @@ Qed.
 
 Lemma alloc_fresh {p:ml_program} v n σ :
   let l := fresh_locs (dom σ) in
-  (0 < n)%Z →
+  (0 ≤ n)%Z →
   head_step (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ []
-            (Val $ LitV $ LitLoc l) (state_init_heap l n v σ) [].
+            (Val $ LitV $ LitLoc l) (<[l := replicate (Z.to_nat n) v]> σ) [].
 Proof.
   intros.
   apply AllocNS; first done.
-  intros. apply not_elem_of_dom.
-  by apply fresh_locs_fresh.
+  intros.
+  pose proof (fresh_locs_fresh (dom σ) 0 ltac:(reflexivity)) as Hfresh.
+  by rewrite loc_add_0 in Hfresh.
 Qed.
 End ML_lang.
 Export ML_lang.

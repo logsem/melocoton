@@ -19,11 +19,11 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | Val v => is_closed_val v
   | Var x => bool_decide (x ∈ X)
   | Rec f x e => is_closed_expr (set_binder_insert f (set_binder_insert x X)) e
-  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Load e =>
+  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Length e =>
      is_closed_expr X e
-  | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | AllocN e1 e2 | Store e1 e2 =>
+  | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | AllocN e1 e2 | LoadN e1 e2 =>
      is_closed_expr X e1 && is_closed_expr X e2
-  | If e0 e1 e2 | Case e0 e1 e2  =>
+  | If e0 e1 e2 | Case e0 e1 e2 | StoreN e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | Extern _ ea => forallb (is_closed_expr X) ea
   end
@@ -214,35 +214,8 @@ Lemma bin_op_eval_closed op v1 v2 v' :
   is_closed_val v1 → is_closed_val v2 → bin_op_eval op v1 v2 = Some v' →
   is_closed_val v'.
 Proof.
-  rewrite /bin_op_eval /bin_op_eval_bool /bin_op_eval_int /bin_op_eval_loc;
+  rewrite /bin_op_eval /bin_op_eval_bool /bin_op_eval_int;
     repeat case_match; by naive_solver.
-Qed.
-
-Lemma heap_closed_alloc σ l n w :
-  (0 < n)%Z →
-  is_closed_val w →
-  map_Forall (λ _ v, is_closed_val v) (σ) →
-  (∀ i : Z, (0 ≤ i)%Z → (i < n)%Z → σ !! (l +ₗ i) = None) →
-  map_Forall (λ _ v, is_closed_val v)
-             (heap_array l (replicate (Z.to_nat n) w) ∪ σ).
-Proof.
-  intros Hn Hw Hσ Hl.
-  eapply (map_Forall_ind
-            (λ k v, ((heap_array l (replicate (Z.to_nat n) w) ∪ σ)
-                       !! k = Some v))).
-  - apply map_Forall_empty.
-  - intros m i x Hi Hix Hkwm Hm.
-    apply map_Forall_insert_2; auto.
-    apply lookup_union_Some in Hix; last first.
-    { eapply heap_array_map_disjoint;
-        rewrite replicate_length Z2Nat.id; auto with lia. }
-    destruct Hix as [(?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
-                     [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
-    + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.
-    + apply map_Forall_to_list in Hσ.
-      by eapply Forall_lookup in Hσ; eauto; simpl in *.
-  - apply map_Forall_to_list, Forall_forall.
-    intros [? ?]; apply elem_of_map_to_list.
 Qed.
 
 Definition is_closed_ml_function X f := match f with
@@ -261,7 +234,6 @@ Proof.
       1: now apply Forall_inv in H2.
       1: eapply IHb. 1: apply Heq. eapply Forall_inv_tail, H2.
 Qed.
-      
 
 (* The stepping relation preserves closedness *)
 Lemma head_step_is_closed {p:ml_program} e1 σ1 obs e2 σ2 es :
@@ -278,7 +250,21 @@ Proof.
   - subst. repeat apply is_closed_subst'; naive_solver.
   - unfold un_op_eval in *. repeat case_match; naive_solver.
   - eapply bin_op_eval_closed; eauto; naive_solver.
-  - by apply heap_closed_alloc.
+  - intros [l' i] v' HH.
+    destruct (decide (l = l')) as [->|?].
+    { rewrite store_lookup_eq in HH.
+      case_bool_decide; simplify_map_eq/=.
+      by apply lookup_replicate in HH as (-> & ?). }
+    rewrite store_lookup_eq in HH.
+    case_bool_decide; simplify_map_eq/=.
+    rewrite lookup_insert_ne // in HH.
+    destruct (σ !! l') eqn:Heqo; simplify_map_eq/=.
+    apply (Clσ1 (Locoff l' i)).
+    rewrite store_lookup_eq; by case_bool_decide; simplify_map_eq/=.
+  - intros ℓi v'.
+    destruct (decide (ℓi = l.[i])) as [->|?].
+    { rewrite (store_lookup_insert _ l.[i] v) //. congruence. }
+    rewrite store_lookup_insert_ne //. intro. by eapply Clσ1.
   - edestruct (zip_args args va) as [σ'|] eqn:Heq. 2: congruence.
     injection H0. intros <-. clear H0.
     eapply is_closed_subst_all.

@@ -236,22 +236,19 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ v lv →
     is_val χ ζ (ML_lang.InjRV v) (Lloc γ).
 
-(* refs and arrays (stored in the ML store σ) all have the default tag. *)
-(* FIXME: properly handle arrays; the ML semantics does not represent arrays the
-   way I expect here (it represents arrays as a sequence of consecutive
-   locations, instead of a location storing a list of values).
-*)
+(* Elements of the ML store are lists of values representing refs and arrays;
+   they correspond to a mutable block with the default tag. *)
+Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Prop :=
+| is_heap_elt_block vs lvs :
+  Forall2 (is_val χ ζ) vs lvs →
+  is_heap_elt χ ζ vs (Mut, TagDefault, lvs).
+
 Definition is_block_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
-  (* dom σ = dom χ ∧ *)
-  (* ∀ ℓ vs, σ !! ℓ = Some vs → *)
-  (*   ∃ γ lvs, χ !! ℓ = Some γ ∧ *)
-  (*            ζ !! γ = Some (Mut, TagDefault, lvs) ∧ *)
-  (*            Forall2 (is_val χ ζ) vs lvs. *)
   dom σ = dom χ ∧
-  ∀ ℓ v, σ !! ℓ = Some v →
-    ∃ γ lv, χ !! ℓ = Some γ ∧
-             ζ !! γ = Some (Mut, TagDefault, [lv]) ∧
-             is_val χ ζ v lv.
+  ∀ ℓ vs, σ !! ℓ = Some vs →
+    ∃ γ blk, χ !! ℓ = Some γ ∧
+             ζ !! γ = Some blk ∧
+             is_heap_elt χ ζ vs blk.
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (privσ σ : store) : Prop :=
   ∃ σbks, is_block_store χ ζ σbks ∧

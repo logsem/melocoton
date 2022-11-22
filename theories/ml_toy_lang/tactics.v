@@ -33,9 +33,11 @@ Ltac reshape_expr e tac :=
     | Case ?e0 ?e1 ?e2                => add_item (CaseCtx e1 e2) K e0
     | AllocN ?e (Val ?v)              => add_item (AllocNLCtx v) K e
     | AllocN ?e1 ?e2                  => add_item (AllocNRCtx e1) K e2
-    | Load ?e                         => add_item LoadCtx K e
-    | Store ?e (Val ?v)               => add_item (StoreLCtx v) K e
-    | Store ?e1 ?e2                   => add_item (StoreRCtx e1) K e2
+    | LoadN ?e (Val ?v)               => add_item (LoadNLCtx v) K e
+    | LoadN ?e1 ?e2                   => add_item (LoadNRCtx e1) K e2
+    | StoreN ?e (Val ?v2) (Val ?v3)   => add_item (StoreNLLCtx v2 v3) K e
+    | StoreN ?e1 ?e2 (Val ?v3)        => add_item (StoreNLRCtx e1 v3) K e2
+    | StoreN ?e1 ?e2 ?e3              => add_item (StoreNRRCtx e1 e2) K e3
     | Extern ?s ?ea                   => list_add_item (ExternCtx s) (Extern s) (@nil val) (@None expr) (@nil expr) ea K
     | _                               => tac K e
     end

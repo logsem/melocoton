@@ -43,7 +43,7 @@ Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
 Proof.
   induction le in lv|-*.
   - intros H. injection H. intros <-. easy.
-  - cbn. destruct a. 2-17:congruence.
+  - cbn. destruct a. 2-18:congruence.
     destruct (unmap_val le) eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
@@ -126,13 +126,13 @@ Lemma fill_ctx K s vv K' e :
   -> (exists v, e = Val v) \/ (exists K2, K = K2 ++ K').
 Proof. cbn.
   induction K' as [|[] K' IH] in K,e|-*; intros H; first last.
-  1-19: destruct  (IH _ _ H) as [(v & Hv)|(K2 & ->)]; try (cbn in *; congruence).
-  1-19:  destruct (to_val e) eqn:Heq; first (apply of_to_val in Heq; by left; eexists).
-  1-19:  rewrite fill_comp in H.
-  1-19:  unfold fill in H; rewrite fill_app in H; apply ectx_language.fill_inj in H.
-  1-19:  apply fill_tail in H as H2; try (cbn; congruence).
-  1-19:  destruct H2 as [->|(K3 & -> & HK3)]; try (cbn in *; congruence).
-  1-21:  try (right; exists K3; by rewrite <- app_assoc).
+  1-22: destruct  (IH _ _ H) as [(v & Hv)|(K2 & ->)]; try (cbn in *; congruence).
+  1-22:  destruct (to_val e) eqn:Heq; first (apply of_to_val in Heq; by left; eexists).
+  1-22:  rewrite fill_comp in H.
+  1-22:  unfold fill in H; rewrite fill_app in H; apply ectx_language.fill_inj in H.
+  1-22:  apply fill_tail in H as H2; try (cbn; congruence).
+  1-22:  destruct H2 as [->|(K3 & -> & HK3)]; try (cbn in *; congruence).
+  1-24:  try (right; exists K3; by rewrite <- app_assoc).
   - exfalso. cbn in H. assert (In e (map Val vv)) as Hin.
     + assert (map Val va ++ e :: ve = map Val vv) as <- by congruence.
       apply in_app_iff. right. now left.

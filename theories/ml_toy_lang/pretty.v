@@ -61,5 +61,4 @@ Global Instance pretty_bin_op : Pretty bin_op :=
         | LeOp => "≤"
         | LtOp => "<"
         | EqOp => "="
-        | OffsetOp => "+ₗ"
         end .
