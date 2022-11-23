@@ -1,6 +1,6 @@
-From melocoton.language Require Export language weakestpre lifting.
-From melocoton.ml_toy_lang Require Export melocoton.lang_instantiation lang.
-From melocoton.ml_toy_lang Require Import tactics melocoton.tactics notation lang.
+From melocoton.language Require Export weakestpre lifting.
+From melocoton.ml_toy_lang Require Export lang.
+From melocoton.ml_toy_lang Require Import tactics melocoton.tactics notation.
 From iris.prelude Require Import options.
 Import ML_lang.
 
@@ -28,12 +28,13 @@ Global Hint Extern 0 (AsRecV (RecV _ _ _) _ _ _) =>
   apply AsRecV_recv : typeclass_instances.
 
 Section pure_exec.
-  Context  {p:ml_program}.
+  Context  {p:language.prog ML_lang}.
   Local Ltac solve_exec_safe := intros; subst; do 3 eexists; try (repeat (econstructor; eauto); done).
   Local Ltac solve_exec_puredet := simpl; intros; inv_head_step; try inv_head_step; try done.
   Local Ltac solve_pure_exec :=
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
       constructor; [solve_exec_safe | solve_exec_puredet].
+
 
   Global Instance pure_recc f x (erec : expr) :
     PureExec True 1 p (Rec f x erec) (Val $ RecV f x erec).

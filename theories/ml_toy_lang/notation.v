@@ -1,4 +1,3 @@
-From iris.program_logic Require Import language.
 From melocoton.ml_toy_lang Require Export lang .
 From iris.prelude Require Import options.
 Import ML_lang.

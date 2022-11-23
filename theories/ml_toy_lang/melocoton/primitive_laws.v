@@ -165,8 +165,7 @@ Lemma wp_rec_löb s E f x e Φ Ψ :
   ∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ s; E {{ Φ }}.
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
-  iApply lifting.wp_pure_step_later; first apply pure_beta. 2: eauto.
-  1: apply as_recv.
+  iApply lifting.wp_pure_step_later; first eauto.
   iIntros "!>". iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
   iApply ("IH" with "HΨ").
 Qed.
