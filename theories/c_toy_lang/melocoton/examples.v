@@ -9,7 +9,7 @@ Import uPred.
 (** Heap tactics *)
 Section examples.
 
-Context `{!heapGS Σ}.
+Context `{!heapGS_gen hlc Σ}.
  
 Fixpoint fib (n:nat) : nat := match n with
   0 => 0

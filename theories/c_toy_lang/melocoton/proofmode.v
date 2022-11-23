@@ -188,7 +188,6 @@ Tactic Notation "wp_bind" open_constr(efoc) :=
 (** Heap tactics *)
 Section heap.
 Context `{!heapGS_gen hlc Σ}.
-Context `{program}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types Δ : envs (uPredI (iResUR Σ)).
