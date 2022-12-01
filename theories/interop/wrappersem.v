@@ -118,7 +118,7 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
   | PrimAllocS K ec tgnum tg sz ρc mem X :
     language.to_call ec = Some ("alloc", [LitV (LitInt tgnum); LitV (LitInt sz)]) →
     tgnum = tag_as_int tg →
-    (0 < sz)%Z →
+    (0 ≤ sz)%Z →
     (∀ roots privmem,
        dom roots = rootsC ρc →
        repr (θC ρc) roots privmem mem →
