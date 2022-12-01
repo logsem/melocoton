@@ -155,31 +155,17 @@ Inductive modify_block : block → nat → lval → block → Prop :=
     i < length vs →
     modify_block (Mut, tg, vs) i v (Mut, tg, (<[ i := v ]> vs)).
 
-(* Reachability. Needed to describe the effect of the GC on the map θ: after a
-   GC, everything that is reachable from the roots (in the logical store) is
-   still in the domain of θ (i.e. has not been deallocated). *)
-
-(* TODO: unclear whether it is simpler to define reachability wrt a list of
-   values (as is done below) or a single value. *)
-Inductive reachable : lstore → list lval → lloc → Prop :=
-  | reachable_invals ζ γ vs :
-    Lloc γ ∈ vs →
-    reachable ζ vs γ
-  | reachable_instore ζ vs γ γ' bvs m :
-    reachable ζ vs γ' →
-    ζ !! γ' = Some (m, bvs) →
-    Lloc γ ∈ bvs →
-    reachable ζ vs γ.
-
-(* NB: the induction case for this definition of reachability where one takes a step last:
-
-   reachable = -->* -->
-
-   TODO: prove an alternative induction principle that corresponds to the
-   induction where one does a step first:
-
-   reachable = --> -->*
+(* "GC correctness": if a block is live in memory (its abstract location γ is in
+   θ), then all the locations it points to are also live.
+   By transitivity, all blocks reachable from live blocks are also live.
 *)
+Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
+  ∀ γ m tg vs, γ ∈ dom θ → ζ !! γ = Some (m, tg, vs) →
+    ∀ γ', Lloc γ' ∈ vs →
+      γ' ∈ dom θ.
+
+Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
+  ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
 
 (* C representation of block-level values, roots and memory *)
 

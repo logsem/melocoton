@@ -79,10 +79,8 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
        ML_extends_lloc_map (ζML ρml) (χML ρml) χ →
        Forall2 (is_val χ ζ) vs lvs →
        ∃ ws ec mem ρc,
-         (∀ γ (a:addr) v,
-            (rootsML ρml) !! a = Some v →
-            reachable ζ [v] γ →
-            γ ∈ dom (θC ρc)) ∧
+         GC_correct ζ (θC ρc) ∧
+         roots_are_live (θC ρc) (rootsML ρml) ∧
          Forall2 (repr_lval (θC ρc)) lvs ws ∧
          C_lang.apply_function fn ws = Some ec ∧
          repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
@@ -128,11 +126,9 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
          γ ∉ dom (ζC ρc) ∧
          ζC ρc' = {[ γ := (Mut, tg, List.repeat (Lint 0) (Z.to_nat sz)) ]} ∪ (ζC ρc) ∧
          repr (θC ρc') roots privmem mem' ∧
+         GC_correct (ζC ρc') (θC ρc') ∧
          (θC ρc') !! γ = Some a ∧
-         (∀ a v γ,
-            roots !! a = Some v →
-            reachable (ζC ρc) [v] γ →
-            γ ∈ dom (θC ρc')) ∧
+         roots_are_live (θC ρc') roots ∧
          χC ρc' = χC ρc ∧
          rootsC ρc' = rootsC ρc ∧
          privσC ρc' = privσC ρc ∧
