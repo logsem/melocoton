@@ -9,7 +9,9 @@ Notation addr := iris.heap_lang.locations.loc (only parsing).
 Notation memory := C_lang.state.
 Notation word := C_lang.val.
 (* We call "store" an ML memory and "val" an ML value. *)
-Notation store := ML_lang.state.
+(* Notation store := ML_lang.state. *)
+(* FIXME temporary: need to update ML_lang.state *)
+Notation store := (gmap loc (option (list val))).
 Notation val := ML_lang.val.
 
 Section basics.
@@ -122,29 +124,28 @@ Definition freeze_lstore (ζ1 ζ2 : lstore) : Prop :=
   ∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
     freeze_block b1 b2.
 
-(* which block-level changes can happen as the result of execution in the
-   "outside world"? answer: only changes to the contents of mutable blocks.
-
-   There is nothing deep here, this is mostly an administrative constraint:
-   external code does not have access to the extra information (immutable
-   blocks, blocks tags, etc) which are part of the wrapper private state ; so
-   indeed, it cannot change it.
-*)
-Inductive ML_change_block : block → block → Prop :=
-  | mk_ML_change_block tg vs vs' :
+Inductive mutate_block : block → block → Prop :=
+  | mutate_block_mut tg vs vs' :
     length vs = length vs' →
-    ML_change_block (Mut, tg, vs) (Mut, tg, vs').
+    mutate_block (Mut, tg, vs) (Mut, tg, vs')
+  | mutate_block_refl b :
+    mutate_block b b.
 
-Definition ML_change_lstore (χ : lloc_map) (ζ1 ζ2 : lstore) : Prop :=
-  dom ζ1 ⊆ dom ζ2 ∧
-  ∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
-    (b1 = b2 ∨ (∃ ℓ, χ !! ℓ = Some γ ∧ ML_change_block b1 b2)).
+Definition lstore_mono (ζ1 ζ2 : lstore) : Prop :=
+  ∀ γ b1, ζ1 !! γ = Some b1 →
+    ∃ b2, ζ2 !! γ = Some b2 ∧ mutate_block b1 b2.
+
+Definition lstore_owned_same (σ : store) (χ : lloc_map) (ζ1 ζ2 : lstore) : Prop :=
+  ∀ ℓ γ b1 b2,
+    σ !! ℓ = Some None → χ !! ℓ = Some γ →
+    ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
+    b1 = b2.
 
 (* Running external code can allocate new memory, which then needs to be
    registered in χ. This is a sanity condition for the corresponding new χ: it
    must not "capture" logical locations that were already used in the store for
    immutable blocks. *)
-Definition ML_extends_lloc_map (ζ : lstore) (χ1 χ2 : lloc_map) : Prop :=
+Definition lloc_map_mono (ζ : lstore) (χ1 χ2 : lloc_map) : Prop :=
   χ1 ⊆ χ2 ∧
   ∀ ℓ γ, χ1 !! ℓ = None → χ2 !! ℓ = Some γ → ζ !! γ = None.
 
@@ -229,16 +230,14 @@ Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Pro
   Forall2 (is_val χ ζ) vs lvs →
   is_heap_elt χ ζ vs (Mut, TagDefault, lvs).
 
-Definition is_block_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
+Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
   dom σ = dom χ ∧
-  ∀ ℓ vs, σ !! ℓ = Some vs →
-    ∃ γ blk, χ !! ℓ = Some γ ∧
-             ζ !! γ = Some blk ∧
-             is_heap_elt χ ζ vs blk.
-
-Definition is_store (χ : lloc_map) (ζ : lstore) (privσ σ : store) : Prop :=
-  ∃ σbks, is_block_store χ ζ σbks ∧
-  privσ ##ₘ σbks ∧
-  σ = σbks ∪ privσ.
+  (∀ ℓ γ, χ !! ℓ = Some γ → γ ∈ dom ζ) ∧
+  (∀ γ t vs, ζ !! γ = Some (Mut, t, vs) → ∃ ℓ, χ !! ℓ = Some γ) ∧
+  (∀ ℓ vs γ blk,
+     σ !! ℓ = Some (Some vs) →
+     χ !! ℓ = Some γ →
+     ζ !! γ = Some blk →
+     is_heap_elt χ ζ vs blk).
 
 End basics.

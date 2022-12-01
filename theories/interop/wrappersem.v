@@ -72,23 +72,21 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     X (RunFunction fn args, ρ) →
     step_mrel p (ExprCall fn_name args, ρ) X
   (* incoming call of a C function from ML *)
-  | RunFunctionS fn vs ρml σ X :
-    (∀ χ ζ privσ lvs,
-       is_store χ ζ privσ σ →
-       ML_change_lstore (χML ρml) (ζML ρml) ζ →
-       ML_extends_lloc_map (ζML ρml) (χML ρml) χ →
-       Forall2 (is_val χ ζ) vs lvs →
-       ∃ ws ec mem ρc,
-         GC_correct ζ (θC ρc) ∧
-         roots_are_live (θC ρc) (rootsML ρml) ∧
-         Forall2 (repr_lval (θC ρc)) lvs ws ∧
-         C_lang.apply_function fn ws = Some ec ∧
-         repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
-         χC ρc = χ ∧
-         ζC ρc = ζ ∧
-         rootsC ρc = dom (rootsML ρml) ∧
-         privσC ρc = privσ ∧
-         X (ExprC ec, CState ρc mem)) →
+  | RunFunctionS fn vs ρml σ χ ζ lvs ws ec mem ρc X :
+    is_store χ ζ σ →
+    lstore_mono (ζML ρml) ζ →
+    lloc_map_mono (ζML ρml) (χML ρml) χ →
+    lstore_owned_same σ (χML ρml) (ζML ρml) ζ →
+    Forall2 (is_val χ ζ) vs lvs →
+    GC_correct ζ (θC ρc) →
+    roots_are_live (θC ρc) (rootsML ρml) →
+    Forall2 (repr_lval (θC ρc)) lvs ws →
+    C_lang.apply_function fn ws = Some ec →
+    repr (θC ρc) (rootsML ρml) (privmemML ρml) mem →
+    χC ρc = χ →
+    ζC ρc = ζ →
+    rootsC ρc = dom (rootsML ρml) →
+    X (ExprC ec, CState ρc mem) →
     step_mrel p (RunFunction fn vs, MLState ρml σ) X
   (* wrapped C function returning to ML *)
   (* Note: I believe that the "freezing step" does properly forbid freezing a
@@ -107,7 +105,7 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     (∀ σ lv v ρml,
        freeze_lstore (ζC ρc) (ζML ρml) →
        (χC ρc) ⊆ (χML ρml) →
-       is_store (χML ρml) (ζML ρml) (privσC ρc) σ →
+       is_store (χML ρml) (ζML ρml) σ →
        repr_lval (θC ρc) lv w →
        is_val (χML ρml) (ζML ρml) v lv →
        dom (rootsML ρml) = rootsC ρc →
@@ -131,7 +129,6 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
          roots_are_live (θC ρc') roots ∧
          χC ρc' = χC ρc ∧
          rootsC ρc' = rootsC ρc ∧
-         privσC ρc' = privσC ρc ∧
          X (ExprC (language.fill K (C_lang.of_val (C_lang.LitV (C_lang.LitLoc a)))), CState ρc' mem')) →
     step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
   (* call to "registerroot" *)
@@ -142,7 +139,6 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     χC ρc' = χC ρc →
     ζC ρc' = ζC ρc →
     θC ρc' = θC ρc →
-    privσC ρc' = privσC ρc →
     X (ExprC (language.fill K (C_lang.of_val (LitV (LitInt 0)))), CState ρc' mem) →
     step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
   (* call to "unregisterroot" *)
@@ -153,7 +149,6 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     χC ρc' = χC ρc →
     ζC ρc' = ζC ρc →
     θC ρc' = θC ρc →
-    privσC ρc' = privσC ρc →
     X (ExprC (language.fill K (C_lang.of_val (LitV (LitInt 0)))), CState ρc' mem) →
     step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
   (* call to "modify" *)
@@ -168,7 +163,6 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     ζC ρc' = <[ γ := blk' ]> (ζC ρc) →
     θC ρc' = θC ρc →
     rootsC ρc' = rootsC ρc →
-    privσC ρc' = privσC ρc →
     X (ExprC (language.fill K (C_lang.of_val (LitV (LitInt 0)))), CState ρc' mem) →
     step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
   (* call to "readfield" *)

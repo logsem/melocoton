@@ -21,8 +21,6 @@ Record wrapstateC : Type := WrapstateC {
   θC : addr_map;
   (* addresses in C memory that are registered as roots *)
   rootsC : gset addr;
-  (* the remaining piece of ML store not accessible from C *)
-  privσC : store;
 
   χC_injective : ∀ ℓ1 ℓ2 γ,
     χC !! ℓ1 = Some γ → χC !! ℓ2 = Some γ → ℓ1 = ℓ2;
