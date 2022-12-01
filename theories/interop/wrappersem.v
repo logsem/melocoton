@@ -113,23 +113,21 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
        X (ExprV v, MLState ρml σ)) →
     step_mrel p (ExprC ec, CState ρc mem) X
   (* call from C to the "alloc" primitive *)
-  | PrimAllocS K ec tgnum tg sz ρc mem X :
+  | PrimAllocS K ec tgnum tg sz roots ρc privmem mem γ a mem' ρc' X :
     language.to_call ec = Some ("alloc", [LitV (LitInt tgnum); LitV (LitInt sz)]) →
     tgnum = tag_as_int tg →
     (0 ≤ sz)%Z →
-    (∀ roots privmem,
-       dom roots = rootsC ρc →
-       repr (θC ρc) roots privmem mem →
-       ∃ γ a mem' ρc',
-         γ ∉ dom (ζC ρc) ∧
-         ζC ρc' = {[ γ := (Mut, tg, List.repeat (Lint 0) (Z.to_nat sz)) ]} ∪ (ζC ρc) ∧
-         repr (θC ρc') roots privmem mem' ∧
-         GC_correct (ζC ρc') (θC ρc') ∧
-         (θC ρc') !! γ = Some a ∧
-         roots_are_live (θC ρc') roots ∧
-         χC ρc' = χC ρc ∧
-         rootsC ρc' = rootsC ρc ∧
-         X (ExprC (language.fill K (C_lang.of_val (C_lang.LitV (C_lang.LitLoc a)))), CState ρc' mem')) →
+    dom roots = rootsC ρc →
+    repr (θC ρc) roots privmem mem →
+    γ ∉ dom (ζC ρc) →
+    ζC ρc' = {[ γ := (Mut, tg, List.repeat (Lint 0) (Z.to_nat sz)) ]} ∪ (ζC ρc) →
+    repr (θC ρc') roots privmem mem' →
+    GC_correct (ζC ρc') (θC ρc') →
+    (θC ρc') !! γ = Some a →
+    roots_are_live (θC ρc') roots →
+    χC ρc' = χC ρc →
+    rootsC ρc' = rootsC ρc →
+    X (ExprC (language.fill K (C_lang.of_val (C_lang.LitV (C_lang.LitLoc a)))), CState ρc' mem') →
     step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
   (* call to "registerroot" *)
   | PrimRegisterrootS K ec a ρc mem ρc' X :
