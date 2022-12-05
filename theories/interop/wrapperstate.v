@@ -28,10 +28,6 @@ Record wrapstateC : Type := WrapstateC {
     θC !! γ1 = Some a → θC !! γ2 = Some a → γ1 = γ2;
   dom_θC_in_ζC :
     dom θC ⊆ dom ζC;
-  (* TODO: do we need this, or is it in practice already enforced indirectly by
-     uses of [is_store]? *)
-  codom_χC_is_mut : ∀ ℓ γ,
-    χC !! ℓ = Some γ → ∃ tg vs, ζC !! γ = Some (Mut, tg, vs);
   (* TODO: ... *)
 }.
 
@@ -48,8 +44,6 @@ Record wrapstateML : Type := WrapstateML {
 
   χML_injective : ∀ ℓ1 ℓ2 γ,
     χML !! ℓ1 = Some γ → χML !! ℓ2 = Some γ → ℓ1 = ℓ2;
-  codom_χML_is_mut : ∀ ℓ γ,
-    χML !! ℓ = Some γ → ∃ tg vs, ζML !! γ = Some (Mut, tg, vs);
   (* TODO: ... *)
 }.
 

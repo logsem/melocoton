@@ -121,25 +121,11 @@ Inductive freeze_block : block → block → Prop :=
 
 Definition freeze_lstore (ζ1 ζ2 : lstore) : Prop :=
   dom ζ1 = dom ζ2 ∧
-  ∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
-    freeze_block b1 b2.
+  (∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 → freeze_block b1 b2).
 
-Inductive mutate_block : block → block → Prop :=
-  | mutate_block_mut tg vs vs' :
-    length vs = length vs' →
-    mutate_block (Mut, tg, vs) (Mut, tg, vs')
-  | mutate_block_refl b :
-    mutate_block b b.
-
-Definition lstore_mono (ζ1 ζ2 : lstore) : Prop :=
-  ∀ γ b1, ζ1 !! γ = Some b1 →
-    ∃ b2, ζ2 !! γ = Some b2 ∧ mutate_block b1 b2.
-
-Definition lstore_owned_same (σ : store) (χ : lloc_map) (ζ1 ζ2 : lstore) : Prop :=
-  ∀ ℓ γ b1 b2,
-    σ !! ℓ = Some None → χ !! ℓ = Some γ →
-    ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 →
-    b1 = b2.
+Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
+  dom σ = dom χ ∧
+  (∀ γ, γ ∈ dom ζ ↔ ∃ ℓ, ℓ ∈ dom σ ∧ χ !! ℓ = Some γ).
 
 (* Running external code can allocate new memory, which then needs to be
    registered in χ. This is a sanity condition for the corresponding new χ: it
@@ -231,13 +217,8 @@ Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Pro
   is_heap_elt χ ζ vs (Mut, TagDefault, lvs).
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
-  dom σ = dom χ ∧
-  (∀ ℓ γ, χ !! ℓ = Some γ → γ ∈ dom ζ) ∧
-  (∀ γ t vs, ζ !! γ = Some (Mut, t, vs) → ∃ ℓ, χ !! ℓ = Some γ) ∧
-  (∀ ℓ vs γ blk,
-     σ !! ℓ = Some (Some vs) →
-     χ !! ℓ = Some γ →
-     ζ !! γ = Some blk →
-     is_heap_elt χ ζ vs blk).
+  ∀ ℓ vs γ blk,
+    σ !! ℓ = Some (Some vs) → χ !! ℓ = Some γ → ζ !! γ = Some blk →
+    is_heap_elt χ ζ vs blk.
 
 End basics.

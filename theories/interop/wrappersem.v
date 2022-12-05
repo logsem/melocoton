@@ -61,34 +61,50 @@ Local Notation prog := (gmap string C_lang.function).
 
 Implicit Types X : expr * state → Prop.
 Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
-  (* step in the underlying wrapped C program *)
+  (* Step in the underlying wrapped C program. *)
   | StepCS ec ρc mem ec' mem' X :
     C_lang.head_step p ec mem ec' mem' →
     X (ExprC ec', CState ρc mem') →
     step_mrel p (ExprC ec, CState ρc mem) X
-  (* administrative step for resolving a call from ML *)
+  (* Administrative step for resolving a call from ML. *)
   | ExprCallS fn_name args fn ρ X :
     p !! fn_name = Some fn →
     X (RunFunction fn args, ρ) →
     step_mrel p (ExprCall fn_name args, ρ) X
-  (* incoming call of a C function from ML *)
-  | RunFunctionS fn vs ρml σ χ ζ lvs ws ec mem ρc X :
-    is_store χ ζ σ →
-    lstore_mono (ζML ρml) ζ →
-    lloc_map_mono (ζML ρml) (χML ρml) χ →
-    lstore_owned_same σ (χML ρml) (ζML ρml) ζ →
-    Forall2 (is_val χ ζ) vs lvs →
-    GC_correct ζ (θC ρc) →
+  (* Incoming call of a C function from ML. *)
+  | RunFunctionS fn vs ρml σ ζ lvs ws ec mem ρc X :
+    (* Demonically get a new extended map (χC ρc) (new γs must be fresh). *)
+    lloc_map_mono (ζML ρml) (χML ρml) (χC ρc) →
+    (* The extended (χC ρc) binds γs for all locations ℓ in σ; these γs make up
+       the domain of a map ζ (whose contents are also chosen demonically). In
+       other words, here ζ has exactly one block for each location in σ. *)
+    is_store_blocks (χC ρc) σ ζ →
+    (* We take the new lstore (ζC ρc) to be the old lstore + ζ (the translation
+       of σ into a lstore). (ζML ρml) will typically contain immutable blocks or
+       mutable blocks allocated in C but not yet shared with the ML code. *)
+    ζC ρc = ζML ρml ∪ ζ →
+    (* Taken together, the contents of the new lloc_map (χC ρc) and new lstore
+       (ζC ρc) must corresponds to the contents of σ. (This further constraints
+       the demonic choice of ζ.) *)
+    is_store (χC ρc) (ζC ρc) σ →
+    (* Demonically pick block-level values lvs that represent the arguments vs. *)
+    Forall2 (is_val χ (ζC ρc)) vs lvs →
+    (* Demonically pick a addr_map (θC ρc) satisfying the GC_correct property. *)
+    GC_correct (ζC ρc) (θC ρc) →
+    (* Rooted values must additionally be live in (θC ρc). *)
     roots_are_live (θC ρc) (rootsML ρml) →
+    (* Pick C-level words that are live and represent the arguments of the
+       function. (repr_lval on a location entails that it is live.) *)
     Forall2 (repr_lval (θC ρc)) lvs ws →
-    C_lang.apply_function fn ws = Some ec →
+    (* Pick C memory (mem) that represents the roots (through θC ρc) + the
+       remaining private C memory. *)
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem →
-    χC ρc = χ →
-    ζC ρc = ζ →
+    (* Apply the C function; the result is a C expression ec. *)
+    C_lang.apply_function fn ws = Some ec →
     rootsC ρc = dom (rootsML ρml) →
     X (ExprC ec, CState ρc mem) →
     step_mrel p (RunFunction fn vs, MLState ρml σ) X
-  (* wrapped C function returning to ML *)
+  (* Wrapped C function returning to ML. *)
   (* Note: I believe that the "freezing step" does properly forbid freezing a
      mutable block that has already been passed to the outside world --- but
      seeing why is not obvious. I expect it to work through the combination of:
@@ -102,14 +118,32 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
   *)
   | RetS ec w ρc mem X :
     C_lang.to_val ec = Some w →
-    (∀ σ lv v ρml,
-       freeze_lstore (ζC ρc) (ζML ρml) →
-       (χC ρc) ⊆ (χML ρml) →
-       is_store (χML ρml) (ζML ρml) σ →
+    (∀ σ lv v ζ ζσ ρml,
+       (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
+          This allows allocating a fresh block, mutating it, then changing it
+          into an immutable block that represents an immutable ML value. *)
+       freeze_lstore (ζC ρc) ζ →
+       (* Angelically extend (χC ρc) into (χML ρml). This makes it possible to
+          expose newly created blocks to locations in the ML store. *)
+       lloc_map_mono ζ (χC ρc) (χML ρml) →
+       (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
+          part ζσ that is going to be converted into the ML store σ. *)
+       ζ = ζML ρml ∪ ζσ →
+       (* Angelically pick an ML store σ where each location corresponds to a
+          block in ζσ. *)
+       is_store_blocks (χML ρml) σ ζσ →
+       (* The contents of the new σ must correspond to the contents of ζ. *)
+       is_store (χML ρml) ζ σ →
+       (* Angelically pick a block-level return value lv that corresponds to the
+          C value w. *)
        repr_lval (θC ρc) lv w →
-       is_val (χML ρml) (ζML ρml) v lv →
-       dom (rootsML ρml) = rootsC ρc →
+       (* Angelically pick a ML return value v that corresponds to the
+          block-level value lv. *)
+       is_val (χML ρml) ζ v lv →
+       (* Split the C memory mem into the memory for the roots and the rest
+          ("private" C memory). *)
        repr (θC ρc) (rootsML ρml) (privmemML ρml) mem →
+       dom (rootsML ρml) = rootsC ρc →
        X (ExprV v, MLState ρml σ)) →
     step_mrel p (ExprC ec, CState ρc mem) X
   (* call from C to the "alloc" primitive *)
