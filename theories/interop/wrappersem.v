@@ -88,7 +88,7 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
        the demonic choice of ζ.) *)
     is_store (χC ρc) (ζC ρc) σ →
     (* Demonically pick block-level values lvs that represent the arguments vs. *)
-    Forall2 (is_val χ (ζC ρc)) vs lvs →
+    Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs →
     (* Demonically pick a addr_map (θC ρc) satisfying the GC_correct property. *)
     GC_correct (ζC ρc) (θC ρc) →
     (* Rooted values must additionally be live in (θC ρc). *)
