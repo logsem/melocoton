@@ -5,6 +5,9 @@ From iris.algebra Require Import auth excl excl_auth gmap.
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
 
+Definition gmap_inj `{Countable K} {V} (m : gmap K V) :=
+  ∀ k1 k2 v, m !! k1 = Some v → m !! k2 = Some v → k1 = k2.
+
 Section language_commons.
   Context {val : Type}.
   (** Classifying expressions into values and calls. *)

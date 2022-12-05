@@ -21,14 +21,6 @@ Record wrapstateC : Type := WrapstateC {
   θC : addr_map;
   (* addresses in C memory that are registered as roots *)
   rootsC : gset addr;
-
-  χC_injective : ∀ ℓ1 ℓ2 γ,
-    χC !! ℓ1 = Some γ → χC !! ℓ2 = Some γ → ℓ1 = ℓ2;
-  θC_injective : ∀ γ1 γ2 a,
-    θC !! γ1 = Some a → θC !! γ2 = Some a → γ1 = γ2;
-  dom_θC_in_ζC :
-    dom θC ⊆ dom ζC;
-  (* TODO: ... *)
 }.
 
 Record wrapstateML : Type := WrapstateML {
@@ -41,10 +33,6 @@ Record wrapstateML : Type := WrapstateML {
   rootsML : roots_map;
   (* the remaining piece of C store not accessible from ML *)
   privmemML : memory;
-
-  χML_injective : ∀ ℓ1 ℓ2 γ,
-    χML !! ℓ1 = Some γ → χML !! ℓ2 = Some γ → ℓ1 = ℓ2;
-  (* TODO: ... *)
 }.
 
 End wrapperstate.

@@ -1,5 +1,6 @@
 From Coq Require Import ZArith.
 From stdpp Require Import base gmap list.
+From melocoton Require Import commons.
 From melocoton.c_toy_lang Require Import lang.
 From melocoton.ml_toy_lang Require Import lang.
 
@@ -127,29 +128,47 @@ Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
   dom σ = dom χ ∧
   (∀ γ, γ ∈ dom ζ ↔ ∃ ℓ, ℓ ∈ dom σ ∧ χ !! ℓ = Some γ).
 
-(* Running external code can allocate new memory, which then needs to be
-   registered in χ. This is a sanity condition for the corresponding new χ: it
-   must not "capture" logical locations that were already used in the store for
-   immutable blocks. *)
+(* An lloc_map χ maintains a monotonically growing correspondance between ML
+   locations and block-level locations. When crossing a wrapper boundary, χ
+   typically needs to be extended to account for allocation of new blocks on
+   either side.
+
+   This is a sanity condition for a corresponding new χ2, with respect to a
+   previous χ1: it must not "capture" logical locations that were already
+   present in the store.
+
+   Additionally, we enforce here that the new χ2 must be injective. (Typically,
+   we already know that χ1 is injective, and we are trying to impose constraints
+   on χ2.) *)
 Definition lloc_map_mono (ζ : lstore) (χ1 χ2 : lloc_map) : Prop :=
   χ1 ⊆ χ2 ∧
+  gmap_inj χ2 ∧
   ∀ ℓ γ, χ1 !! ℓ = None → χ2 !! ℓ = Some γ → ζ !! γ = None.
 
 (* Helper relation to modify the contents of a block at a given index (which has
-   to be in the bounds). *)
+   to be in the bounds). Used to define the semantics of the "modify" primitive.
+*)
 Inductive modify_block : block → nat → lval → block → Prop :=
   | mk_modify_block tg vs i v :
     i < length vs →
     modify_block (Mut, tg, vs) i v (Mut, tg, (<[ i := v ]> vs)).
 
-(* "GC correctness": if a block is live in memory (its abstract location γ is in
-   θ), then all the locations it points to are also live.
-   By transitivity, all blocks reachable from live blocks are also live.
-*)
+(* "GC correctness": a sanity condition when picking a fresh addr_map that
+   assigns C-level identifiers to the subset of "currently live" block-level
+   locations.
+
+   If a block is live in memory (its block-level location γ is in θ), then all
+   the locations it points to are also live. By transitivity, all blocks
+   reachable from live blocks are also live.
+
+   (+ administrative side-conditions: θ must be injective and map locations that
+   exist in ζ) *)
 Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
-  ∀ γ m tg vs, γ ∈ dom θ → ζ !! γ = Some (m, tg, vs) →
-    ∀ γ', Lloc γ' ∈ vs →
-      γ' ∈ dom θ.
+  gmap_inj θ ∧
+  ∀ γ, γ ∈ dom θ →
+    ∃ m tg vs,
+      ζ !! γ = Some (m, tg, vs) ∧
+        ∀ γ', Lloc γ' ∈ vs → γ' ∈ dom θ.
 
 Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
   ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
