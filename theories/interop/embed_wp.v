@@ -26,7 +26,7 @@ Global Program Instance embed_mlangGS :
 }.
 
 Global Program Instance embed_linkableGS :
-  linkableGS (lang_to_mlang Λ) (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I
+  (@linkableGS _ _ _ (lang_to_mlang Λ) _ _ (embed_linkable Λ) state_interp)%I
 := {
   private_state_interp := (λ _, True)%I;
 }.
@@ -35,6 +35,7 @@ Next Obligation.
   simpl. intros ? []. iIntros "? _". iModIntro. iExists _. by iFrame.
 Qed.
 Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constructor. Qed.
+
 
 Local Canonical Structure embed_mlang : mlanguage val := lang_to_mlang Λ.
 

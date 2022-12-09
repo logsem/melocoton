@@ -286,7 +286,8 @@ Class can_link_all
       Some (Ti, pi) =>  ⊢ (one_spec i |- pi :: Ti)%I end
 }.
 
-Lemma can_link_can_link_all Taxiom Tres pres T1 T2 p1 p2 : can_link T1 T2 Taxiom Tres p1 p2 pres
+#[global]
+Instance can_link_can_link_all Taxiom Tres pres T1 T2 p1 p2 : can_link T1 T2 Taxiom Tres p1 p2 pres
   -> can_link_all Taxiom Tres pres [(T1,p1); (T2,p2)].
 Proof.
   intros [H1 H2 H3 H4 H5 H6]; split; cbn.

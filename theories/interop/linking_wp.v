@@ -20,7 +20,7 @@ Class linkGS Σ := LinkGS {
 
 Class linkableGS
   {val pubstate hlc} (Λ : mlanguage val)
-  `{!invGS_gen hlc Σ, !mlangGS hlc val Σ Λ, !linkable Λ pubstate}
+  `{!mlangGS hlc val Σ Λ, !linkable Λ pubstate}
   (public_state_interp : pubstate → iProp Σ)
 := LinkableGS {
   private_state_interp : private_state → iProp Σ;

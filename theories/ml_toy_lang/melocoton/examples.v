@@ -89,10 +89,10 @@ Proof.
 Qed.
 
 
-Lemma example_can_link : can_link EmptySpec IncrementSpec EmptySpec IncrementSpec
+Instance example_can_link : can_link EmptySpec IncrementSpec EmptySpec IncrementSpec
          ∅ (<[ "inc" := inc_func ]> ∅) (<[ "inc" := inc_func ]> ∅).
 Proof. split.
-  - cbn. set_solver.
+  - set_solver.
   - iIntros (s vv Φ) "Hvv". iRight. done.
   - iIntros (s vv Φ) "[]".
   - iIntros (s vv Φ) "[]".
@@ -106,11 +106,11 @@ Qed.
 Lemma link_executions
  : ⊢ (WP call_inc @ SpecifiedEnv ; ⊤ {{v, ⌜v = #42⌝}})%I.
 Proof.
-  unshelve iApply (wp_link_execs _ _ _ _ _ $! _ _ 0).
-  3: apply can_link_can_link_all; apply example_can_link.
+  iApply (wp_link_execs _ _ _ _ _ $! _ _ 0).
   cbn. iApply wp_pe_mono. 2: iApply prog_correct.
   split; try reflexivity. 
-  iIntros (s vv Φ) "%Hdom Hvv". cbn. iLeft. iExists 1. iSplitR; first done. cbn. done.
+  iIntros (s vv Φ) "%Hdom Hvv". cbn -[IncrementSpec].
+  iLeft. iExists 1. cbn [nth_error]. iSplitR; done.
 Qed.
 
 End examples.
