@@ -8,14 +8,14 @@ Import uPred.
 (** Heap tactics *)
 Section examples.
 
-Context `{!heapGS_gen hlc Σ}.
+Context `{!heapGS_ML_gen hlc Σ}.
 
 Definition call_inc : expr ML_lang := 
   let: "l" := ref (#0 + #0)
   in "l" <- #41 ;; Extern "inc" [Var "l"];; ! "l".
 
 Definition IncrementSpec := λ s v Φ, match (s,v) with
-      ("inc", [ #(LitLoc l) ]) => (∃ (z:Z), (l ↦ #z) ∗ ((l ↦#(z+1)) -∗ Φ #()))%I
+      ("inc", [ #(LitLoc l) ]) => (∃ (z:Z), (l ↦M #z) ∗ ((l ↦M #(z+1)) -∗ Φ #()))%I
     | _ => ⌜False⌝%I end.
 
 Definition inc_impl : expr ML_lang := let: "k" := ! "l" + #1 in "l" <- "k";; #().
@@ -45,7 +45,7 @@ Definition SpecifiedEnv : prog_environ ML_lang Σ := {|
 |}.
 
 Lemma inc_correct l (z:Z)
- : ⊢ l ↦ #z -∗ (WP Extern "inc" [ Val #l ] @ SpecifiedEnv ; ⊤ {{v, l ↦ #(z+1) ∗ ⌜v = #()⌝}})%I.
+ : ⊢ l ↦M #z -∗ (WP Extern "inc" [ Val #l ] @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}})%I.
 Proof.
   iStartProof. iIntros "Hz". wp_call. iApply prove_wp_call; [done|done|]. wp_finish.
   wp_load. wp_pures. wp_store. iModIntro. iSplitL; done.

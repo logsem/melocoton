@@ -10,16 +10,16 @@ From melocoton.ml_toy_lang Require Export melocoton.class_instances.
 From melocoton.ml_toy_lang Require Import melocoton.tactics notation.
 From iris.prelude Require Import options.
 
-Class heapGS_gen hlc Σ := HeapGS {
+Class heapGS_ML_gen hlc Σ := HeapGS_ML {
   heapGS_invGS : invGS_gen hlc Σ;
-  heapGS_gen_heapGS :> gen_heapGS loc (list val) Σ;
-  heapGS_inv_heapGS :> inv_heapGS loc (list val) Σ;
+  heapGS_gen_heapGS :> gen_heapGS loc (option (list val)) Σ;
+  heapGS_inv_heapGS :> inv_heapGS loc (option (list val)) Σ;
   heapGS_step_name : gname;
   heapGS_step_cnt : mono_natG Σ;
 }.
 Local Existing Instance heapGS_step_cnt.
 
-Notation heapGS := (heapGS_gen HasLc).
+Local Notation heapGS_gen := heapGS_ML_gen.
 
 Section steps.
   Context `{!heapGS_gen hlc Σ}.
@@ -59,7 +59,7 @@ Section steps.
 End steps.
 
 
-Global Program Instance heapGS_melocotonGS `{heapGS_gen hlc Σ}
+Global Program Instance heapGS_melocotonGS_ML `{heapGS_gen hlc Σ}
       : melocotonGS_gen hlc val ML_lang Σ := {
   iris_invGS := heapGS_invGS;
   state_interp σ step_cnt :=
@@ -70,22 +70,33 @@ Next Obligation.
   by iMod (steps_auth_update_S with "H") as "$".
 Qed.
 
-Notation "l ↦{ dq } v" := (mapsto (L:=loc) (V:=list val) l dq [v%V])
-  (at level 20, format "l  ↦{ dq }  v") : bi_scope.
-Notation "l ↦□ v" := (mapsto (L:=loc) (V:=list val) l DfracDiscarded [v%V])
-  (at level 20, format "l  ↦□  v") : bi_scope.
-Notation "l ↦{# q } v" := (mapsto (L:=loc) (V:=list val) l (DfracOwn q) [v%V])
-  (at level 20, format "l  ↦{# q }  v") : bi_scope.
-Notation "l ↦ v" := (mapsto (L:=loc) (V:=list val) l (DfracOwn 1) [v%V])
-  (at level 20, format "l  ↦  v") : bi_scope.
+Notation "l ↦M{ dq } v" := (mapsto (L:=loc) (V:=option (list val)) l dq (Some [v%V]))
+  (at level 20, format "l  ↦M{ dq }  v") : bi_scope.
+Notation "l ↦M□ v" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded (Some [v%V]))
+  (at level 20, format "l  ↦M□  v") : bi_scope.
+Notation "l ↦M{# q } v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) (Some [v%V]))
+  (at level 20, format "l  ↦M{# q }  v") : bi_scope.
+Notation "l ↦M v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) (Some [v%V]))
+  (at level 20, format "l  ↦M  v") : bi_scope.
 
-Notation "l ↦∗{ dq } vs" := (mapsto (L:=loc) (V:=list val) l dq vs)
+
+
+Notation "l ↦M/{ dq }" := (mapsto (L:=loc) (V:=option (list val)) l dq None)
+  (at level 20, format "l  ↦M/{ dq } ") : bi_scope.
+Notation "l ↦M/□" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded None)
+  (at level 20, format "l  ↦M/□") : bi_scope.
+Notation "l ↦M/{# q }" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) None)
+  (at level 20, format "l  ↦M/{# q }") : bi_scope.
+Notation "l ↦M/" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) None)
+  (at level 20, format "l  ↦M/") : bi_scope.
+
+Notation "l ↦∗{ dq } vs" := (mapsto (L:=loc) (V:=option (list val)) l dq (Some vs))
   (at level 20, format "l  ↦∗{ dq }  vs") : bi_scope.
-Notation "l ↦∗□ vs" := (mapsto (L:=loc) (V:=list val) l DfracDiscarded vs)
+Notation "l ↦∗□ vs" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded (Some vs))
   (at level 20, format "l  ↦∗□  vs") : bi_scope.
-Notation "l ↦∗{# q } vs" := (mapsto (L:=loc) (V:=list val) l (DfracOwn q) vs)
+Notation "l ↦∗{# q } vs" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) (Some vs))
   (at level 20, format "l  ↦∗{# q }  vs") : bi_scope.
-Notation "l ↦∗ vs" := (mapsto (L:=loc) (V:=list val) l (DfracOwn 1) vs)
+Notation "l ↦∗ vs" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) (Some vs))
   (at level 20, format "l  ↦∗  vs") : bi_scope.
 
 (** Same for [gen_inv_heap], except that these are higher-order notations so to
@@ -93,9 +104,9 @@ make setoid rewriting in the predicate [I] work we need actual definitions
 here. *)
 Section definitions.
   Context `{!heapGS_gen hlc Σ}.
-  Definition inv_mapsto_own (l : loc) (vs : list val) (I : list val → Prop) : iProp Σ :=
+  Definition inv_mapsto_own (l : loc) (vs : option (list val)) (I : option (list val) → Prop) : iProp Σ :=
     inv_mapsto_own l vs I.
-  Definition inv_mapsto (l : loc) (I : list val → Prop) : iProp Σ :=
+  Definition inv_mapsto (l : loc) (I : option (list val) → Prop) : iProp Σ :=
     inv_mapsto l I.
   (* TODO: single value version of those *)
 End definitions.
@@ -103,7 +114,7 @@ End definitions.
 Global Instance: Params (@inv_mapsto_own) 4 := {}.
 Global Instance: Params (@inv_mapsto) 3 := {}.
 
-Notation inv_heap_inv := (inv_heap_inv loc (list val)).
+Notation inv_heap_inv := (inv_heap_inv loc (option (list val))).
 Notation "l '↦∗_' I □" := (inv_mapsto l I%stdpp%type)
   (at level 20, I at level 9, format "l  '↦∗_' I  '□'") : bi_scope.
 Notation "l ↦∗_ I vs" := (inv_mapsto_own l vs I%stdpp%type)
@@ -181,33 +192,33 @@ Qed.
 (** We need to adjust the [gen_heap] and [gen_inv_heap] lemmas because of our
 value type being [val]. *)
 
-Lemma mapsto_valid l dq v : l ↦{dq} v -∗ ⌜✓ dq⌝.
+Lemma mapsto_valid l dq v : l ↦M{dq} v -∗ ⌜✓ dq⌝.
 Proof. apply mapsto_valid. Qed.
 Lemma mapsto_valid_2 l dq1 dq2 v1 v2 :
-  l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
+  l ↦M{dq1} v1 -∗ l ↦M{dq2} v2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
 Proof.
   iIntros "H1 H2". iDestruct (mapsto_valid_2 with "H1 H2") as %[? [=?]]. done.
 Qed.
-Lemma mapsto_agree l dq1 dq2 v1 v2 : l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ ⌜v1 = v2⌝.
+Lemma mapsto_agree l dq1 dq2 v1 v2 : l ↦M{dq1} v1 -∗ l ↦M{dq2} v2 -∗ ⌜v1 = v2⌝.
 Proof. iIntros "H1 H2". iDestruct (mapsto_agree with "H1 H2") as %[=?]. done. Qed.
 
 Lemma mapsto_combine l dq1 dq2 v1 v2 :
-  l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ l ↦{dq1 ⋅ dq2} v1 ∗ ⌜v1 = v2⌝.
+  l ↦M{dq1} v1 -∗ l ↦M{dq2} v2 -∗ l ↦M{dq1 ⋅ dq2} v1 ∗ ⌜v1 = v2⌝.
 Proof.
   iIntros "Hl1 Hl2". iDestruct (mapsto_combine with "Hl1 Hl2") as "[$ Heq]".
   by iDestruct "Heq" as %[= ->].
 Qed.
 
 Lemma mapsto_frac_ne l1 l2 dq1 dq2 v1 v2 :
-  ¬ ✓(dq1 ⋅ dq2) → l1 ↦{dq1} v1 -∗ l2 ↦{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
+  ¬ ✓(dq1 ⋅ dq2) → l1 ↦M{dq1} v1 -∗ l2 ↦M{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
 Proof. apply mapsto_frac_ne. Qed.
-Lemma mapsto_ne l1 l2 dq2 v1 v2 : l1 ↦ v1 -∗ l2 ↦{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
+Lemma mapsto_ne l1 l2 dq2 v1 v2 : l1 ↦M v1 -∗ l2 ↦M{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
 Proof. apply mapsto_ne. Qed.
 
-Lemma mapsto_persist l dq v : l ↦{dq} v ==∗ l ↦□ v.
+Lemma mapsto_persist l dq v : l ↦M{dq} v ==∗ l ↦M□ v.
 Proof. apply mapsto_persist. Qed.
 
-Global Instance inv_mapsto_own_proper l vs :
+Global Instance inv_mapsto_own_proper l (vs : option _) :
   Proper (pointwise_relation _ iff ==> (≡)) (inv_mapsto_own l vs).
 Proof.
   intros I1 I2 HI. rewrite /inv_mapsto_own. f_equiv; done.
@@ -218,40 +229,40 @@ Proof.
   intros I1 I2 HI. rewrite /inv_mapsto. f_equiv; done.
 Qed.
 
-Lemma make_inv_mapsto l vs (I : list val → Prop) E :
+Lemma make_inv_mapsto l vs (I : option (list val) → Prop) E :
   ↑inv_heapN ⊆ E →
-  I vs →
-  inv_heap_inv -∗ l ↦∗ vs ={E}=∗ l ↦∗_I vs.
+  I (Some vs) →
+  inv_heap_inv -∗ l ↦∗ vs ={E}=∗ l ↦∗_I (Some vs).
 Proof. iIntros (??) "#HI Hl". iApply make_inv_mapsto; done. Qed.
-Lemma inv_mapsto_own_inv l vs I : l ↦∗_I vs -∗ l ↦∗_I □.
+Lemma inv_mapsto_own_inv l vs I : l ↦∗_I (Some vs) -∗ l ↦∗_I □.
 Proof. apply inv_mapsto_own_inv. Qed.
 
 Lemma inv_mapsto_own_acc_strong E :
   ↑inv_heapN ⊆ E →
-  inv_heap_inv ={E, E ∖ ↑inv_heapN}=∗ ∀ l vs I, l ↦∗_I vs -∗
-    (⌜I vs⌝ ∗ l ↦∗ vs ∗ (∀ ws, ⌜I ws⌝ -∗ l ↦∗ ws ==∗
-      inv_mapsto_own l ws I ∗ |={E ∖ ↑inv_heapN, E}=> True)).
+  inv_heap_inv ={E, E ∖ ↑inv_heapN}=∗ ∀ l vs I, l ↦∗_I (Some vs) -∗
+    (⌜I (Some vs)⌝ ∗ l ↦∗ vs ∗ (∀ ws : (list val), ⌜I (Some ws)⌝ -∗ l ↦∗ ws ==∗
+      inv_mapsto_own l (Some ws) I ∗ |={E ∖ ↑inv_heapN, E}=> True)).
 Proof.
   iIntros (?) "#Hinv".
   iMod (inv_mapsto_own_acc_strong with "Hinv") as "Hacc"; first done.
   iIntros "!>" (l v I) "Hl". iDestruct ("Hacc" with "Hl") as "(% & Hl & Hclose)".
-  iFrame "%∗".
+  iFrame "Hl". iFrame (H0). iIntros "%ws %H2 HH". iApply ("Hclose" $! (Some ws) H2 with "HH").
 Qed.
 
 Lemma inv_mapsto_own_acc E l vs I:
   ↑inv_heapN ⊆ E →
-  inv_heap_inv -∗ l ↦∗_I vs ={E, E ∖ ↑inv_heapN}=∗
-    (⌜I vs⌝ ∗ l ↦∗ vs ∗ (∀ ws, ⌜I ws ⌝ -∗ l ↦∗ ws ={E ∖ ↑inv_heapN, E}=∗ l ↦∗_I ws)).
+  inv_heap_inv -∗ l ↦∗_I (Some vs) ={E, E ∖ ↑inv_heapN}=∗
+    (⌜I (Some vs)⌝ ∗ l ↦∗ vs ∗ (∀ ws, ⌜I (Some ws) ⌝ -∗ l ↦∗ ws ={E ∖ ↑inv_heapN, E}=∗ l ↦∗_I (Some ws))).
 Proof.
   iIntros (?) "#Hinv Hl".
   iMod (inv_mapsto_own_acc with "Hinv Hl") as "(% & Hl & Hclose)"; first done.
-  iFrame "%∗". by iModIntro.
+  iFrame "Hl". iFrame (H0). iIntros "!> %ws %H2 HH". iApply ("Hclose" $! (Some ws) H2 with "HH").
 Qed.
 
 Lemma inv_mapsto_acc l I E :
   ↑inv_heapN ⊆ E →
   inv_heap_inv -∗ l ↦∗_I □ ={E, E ∖ ↑inv_heapN}=∗
-    ∃ vs, ⌜I vs⌝ ∗ l ↦∗ vs ∗ (l ↦∗ vs ={E ∖ ↑inv_heapN, E}=∗ ⌜True⌝).
+    ∃ (vs:option _), ⌜I vs⌝ ∗ mapsto l (DfracOwn 1) vs ∗ (mapsto l (DfracOwn 1) vs ={E ∖ ↑inv_heapN, E}=∗ ⌜True⌝).
 Proof.
   iIntros (?) "#Hinv Hl".
   iMod (inv_mapsto_acc with "Hinv Hl") as (v) "(% & Hl & Hclose)"; [done|].
@@ -266,7 +277,7 @@ Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1 ns) "(Hσ & Hsteps)". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
   iIntros (v2 σ2 Hstep). inv_head_step. iModIntro.
-  iMod (gen_heap_alloc _ l (replicate (Z.to_nat n) v) with "Hσ") as "(Hσ & Hl & Hm)".
+  iMod (gen_heap_alloc _ l (Some (replicate (Z.to_nat n) v)) with "Hσ") as "(Hσ & Hl & Hm)".
   { by apply not_elem_of_dom. }
   iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iModIntro. iFrame. iApply "HΦ". by iFrame.
@@ -274,7 +285,7 @@ Qed.
 
 Lemma wp_alloc pe E v :
   {{{ True }}} Alloc (Val v) @ pe; E
-  {{{ l, RET LitV (LitLoc l); l ↦ v ∗ meta_token l ⊤ }}}.
+  {{{ l, RET LitV (LitLoc l); l ↦M v ∗ meta_token l ⊤ }}}.
 Proof.
   iIntros (HΦ) "_ HΦ". by iApply wp_allocN.
 Qed.
@@ -296,8 +307,8 @@ Proof.
 Qed.
 
 Lemma wp_load pe E l dq v :
-  {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ pe; E
-  {{{ RET v; l ↦{dq} v }}}.
+  {{{ ▷ l ↦M{dq} v }}} Load (Val $ LitV $ LitLoc l) @ pe; E
+  {{{ RET v; l ↦M{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". by iApply (wp_loadN with "Hl").
 Qed.
@@ -321,8 +332,8 @@ Proof.
 Qed.
 
 Lemma wp_store pe E l v w :
-  {{{ ▷ l ↦ v }}} Store (Val $ LitV $ LitLoc l) (Val w) @ pe; E
-  {{{ RET LitV LitUnit; l ↦ w }}}.
+  {{{ ▷ l ↦M v }}} Store (Val $ LitV $ LitLoc l) (Val w) @ pe; E
+  {{{ RET LitV LitUnit; l ↦M w }}}.
 Proof.
   iIntros (Φ) "Hl HΦ". by iApply (wp_storeN with "Hl").
 Qed.

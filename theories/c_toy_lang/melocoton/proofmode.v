@@ -231,7 +231,7 @@ Qed.
 
 Lemma tac_wp_load Δ Δ' s E i K b l q v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
-  envs_lookup i Δ' = Some (b, l ↦{q} v)%I →
+  envs_lookup i Δ' = Some (b, l ↦C{q} v)%I →
   envs_entails Δ' (WP fill K (Val v) @ s; E {{ Φ }}) →
   envs_entails Δ (WP fill K (Load (LitV l)) @ s; E {{ Φ }}).
 Proof.
@@ -247,7 +247,7 @@ Qed.
 Lemma tac_wp_store Δ Δ' s E i K l (v:option val) v' Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (false, l I↦ v)%I →
-  match envs_simple_replace i false (Esnoc Enil i (l ↦ v')) Δ' with
+  match envs_simple_replace i false (Esnoc Enil i (l ↦C v')) Δ' with
   | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})
   | None => False
   end →
@@ -540,7 +540,7 @@ Tactic Notation "wp_free" :=
 
 Tactic Notation "wp_load" :=
   let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (?l ↦C{_} _)%I) => l end in
     iAssumptionCore || fail "wp_load: cannot find" l "↦ ?" in
   wp_pures;
   lazymatch goal with

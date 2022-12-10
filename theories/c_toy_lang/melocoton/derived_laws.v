@@ -33,6 +33,7 @@ Notation "l ↦∗ vs" := (array l (DfracOwn 1) vs)
 lead to overlapping instances. *)
 
 Section lifting.
+Notation heapGS_gen := (heapGS_C_gen).
 Context `{!heapGS_gen hlc Σ}.
 Context {p:program}.
 Implicit Types P Q : iProp Σ.

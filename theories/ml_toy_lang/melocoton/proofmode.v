@@ -7,7 +7,8 @@ From melocoton.ml_toy_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 
-Lemma tac_wp_expr_eval `{!heapGS_gen hlc Σ} Δ s E Φ e e' :
+Local Notation heapGS_gen := heapGS_ML_gen.
+Lemma tac_wp_expr_eval `{!heapGS_ML_gen hlc Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
@@ -241,7 +242,7 @@ Qed.
 Lemma tac_wp_alloc Δ Δ' s E j K v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   (∀ l,
-    match envs_app false (Esnoc Enil j (l ↦ v)) Δ' with
+    match envs_app false (Esnoc Enil j (l ↦M v)) Δ' with
     | Some Δ'' =>
        envs_entails Δ'' (WP fill K (Val $ LitV l) @ s; E {{ Φ }})
     | None => False
@@ -254,7 +255,7 @@ Proof.
   specialize (HΔ l).
   destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
   rewrite envs_app_sound //; simpl.
-  apply wand_intro_l. by rewrite (sep_elim_l (l ↦ v)%I) right_id wand_elim_r.
+  apply wand_intro_l. by rewrite (sep_elim_l (l ↦M v)%I) right_id wand_elim_r.
 Qed.
 
 Lemma tac_wp_loadN Δ Δ' s E i K b l q n vs v Φ :
@@ -276,7 +277,7 @@ Qed.
 
 Lemma tac_wp_load Δ Δ' s E i K b l q v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
-  envs_lookup i Δ' = Some (b, l ↦{q} v)%I →
+  envs_lookup i Δ' = Some (b, l ↦M{q} v)%I →
   envs_entails Δ' (WP fill K (Val v) @ s; E {{ Φ }}) →
   envs_entails Δ (WP fill K (Load (LitV l)) @ s; E {{ Φ }}).
 Proof.
@@ -323,8 +324,8 @@ Qed.
 
 Lemma tac_wp_store Δ Δ' s E i K l v v' Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
-  envs_lookup i Δ' = Some (false, l ↦ v)%I →
-  match envs_simple_replace i false (Esnoc Enil i (l ↦ v')) Δ' with
+  envs_lookup i Δ' = Some (false, l ↦M v)%I →
+  match envs_simple_replace i false (Esnoc Enil i (l ↦M v')) Δ' with
   | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})
   | None => False
   end →
@@ -408,7 +409,7 @@ Tactic Notation "wp_alloc" ident(l) :=
 
 Tactic Notation "wp_load" :=
   let solve_mapsto_single _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (?l ↦M{_} _)%I) => l end in
     iAssumptionCore || fail "wp_load: cannot find" l "↦ ?" in
   let solve_mapsto_array _ :=
     let l := match goal with |- _ = Some (_, (?l ↦∗{_} _)%I) => l end in
@@ -438,7 +439,7 @@ Tactic Notation "wp_load" :=
 
 Tactic Notation "wp_store" :=
   let solve_mapsto_single _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (?l ↦M{_} _)%I) => l end in
     iAssumptionCore || fail "wp_store: cannot find" l "↦ ?" in
   let solve_mapsto_array _ :=
     let l := match goal with |- _ = Some (_, (?l ↦∗{_} _)%I) => l end in

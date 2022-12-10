@@ -197,7 +197,7 @@ Definition vals_compare_safe (vl v1 : val) : Prop :=
   val_is_unboxed vl ∨ val_is_unboxed v1.
 Global Arguments vals_compare_safe !_ !_ /.
 
-Definition state : Type := gmap loc (list val).
+Definition state : Type := gmap loc (option (list val)).
 
 (** Equality and other typeclass stuff *)
 Lemma to_of_val v : to_val (of_val v) = Some v.
@@ -585,7 +585,7 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     | _, _ => None
     end.
 
-Definition state_upd_heap (f: gmap loc (list val) → gmap loc (list val)) (σ: state) : state := f σ.
+Definition state_upd_heap (f: gmap loc (option (list val)) → gmap loc (option (list val))) (σ: state) : state := f σ.
 Global Arguments state_upd_heap _ !_ /.
 
 Inductive ml_function := MlFun (b : list binder) (e : expr).
@@ -636,7 +636,7 @@ Inductive head_step {p:ml_program} : expr → state → list unit → expr → s
      l ∉ dom σ →
      head_step (AllocN (Val $ LitV $ LitInt n) (Val v)) σ
                []
-               (Val $ LitV $ LitLoc l) (<[l := replicate (Z.to_nat n) v]> σ)
+               (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ)
                []
   | LoadNS l i v σ :
      σ !! Locoff l i = Some v →
@@ -649,7 +649,7 @@ Inductive head_step {p:ml_program} : expr → state → list unit → expr → s
                (Val $ LitV LitUnit) (<[Locoff l i := w]> σ)
                []
   | LengthS l vs σ :
-    σ !! l = Some vs →
+    σ !! l = Some (Some vs) →
     head_step (Length (Val $ LitV $ LitLoc l)) σ []
               (Val $ LitV $ LitInt (length vs)) σ []
   | ExternS s va args res e σ :
@@ -722,7 +722,7 @@ Lemma alloc_fresh {p:ml_program} v n σ :
   let l := fresh_locs (dom σ) in
   (0 ≤ n)%Z →
   head_step (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ []
-            (Val $ LitV $ LitLoc l) (<[l := replicate (Z.to_nat n) v]> σ) [].
+            (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ) [].
 Proof.
   intros.
   apply AllocNS; first done.
