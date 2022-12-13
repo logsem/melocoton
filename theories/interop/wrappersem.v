@@ -73,9 +73,9 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     step_mrel p (ExprCall fn_name args, ρ) X
   (* Incoming call of a C function from ML. *)
   | RunFunctionS fn vs ρml σ ζσ lvs ws ec mem χC ζC θC X :
-    (* Demonically get a new extended map χC (new γs must be fresh). *)
+    (* Demonically get a new extended map χC. *)
     lloc_map_mono (χML ρml) χC →
-    (* freshness condition for new bindings in χC *)
+    (* Side-condition: new bindings in χC must be fresh. *)
     lloc_map_mono_fresh_in (ζML ρml) (χML ρml) χC →
     (* The extended χC binds γs for all locations ℓ in σ; these γs make up
        the domain of a map ζ (whose contents are also chosen demonically). In
