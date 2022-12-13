@@ -72,20 +72,21 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     X (RunFunction fn args, ρ) →
     step_mrel p (ExprCall fn_name args, ρ) X
   (* Incoming call of a C function from ML. *)
-  | RunFunctionS fn vs ρml σ ζ lvs ws ec mem χC ζC θC X :
+  | RunFunctionS fn vs ρml σ ζσ lvs ws ec mem χC ζC θC X :
     (* Demonically get a new extended map χC (new γs must be fresh). *)
     lloc_map_mono (ζML ρml) (χML ρml) χC →
     (* The extended χC binds γs for all locations ℓ in σ; these γs make up
        the domain of a map ζ (whose contents are also chosen demonically). In
        other words, here ζ has exactly one block for each location in σ. *)
-    is_store_blocks χC σ ζ →
-    (* We take the new lstore ζC to be the old lstore + ζ (the translation
-       of σ into a lstore). (ζML ρml) will typically contain immutable blocks or
-       mutable blocks allocated in C but not yet shared with the ML code. *)
-    ζC = ζML ρml ∪ ζ →
+    is_store_blocks χC σ ζσ →
+    (* We take the new lstore ζC to be the old lstore + ζ (the translation of σ
+       into a lstore) + extra stuff (extra immutable blocks allocated in ML).
+       (ζML ρml) will typically contain immutable blocks or mutable blocks
+       allocated in C but not yet shared with the ML code. *)
+    ζML ρml ∪ ζσ ⊆ ζC →
     (* Taken together, the contents of the new lloc_map χC and new lstore ζC
-       must corresponds to the contents of σ. (This further constraints the
-       demonic choice of ζ.) *)
+       must represent the contents of σ. (This further constraints the demonic
+       choice of ζ.) *)
     is_store χC ζC σ →
     (* Demonically pick block-level values lvs that represent the arguments vs. *)
     Forall2 (is_val χC ζC) vs lvs →
