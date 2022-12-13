@@ -74,7 +74,9 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
   (* Incoming call of a C function from ML. *)
   | RunFunctionS fn vs ρml σ ζσ lvs ws ec mem χC ζC θC X :
     (* Demonically get a new extended map χC (new γs must be fresh). *)
-    lloc_map_mono (ζML ρml) (χML ρml) χC →
+    lloc_map_mono (χML ρml) χC →
+    (* freshness condition for new bindings in χC *)
+    lloc_map_mono_fresh_in (ζML ρml) (χML ρml) χC →
     (* The extended χC binds γs for all locations ℓ in σ; these γs make up
        the domain of a map ζ (whose contents are also chosen demonically). In
        other words, here ζ has exactly one block for each location in σ. *)
@@ -125,10 +127,11 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
        freeze_lstore (ζC ρc) ζ →
        (* Angelically extend (χC ρc) into (χML ρml). This makes it possible to
           expose newly created blocks to locations in the ML store. *)
-       lloc_map_mono ζ (χC ρc) χML →
+       lloc_map_mono (χC ρc) χML →
        (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
           part ζσ that is going to be converted into the ML store σ. *)
        ζ = ζML ∪ ζσ →
+       dom ζML ## dom ζσ →
        (* Angelically pick an ML store σ where each location corresponds to a
           block in ζσ. *)
        is_store_blocks χML σ ζσ →

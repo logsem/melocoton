@@ -133,16 +133,16 @@ Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
    typically needs to be extended to account for allocation of new blocks on
    either side.
 
-   This is a sanity condition for a corresponding new χ2, with respect to a
-   previous χ1: it must not "capture" logical locations that were already
-   present in the store.
-
    Additionally, we enforce here that the new χ2 must be injective. (Typically,
    we already know that χ1 is injective, and we are trying to impose constraints
    on χ2.) *)
-Definition lloc_map_mono (ζ : lstore) (χ1 χ2 : lloc_map) : Prop :=
-  χ1 ⊆ χ2 ∧
-  gmap_inj χ2 ∧
+Definition lloc_map_mono (χ1 χ2 : lloc_map) : Prop :=
+  χ1 ⊆ χ2 ∧ gmap_inj χ2.
+
+(* This is a sanity condition for a new χ2 that will be used to extend the store
+   with new blocks, with respect to a previous χ1 and lstore ζ: it must not
+   "capture" logical locations that were already present in the store. *)
+Definition lloc_map_mono_fresh_in (ζ : lstore) (χ1 χ2 : lloc_map) : Prop :=
   ∀ ℓ γ, χ1 !! ℓ = None → χ2 !! ℓ = Some γ → ζ !! γ = None.
 
 (* Helper relation to modify the contents of a block at a given index (which has
