@@ -126,7 +126,7 @@ Definition freeze_lstore (ζ1 ζ2 : lstore) : Prop :=
 
 Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
   dom σ = dom χ ∧
-  (∀ γ, γ ∈ dom ζ ↔ ∃ ℓ, ℓ ∈ dom σ ∧ χ !! ℓ = Some γ).
+  (∀ γ, γ ∈ dom ζ ↔ ∃ ℓ Vs, χ !! ℓ = Some γ ∧ σ !! ℓ = Some (Some Vs)).
 
 (* An lloc_map χ maintains a monotonically growing correspondance between ML
    locations and block-level locations. When crossing a wrapper boundary, χ

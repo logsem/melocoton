@@ -77,18 +77,21 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     lloc_map_mono (χML ρml) χC →
     (* Side-condition: new bindings in χC must be fresh. *)
     lloc_map_mono_fresh_in (ζML ρml) (χML ρml) χC →
-    (* The extended χC binds γs for all locations ℓ in σ; these γs make up
-       the domain of a map ζ (whose contents are also chosen demonically). In
-       other words, here ζ has exactly one block for each location in σ. *)
+    (* The extended χC binds γs for all locations ℓ in σ; the γs that are mapped
+       to [Some ...] in σ make up the domain of a map ζσ (whose contents are
+       also chosen demonically). In other words, here ζσ has exactly one block
+       for each location in σ that is mapped to [Some ...]. *)
     is_store_blocks χC σ ζσ →
-    (* We take the new lstore ζC to be the old lstore + ζ (the translation of σ
-       into a lstore) + extra stuff (extra immutable blocks allocated in ML).
-       (ζML ρml) will typically contain immutable blocks or mutable blocks
-       allocated in C but not yet shared with the ML code. *)
+    (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
+       into a lstore) + extra stuff (new immutable blocks allocated from ML).
+       [ζML ρml] will typically contain immutable blocks, mutable blocks
+       allocated in C but not yet shared with the ML code, or mutable blocks
+       whose ownership was kept on the C side (and thus correspond to a [None]
+       in σ). *)
     ζML ρml ∪ ζσ ⊆ ζC →
     (* Taken together, the contents of the new lloc_map χC and new lstore ζC
        must represent the contents of σ. (This further constraints the demonic
-       choice of ζ.) *)
+       choice of ζσ.) *)
     is_store χC ζC σ →
     (* Demonically pick block-level values lvs that represent the arguments vs. *)
     Forall2 (is_val χC ζC) vs lvs →
@@ -122,8 +125,8 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     C_lang.to_val ec = Some w →
     (∀ σ lv v ζ ζσ χML ζML rootsML privmemML,
        (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
-          This allows allocating a fresh block, mutating it, then changing it
-          into an immutable block that represents an immutable ML value. *)
+          Freezing allows allocating a fresh block, mutating it, then changing
+          it into an immutable block that represents an immutable ML value. *)
        freeze_lstore (ζC ρc) ζ →
        (* Angelically extend (χC ρc) into (χML ρml). This makes it possible to
           expose newly created blocks to locations in the ML store. *)
@@ -132,8 +135,8 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
           part ζσ that is going to be converted into the ML store σ. *)
        ζ = ζML ∪ ζσ →
        dom ζML ## dom ζσ →
-       (* Angelically pick an ML store σ where each location corresponds to a
-          block in ζσ. *)
+       (* Angelically pick an ML store σ where each location not mapped to
+          [None] corresponds to a block in ζσ. *)
        is_store_blocks χML σ ζσ →
        (* The contents of the new σ must correspond to the contents of ζ. *)
        is_store χML ζ σ →
