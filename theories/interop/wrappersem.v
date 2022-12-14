@@ -72,23 +72,25 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     X (RunFunction fn args, ρ) →
     step_mrel p (ExprCall fn_name args, ρ) X
   (* Incoming call of a C function from ML. *)
-  | RunFunctionS fn vs ρml σ ζσ lvs ws ec mem χC ζC θC X :
-    (* Demonically get a new extended map χC. *)
+  | RunFunctionS fn vs ρml σ ζσ ζnewimm lvs ws ec mem χC ζC θC X :
+    (* Demonically get a new extended map χC. New bindings in χC correspond to
+       new locations allocated from ML. *)
     lloc_map_mono (χML ρml) χC →
-    (* Side-condition: new bindings in χC must be fresh. *)
-    lloc_map_mono_fresh_in (ζML ρml) (χML ρml) χC →
     (* The extended χC binds γs for all locations ℓ in σ; the γs that are mapped
        to [Some ...] in σ make up the domain of a map ζσ (whose contents are
        also chosen demonically). In other words, here ζσ has exactly one block
        for each location in σ that is mapped to [Some ...]. *)
     is_store_blocks χC σ ζσ →
     (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
-       into a lstore) + extra stuff (new immutable blocks allocated from ML).
-       [ζML ρml] will typically contain immutable blocks, mutable blocks
-       allocated in C but not yet shared with the ML code, or mutable blocks
-       whose ownership was kept on the C side (and thus correspond to a [None]
-       in σ). *)
-    ζML ρml ∪ ζσ ⊆ ζC →
+       into a lstore) + ζimm (new immutable blocks allocated from ML). These
+       three parts must be disjoint. [ζML ρml] will typically contain immutable
+       blocks, mutable blocks allocated in C but not yet shared with the ML
+       code, or mutable blocks whose ownership was kept on the C side (and thus
+       correspond to a [None] in σ). *)
+    ζC = ζML ρml ∪ ζσ ∪ ζnewimm →
+    dom (ζML ρml) ## dom ζσ →
+    dom (ζML ρml) ## dom ζnewimm →
+    dom ζσ ## dom ζnewimm →
     (* Taken together, the contents of the new lloc_map χC and new lstore ζC
        must represent the contents of σ. (This further constraints the demonic
        choice of ζσ.) *)

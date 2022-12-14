@@ -139,12 +139,6 @@ Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
 Definition lloc_map_mono (χ1 χ2 : lloc_map) : Prop :=
   χ1 ⊆ χ2 ∧ gmap_inj χ2.
 
-(* This is a sanity condition for a new χ2 that will be used to extend the store
-   with new blocks, with respect to a previous χ1 and lstore ζ: it must not
-   "capture" logical locations that were already present in the store. *)
-Definition lloc_map_mono_fresh_in (ζ : lstore) (χ1 χ2 : lloc_map) : Prop :=
-  ∀ ℓ γ, χ1 !! ℓ = None → χ2 !! ℓ = Some γ → ζ !! γ = None.
-
 (* Helper relation to modify the contents of a block at a given index (which has
    to be in the bounds). Used to define the semantics of the "modify" primitive.
 *)
