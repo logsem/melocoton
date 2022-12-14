@@ -131,16 +131,16 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
           it into an immutable block that represents an immutable ML value. *)
        freeze_lstore (ζC ρc) ζ →
        (* Angelically extend (χC ρc) into (χML ρml). This makes it possible to
-          expose newly created blocks to locations in the ML store. *)
+          expose new blocks to ML. *)
        lloc_map_mono (χC ρc) χML →
        (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
           part ζσ that is going to be converted into the ML store σ. *)
        ζ = ζML ∪ ζσ →
        dom ζML ## dom ζσ →
-       (* Angelically pick an ML store σ where each location not mapped to
-          [None] corresponds to a block in ζσ. *)
+       (* Angelically pick an ML store σ where each location mapped to [Some
+          ...] corresponds to a block in ζσ. *)
        is_store_blocks χML σ ζσ →
-       (* The contents of the new σ must correspond to the contents of ζ. *)
+       (* The contents of ζ must represent the new σ. *)
        is_store χML ζ σ →
        (* Angelically pick a block-level return value lv that corresponds to the
           C value w. *)
