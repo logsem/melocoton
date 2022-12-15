@@ -44,8 +44,10 @@ Definition has_mutability (ζ : lstore) (i' : ismut) := forall l i t v, ζ !! l 
 Definition is_fresh_lstore (χ : lloc_map) (ζ : lstore) : iProp Σ := 
  ⌜∀ (g1 g2 : lloc) (b:block) (l:loc), ζ !! g1 = Some b → χ !! l = Some g2 → g1 ≠ g2⌝.
 Definition is_mut_lstore (χ : lloc_map) (σ : store) (ζ : lstore) : iProp Σ := 
- ⌜∀ (vl : list MLval) (l : loc), 
-      (σ !! l = Some (Some vl)) ↔ (∃ (g:lloc) (b:block), χ !! l = Some g ∧ ζ !! g = Some b (* ∧ b ~ l *))⌝.
+   ⌜dom χ = dom σ⌝
+ ∗ [∗ map] l ↦ ovl ∈ σ, ∃ (g:lloc) (b:block), ⌜χ !! l = Some g⌝ ∗ ⌜ζ !! g = Some b⌝ ∗ match ovl with
+      None => True (* Blocks owned by C *)
+    | Some vl => True (* TODO: ⌜b ~ vl⌝ *) end (* Blocks in σ, i.e. references *).
 
 Definition gen_lstore_interp (ζ : lstore) (Pmut Pimm Pfresh : lstore → iProp Σ) : iProp Σ := 
   ∃ ζfresh ζmut ζimm, ⌜ζ = ζfresh ∪ ζmut ∪ ζimm⌝
@@ -69,16 +71,35 @@ Definition GC (θ : addr_map) : iProp Σ :=
      ∗ ⌜roots_are_live θ rootsmap⌝
      ∗ ([∗ map] a ↦ v ∈ rootsmap, (∃ w, a ↦C w)).
 
-Definition C_store_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ := ∃ σvirt,
-    C_lstore_interp ζ χ σvirt
+Definition C_store_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ := ∃ σvirt χvirt,
+    C_lstore_interp ζ (χ ∪ χvirt) σvirt
   ∗ own γroots_set (excl_auth_auth roots)
   ∗ (∃ n, state_interp σvirt n)
-  ∗ (own γχ (gset_bij_auth (DfracOwn 1) (map_to_set pair χ)))
+  ∗ (own γχ (gset_bij_auth (DfracOwn 1) (map_to_set pair (χ ∪ χvirt))))
   ∗ ⌜GC_correct ζ θ⌝.
+
+Definition ML_lstore_interp (ζ : lstore) (χ : lloc_map) : iProp Σ := 
+    gen_lstore_interp ζ
+      (fun ζmut => ⌜ζmut = ∅⌝%I)
+      (fun _ => ⌜True⌝)%I
+      (is_fresh_lstore χ).
+
+Definition GC_token_remnant (roots : gset addr) : iProp Σ :=
+   own γθ (@excl_auth_frag (leibnizO _) (∅ : addr_map))
+ ∗ own γroots_set (excl_auth_frag roots)
+ ∗ ghost_map_auth γroots_map 1 (∅ : gmap loc lval)
+ ∗ ([∗ set] a ∈ roots, (a O↦ None)). (* Is deallocated in C *)
+
+
+Definition ML_store_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
+    ML_lstore_interp ζ χ
+  ∗ own γroots_set (excl_auth_auth (dom roots)) ∗ GC_token_remnant (dom roots)
+  ∗ (∃ n, state_interp memC n)
+  ∗ (own γχ (gset_bij_auth (DfracOwn 1) (map_to_set pair χ))).
 
 Definition wrap_state_interp (σ : Wrap.state) : iProp Σ := match σ with
   Wrap.CState ρc mem => (∃ n, state_interp mem n) ∗ C_store_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc)
-| Wrap.MLState ρml σ => (∃ n, state_interp σ n)
+| Wrap.MLState ρml σ => (∃ n, state_interp σ n) ∗ ML_store_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml)
 end.
 
 (* Old stuff, please ignore
