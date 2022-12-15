@@ -13,8 +13,24 @@ From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation  mel
 From melocoton.interop Require Import linking_wp basics.
 Import Wrap.
 
+Print lloc_map.
+Print lstore.
 
 
+Class wrapperGS (hlc : has_lc) Σ := WrapperGS {
+  wrapperGS_lstoreGS :> @ghost_mapG Σ lloc block Nat.eq_dec nat_countable;
+  wrapperGS_lloc_mapGS :> @ghost_mapG Σ loc lval loc_eq_decision loc_countable;
+  wrapperGS_locsetGS :> inG Σ (excl_authUR (gsetUR loc));
+  wrapperGS_addrmapGS :> inG Σ (excl_authR (leibnizO addr_map));
+  wrapperGS_gsetbihGS :> inG Σ (viewR (@gset_bij_view_rel loc loc_eq_decision loc_countable lloc Nat.eq_dec nat_countable));
+  wrapperGS_γζmut : gname;
+  wrapperGS_γζimm : gname;
+  wrapperGS_γζfresh : gname;
+  wrapperGS_γroots_set : gname;
+  wrapperGS_γroots_map : gname;
+  wrapperGS_γθ : gname;
+  wrapperGS_γχ : gname;
+}.
 
 Section Embed_logic.
 
@@ -28,21 +44,11 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-Context `{@ghost_mapG Σ lloc block Nat.eq_dec nat_countable}.
-Context `{inG Σ (excl_authUR (gsetUR loc))}.
-Context `{@ghost_mapG Σ loc lval loc_eq_decision loc_countable}.
-Context `{inG Σ (excl_authR (leibnizO addr_map))}.
-Context `{inG Σ (viewR (@gset_bij_view_rel loc loc_eq_decision loc_countable lloc Nat.eq_dec nat_countable))}.
-
-Context {γζmut γζimm γζfresh : gname}.
-Context {γroots_set : gname}.
-Context {γroots_map : gname}.
-Context {γθ : gname}.
-Context {γχ : gname}.
+Context {WGS : wrapperGS hlc Σ}.
 
 Definition has_mutability (ζ : lstore) (i' : ismut) := forall l i t v, ζ !! l = Some (i,t,v) -> i = i'.
 Definition is_fresh_lstore (χ : lloc_map) (ζ : lstore) : iProp Σ := 
- ⌜∀ (g1 g2 : lloc) (b:block) (l:loc), ζ !! g1 = Some b → χ !! l = Some g2 → g1 ≠ g2⌝.
+ ∀ (g : lloc) (b:block) (l:loc), ⌜ζ !! g = Some b⌝ → ⌜χ !! l = Some g⌝ → l ↦M/.
 Definition is_mut_lstore (χ : lloc_map) (σ : store) (ζ : lstore) : iProp Σ := 
    ⌜dom χ = dom σ⌝
  ∗ [∗ map] l ↦ ovl ∈ σ, ∃ (g:lloc) (b:block), ⌜χ !! l = Some g⌝ ∗ ⌜ζ !! g = Some b⌝ ∗ match ovl with
@@ -51,9 +57,9 @@ Definition is_mut_lstore (χ : lloc_map) (σ : store) (ζ : lstore) : iProp Σ :
 
 Definition gen_lstore_interp (ζ : lstore) (Pmut Pimm Pfresh : lstore → iProp Σ) : iProp Σ := 
   ∃ ζfresh ζmut ζimm, ⌜ζ = ζfresh ∪ ζmut ∪ ζimm⌝
-         ∗ ghost_map_auth γζmut 1 ζmut ∗ ⌜has_mutability ζimm Mut⌝ ∗ Pmut ζmut
-         ∗ ghost_map_auth γζimm 1 ζimm ∗ ⌜has_mutability ζimm Immut⌝ ∗ Pimm ζimm
-         ∗ ghost_map_auth γζfresh 1 ζfresh ∗ ⌜has_mutability ζimm Mut⌝ ∗ Pfresh ζfresh
+         ∗ ghost_map_auth wrapperGS_γζmut 1 ζmut ∗ ⌜has_mutability ζimm Mut⌝ ∗ Pmut ζmut
+         ∗ ghost_map_auth wrapperGS_γζimm 1 ζimm ∗ ⌜has_mutability ζimm Immut⌝ ∗ Pimm ζimm
+         ∗ ghost_map_auth wrapperGS_γζfresh 1 ζfresh ∗ ⌜has_mutability ζimm Mut⌝ ∗ Pfresh ζfresh
          ∗ ⌜dom ζfresh ## dom ζmut ∧ dom ζfresh ## dom ζimm ∧ dom ζmut ## dom ζimm⌝.
 
 Definition C_lstore_interp (ζ : lstore) (χ : lloc_map) (σvirt : store) : iProp Σ := 
@@ -63,19 +69,19 @@ Definition C_lstore_interp (ζ : lstore) (χ : lloc_map) (σvirt : store) : iPro
       (is_fresh_lstore χ).
 
 Definition GC (θ : addr_map) : iProp Σ := 
-   own γθ (@excl_auth_frag (leibnizO _) θ)
+   own wrapperGS_γθ (@excl_auth_frag (leibnizO _) θ)
    ∗ ∃ (roots : gset addr) (rootsmap : gmap loc lval),
-       own γroots_set (excl_auth_frag roots)
-     ∗ ghost_map_auth γroots_map 1 rootsmap
+       own wrapperGS_γroots_set (excl_auth_frag roots)
+     ∗ ghost_map_auth wrapperGS_γroots_map 1 rootsmap
      ∗ ⌜dom rootsmap = roots⌝
      ∗ ⌜roots_are_live θ rootsmap⌝
      ∗ ([∗ map] a ↦ v ∈ rootsmap, (∃ w, a ↦C w)).
 
 Definition C_store_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ := ∃ σvirt χvirt,
     C_lstore_interp ζ (χ ∪ χvirt) σvirt
-  ∗ own γroots_set (excl_auth_auth roots)
+  ∗ own wrapperGS_γroots_set (excl_auth_auth roots)
   ∗ (∃ n, state_interp σvirt n)
-  ∗ (own γχ (gset_bij_auth (DfracOwn 1) (map_to_set pair (χ ∪ χvirt))))
+  ∗ (own wrapperGS_γχ (gset_bij_auth (DfracOwn 1) (map_to_set pair (χ ∪ χvirt))))
   ∗ ⌜GC_correct ζ θ⌝.
 
 Definition ML_lstore_interp (ζ : lstore) (χ : lloc_map) : iProp Σ := 
@@ -85,17 +91,17 @@ Definition ML_lstore_interp (ζ : lstore) (χ : lloc_map) : iProp Σ :=
       (is_fresh_lstore χ).
 
 Definition GC_token_remnant (roots : gset addr) : iProp Σ :=
-   own γθ (@excl_auth_frag (leibnizO _) (∅ : addr_map))
- ∗ own γroots_set (excl_auth_frag roots)
- ∗ ghost_map_auth γroots_map 1 (∅ : gmap loc lval)
+   own wrapperGS_γθ (@excl_auth_frag (leibnizO _) (∅ : addr_map))
+ ∗ own wrapperGS_γroots_set (excl_auth_frag roots)
+ ∗ ghost_map_auth wrapperGS_γroots_map 1 (∅ : gmap loc lval)
  ∗ ([∗ set] a ∈ roots, (a O↦ None)). (* Is deallocated in C *)
 
 
 Definition ML_store_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
     ML_lstore_interp ζ χ
-  ∗ own γroots_set (excl_auth_auth (dom roots)) ∗ GC_token_remnant (dom roots)
+  ∗ own wrapperGS_γroots_set (excl_auth_auth (dom roots)) ∗ GC_token_remnant (dom roots)
   ∗ (∃ n, state_interp memC n)
-  ∗ (own γχ (gset_bij_auth (DfracOwn 1) (map_to_set pair χ))).
+  ∗ (own wrapperGS_γχ (gset_bij_auth (DfracOwn 1) (map_to_set pair χ))).
 
 Definition wrap_state_interp (σ : Wrap.state) : iProp Σ := match σ with
   Wrap.CState ρc mem => (∃ n, state_interp mem n) ∗ C_store_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc)
