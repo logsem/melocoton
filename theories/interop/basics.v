@@ -77,6 +77,8 @@ Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
 Definition block :=
   (ismut * tag * list lval)%type.
 
+Definition mutability (b:block) : ismut := let '(i,_,_) := b in i.
+
 (* a block-level store *)
 Definition lstore : Type := gmap lloc block.
 Implicit Type ζ : lstore.
