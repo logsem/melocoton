@@ -445,7 +445,160 @@ Proof.
       rewrite Hζl in Hs3. injection Hs3; intros <-. econstructor. done.
     * rewrite lookup_insert_ne in Hs1; last done. eapply Hstore; done.
 Qed.
-  
+
+Lemma is_val_mono χ χL ζ ζL x y : χ ⊆ χL -> ζ ⊆ ζL -> is_val χ ζ x y → is_val χL ζL x y.
+Proof.
+  intros H1 H2; induction 1 in χL,ζL,H1,H2|-*; econstructor; eauto.
+  all: eapply lookup_weaken; done.
+Qed.
+
+Lemma freeze_to_mut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb ==∗ SI ∗ GC θ ∗ γ ↦mut{DfracOwn 1} bb)%I.
+Proof.
+  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh & %Hmut))". 
+  iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
+  iDestruct "Hσ" as SIC_ip.
+  iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
+  iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
+  pose (fresh_locs (dom χvirt)) as ℓ.
+  assert (ℓ ∉ dom χvirt) as Hℓdom.
+  1: { epose proof (fresh_locs_fresh (dom χvirt) 0) as Hfresh.
+       unfold loc_add in Hfresh. rewrite Z.add_0_r in Hfresh. apply Hfresh. lia. }
+  iMod (ghost_map_insert_persist ℓ γ with "HAχmap") as "(HAχmap & #Hℓγ)".
+  1: by eapply not_elem_of_dom_1. unfold block_sim_raw.
+  iPoseProof big_sepM_insert as "[_ Hr]"; last first.
+  1: iPoseProof ("Hr" with "[Hℓγ HAχpers]") as "HAχpers2"; first iSplitL.
+  2: iApply "HAχpers". 1: iApply "Hℓγ". 2: by eapply not_elem_of_dom_1.
+  iClear "HAχpers". iRename "HAχpers2" into "HAχpers".
+  iMod (gen_heap_alloc _ ℓ None with "HAσMLv") as "(HAσMLv & HℓNone & Hmeta)".
+  1: eapply not_elem_of_dom_1; by destruct Hstore_blocks as [-> _].
+  iPoseProof (big_sepM_insert_M _ _ _ ℓ γ with "[] [HℓNone] HAχNone") as "HAχNone".
+  1: iPureIntro; by eapply not_elem_of_dom_1.
+  1: iIntros "_"; done.
+  iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
+  iAssert (|==> own wrapperGS_γχbij (gset_bij_auth (DfracOwn 1) (map_to_set pair (<[ℓ:=γ]> χvirt))))%I with "[HAχbij]" as "HAχbij".
+  1: { rewrite map_to_set_insert_L; last by eapply not_elem_of_dom_1.
+       iApply (own_update with "HAχbij").
+       eapply gset_bij_auth_extend.
+       + intros γ' Hγ'%elem_of_map_to_set_pair. apply Hℓdom. by eapply elem_of_dom.
+       + intros ℓ' Hℓ'%elem_of_map_to_set_pair. apply (Hfreshχ _ _ Hℓ'). by eapply elem_of_dom. }
+  iMod "HAχbij".
+  iModIntro.
+  iFrame "HGC".
+  iSplitR "Hℓγ Hmtζ".
+  2: { iFrame. iSplit. 1: done. iExists ℓ. unfold block_sim_raw. iApply "Hℓγ". }
+  cbn. iSplitL "HσC"; first (iExists nCv; iFrame).
+  unfold C_state_interp. unfold lstore.
+  iExists ζfreeze, ζσ, ζrest.
+  iExists (<[ℓ:=γ]> χvirt), (delete γ fresh), (<[ ℓ := None ]> σMLvirt).
+  iFrame. iFrame "HAχpers HAζpers".
+  iSplitL "HAnMLv". 2: iPureIntro; split_and!; eauto.
+  + iExists nMLv; done.
+  + destruct Hstore_blocks as [Hsl Hsr]; split.
+    - rewrite ! dom_insert_L. rewrite Hsl; done.
+    - intros γ1; destruct (Hsr γ1) as [Hsrl Hsrr]; split.
+      * intros Hin. destruct (Hsrl Hin) as (ℓ1 & Vs & H1 & H2).
+        exists ℓ1, Vs. destruct (decide (ℓ1 = ℓ)) as [-> | Hn].
+        2: rewrite ! lookup_insert_ne; try done.
+        exfalso. apply Hℓdom. by eapply elem_of_dom.
+      * intros (ℓ2 & Vs & H1 & H2). destruct (decide (ℓ = ℓ2)) as [<- | Hn].
+        1: rewrite lookup_insert in H2; congruence.
+        apply Hsrr. exists ℓ2, Vs.
+         rewrite lookup_insert_ne in H1; last done.  rewrite lookup_insert_ne in H2; done.
+  + intros ℓ1 vs γ1 blk H1 H2 H3. destruct (decide (ℓ = ℓ1)) as [<- | Hn].
+    1: rewrite lookup_insert in H1; congruence.
+    rewrite lookup_insert_ne in H1; last done. rewrite lookup_insert_ne in H2; last done.
+    specialize (Hstore _ _ _ _ H1 H2 H3).
+    inversion Hstore; subst.
+    econstructor. eapply Forall2_impl; first apply H.
+    intros x y Hval. eapply is_val_mono; last done; eauto.
+    apply insert_subseteq. by eapply not_elem_of_dom.
+  + destruct Hχvirt as [H1 H2]. split.
+    - etransitivity; first done.
+      eapply insert_subseteq. eapply not_elem_of_dom; done.
+    - intros k1 k2 v Hk1 Hk2.
+      destruct (decide (k1 = ℓ)) as [-> | Hne1]; destruct (decide (k2 = ℓ)) as [-> | Hne2].
+      1: congruence.
+      all: rewrite ?lookup_insert in Hk1,Hk2.
+      all: rewrite ?lookup_insert_ne in Hk1,Hk2; try done.
+      1-2: exfalso; eapply Hfreshχ; first done; eapply elem_of_dom_2 in Hfreshγ; congruence.
+      eapply H2; done.
+  + intros x y Hxy; destruct (decide (x=ℓ)) as [->|Hne].
+    - subst. rewrite lookup_insert in Hxy; injection Hxy; intros ->. rewrite dom_union_L; apply elem_of_union; right. by eapply elem_of_dom.
+    - rewrite lookup_insert_ne in Hxy; last done. by eapply Hfreezeχ.
+  + intros x y Hxy; destruct (decide (x=ℓ)) as [->|Hne].
+    - subst. rewrite lookup_insert in Hxy; injection Hxy; intros ->. intros H%elem_of_dom. rewrite lookup_delete in H. destruct H; congruence.
+    - rewrite lookup_insert_ne in Hxy; last done. intros H%elem_of_dom. destruct H as [xx [Hx1 Hx2]%lookup_delete_Some]. eapply Hfreshχ; first done.
+      by eapply elem_of_dom.
+Qed.
+
+Lemma is_val_insert_immut χ ζ γ bb bb2 x y : ζ !! γ = Some bb2 → mutability bb2 = Mut → is_val χ ζ x y → is_val χ (<[γ := bb]> ζ) x y.
+Proof.
+  intros H1 H2; induction 1; econstructor; eauto.
+  all: rewrite lookup_insert_ne; first done.
+  all: intros ->; destruct bb2 as [[mut ?]?]; cbn in *.
+  all: subst mut; rewrite H1 in H; congruence.
+Qed.
+
+Lemma freeze_to_immut γ bb1 bb2 θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} (Mut, bb1, bb2) ==∗ SI ∗ GC θ ∗ γ ↦imm (Immut, bb1, bb2))%I.
+Proof.
+  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh & _))". 
+  iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
+  iDestruct "Hσ" as SIC_ip.
+  iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
+  iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
+  iMod ((ghost_map_update (Immut,bb1,bb2)) with "HAζbl Hmtζ") as "(HAζbl & Hmtζ)".
+  iMod (ghost_map_elem_persist with "Hmtζ") as "#Hmtζ".
+  iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
+  iPoseProof (big_sepM_insert_override_2 with "HAζpers []") as "#HAζpers2"; first done.
+  1: iIntros "_ _"; iApply "Hmtζ".
+  iClear "HAζpers". iRename "HAζpers2" into "HAζpers".
+  iModIntro.
+  iFrame "HGC".
+  iSplitL.
+  2: by iSplit.
+  cbn. iSplitL "HσC"; first (iExists nCv; iFrame).
+  unfold C_state_interp. unfold lstore.
+  iExists (<[γ:=(Immut, bb1, bb2)]> ζfreeze), ζσ, (<[γ:=(Immut, bb1, bb2)]> ζrest).
+  iExists χvirt, (delete γ fresh), σMLvirt.
+  iFrame. iFrame "HAχpers HAζpers".
+  iSplitL "HAnMLv". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
+  + iExists nMLv; done.
+  + rewrite dom_insert_L. rewrite subseteq_union_1_L. 1:done.
+    intros ? ->%elem_of_singleton. by eapply elem_of_dom.
+  + destruct Hfreezeρ as [HL HR]. split.
+    - rewrite HL. rewrite dom_insert_L. rewrite subseteq_union_1_L. 1:done.
+      intros ? ->%elem_of_singleton. subst. rewrite dom_union_L. rewrite elem_of_union. right. eapply elem_of_dom; done.
+    - intros γ1 b1 b2 H1 H2. destruct (decide (γ = γ1)) as [<- |H3].
+      * rewrite lookup_insert in H2. injection H2; intros <-.
+        assert (ζfreeze !! γ = Some (Mut, bb1, bb2)) as H4.
+        1: subst; apply lookup_union_Some_r; done.
+        specialize (HR γ b1 (Mut, bb1, bb2) H1 H4).
+        inversion HR; subst; econstructor.
+      * rewrite lookup_insert_ne in H2; last done. by eapply HR.
+  + subst. rewrite insert_union_r. 1: done. eapply map_disjoint_Some_l; done.
+  + apply map_disjoint_insert_r. split; last done. by eapply map_disjoint_Some_l.
+  + intros l vs γ1 bb H1 H2 H3. destruct (decide (γ = γ1)) as [<- | H4].
+    * exfalso; eapply Hfreshχ; try done. by eapply elem_of_dom.
+    * rewrite lookup_insert_ne in H3; last done.
+      specialize (Hstore _ _ _ _ H1 H2 H3).
+      inversion Hstore. subst vs0 bb.
+      econstructor. eapply Forall2_impl; first done.
+      intros x y H5.
+      eapply is_val_insert_immut; last done.
+      1: subst; rewrite lookup_union_r; first done. 2:done.
+      eapply map_disjoint_Some_l; done.
+  + intros x y H. rewrite dom_insert_L. apply elem_of_union; right. by eapply Hfreezeχ.
+  + intros x y H1 H2. rewrite dom_delete_L in H2. apply elem_of_difference in H2.
+    destruct H2; eapply Hfreshχ; done.
+  + destruct HGCOK as [H1 H2]; split; first done.
+    intros γ1 Hγ. destruct (H2 γ1 Hγ) as (m & tgt & vs & Hfreeze & Hlloc).
+    destruct (decide (γ1 = γ)) as [-> | H3].
+    * setoid_rewrite lookup_insert. do 3 eexists; split; first done.
+      intros γ' H4. eapply Hlloc. subst. eapply lookup_union_Some_r in Hζγ.
+      2: done. rewrite Hfreeze in Hζγ. congruence.
+    * setoid_rewrite lookup_insert_ne; last done. do 3 eexists; done.
+Qed.
+
 End Embed_logic.
 
 
