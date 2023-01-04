@@ -85,7 +85,7 @@ Qed.
 
 End specs.
 
-From melocoton.interop Require Import linking linking_wp embed_wp.
+From melocoton.interop Require Import linking linking_wp lang_to_mlang_wp.
 From melocoton.mlanguage Require Import weakestpre.
 
 Section linking.
@@ -110,7 +110,7 @@ Proof.
       rewrite (_: func = is_odd_func); [|by simplify_map_eq/=].
       rewrite /is_odd_func /apply_function. reflexivity. }
     iIntros "!> _". iApply wp_wand.
-    { iApply wp_embed. by iApply is_odd_spec. }
+    { iApply wp_lang_to_mlang. by iApply is_odd_spec. }
     iIntros (? ->). iFrame. }
   { iIntros (? ? ? ? ? ?) "(-> & HT)". simpl in H.
     iDestruct "HT" as (x [-> ?]) "HΦ".
@@ -119,7 +119,7 @@ Proof.
       rewrite (_: func = is_even_func); [| by simplify_map_eq/=].
       rewrite /is_even_func /apply_function. reflexivity. }
     iIntros "!> _". iApply wp_wand.
-    { iApply wp_embed. by iApply is_even_spec. }
+    { iApply wp_lang_to_mlang. by iApply is_even_spec. }
     iIntros (? ->). iFrame. }
   { iIntros (? ? ? ? ?) "(-> & _)". simplify_map_eq/=. }
   { iIntros (? ? ? ? ?) "(-> & _)". simplify_map_eq/=. }
@@ -138,7 +138,7 @@ Proof.
   iApply (wp_link_run1' with "Hlkst").
   { iApply wp_wand.
     2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
-    iApply wp_embed. by iApply is_even_spec. }
+    iApply wp_lang_to_mlang. by iApply is_even_spec. }
   iIntros (?) "[-> ?]". by iApply "HΦ".
 Qed.
 
@@ -155,7 +155,7 @@ Proof.
   iApply (wp_link_run2' with "Hlkst").
   { iApply wp_wand.
     2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
-    iApply wp_embed. by iApply is_odd_spec. }
+    iApply wp_lang_to_mlang. by iApply is_odd_spec. }
   iIntros (?) "[-> ?]". by iApply "HΦ".
 Qed.
 

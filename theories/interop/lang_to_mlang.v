@@ -4,7 +4,7 @@ From melocoton.mlanguage Require Import mlanguage.
 From melocoton.interop Require Import linking.
 From melocoton.language Require Import language.
 
-Section ToMLang.
+Section ToMlang.
   Context {val : Type}.
   Context (Λ : language val).
 
@@ -46,13 +46,13 @@ Section ToMLang.
   Definition lang_to_mlang : mlanguage val :=
     Mlanguage language_mlanguage_mixin.
 
-  Inductive embed_split_state : Λ.(state) → Λ.(state) → unit → Prop :=
-    split_state_refl σ : embed_split_state σ σ ().
+  Inductive lang_to_mlang_split_state : Λ.(state) → Λ.(state) → unit → Prop :=
+    split_state_refl σ : lang_to_mlang_split_state σ σ ().
 
-  Global Program Instance embed_linkable : linkable lang_to_mlang Λ.(state) := {
+  Global Program Instance lang_to_mlang_linkable : linkable lang_to_mlang Λ.(state) := {
     linking.private_state := unit;
-    linking.split_state := embed_split_state;
+    linking.split_state := lang_to_mlang_split_state;
   }.
   Next Obligation. intros *. inversion 1; inversion 1; by simplify_eq. Qed.
 
-End ToMLang.
+End ToMlang.

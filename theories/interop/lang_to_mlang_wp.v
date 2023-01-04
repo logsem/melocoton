@@ -7,7 +7,7 @@ From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import linking_wp.
 From iris.proofmode Require Import proofmode.
 
-Section Embed_logic.
+Section ToMlang_logic.
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
 Context {val : Type}.
@@ -18,15 +18,15 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Global Program Instance embed_mlangGS :
+Global Program Instance lang_to_mlang_mlangGS :
   mlanguage.weakestpre.mlangGS val Σ (lang_to_mlang Λ)
 := {
   state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I;
   at_boundary := True%I;
 }.
 
-Global Program Instance embed_linkableGS :
-  (@linkableGS _ _ (lang_to_mlang Λ) _ _ (embed_linkable Λ) state_interp)%I
+Global Program Instance lang_to_mlang_linkableGS :
+  (@linkableGS _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
 := {
   private_state_interp := (λ _, True)%I;
 }.
@@ -37,7 +37,7 @@ Qed.
 Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constructor. Qed.
 
 
-Local Canonical Structure embed_mlang : mlanguage val := lang_to_mlang Λ.
+Local Canonical Structure lang_to_mlang_mlang : mlanguage val := lang_to_mlang Λ.
 
 Definition penv_to_mlang (pe : language.weakestpre.prog_environ Λ Σ) :
   mlanguage.weakestpre.prog_environ (lang_to_mlang Λ) Σ
@@ -45,7 +45,7 @@ Definition penv_to_mlang (pe : language.weakestpre.prog_environ Λ Σ) :
   {| penv_prog := pe.(language.weakestpre.penv_prog);
      penv_proto := pe.(language.weakestpre.penv_proto) |}.
 
-Lemma wp_embed (e : Λ.(language.expr)) pe E Φ :
+Lemma wp_lang_to_mlang (e : Λ.(language.expr)) pe E Φ :
   ⊢ WP e @ pe; E {{ Φ }} -∗ WP e @ (penv_to_mlang pe); E {{ Φ }}.
 Proof using.
   iStartProof. iLöb as "IH" forall (e). destruct pe as [p T].
@@ -65,6 +65,6 @@ Proof using.
     iSplitL "Hσ"; first by iExists _. iApply "IH". iApply "Hwp".
 Qed.
 
-End Embed_logic.
+End ToMlang_logic.
 
 Global Arguments penv_to_mlang {_ _ _} _.
