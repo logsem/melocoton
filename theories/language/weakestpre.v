@@ -7,8 +7,8 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-Class melocotonGS_gen 
-  (hlc : has_lc) (val : Type) 
+Class melocotonGS_gen
+  (hlc : has_lc) (val : Type)
   (Λ : language val) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen hlc Σ;
 
@@ -40,7 +40,7 @@ Global Arguments IrisG {hlc val Λ Σ}.
 
 Notation melocotonGS := (melocotonGS_gen HasLc).
 
-Definition wp_pre `{!melocotonGS_gen hlc val Λ Σ} 
+Definition wp_pre `{!melocotonGS_gen hlc val Λ Σ}
     (p:mixin_prog Λ.(func))
     (T: string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d>
@@ -57,8 +57,8 @@ Definition wp_pre `{!melocotonGS_gen hlc val Λ Σ}
           |={E}=>
             (∃ Ξ, state_interp σ ns ∗ T s vv Ξ ∗  ▷ ∀ r, Ξ r -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ))
        ∨ ((⌜reducible_no_threads p e σ⌝ ∗
-                    ∀ σ' e', ⌜prim_step p e σ e' σ' []⌝ -∗  |={E}=> ▷ |={E}=> 
-                        (state_interp σ' (S ns) ∗ wp E e' Φ)))))%I.
+           ∀ σ' e', ⌜prim_step p e σ e' σ' []⌝ -∗  |={E}=> ▷ |={E}=>
+                    (state_interp σ' (S ns) ∗ wp E e' Φ)))))%I.
 
 Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val Λ Σ}
      {p:mixin_prog Λ.(func)} T : Contractive (wp_pre p T).
@@ -151,7 +151,7 @@ Admitted.
 *)
 (*
 Lemma wp_value_fupd' pe E Φ v : WP (of_class Λ (ExprVal v)) @ pe; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
-Proof. 
+Proof.
 Admitted.
 *)
 
@@ -164,7 +164,7 @@ Proof.
 Qed.
 
 
-Definition prog_environ_mono pe1 pe2 : Prop := 
+Definition prog_environ_mono pe1 pe2 : Prop :=
    penv_prog pe1 = penv_prog pe2
 /\ ∀ (s:string) vv Φ, ⌜s ∉ (dom (penv_prog pe1))⌝ -∗ penv_proto pe1 s vv Φ -∗ penv_proto pe2 s vv Φ.
 
@@ -217,7 +217,7 @@ Proof. iIntros "H". iApply (wp_strong_mono s s E with "H"); auto. Qed.
 Lemma wp_atomic pe E1 E2 e Φ :
   (|={E}=> WP e @ pe; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ pe; E1 {{ Φ }}.
 Proof.
-Qed. *) 
+Qed. *)
 
 (** In this stronger version of [wp_step_fupdN], the masks in the
    step-taking fancy update are a bit weird and somewhat difficult to
@@ -366,7 +366,7 @@ Qed.
 (** * Derived rules *)
 Lemma wp_mono pe E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ pe; E {{ Φ }} ⊢ WP e @ pe; E {{ Ψ }}.
 Proof.
-  iIntros (HΦ) "H"; iApply (wp_strong_mono with "H"); auto. 
+  iIntros (HΦ) "H"; iApply (wp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
 Lemma wp_pe_mono pe1 pe2 E e Φ :
@@ -391,7 +391,7 @@ Proof. intros H.
     apply of_to_class in Heq. congruence.
   - apply wp_value'.
 Qed.
-  
+
 
 Lemma wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
 Proof. iIntros "[? H]". iApply (wp_strong_mono with "H"); auto with iFrame. Qed.
