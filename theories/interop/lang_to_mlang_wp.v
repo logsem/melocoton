@@ -12,7 +12,7 @@ Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
 Context {val : Type}.
 Context (Λ: language val).
-Context `{!language.weakestpre.melocotonGS val Λ Σ, !invGS_gen hlc Σ}.
+Context `{!language.weakestpre.langGS val Λ Σ, !invGS_gen hlc Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.

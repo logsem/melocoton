@@ -6,7 +6,7 @@ From melocoton.language Require Export weakestpre.
 From iris.prelude Require Import options.
 
 Section lifting.
-Context `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ}.
+Context `{!langGS val Λ Σ, !invGS_gen hlc Σ}.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types s : prog_environ Λ Σ.
 Implicit Types v : val.

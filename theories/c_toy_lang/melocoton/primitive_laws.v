@@ -56,8 +56,8 @@ Section steps.
 
 End steps.
 
-Global Program Instance heapGS_melocotonGS_C `{heapGS_C Σ}
-      : melocotonGS val C_lang Σ := {
+Global Program Instance heapGS_langGS_C `{heapGS_C Σ}
+      : langGS val C_lang Σ := {
   state_interp σ step_cnt :=
     (gen_heap_interp σ ∗ steps_auth step_cnt)%I
 }.

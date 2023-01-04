@@ -16,7 +16,7 @@ Import uPred.
      the state interpretations accordingly.
 *)
 Class mlangGS (val : Type) (Σ : gFunctors) (Λ : mlanguage val) :=
-MlangG {
+MlangGS {
   state_interp : state Λ → iProp Σ;
   at_boundary : iProp Σ;
 }.
