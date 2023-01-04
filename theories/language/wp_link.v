@@ -9,7 +9,7 @@ Import uPred.
 
 
 Section wp.
-Context `{!melocotonGS_gen hlc val Λ Σ}.
+Context `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.

@@ -10,8 +10,7 @@ From melocoton.ml_toy_lang Require Export melocoton.class_instances.
 From melocoton.ml_toy_lang Require Import melocoton.tactics notation.
 From iris.prelude Require Import options.
 
-Class heapGS_ML_gen hlc Σ := HeapGS_ML {
-  heapGS_invGS : invGS_gen hlc Σ;
+Class heapGS_ML Σ := HeapGS_ML {
   heapGS_gen_heapGS :> gen_heapGS loc (option (list val)) Σ;
   heapGS_inv_heapGS :> inv_heapGS loc (option (list val)) Σ;
   heapGS_step_name : gname;
@@ -19,10 +18,8 @@ Class heapGS_ML_gen hlc Σ := HeapGS_ML {
 }.
 Local Existing Instance heapGS_step_cnt.
 
-Local Notation heapGS_gen := heapGS_ML_gen.
-
 Section steps.
-  Context `{!heapGS_gen hlc Σ}.
+  Context `{!heapGS_ML Σ}.
 
   Local Definition steps_auth (n : nat) : iProp Σ :=
     mono_nat_auth_own heapGS_step_name 1 n.
@@ -59,14 +56,13 @@ Section steps.
 End steps.
 
 
-Global Program Instance heapGS_melocotonGS_ML `{heapGS_gen hlc Σ}
-      : melocotonGS_gen hlc val ML_lang Σ := {
-  iris_invGS := heapGS_invGS;
+Global Program Instance heapGS_melocotonGS_ML `{heapGS_ML Σ}
+      : melocotonGS val ML_lang Σ := {
   state_interp σ step_cnt :=
     (gen_heap_interp σ ∗ steps_auth step_cnt)%I
 }.
 Next Obligation.
-  iIntros (??? σ ns E)  "/= ($ & H)".
+  iIntros (???? σ ns E)  "/= ($ & H)".
   by iMod (steps_auth_update_S with "H") as "$".
 Qed.
 
@@ -103,7 +99,7 @@ Notation "l ↦∗ vs" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1)
 make setoid rewriting in the predicate [I] work we need actual definitions
 here. *)
 Section definitions.
-  Context `{!heapGS_gen hlc Σ}.
+  Context `{!heapGS_ML Σ}.
   Definition inv_mapsto_own (l : loc) (vs : option (list val)) (I : option (list val) → Prop) : iProp Σ :=
     inv_mapsto_own l vs I.
   Definition inv_mapsto (l : loc) (I : option (list val) → Prop) : iProp Σ :=
@@ -121,7 +117,7 @@ Notation "l ↦∗_ I vs" := (inv_mapsto_own l vs I%stdpp%type)
   (at level 20, I at level 9, format "l  ↦∗_ I  vs") : bi_scope.
 
 Section lifting.
-Context `{!heapGS_gen hlc Σ}.
+Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.

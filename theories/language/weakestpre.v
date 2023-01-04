@@ -7,11 +7,14 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-Class melocotonGS_gen
-  (hlc : has_lc) (val : Type)
-  (Λ : language val) (Σ : gFunctors) := IrisG {
-  iris_invGS :> invGS_gen hlc Σ;
+(* armael: the unbundling of [irisGS_gen] here and in mlanguage (a priori
+   required to ensure that the same instance is used across different languages)
+   might produce large Coq terms and cause performance issues. If this happens
+   we may need to revisit this design choice. *)
 
+Class melocotonGS
+  (val : Type)
+  (Λ : language val) (Σ : gFunctors) := IrisG {
   (** The state interpretation is an invariant that should hold in
   between each step of reduction. Here [Λstate] is the global state,
   the first [nat] is the number of steps already performed by the
@@ -32,15 +35,12 @@ Class melocotonGS_gen
   of the definition [state_interp_mono] does not significantly
   complicate the formalization in Iris, we prefer simplifying the
   client. *)
-  state_interp_mono σ ns E:
+  state_interp_mono `{invGS_gen hlc Σ} σ ns E :
     state_interp σ ns ={E}=∗ state_interp σ (S ns)
 }.
-Global Opaque iris_invGS.
-Global Arguments IrisG {hlc val Λ Σ}.
+Global Arguments IrisG {val Λ Σ}.
 
-Notation melocotonGS := (melocotonGS_gen HasLc).
-
-Definition wp_pre `{!melocotonGS_gen hlc val Λ Σ}
+Definition wp_pre `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ}
     (p:mixin_prog Λ.(func))
     (T: string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d>
@@ -60,14 +60,15 @@ Definition wp_pre `{!melocotonGS_gen hlc val Λ Σ}
            ∀ σ' e', ⌜prim_step p e σ e' σ' []⌝ -∗  |={E}=> ▷ |={E}=>
                     (state_interp σ' (S ns) ∗ wp E e' Φ)))))%I.
 
-Local Instance wp_pre_contractive `{!melocotonGS_gen hlc val Λ Σ}
+Local Instance wp_pre_contractive `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ}
      {p:mixin_prog Λ.(func)} T : Contractive (wp_pre p T).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Definition program_specification `{!melocotonGS_gen hlc val Λ Σ} := string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
+Definition program_specification `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ} :=
+  string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
 Record prog_environ {val} (Λ : language val) Σ := {
   penv_prog : gmap string Λ.(func);
@@ -76,17 +77,17 @@ Record prog_environ {val} (Λ : language val) Σ := {
 Global Arguments penv_prog {_ _ _} _.
 Global Arguments penv_proto {_ _ _} _.
 
-Local Definition wp_def `{!melocotonGS_gen hlc val Λ Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ Σ) :=
+Local Definition wp_def `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ Σ) :=
   λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {hlc val Λ Σ _}.
+Global Arguments wp' {val Λ Σ _ hlc _}.
 Global Existing Instance wp'.
 
-Local Lemma wp_unseal `{!melocotonGS_gen hlc val Λ Σ} : wp = @wp_def hlc val Λ Σ _.
+Local Lemma wp_unseal `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ} : wp = @wp_def val Λ Σ _ hlc _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
-Definition wp_func `{!melocotonGS_gen hlc val Λ Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
+Definition wp_func `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
   match apply_func F vv with
     Some e' => |={E}=> ▷ |={E}=> wp' pe E e' Φ
   | None => ⌜False⌝%I end.
@@ -98,7 +99,7 @@ Notation "'WPFun' F 'with' args @ s ; E {{ v , Q } }" := (wp_func F args%V s E (
    format "'[hv' 'WPFun'  F  'with'  args  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
 
-Definition wp_for_call `{!melocotonGS_gen hlc val Λ Σ} (F:string) (vv : list val) pe E Φ : iProp Σ :=
+Definition wp_for_call `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ} (F:string) (vv : list val) pe E Φ : iProp Σ :=
   match penv_prog pe !! F with
   | Some F => wp_func F vv pe E Φ
   | None => ⌜False⌝%I end.
@@ -111,7 +112,7 @@ Notation "'WPCall' F 'with' args @ s ; E {{ v , Q } }" := (wp_for_call F args%V 
 
 
 Section wp.
-Context `{!melocotonGS_gen hlc val Λ Σ}.
+Context `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -595,7 +596,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!melocotonGS_gen hlc val Λ Σ}.
+  Context `{!melocotonGS val Λ Σ, !invGS_gen hlc Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.

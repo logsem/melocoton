@@ -23,7 +23,7 @@ Definition is_odd_func : C_lang.function :=
 
 
 Section specs.
-Context `{!heapGS_gen hlc Σ}.
+Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
 
 Definition is_odd_proto fn (vs: list val) Φ : iProp Σ :=
   ⌜fn = "is_odd"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
@@ -89,7 +89,7 @@ From melocoton.interop Require Import linking linking_wp lang_to_mlang_wp.
 From melocoton.mlanguage Require Import weakestpre.
 
 Section linking.
-Context `{!heapGS_gen hlc Σ}.
+Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
 Context `{!linkGS Σ}.
 
 Definition penv : prog_environ (link_lang C_mlang C_mlang) Σ := {|

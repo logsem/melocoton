@@ -8,7 +8,7 @@ Import uPred.
 (** Heap tactics *)
 Section examples.
 
-Context `{!heapGS_ML_gen hlc Σ}.
+Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
 
 Definition call_inc : expr ML_lang := 
   let: "l" := ref (#0 + #0)
@@ -114,6 +114,3 @@ Proof.
 Qed.
 
 End examples.
-
-
-

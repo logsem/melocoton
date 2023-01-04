@@ -10,8 +10,7 @@ From melocoton.c_toy_lang Require Export melocoton.class_instances.
 From melocoton.c_toy_lang Require Import tactics melocoton.tactics notation.
 From iris.prelude Require Import options.
 
-Class heapGS_C_gen hlc Σ := HeapGS {
-  heapGS_invGS : invGS_gen hlc Σ;
+Class heapGS_C Σ := HeapGS {
   heapGS_gen_heapGS :> gen_heapGS loc heap_cell Σ;
   heapGS_inv_heapGS :> inv_heapGS loc heap_cell Σ;
   heapGS_proph_mapGS :> proph_mapGS positive (prod val val) Σ;
@@ -20,10 +19,8 @@ Class heapGS_C_gen hlc Σ := HeapGS {
 }.
 Local Existing Instance heapGS_step_cnt.
 
-Notation heapGS_gen := (heapGS_C_gen).
-
 Section steps.
-  Context `{!heapGS_gen hlc Σ}.
+  Context `{!heapGS_C Σ}.
 
   Local Definition steps_auth (n : nat) : iProp Σ :=
     mono_nat_auth_own heapGS_step_name 1 n.
@@ -59,14 +56,13 @@ Section steps.
 
 End steps.
 
-Global Program Instance heapGS_melocotonGS_C `{heapGS_gen hlc Σ} 
-      : melocotonGS_gen hlc val C_lang Σ := {
-  iris_invGS := heapGS_invGS;
+Global Program Instance heapGS_melocotonGS_C `{heapGS_C Σ}
+      : melocotonGS val C_lang Σ := {
   state_interp σ step_cnt :=
     (gen_heap_interp σ ∗ steps_auth step_cnt)%I
 }.
 Next Obligation.
-  iIntros (??? σ ns E)  "/= ($ & H)".
+  iIntros (???? σ ns E)  "/= ($ & H)".
   by iMod (steps_auth_update_S with "H") as "$".
 Qed.
 
@@ -114,7 +110,7 @@ Notation "l ↦C '?'" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn 1) (Uniniti
 make setoid rewriting in the predicate [I] work we need actual definitions
 here. *)
 Section definitions.
-  Context `{!heapGS_gen hlc Σ}.
+  Context `{!heapGS_C Σ}.
 
   Definition from_storing (I : val → Prop) (Puninit Pfree : Prop) (k : heap_cell) :=
     match k with
@@ -139,7 +135,7 @@ Notation "l ↦_ I v" := (inv_mapsto_own l v I%stdpp%type)
   (at level 20, I at level 9, format "l  ↦_ I  v") : bi_scope.
 
 Section lifting.
-Context `{!heapGS_gen hlc Σ}.
+Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
 Context {p:prog_environ C_lang Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.

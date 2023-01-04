@@ -37,8 +37,9 @@ Section Embed_logic.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
-Context {HeapML : heapGS_ML_gen hlc Σ}.
-Context {HeapC : heapGS_C_gen hlc Σ}.
+Context {HeapML : heapGS_ML Σ}.
+Context {HeapC : heapGS_C Σ}.
+Context `{!invGS_gen hlc Σ}.
 
 Notation MLval := ML_lang.val.
 Notation Cval := C_lang.val.
