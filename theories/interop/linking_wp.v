@@ -19,8 +19,8 @@ Class linkGS Σ := LinkGS {
 }.
 
 Class linkableGS
-  {val pubstate hlc} (Λ : mlanguage val)
-  `{!mlangGS hlc val Σ Λ, !linkable Λ pubstate}
+  {val pubstate} (Λ : mlanguage val)
+  `{!mlangGS val Σ Λ, !linkable Λ pubstate}
   (public_state_interp : pubstate → iProp Σ)
 := LinkableGS {
   private_state_interp : private_state → iProp Σ;
@@ -43,8 +43,8 @@ Context {Σ : gFunctors}.
 Context {val pubstate : Type}.
 Context (Λ1 Λ2 : mlanguage val).
 Context `{!linkGS Σ}.
-Context `{!mlangGS hlc val Σ Λ1}.
-Context `{!mlangGS hlc val Σ Λ2}.
+Context `{!mlangGS val Σ Λ1}.
+Context `{!mlangGS val Σ Λ2}.
 Context `{!invGS_gen hlc Σ}.
 Context (public_state_interp : pubstate → iProp Σ).
 Context `{!linkable Λ1 pubstate}.
@@ -118,7 +118,7 @@ Proof using.
   all: by iDestruct (excl_auth_eq with "Hb Hb'") as %?.
 Qed.
 
-Global Program Instance link_mlangGS : mlangGS hlc val Σ (link_lang Λ1 Λ2) := {
+Global Program Instance link_mlangGS : mlangGS val Σ (link_lang Λ1 Λ2) := {
   state_interp := link_state_interp;
   at_boundary := link_in_state Boundary;
 }.

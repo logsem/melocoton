@@ -14,7 +14,7 @@ From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation  mel
 From melocoton.interop Require Import linking_wp basics.
 Import Wrap.
 
-Class wrapperGS (hlc : has_lc) Σ := WrapperGS {
+Class wrapperGS Σ := WrapperGS {
   wrapperGS_lstoreGS :> @ghost_mapG Σ lloc block Nat.eq_dec nat_countable;
   wrapperGS_freshGS :> @ghost_mapG Σ lloc unit Nat.eq_dec nat_countable;
   wrapperGS_loc_lvalGS :> @ghost_mapG Σ loc lval loc_eq_decision loc_countable;
@@ -45,7 +45,7 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-Context {WGS : wrapperGS hlc Σ}.
+Context {WGS : wrapperGS Σ}.
 
 Definition GC (θ : addr_map) : iProp Σ := 
      ghost_var wrapperGS_γθ (1/2) θ
@@ -132,7 +132,7 @@ Notation SIML_ip := "((%nMLv & HσML) & (%ζσ & %ζrest & %fresh & %σCvirt &
 Notation GC_ip := "(HAGCθ & HAGCbound & (%roots_s & %roots_m & HArootss & HArootsm & %Hrootsdom & %Hrootslive & Hrootspto))".
 
 Global Program Instance wrapGS :
-  mlanguage.weakestpre.mlangGS hlc _ Σ wrap_lang
+  mlanguage.weakestpre.mlangGS _ Σ wrap_lang
 := {
   state_interp := wrap_state_interp;
   at_boundary := (ghost_var wrapperGS_γat_boundary (1/2) true)%I;

@@ -19,14 +19,14 @@ Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
 Global Program Instance embed_mlangGS :
-  mlanguage.weakestpre.mlangGS hlc val Σ (lang_to_mlang Λ)
+  mlanguage.weakestpre.mlangGS val Σ (lang_to_mlang Λ)
 := {
   state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I;
   at_boundary := True%I;
 }.
 
 Global Program Instance embed_linkableGS :
-  (@linkableGS _ _ _ (lang_to_mlang Λ) _ _ (embed_linkable Λ) state_interp)%I
+  (@linkableGS _ _ (lang_to_mlang Λ) _ _ (embed_linkable Λ) state_interp)%I
 := {
   private_state_interp := (λ _, True)%I;
 }.
