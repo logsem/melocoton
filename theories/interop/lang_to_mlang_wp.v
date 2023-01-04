@@ -36,7 +36,10 @@ Next Obligation.
 Qed.
 Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constructor. Qed.
 
-
+(* This is a *local* instance to allow typechecking the lemma below. The idea is
+   that it should stay local. For each specific language, one should manually
+   define the corresponding mlanguage (by applying lang_to_mlang), and define it
+   there as a canonical structure. *)
 Local Canonical Structure lang_to_mlang_mlang : mlanguage val := lang_to_mlang Λ.
 
 Definition penv_to_mlang (pe : language.weakestpre.prog_environ Λ Σ) :
