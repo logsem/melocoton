@@ -4,25 +4,24 @@ From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import wrappersem wrapperstate.
-From iris.base_logic.lib Require Export ghost_map ghost_var.
-From iris.algebra.lib Require Import excl_auth gset_bij gmap_view.
-From iris.algebra Require Import ofe.
+From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
+From iris.algebra Require Import gset gset_bij.
 From melocoton Require Import big_sepM_limited.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation  melocoton.primitive_laws.
+From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.interop Require Import linking_wp basics.
 Import Wrap.
 
 Class wrapperGS Σ := WrapperGS {
-  wrapperGS_lstoreGS :> @ghost_mapG Σ lloc block Nat.eq_dec nat_countable;
-  wrapperGS_freshGS :> @ghost_mapG Σ lloc unit Nat.eq_dec nat_countable;
-  wrapperGS_loc_lvalGS :> @ghost_mapG Σ loc lval loc_eq_decision loc_countable;
-  wrapperGS_lloc_mapGS :> @ghost_mapG Σ loc lloc loc_eq_decision loc_countable;
+  wrapperGS_lstoreGS :> ghost_mapG Σ lloc block;
+  wrapperGS_freshGS :> ghost_mapG Σ lloc unit;
+  wrapperGS_loc_lvalGS :> ghost_mapG Σ loc lval;
+  wrapperGS_lloc_mapGS :> ghost_mapG Σ loc lloc;
   wrapperGS_locsetGS :> ghost_varG Σ (gsetUR loc);
   wrapperGS_addrmapGS :> ghost_varG Σ (leibnizO addr_map);
   wrapperGS_at_boundary :> ghost_varG Σ (leibnizO bool);
-  wrapperGS_gsetbihGS :> inG Σ (viewR (@gset_bij_view_rel loc loc_eq_decision loc_countable lloc Nat.eq_dec nat_countable));
+  wrapperGS_gsetbihGS :> gset_bijG Σ loc lloc;
   wrapperGS_γζblock : gname;
   wrapperGS_γfresh : gname;
   wrapperGS_γroots_set : gname;
@@ -37,16 +36,15 @@ Section Embed_logic.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
-Context {HeapML : heapGS_ML Σ}.
-Context {HeapC : heapGS_C Σ}.
+Context `{!heapGS_ML Σ, !heapGS_C Σ}.
 Context `{!invGS_gen hlc Σ}.
+Context `{!wrapperGS Σ}.
 
 Notation MLval := ML_lang.val.
 Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-Context {WGS : wrapperGS Σ}.
 
 Definition GC (θ : addr_map) : iProp Σ := 
      ghost_var wrapperGS_γθ (1/2) θ
@@ -61,19 +59,19 @@ Definition GC (θ : addr_map) : iProp Σ :=
 (* TODO: custom notation (like l1 ~~ML l2 )? *)
 (* l1 is a location in the ML heap. l2 is a block location.
    They are similar if identified by χ *)
-Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (l1 ↪[ wrapperGS_γχmap ]□ l2).
+Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (l1 ↪[ wrapperGS_γχmap ]□ l2). (* armael: use gset_bij_own_elem here instead? *)
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
-  ∃  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (fresh : gmap lloc unit) (σMLvirt : store),
+  ∃ (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (fresh : gmap lloc unit) (σMLvirt : store),
     ghost_var wrapperGS_γroots_set (1/2) roots
   ∗ ghost_var wrapperGS_γθ (1/2) θ
   ∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
   ∗ (∃ n, state_interp σMLvirt n)
-  ∗ own wrapperGS_γχbij (gset_bij_auth (DfracOwn 1) (map_to_set pair χvirt))
-  ∗ ghost_map_auth wrapperGS_γχmap 1 χvirt
+  ∗ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
+  ∗ ghost_map_auth wrapperGS_γχmap 1 χvirt (* armael: ? duplicata of gset_bij_own_auth? *)
   ∗ ghost_map_auth wrapperGS_γfresh 1 fresh
   ∗ big_sepM_limited χvirt (dom ζrest) (fun ℓ _ => ℓ ↦M/)
-  ∗ ([∗ map] ℓ ↦ γ ∈ χvirt, block_sim_raw ℓ γ)
+  ∗ ([∗ map] ℓ ↦ γ ∈ χvirt, block_sim_raw ℓ γ) (* armael: ? duplicata of gset_bij_own_elem? is it useful since we have the auth part anyway? *)
   ∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   ∗ ghost_var wrapperGS_γat_boundary (1/4) false
   ∗⌜freeze_lstore ζ ζfreeze
@@ -99,7 +97,7 @@ Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (me
   ∗ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
   ∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
   ∗ (∃ n, state_interp σCvirt n)
-  ∗ own wrapperGS_γχbij (gset_bij_auth (DfracOwn 1) (map_to_set pair χ))
+  ∗ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χ)
   ∗ ghost_map_auth wrapperGS_γχmap 1 χ
   ∗ ghost_map_auth wrapperGS_γfresh (1/2) fresh
   ∗ big_sepM_limited χ (dom ζrest) (fun ℓ _ => ℓ ↦M/)
@@ -158,6 +156,8 @@ Next Obligation.
     * iPureIntro. congruence.
 Qed.
 
+(* armael: mutability in b is redundant; have a pair (tag * list lval) on the right-hand side? *)
+(* todo: version of the notations without dq *)
 Notation "l ↦fresh{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq b
                                 ∗ ghost_map_elem (K:=lloc) (V:=unit) wrapperGS_γfresh l dq (())
                                 ∗ ⌜mutability b = Mut⌝)%I
@@ -308,6 +308,7 @@ Qed.
 
 Definition SIupt (P:iProp Σ) : iProp Σ := SI -∗ ( |==> SI ∗ P).
 
+(* todo: lemmas to help manipulate is_store_blocks? *)
 Lemma ml_to_mut θ l vs: ⊢ (GC θ ∗ l ↦∗ vs ∗ SI ==∗ SI ∗ GC θ ∗ ∃ b γ, γ ↦mut{DfracOwn 1} (Mut,TagDefault,b) ∗ block_sim_raw l γ ∗ block_sim_arr vs b)%I.
 Proof.
   iIntros "(HGC & Hl & Hσ)".
@@ -318,7 +319,8 @@ Proof.
   2: { exfalso. 
        apply not_elem_of_dom_2 in Hlχ.
        apply elem_of_dom_2 in Hlσ.
-       destruct Hstore_blocks as [Hdom Hstore_blocks]. unfold lloc_map in Hdom. rewrite <- Hdom in Hlχ.
+       destruct Hstore_blocks as [Hdom Hstore_blocks]. unfold lloc_map in Hdom. (* XXX lloc_map should be a notation then *)
+       rewrite <- Hdom in Hlχ.
        by apply Hlχ. }
   iMod (gen_heap_update _ _ _ None with "HAσMLv Hl") as "[HAσMLv Hl]".
   assert (ll ∈ dom ζσ) as Hllζ.
@@ -329,8 +331,7 @@ Proof.
   iModIntro. iFrame "HGC".
   unfold is_store in Hstore.
   assert (ζfreeze !! ll = Some bb) as Hfreezell.
-  1: { rewrite Hfreezeeq. rewrite lookup_union. rewrite Hζσll. unfold union_with. cbn.
-       destruct (ζrest !! ll) eqn:Heq; rewrite Heq; done. }
+  1: { rewrite Hfreezeeq. by apply lookup_union_Some_l. }
   specialize (Hstore l vs ll bb Hlσ Hlχ Hfreezell) as Hstorel.
   inversion Hstorel; subst vs0 bb.
   iAssert (block_sim_arr vs lvs) as "#Hblock".
@@ -340,7 +341,7 @@ Proof.
   assert (ζrest !! ll = None) as HζllNone.
   1: eapply map_disjoint_Some_l; done.
   iAssert (⌜gset_bijective (map_to_set pair χvirt)⌝)%I as "%Hbij".
-  1: { iPoseProof (own_valid with "HAχbij") as "%Hvalid". apply gset_bij_auth_valid in Hvalid. done. }
+  1: { by iDestruct (gset_bij_own_valid with "HAχbij") as %[? ?]. }
   iSplitR "Hzz". 1: iSplitL "HσC".
   + iExists _. iApply "HσC".
   + unfold C_state_interp. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, TagDefault, lvs)]> ζrest).
@@ -392,6 +393,7 @@ Qed.
 
 
 
+(* need block_sim_raw l γ in the conclusion? *)
 Lemma mut_to_ml γ vs b θ: ⊢ (SI ∗ GC θ ∗ γ ↦mut{DfracOwn 1} (Mut,TagDefault,b) ∗ block_sim_arr vs b ==∗ SI ∗ GC θ ∗ ∃ l, l ↦∗ vs)%I.
 Proof.
   iIntros "(Hσ & HGC & (Hl & (_ & %ℓ & #Hlℓ)) & #Hsim)".
@@ -401,7 +403,7 @@ Proof.
   1-4: iPureIntro; done.
   iPoseProof (@ghost_map_lookup with "HAχmap Hlℓ") as "%Hχℓ".
   iAssert (⌜gset_bijective (map_to_set pair χvirt)⌝)%I as "%Hbij".
-  1: { iPoseProof (own_valid with "HAχbij") as "%Hvalid". apply gset_bij_auth_valid in Hvalid. done. }
+  1: { by iDestruct (gset_bij_own_valid with "HAχbij") as %[? ?]. }
   assert (gmap_inj χvirt) as Hinj.
   1: { intros k v1 v2 Hv1 Hv2. eapply Hbij. all: apply elem_of_map_to_set_pair; done. }
   unfold is_store_blocks in Hstore_blocks.
@@ -476,12 +478,12 @@ Proof.
   1: iPureIntro; by eapply not_elem_of_dom_1.
   1: iIntros "_"; done.
   iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
-  iAssert (|==> own wrapperGS_γχbij (gset_bij_auth (DfracOwn 1) (map_to_set pair (<[ℓ:=γ]> χvirt))))%I with "[HAχbij]" as "HAχbij".
+  iAssert (|==> gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair (<[ℓ:=γ]> χvirt)))%I with "[HAχbij]" as "HAχbij".
   1: { rewrite map_to_set_insert_L; last by eapply not_elem_of_dom_1.
-       iApply (own_update with "HAχbij").
+       (* iApply (own_update with "HAχbij").
        eapply gset_bij_auth_extend.
        + intros γ' Hγ'%elem_of_map_to_set_pair. apply Hℓdom. by eapply elem_of_dom.
-       + intros ℓ' Hℓ'%elem_of_map_to_set_pair. apply (Hfreshχ _ _ Hℓ'). by eapply elem_of_dom. }
+       + intros ℓ' Hℓ'%elem_of_map_to_set_pair. apply (Hfreshχ _ _ Hℓ'). by eapply elem_of_dom.*) admit. (* fixme *) }
   iMod "HAχbij".
   iModIntro.
   iFrame "HGC".
@@ -530,7 +532,7 @@ Proof.
     - subst. rewrite lookup_insert in Hxy; injection Hxy; intros ->. intros H%elem_of_dom. rewrite lookup_delete in H. destruct H; congruence.
     - rewrite lookup_insert_ne in Hxy; last done. intros H%elem_of_dom. destruct H as [xx [Hx1 Hx2]%lookup_delete_Some]. eapply Hfreshχ; first done.
       by eapply elem_of_dom.
-Qed.
+Admitted.
 
 Lemma is_val_insert_immut χ ζ γ bb bb2 x y : ζ !! γ = Some bb2 → mutability bb2 = Mut → is_val χ ζ x y → is_val χ (<[γ := bb]> ζ) x y.
 Proof.

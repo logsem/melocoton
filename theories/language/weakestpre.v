@@ -659,4 +659,3 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.*)
 End proofmode_classes.
-
