@@ -75,9 +75,9 @@ Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
 
 (* a block in the block-level store *)
 Definition block :=
-  (ismut * tag * list lval)%type.
+  (ismut * (tag * list lval))%type.
 
-Definition mutability (b:block) : ismut := let '(i,_,_) := b in i.
+Definition mutability (b:block) : ismut := let '(i,_) := b in i.
 
 (* a block-level store *)
 Definition lstore : Type := gmap lloc block.
@@ -117,8 +117,8 @@ Definition roots_map : Type := gmap addr lval.
    only legal as long as the mutable block has not been "observable" by other
    code than the wrapper..) *)
 Inductive freeze_block : block → block → Prop :=
-  | freeze_block_mut vs tg m' :
-    freeze_block (Mut, tg, vs) (m', tg, vs)
+  | freeze_block_mut tgvs m' :
+    freeze_block (Mut, tgvs) (m', tgvs)
   | freeze_block_refl b :
     freeze_block b b.
 
@@ -147,7 +147,7 @@ Definition lloc_map_mono (χ1 χ2 : lloc_map) : Prop :=
 Inductive modify_block : block → nat → lval → block → Prop :=
   | mk_modify_block tg vs i v :
     i < length vs →
-    modify_block (Mut, tg, vs) i v (Mut, tg, (<[ i := v ]> vs)).
+    modify_block (Mut, (tg, vs)) i v (Mut, (tg, (<[ i := v ]> vs))).
 
 (* "GC correctness": a sanity condition when picking a fresh addr_map that
    assigns C-level identifiers to the subset of "currently live" block-level
@@ -163,7 +163,7 @@ Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
   gmap_inj θ ∧
   ∀ γ, γ ∈ dom θ →
     ∃ m tg vs,
-      ζ !! γ = Some (m, tg, vs) ∧
+      ζ !! γ = Some (m, (tg, vs)) ∧
         ∀ γ', Lloc γ' ∈ vs → γ' ∈ dom θ.
 
 Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
@@ -210,17 +210,17 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ (ML_lang.LitV (ML_lang.LitLoc ℓ)) (Lloc γ)
   (* pairs *)
   | is_val_pair χ ζ v1 v2 γ lv1 lv2 :
-    ζ !! γ = Some (Immut, TagDefault, [lv1; lv2]) →
+    ζ !! γ = Some (Immut, (TagDefault, [lv1; lv2])) →
     is_val χ ζ v1 lv1 →
     is_val χ ζ v2 lv2 →
     is_val χ ζ (ML_lang.PairV v1 v2) (Lloc γ)
   (* sum-type constructors *)
   | is_val_injl χ ζ v lv γ :
-    ζ !! γ = Some (Immut, TagDefault, [lv]) →
+    ζ !! γ = Some (Immut, (TagDefault, [lv])) →
     is_val χ ζ v lv →
     is_val χ ζ (ML_lang.InjLV v) (Lloc γ)
   | is_val_injr χ ζ v lv γ :
-    ζ !! γ = Some (Immut, TagInjRV, [lv]) →
+    ζ !! γ = Some (Immut, (TagInjRV, [lv])) →
     is_val χ ζ v lv →
     is_val χ ζ (ML_lang.InjRV v) (Lloc γ).
 
@@ -229,7 +229,7 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
 Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Prop :=
 | is_heap_elt_block vs lvs :
   Forall2 (is_val χ ζ) vs lvs →
-  is_heap_elt χ ζ vs (Mut, TagDefault, lvs).
+  is_heap_elt χ ζ vs (Mut, (TagDefault, lvs)).
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
   ∀ ℓ vs γ blk,

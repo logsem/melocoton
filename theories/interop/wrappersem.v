@@ -162,7 +162,7 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
     γ ∉ dom (ζC ρc) →
-    ζC' = {[ γ := (Mut, tg, List.repeat (Lint 0) (Z.to_nat sz)) ]} ∪ (ζC ρc) →
+    ζC' = {[ γ := (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz))) ]} ∪ (ζC ρc) →
     GC_correct ζC' θC' →
     repr θC' roots privmem mem' →
     roots_are_live θC' roots →
@@ -203,7 +203,7 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     language.to_call ec = Some ("readfield", [w; LitV (LitInt i)]) →
     (0 ≤ i)%Z →
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (mut, tag, lvs) →
+    (ζC ρc) !! γ = Some (mut, (tag, lvs)) →
     lvs !! (Z.to_nat i) = Some lv →
     repr_lval (θC ρc) lv w' →
     X (ExprC (language.fill K (C_lang.of_val w')), CState ρc mem) →

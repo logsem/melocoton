@@ -28,7 +28,6 @@ Class wrapperGS Σ := WrapperGS {
   wrapperGS_γroots_map : gname;
   wrapperGS_γθ : gname;
   wrapperGS_γχbij : gname;
-  wrapperGS_γχmap : gname;
   wrapperGS_γat_boundary : gname;
 }.
 
@@ -45,7 +44,6 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-
 Definition GC (θ : addr_map) : iProp Σ := 
      ghost_var wrapperGS_γθ (1/2) θ
    ∗ ghost_var wrapperGS_γat_boundary (1/4) false
@@ -59,7 +57,7 @@ Definition GC (θ : addr_map) : iProp Σ :=
 (* TODO: custom notation (like l1 ~~ML l2 )? *)
 (* l1 is a location in the ML heap. l2 is a block location.
    They are similar if identified by χ *)
-Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (l1 ↪[ wrapperGS_γχmap ]□ l2). (* armael: use gset_bij_own_elem here instead? *)
+Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (gset_bij_own_elem wrapperGS_γχbij l1 l2).
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
   ∃ (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (fresh : gmap lloc unit) (σMLvirt : store),
@@ -68,10 +66,8 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
   ∗ (∃ n, state_interp σMLvirt n)
   ∗ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
-  ∗ ghost_map_auth wrapperGS_γχmap 1 χvirt (* armael: ? duplicata of gset_bij_own_auth? *)
   ∗ ghost_map_auth wrapperGS_γfresh 1 fresh
   ∗ big_sepM_limited χvirt (dom ζrest) (fun ℓ _ => ℓ ↦M/)
-  ∗ ([∗ map] ℓ ↦ γ ∈ χvirt, block_sim_raw ℓ γ) (* armael: ? duplicata of gset_bij_own_elem? is it useful since we have the auth part anyway? *)
   ∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   ∗ ghost_var wrapperGS_γat_boundary (1/4) false
   ∗⌜freeze_lstore ζ ζfreeze
@@ -98,10 +94,8 @@ Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (me
   ∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
   ∗ (∃ n, state_interp σCvirt n)
   ∗ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χ)
-  ∗ ghost_map_auth wrapperGS_γχmap 1 χ
   ∗ ghost_map_auth wrapperGS_γfresh (1/2) fresh
   ∗ big_sepM_limited χ (dom ζrest) (fun ℓ _ => ℓ ↦M/)
-  ∗ ([∗ map] ℓ ↦ γ ∈ χ, block_sim_raw ℓ γ)
   ∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   ∗ ghost_var wrapperGS_γat_boundary (1/2) true
   ∗ GC_token_remnant (dom roots)
@@ -121,11 +115,11 @@ end.
 
 
 Notation SIC_ip := "((%nCv & HσC) & (%ζfreeze & %ζσ & %ζrest & %χvirt & %fresh & %σMLvirt &
-           HAroots & HAθ & HAζbl & (%nMLv & HAσMLv & HAnMLv) & HAχbij & HAχmap & HAfresh & HAχNone & #HAχpers & #HAζpers & HAbound &
+           HAroots & HAθ & HAζbl & (%nMLv & HAσMLv & HAnMLv) & HAχbij & HAfresh & HAχNone & #HAζpers & HAbound &
           %Hfreezeρ & %Hfreezeeq & %Hfreezedj & %Hstore_blocks & %Hstore & %Hχvirt & %Hχinj & %Hfreezeχ & %Hfreshχ & %HGCOK))".
 
 Notation SIML_ip := "((%nMLv & HσML) & (%ζσ & %ζrest & %fresh & %σCvirt &
-           HAroots & HAθ & HAζbl & (%nCv & HAσCv & HAnCv) & HAχbij & HAχmap & HAfresh & HAχNone & #HAχpers & #HAζpers & HAbound & HAGCrem &
+           HAroots & HAθ & HAζbl & (%nCv & HAσCv & HAnCv) & HAχbij & HAfresh & HAχNone & #HAζpers & HAbound & HAGCrem &
            %Hfreezeeq & %Hfreezedj & %Hχinj & %Hfreezeχ & %Hfreshχ))".
 
 Notation GC_ip := "(HAGCθ & HAGCbound & (%roots_s & %roots_m & HArootss & HArootsm & %Hrootsdom & %Hrootslive & Hrootspto))".
@@ -158,17 +152,14 @@ Qed.
 
 (* armael: mutability in b is redundant; have a pair (tag * list lval) on the right-hand side? *)
 (* todo: version of the notations without dq *)
-Notation "l ↦fresh{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq b
-                                ∗ ghost_map_elem (K:=lloc) (V:=unit) wrapperGS_γfresh l dq (())
-                                ∗ ⌜mutability b = Mut⌝)%I
-  (at level 20, format "l  ↦fresh{ dq } b") : bi_scope.
-Notation "l ↦mut{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq b
-                              ∗ ⌜mutability b = Mut⌝
+Notation "l ↦fresh{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
+                                ∗ ghost_map_elem (K:=lloc) (V:=unit) wrapperGS_γfresh l dq (()))%I
+  (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
+Notation "l ↦mut{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
                               ∗ ∃ ll, block_sim_raw ll l)%I
-  (at level 20, format "l  ↦mut{ dq } b") : bi_scope.
-Notation "l ↦imm b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l DfracDiscarded b
-                        ∗ ⌜mutability b = Immut⌝)%I
-  (at level 20, format "l  ↦imm b") : bi_scope.
+  (at level 20, format "l  ↦mut{ dq }  b") : bi_scope.
+Notation "l ↦imm b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l DfracDiscarded (Immut, b))%I
+  (at level 20, format "l  ↦imm  b") : bi_scope.
 
 Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
   (ML_lang.LitV (ML_lang.LitInt x)) => ⌜l = (Lint x)⌝
@@ -176,9 +167,9 @@ Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
 | (ML_lang.LitV ML_lang.LitUnit) => ⌜l = (Lint 0)⌝
 | (ML_lang.LitV ML_lang.LitPoison) => False (* TODO: remove poison? *)
 | (ML_lang.LitV (ML_lang.LitLoc ℓ)) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ block_sim_raw ℓ γ
-| (ML_lang.PairV v1 v2) => ∃ γ lv1 lv2, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (Immut, TagDefault, [lv1;lv2]) ∗ block_sim v1 lv1 ∗ block_sim v2 lv2
-| (ML_lang.InjLV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (Immut, TagDefault, [lv]) ∗ block_sim v lv
-| (ML_lang.InjRV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (Immut, TagInjRV, [lv]) ∗ block_sim v lv 
+| (ML_lang.PairV v1 v2) => ∃ γ lv1 lv2, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv1;lv2]) ∗ block_sim v1 lv1 ∗ block_sim v2 lv2
+| (ML_lang.InjLV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv]) ∗ block_sim v lv
+| (ML_lang.InjRV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv]) ∗ block_sim v lv 
 | (ML_lang.RecV _ _ _) => False end. (* Todo: callbacks *)
 
 Global Instance block_sim_pers v l : Persistent (block_sim v l).
@@ -188,22 +179,10 @@ Qed.
 
 Definition block_sim_arr (vs:list MLval) (ls : list lval) : iProp Σ := [∗ list] v;l ∈ vs;ls, block_sim v l.
 
-Context (σ : Wrap.state).
-Notation SI := (weakestpre.state_interp σ).
-
-Lemma GC_in_C {θ}: ⊢ (SI -∗ GC θ -∗ ⌜∃ ρc mem, σ = CState ρc mem⌝)%I.
-Proof.
-  destruct σ. 2: iIntros "_ _"; iPureIntro; do 2 eexists; done.
-  iIntros SIML_ip. iIntros GC_ip.
-  iAssert (⌜true = false⌝)%I as "%Hdone".
-  1: iApply (ghost_var_agree with "HAbound HAGCbound").
-  congruence.
-Qed.
-
 
 Lemma block_sim_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     ([∗ map] ℓ ↦ γ ∈ χvirt, block_sim_raw ℓ γ)
+     ([∗ set] ab ∈ map_to_set pair χvirt, gset_bij_own_elem wrapperGS_γχbij ab.1 ab.2)
   -∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
@@ -212,15 +191,15 @@ Lemma block_sim_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_m
   -∗⌜is_val χvirt ζfreeze v b⌝
   -∗ block_sim v b.
 Proof.
-  iIntros "#Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
+  iIntros "Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
   iInduction v as [[x|bo| | |]| | | |] "IH" forall (b H); cbn; inversion H; try done.
-  1: iExists γ; iSplit; first done; iApply (big_sepM_lookup with "Hχ"); done.
-  1: iExists γ, lv1, lv2; iSplit; first done; iSplit. 1: iSplit; last done.
-  3-4: iExists γ, lv; iSplit; first done; iSplit; first (iSplit; last done).
+  1: iExists γ; iSplit; first done.
+  1: (iPoseProof (big_sepS_elem_of with "Hχ") as "Hχin"; first (by eapply elem_of_map_to_set_pair)); iApply "Hχin".
+  1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
+  3-4: iExists γ, lv; iSplit; first done; iSplit.
   1,3,5: iApply (big_sepM_lookup with "Hζ"); try done.
   4: iSplit.
-  4,6,7: iApply "IH". 7: iApply "IH1".
-  4-7: iPureIntro; done.
+  4,6,7: by iApply "IH". 4: by iApply "IH1".
   all: subst.
   1: rename H2 into H1.
   all: pose proof H1 as H1'. 
@@ -240,7 +219,7 @@ Qed.
 
 Lemma block_sim_arr_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs b :
-     ([∗ map] ℓ ↦ γ ∈ χvirt, block_sim_raw ℓ γ)
+     ([∗ set] ab ∈ map_to_set pair χvirt, gset_bij_own_elem wrapperGS_γχbij ab.1 ab.2)
   -∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
@@ -258,7 +237,7 @@ Qed.
 
 Lemma block_sim_to_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     ghost_map_auth wrapperGS_γχmap 1 χvirt
+     gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
   -∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
@@ -271,15 +250,15 @@ Proof.
   iInduction v as [[x|bo| | |]| | | |] "IH" forall (b); cbn.
   all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
   1: {iDestruct "Hsim" as "(%γ & -> & Hsim)". unfold block_sim_raw.
-      iPoseProof (ghost_map_lookup with "Hχ Hsim") as "%HH".
+      iPoseProof (gset_bij_elem_of with "Hχ Hsim") as "%HH".
+      apply elem_of_map_to_set_pair in HH.
       iPureIntro. econstructor. done. }
   1: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)";
      iPoseProof ("IH" with "Hχ Hζ Hlv1") as "%Hr1";
      iPoseProof ("IH1" with "Hχ Hζ Hlv2") as "%Hr2".
   2-3: iDestruct "Hsim" as "(%γ & %lv & -> & Hsim & Hlv)";
        iPoseProof ("IH" with "Hχ Hζ Hlv") as "%Hr".
-  1-3: iDestruct "Hsim" as "(Hsim & _)";
-       iPoseProof (@ghost_map_lookup with "Hζ Hsim") as "%HH";
+  1-3: unshelve iPoseProof (@ghost_map_lookup with "Hζ Hsim") as "%HH";
        iPureIntro; econstructor; eauto; subst;
        rewrite lookup_union; rewrite HH;
        destruct (ζσ !! γ) eqn:Heq; rewrite Heq; try done;
@@ -288,7 +267,7 @@ Qed.
 
 Lemma block_sim_arr_to_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs bb :
-     ghost_map_auth wrapperGS_γχmap 1 χvirt
+     gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
   -∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
@@ -306,14 +285,26 @@ Proof.
   iApply ("Hsim" $! i v b H1 H2).
 Qed.
 
-Definition SIupt (P:iProp Σ) : iProp Σ := SI -∗ ( |==> SI ∗ P).
-
 (* todo: lemmas to help manipulate is_store_blocks? *)
-Lemma ml_to_mut θ l vs: ⊢ (GC θ ∗ l ↦∗ vs ∗ SI ==∗ SI ∗ GC θ ∗ ∃ b γ, γ ↦mut{DfracOwn 1} (Mut,TagDefault,b) ∗ block_sim_raw l γ ∗ block_sim_arr vs b)%I.
+Section UpdateLaws.
+
+Context (σ : Wrap.state).
+Notation SI := (weakestpre.state_interp σ).
+
+Lemma GC_in_C {θ}: ⊢ (SI -∗ GC θ -∗ ⌜∃ ρc mem, σ = CState ρc mem⌝)%I.
+Proof.
+  destruct σ. 2: iIntros "_ _"; iPureIntro; do 2 eexists; done.
+  iIntros SIML_ip. iIntros GC_ip.
+  iPoseProof (ghost_var_agree with "HAbound HAGCbound") as "%Hc".
+  congruence.
+Qed.
+
+Lemma ml_to_mut θ l vs: ⊢ (GC θ ∗ l ↦∗ vs ∗ SI ==∗ SI ∗ GC θ ∗ ∃ b γ, γ ↦mut{DfracOwn 1} (TagDefault,b) ∗ block_sim_raw l γ ∗ block_sim_arr vs b)%I.
 Proof.
   iIntros "(HGC & Hl & Hσ)".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
+  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
   iDestruct (gen_heap_valid with "HAσMLv Hl") as %Hlσ.
   destruct (χvirt !! l) as [ll|] eqn:Hlχ.
   2: { exfalso. 
@@ -337,15 +328,15 @@ Proof.
   iAssert (block_sim_arr vs lvs) as "#Hblock".
   1: { iApply (block_sim_arr_of_ghost_state). 1: iApply "HAχpers". 1: iApply "HAζpers". all:done. }
   iAssert (block_sim_raw l ll) as "#Hraw".
-  1: iApply (big_sepM_lookup with "HAχpers"); done.
+  1: iApply (gset_bij_own_elem_get with "HAχbij"); by eapply elem_of_map_to_set_pair.
   assert (ζrest !! ll = None) as HζllNone.
   1: eapply map_disjoint_Some_l; done.
   iAssert (⌜gset_bijective (map_to_set pair χvirt)⌝)%I as "%Hbij".
   1: { by iDestruct (gset_bij_own_valid with "HAχbij") as %[? ?]. }
   iSplitR "Hzz". 1: iSplitL "HσC".
   + iExists _. iApply "HσC".
-  + unfold C_state_interp. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, TagDefault, lvs)]> ζrest).
-    iExists χvirt, fresh, (<[l:=None]> σMLvirt). iFrame. iFrame "HAχpers".
+  + unfold C_state_interp. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, (TagDefault, lvs))]> ζrest).
+    iExists χvirt, fresh, (<[l:=None]> σMLvirt). iFrame.
     iSplitL "HAnMLv". 1: iExists _; iFrame.
     iSplitL. 
     1: { rewrite dom_insert_L.
@@ -387,21 +378,20 @@ Proof.
     - intros ℓ Vs γ blk HH1 HH2 HH3. eapply Hstore; try done. destruct (decide (ℓ = l)).
       1: subst ℓ; rewrite lookup_insert in HH1; done.
       rewrite lookup_insert_ne in HH1; try done.
-  + iExists lvs, ll. cbn. iFrame. iFrame "Hblock Hraw". iSplitL; try done.
+  + iExists lvs, ll. cbn. iFrame. iFrame "Hblock Hraw".
     iExists _; iApply "Hraw".
 Qed.
 
 
-
-(* need block_sim_raw l γ in the conclusion? *)
-Lemma mut_to_ml γ vs b θ: ⊢ (SI ∗ GC θ ∗ γ ↦mut{DfracOwn 1} (Mut,TagDefault,b) ∗ block_sim_arr vs b ==∗ SI ∗ GC θ ∗ ∃ l, l ↦∗ vs)%I.
+Lemma mut_to_ml γ vs b θ: ⊢ (SI ∗ GC θ ∗ γ ↦mut{DfracOwn 1} (TagDefault,b) ∗ block_sim_arr vs b ==∗ SI ∗ GC θ ∗ ∃ l, l ↦∗ vs ∗ block_sim_raw l γ)%I.
 Proof.
-  iIntros "(Hσ & HGC & (Hl & (_ & %ℓ & #Hlℓ)) & #Hsim)".
+  iIntros "(Hσ & HGC & (Hl & (%ℓ & #Hlℓ)) & #Hsim)".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
-  iPoseProof (block_sim_arr_to_ghost_state with "HAχmap HAζbl [] [] [] [] Hsim ") as "%Hsim".
+  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
+  iPoseProof (block_sim_arr_to_ghost_state with "HAχbij HAζbl [] [] [] [] Hsim ") as "%Hsim".
   1-4: iPureIntro; done.
-  iPoseProof (@ghost_map_lookup with "HAχmap Hlℓ") as "%Hχℓ".
+  iPoseProof (@gset_bij_elem_of with "HAχbij Hlℓ") as "%Hχℓ".
   iAssert (⌜gset_bijective (map_to_set pair χvirt)⌝)%I as "%Hbij".
   1: { by iDestruct (gset_bij_own_valid with "HAχbij") as %[? ?]. }
   assert (gmap_inj χvirt) as Hinj.
@@ -409,6 +399,7 @@ Proof.
   unfold is_store_blocks in Hstore_blocks.
   unfold is_store in Hstore.
   iPoseProof (@ghost_map_lookup with "HAζbl Hl") as "%Hζl".
+  apply elem_of_map_to_set_pair in Hχℓ.
   iPoseProof (big_sepM_delete_S with "[] [] HAχNone") as "(Hℓ & HAχNone)".
   1: done.
   1: iPureIntro; eapply elem_of_dom_2; done.
@@ -416,18 +407,18 @@ Proof.
   iDestruct (gen_heap_valid with "HAσMLv Hℓ") as "%Hlσ".
   iMod (gen_heap_update _ _ _ (Some vs) with "HAσMLv Hℓ") as "[HAσMLv Hℓ]".
   iMod (ghost_map_delete with "HAζbl Hl") as "HAζbl".
-  iModIntro. iFrame "HGC". iSplitR "Hℓ". 2: iExists ℓ; done.
+  iModIntro. iFrame "HGC". iSplitR "Hℓ". 2: iExists ℓ; iFrame; done.
   cbn. iSplitL "HσC".
   1: iExists _; iFrame.
-  unfold C_state_interp. unfold lstore.
-  iExists ζfreeze, (<[γ:=(Mut, TagDefault, b)]>ζσ), (delete γ ζrest).
+  unfold C_state_interp.
+  iExists ζfreeze, (<[γ:=(Mut, (TagDefault, b))]>ζσ), (delete γ ζrest).
   iExists χvirt, fresh, (<[ ℓ := Some vs ]> σMLvirt).
-  iFrame. iFrame "HAχpers".
+  iFrame.
   iSplitL "HAnMLv". 2: iSplitL. 3: iSplitL. 4: iPureIntro; split_and!; eauto.
   + iExists _; done.
   + rewrite dom_delete_L. iFrame.
   + iPoseProof big_sepM_delete as "(HH & _)"; last iPoseProof ("HH" with "HAζpers") as "(_ & HAζpers2)"; done.
-  + erewrite @union_insert_delete. 3: eapply map_disjoint_Some_r. 2: apply _. all: done.
+  + erewrite (union_insert_delete ζσ ζrest). 2: eapply map_disjoint_Some_r. 2: apply Hfreezedj. all: done.
   + apply map_disjoint_insert_l_2. 1: apply lookup_delete.
     apply map_disjoint_delete_r. done.
   + destruct Hstore_blocks as [Hsl Hsr]. split. 2: intros γ'; destruct (Hsr γ') as [Hsrl Hsrr]; split.
@@ -457,45 +448,37 @@ Qed.
 
 Lemma freeze_to_mut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb ==∗ SI ∗ GC θ ∗ γ ↦mut{DfracOwn 1} bb)%I.
 Proof.
-  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh & %Hmut))". 
+  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
+  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
   iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
   iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
   pose (fresh_locs (dom χvirt)) as ℓ.
   assert (ℓ ∉ dom χvirt) as Hℓdom.
   1: { epose proof (fresh_locs_fresh (dom χvirt) 0) as Hfresh.
        unfold loc_add in Hfresh. rewrite Z.add_0_r in Hfresh. apply Hfresh. lia. }
-  iMod (ghost_map_insert_persist ℓ γ with "HAχmap") as "(HAχmap & #Hℓγ)".
-  1: by eapply not_elem_of_dom_1. unfold block_sim_raw.
-  iPoseProof big_sepM_insert as "[_ Hr]"; last first.
-  1: iPoseProof ("Hr" with "[Hℓγ HAχpers]") as "HAχpers2"; first iSplitL.
-  2: iApply "HAχpers". 1: iApply "Hℓγ". 2: by eapply not_elem_of_dom_1.
-  iClear "HAχpers". iRename "HAχpers2" into "HAχpers".
+  iMod (gset_bij_own_extend with "HAχbij") as "(HAχbij & Hℓγ)".
+  1: intros γ' Hγ'%elem_of_map_to_set_pair; apply Hℓdom; by eapply elem_of_dom_2.
+  1: intros ℓ' Hℓ'%elem_of_map_to_set_pair; apply (Hfreshχ _ _ Hℓ'); by eapply elem_of_dom.
   iMod (gen_heap_alloc _ ℓ None with "HAσMLv") as "(HAσMLv & HℓNone & Hmeta)".
   1: eapply not_elem_of_dom_1; by destruct Hstore_blocks as [-> _].
   iPoseProof (big_sepM_insert_M _ _ _ ℓ γ with "[] [HℓNone] HAχNone") as "HAχNone".
   1: iPureIntro; by eapply not_elem_of_dom_1.
   1: iIntros "_"; done.
   iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
-  iAssert (|==> gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair (<[ℓ:=γ]> χvirt)))%I with "[HAχbij]" as "HAχbij".
-  1: { rewrite map_to_set_insert_L; last by eapply not_elem_of_dom_1.
-       (* iApply (own_update with "HAχbij").
-       eapply gset_bij_auth_extend.
-       + intros γ' Hγ'%elem_of_map_to_set_pair. apply Hℓdom. by eapply elem_of_dom.
-       + intros ℓ' Hℓ'%elem_of_map_to_set_pair. apply (Hfreshχ _ _ Hℓ'). by eapply elem_of_dom.*) admit. (* fixme *) }
-  iMod "HAχbij".
   iModIntro.
   iFrame "HGC".
   iSplitR "Hℓγ Hmtζ".
-  2: { iFrame. iSplit. 1: done. iExists ℓ. unfold block_sim_raw. iApply "Hℓγ". }
+  2: { iFrame. iExists ℓ. iApply "Hℓγ". }
   cbn. iSplitL "HσC"; first (iExists nCv; iFrame).
   unfold C_state_interp. unfold lstore.
   iExists ζfreeze, ζσ, ζrest.
   iExists (<[ℓ:=γ]> χvirt), (delete γ fresh), (<[ ℓ := None ]> σMLvirt).
-  iFrame. iFrame "HAχpers HAζpers".
-  iSplitL "HAnMLv". 2: iPureIntro; split_and!; eauto.
+  iFrame. iFrame "HAζpers".
+  iSplitL "HAnMLv". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
   + iExists nMLv; done.
+  + rewrite map_to_set_insert_L. iFrame. by eapply not_elem_of_dom.
   + destruct Hstore_blocks as [Hsl Hsr]; split.
     - rewrite ! dom_insert_L. rewrite Hsl; done.
     - intros γ1; destruct (Hsr γ1) as [Hsrl Hsrr]; split.
@@ -532,24 +515,25 @@ Proof.
     - subst. rewrite lookup_insert in Hxy; injection Hxy; intros ->. intros H%elem_of_dom. rewrite lookup_delete in H. destruct H; congruence.
     - rewrite lookup_insert_ne in Hxy; last done. intros H%elem_of_dom. destruct H as [xx [Hx1 Hx2]%lookup_delete_Some]. eapply Hfreshχ; first done.
       by eapply elem_of_dom.
-Admitted.
+Qed.
 
 Lemma is_val_insert_immut χ ζ γ bb bb2 x y : ζ !! γ = Some bb2 → mutability bb2 = Mut → is_val χ ζ x y → is_val χ (<[γ := bb]> ζ) x y.
 Proof.
   intros H1 H2; induction 1; econstructor; eauto.
   all: rewrite lookup_insert_ne; first done.
-  all: intros ->; destruct bb2 as [[mut ?]?]; cbn in *.
+  all: intros ->; destruct bb2 as [mut ?]; cbn in *.
   all: subst mut; rewrite H1 in H; congruence.
 Qed.
 
-Lemma freeze_to_immut γ bb1 bb2 θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} (Mut, bb1, bb2) ==∗ SI ∗ GC θ ∗ γ ↦imm (Immut, bb1, bb2))%I.
+Lemma freeze_to_immut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb ==∗ SI ∗ GC θ ∗ γ ↦imm bb)%I.
 Proof.
-  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh & _))". 
+  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
+  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
   iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
   iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
-  iMod ((ghost_map_update (Immut,bb1,bb2)) with "HAζbl Hmtζ") as "(HAζbl & Hmtζ)".
+  iMod ((ghost_map_update (Immut,bb)) with "HAζbl Hmtζ") as "(HAζbl & Hmtζ)".
   iMod (ghost_map_elem_persist with "Hmtζ") as "#Hmtζ".
   iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
   iPoseProof (big_sepM_insert_override_2 with "HAζpers []") as "#HAζpers2"; first done.
@@ -558,12 +542,11 @@ Proof.
   iModIntro.
   iFrame "HGC".
   iSplitL.
-  2: by iSplit.
+  2: done.
   cbn. iSplitL "HσC"; first (iExists nCv; iFrame).
-  unfold C_state_interp. unfold lstore.
-  iExists (<[γ:=(Immut, bb1, bb2)]> ζfreeze), ζσ, (<[γ:=(Immut, bb1, bb2)]> ζrest).
+  iExists (<[γ:=(Immut, bb)]> ζfreeze), ζσ, (<[γ:=(Immut, bb)]> ζrest).
   iExists χvirt, (delete γ fresh), σMLvirt.
-  iFrame. iFrame "HAχpers HAζpers".
+  iFrame. iFrame "HAζpers".
   iSplitL "HAnMLv". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
   + iExists nMLv; done.
   + rewrite dom_insert_L. rewrite subseteq_union_1_L. 1:done.
@@ -573,18 +556,18 @@ Proof.
       intros ? ->%elem_of_singleton. subst. rewrite dom_union_L. rewrite elem_of_union. right. eapply elem_of_dom; done.
     - intros γ1 b1 b2 H1 H2. destruct (decide (γ = γ1)) as [<- |H3].
       * rewrite lookup_insert in H2. injection H2; intros <-.
-        assert (ζfreeze !! γ = Some (Mut, bb1, bb2)) as H4.
+        assert (ζfreeze !! γ = Some (Mut, bb)) as H4.
         1: subst; apply lookup_union_Some_r; done.
-        specialize (HR γ b1 (Mut, bb1, bb2) H1 H4).
+        specialize (HR γ b1 (Mut, bb) H1 H4).
         inversion HR; subst; econstructor.
       * rewrite lookup_insert_ne in H2; last done. by eapply HR.
   + subst. rewrite insert_union_r. 1: done. eapply map_disjoint_Some_l; done.
   + apply map_disjoint_insert_r. split; last done. by eapply map_disjoint_Some_l.
-  + intros l vs γ1 bb H1 H2 H3. destruct (decide (γ = γ1)) as [<- | H4].
+  + intros l vs γ1 bb' H1 H2 H3. destruct (decide (γ = γ1)) as [<- | H4].
     * exfalso; eapply Hfreshχ; try done. by eapply elem_of_dom.
     * rewrite lookup_insert_ne in H3; last done.
       specialize (Hstore _ _ _ _ H1 H2 H3).
-      inversion Hstore. subst vs0 bb.
+      inversion Hstore. subst vs0 bb'.
       econstructor. eapply Forall2_impl; first done.
       intros x y H5.
       eapply is_val_insert_immut; last done.
@@ -596,12 +579,12 @@ Proof.
   + destruct HGCOK as [H1 H2]; split; first done.
     intros γ1 Hγ. destruct (H2 γ1 Hγ) as (m & tgt & vs & Hfreeze & Hlloc).
     destruct (decide (γ1 = γ)) as [-> | H3].
-    * setoid_rewrite lookup_insert. do 3 eexists; split; first done.
+    * setoid_rewrite lookup_insert. destruct bb. do 3 eexists; split; first done.
       intros γ' H4. eapply Hlloc. subst. eapply lookup_union_Some_r in Hζγ.
       2: done. rewrite Hfreeze in Hζγ. congruence.
     * setoid_rewrite lookup_insert_ne; last done. do 3 eexists; done.
 Qed.
-
+End UpdateLaws.
 End Embed_logic.
 
 
