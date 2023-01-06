@@ -54,30 +54,71 @@ Inductive lval :=
   | Lint : Z → lval
   | Lloc : lloc → lval.
 
+(* Currently the mutability tag applies to a whole block; but ultimately we want
+   each field of the block to have its [ismut] tag (to handle record types of
+   the form { foo : int; mutable bar : int }) *)
 Inductive ismut := Mut | Immut.
 
+(* Possible tags for "value blocks", i.e. blocks that contain ML values. *)
 (* Right now the tag is only used to distinguish between InjLV and InjRV (the
    constructors of the basic sum-type). In the future we might want to expand
-   this to handle richer kinds of values. *)
-Inductive tag : Type :=
+   this to handle richer kinds of values (e.g. richer sum types). *)
+Inductive vblock_tag :=
   | TagDefault (* the default tag, used for InjLV and other blocks (pairs, refs, arrays) *)
   | TagInjRV (* the tag for InjRV *)
   .
 
-Definition tag_as_int (tg : tag) : Z :=
-  match tg with
+(* Possible tags for blocks in the general case. *)
+Inductive tag : Type :=
+  | TagVblock (vtg : vblock_tag)
+  | TagClosure.
+
+Definition vblock_tag_as_int (vtg : vblock_tag) : Z :=
+  match vtg with
   | TagDefault => 0
   | TagInjRV => 1
   end.
 
+Definition tag_as_int (tg : tag) : Z :=
+  match tg with
+  | TagVblock vtg => vblock_tag_as_int vtg
+  | TagClosure => 247
+  end.
+
+Instance vblock_tag_as_int_inj : Inj (=) (=) vblock_tag_as_int.
+Proof using.
+  intros t t'. destruct t; destruct t'; by inversion 1.
+Qed.
+
 Instance tag_as_int_inj : Inj (=) (=) tag_as_int.
-Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
+Proof using.
+  intros t t'.
+  destruct t as [vt|]; destruct t' as [vt'|];
+    try destruct vt; try destruct vt';
+    by inversion 1.
+Qed.
+
+(* a "value block" (the most common type of block) *)
+Notation vblock :=
+  (ismut * (vblock_tag * list lval))%type.
 
 (* a block in the block-level store *)
-Definition block :=
-  (ismut * (tag * list lval))%type.
+Inductive block :=
+  | Bvblock (vblk : vblock)
+  | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr).
 
-Definition mutability (b:block) : ismut := let '(i,_) := b in i.
+Definition mutability (vb:vblock) : ismut :=
+  let '(i,_) := vb in i.
+
+Definition block_tag (b : block) : tag :=
+  match b with
+  | Bvblock (_, (vtg, _)) => TagVblock vtg
+  | Bclosure _ _ _ => TagClosure
+  end.
+
+Inductive lval_in_block : block → lval → Prop :=
+  | ValInVblock v m tg vs :
+    v ∈ vs → lval_in_block (Bvblock (m, (tg, vs))) v.
 
 (* a block-level store *)
 Definition lstore : Type := gmap lloc block.
@@ -119,7 +160,7 @@ Definition roots_map := (gmap addr lval).
    code than the wrapper..) *)
 Inductive freeze_block : block → block → Prop :=
   | freeze_block_mut tgvs m' :
-    freeze_block (Mut, tgvs) (m', tgvs)
+    freeze_block (Bvblock (Mut, tgvs)) (Bvblock (m', tgvs))
   | freeze_block_refl b :
     freeze_block b b.
 
@@ -148,7 +189,7 @@ Definition lloc_map_mono (χ1 χ2 : lloc_map) : Prop :=
 Inductive modify_block : block → nat → lval → block → Prop :=
   | mk_modify_block tg vs i v :
     i < length vs →
-    modify_block (Mut, (tg, vs)) i v (Mut, (tg, (<[ i := v ]> vs))).
+    modify_block (Bvblock (Mut, (tg, vs))) i v (Bvblock (Mut, (tg, (<[ i := v ]> vs)))).
 
 (* "GC correctness": a sanity condition when picking a fresh addr_map that
    assigns C-level identifiers to the subset of "currently live" block-level
@@ -163,9 +204,9 @@ Inductive modify_block : block → nat → lval → block → Prop :=
 Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
   gmap_inj θ ∧
   ∀ γ, γ ∈ dom θ →
-    ∃ m tg vs,
-      ζ !! γ = Some (m, (tg, vs)) ∧
-        ∀ γ', Lloc γ' ∈ vs → γ' ∈ dom θ.
+    ∃ blk,
+      ζ !! γ = Some blk ∧
+        ∀ γ', lval_in_block blk (Lloc γ') → γ' ∈ dom θ.
 
 Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
   ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
@@ -211,26 +252,30 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ (ML_lang.LitV (ML_lang.LitLoc ℓ)) (Lloc γ)
   (* pairs *)
   | is_val_pair χ ζ v1 v2 γ lv1 lv2 :
-    ζ !! γ = Some (Immut, (TagDefault, [lv1; lv2])) →
+    ζ !! γ = Some (Bvblock (Immut, (TagDefault, [lv1; lv2]))) →
     is_val χ ζ v1 lv1 →
     is_val χ ζ v2 lv2 →
     is_val χ ζ (ML_lang.PairV v1 v2) (Lloc γ)
   (* sum-type constructors *)
   | is_val_injl χ ζ v lv γ :
-    ζ !! γ = Some (Immut, (TagDefault, [lv])) →
+    ζ !! γ = Some (Bvblock (Immut, (TagDefault, [lv]))) →
     is_val χ ζ v lv →
     is_val χ ζ (ML_lang.InjLV v) (Lloc γ)
   | is_val_injr χ ζ v lv γ :
-    ζ !! γ = Some (Immut, (TagInjRV, [lv])) →
+    ζ !! γ = Some (Bvblock (Immut, (TagInjRV, [lv]))) →
     is_val χ ζ v lv →
-    is_val χ ζ (ML_lang.InjRV v) (Lloc γ).
+    is_val χ ζ (ML_lang.InjRV v) (Lloc γ)
+  (* closures *)
+  | is_val_closure χ ζ γ f x e :
+    ζ !! γ = Some (Bclosure f x e) →
+    is_val χ ζ (ML_lang.RecV f x e) (Lloc γ).
 
 (* Elements of the ML store are lists of values representing refs and arrays;
    they correspond to a mutable block with the default tag. *)
 Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Prop :=
 | is_heap_elt_block vs lvs :
   Forall2 (is_val χ ζ) vs lvs →
-  is_heap_elt χ ζ vs (Mut, (TagDefault, lvs)).
+  is_heap_elt χ ζ vs (Bvblock (Mut, (TagDefault, lvs))).
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
   ∀ ℓ vs γ blk,
