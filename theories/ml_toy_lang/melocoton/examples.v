@@ -82,7 +82,7 @@ Lemma right_correct : ⊢ env_fulfills SpecifiedEnv IncrementSpec.
 Proof.
   iStartProof. iIntros (s vv Φ) "Hvv". unfold IncrementSpec.
   string_resolve s ft.
-  destruct vv as [ | [[l| | | |]| | | |] [|[[z| | | |]| | | |] []]]; try ft.
+  destruct vv as [ | [[l| | |]| | | |] [|[[z| | |]| | | |] []]]; try ft.
   iSplitR; first done. cbn.
   iDestruct "Hvv" as "(%z & Hz & Hres)".
   wp_apply (wp_wand with "[Hz] [Hres]").

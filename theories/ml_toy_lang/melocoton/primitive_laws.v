@@ -115,7 +115,6 @@ Section SafeValues.
       LitV (LitInt _) => True
     | LitV (LitBool _) => True
     | LitV (LitUnit) => True
-    | LitV (LitPoison) => False
     | LitV (LitLoc l) => l ∈ dom σ
     | PairV v1 v2 => val_safe_on_heap σ v1 ∧ val_safe_on_heap σ v2
     | InjLV vl => val_safe_on_heap σ vl
@@ -126,7 +125,6 @@ Section SafeValues.
       LitV (LitInt _) => True
     | LitV (LitBool _) => True
     | LitV (LitUnit) => True
-    | LitV (LitPoison) => False
     | LitV (LitLoc l) => dom_part {[ l ]}
     | PairV v1 v2 => val_safe v1 ∗ val_safe v2
     | InjLV vl => val_safe vl
@@ -135,12 +133,12 @@ Section SafeValues.
 
   Global Instance safe_persistent v : Persistent (val_safe v).
   Proof.
-   induction v as [[z|b| | |l]|v1 IH1 v2|vl IH|vr IH|]; apply _.
+   induction v as [[z|b| |l]|v1 IH1 v2|vl IH|vr IH|]; apply _.
   Qed.
 
   Global Instance safe_timeless v : Timeless (val_safe v).
   Proof.
-   induction v as [[z|b| | |l]|v1 IH1 v2|vl IH|vr IH|]; apply _.
+   induction v as [[z|b| |l]|v1 IH1 v2|vl IH|vr IH|]; apply _.
   Qed.
 
 
@@ -149,7 +147,7 @@ Section SafeValues.
    -∗ dom_auth σ
   ==∗ dom_auth σ ∗ val_safe v.
   Proof.
-    iIntros "%Hd Hσ"; iInduction (v) as [[z|b| | |l]|v1 v2|vl|vr|] "IH"; cbn in Hd; cbn; try (iModIntro; iFrame; done).
+    iIntros "%Hd Hσ"; iInduction (v) as [[z|b| |l]|v1 v2|vl|vr|] "IH"; cbn in Hd; cbn; try (iModIntro; iFrame; done).
     + apply singleton_subseteq_l in Hd. iApply (dom_auth_get with "Hσ []"). done.
     + destruct Hd. iMod ("IH" with "[] Hσ") as "(Hσ & H1)"; first done.
       iMod ("IH1" with "[] Hσ") as "(Hσ & H2)"; first done. iModIntro; iFrame.
@@ -162,7 +160,7 @@ Section SafeValues.
    -∗ val_safe v
    -∗⌜val_safe_on_heap σ v⌝.
   Proof.
-    iIntros "Hσ #Hs"; iInduction (v) as [[z|b| | |l]|? ?|vl|vr|] "IH"; cbn; try done.
+    iIntros "Hσ #Hs"; iInduction (v) as [[z|b| |l]|? ?|vl|vr|] "IH"; cbn; try done.
     + iPoseProof (dom_auth_part_valid with "Hσ Hs") as "%HH". iPureIntro. set_solver.
     + iDestruct "Hs" as "(Hs1 & Hs2)".
       iPoseProof ("IH" with "Hs1 Hσ") as "%H1".

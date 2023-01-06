@@ -92,7 +92,7 @@ Lemma block_sim_to_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_m
   -∗⌜is_val χvirt ζfreeze v b⌝.
 Proof.
   iIntros "Hχ Hζ %Hfreeze %Hstorebl %Hstore %Hdis Hsim".
-  iInduction v as [[x|bo| | |]| | | |] "IH" forall (b); cbn.
+  iInduction v as [[x|bo| |]| | | |] "IH" forall (b); cbn.
   all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
   1: {iDestruct "Hsim" as "(%γ & -> & Hsim)". unfold block_sim_raw.
       iPoseProof (gset_bij_elem_of with "Hχ Hsim") as "%HH".

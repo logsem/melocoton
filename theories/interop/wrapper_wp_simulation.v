@@ -396,10 +396,9 @@ Lemma deserialize_ML_value χ σ v ζforbid:
    ∧ is_val χ ζimm v lv.
 Proof.
   intros H1 H2.
-  induction v as [[z|b| | |l]|v1 v2|v|v|] in ζforbid,H1|-*; cbn in * |- *.
+  induction v as [[z|b| |l]|v1 v2|v|v|] in ζforbid,H1|-*; cbn in * |- *.
   all: try (eexists ∅, _; split; last (econstructor; fail); rewrite dom_empty_L; set_solver).
-  Unshelve. 6: exact (Lint 0). (* Value for function calls *)
-  + done.
+  Unshelve. 5: exact (Lint 0). (* Value for function calls *)
   + rewrite H2 in H1. apply elem_of_dom in H1. destruct H1 as (γ & Hγ).
     eexists ∅, _; split; last by econstructor. rewrite dom_empty_L; set_solver.
   + destruct H1 as [H1l H1r].

@@ -30,13 +30,8 @@ Module ML_lang.
 
 (** Expressions and vals. *)
 
-(** We have a notion of "poison" as a variant of unit that may not be compared
-with anything. This is useful for erasure proofs: if we erased things to unit,
-[<erased> == unit] would evaluate to true after erasure, changing program
-behavior. So we erase to the poison value instead, making sure that no legal
-comparisons could be affected. *)
 Inductive base_lit : Set :=
-  | LitInt (n : Z) | LitBool (b : bool) | LitUnit | LitPoison
+  | LitInt (n : Z) | LitBool (b : bool) | LitUnit
   | LitLoc (l : loc) .
 Inductive un_op : Set :=
   | NegOp | MinusUnOp.
@@ -160,7 +155,6 @@ architectures). The tags have the following meaning:
 6: Payload is one of the following finitely many values, which 61 bits are more
    than enough to encode:
    LitV LitUnit, InjLV (LitV LitUnit), InjRV (LitV LitUnit),
-   LitV LitPoison, InjLV (LitV LitPoison), InjRV (LitV LitPoison),
    LitV (LitBool _), InjLV (LitV (LitBool _)), InjRV (LitV (LitBool _)).
 7: Value is boxed, i.e., payload is a pointer to some read-only memory area on
    the heap which stores whether this is a RecV, PairV, InjLV or InjRV and the
@@ -171,21 +165,12 @@ Ignoring (as usual) the fact that we have to fit the infinite Z/loc into 61
 bits, this means every value is machine-word-sized and can hence be atomically
 read and written.  Also notice that the sets of boxed and unboxed values are
 disjoint. *)
-Definition lit_is_unboxed (l: base_lit) : Prop :=
-  match l with
-  | LitPoison => False
-  | LitInt _ | LitBool _  | LitLoc _ | LitUnit => True
-  end.
 Definition val_is_unboxed (v : val) : Prop :=
   match v with
-  | LitV l => lit_is_unboxed l
-  | InjLV (LitV l) => lit_is_unboxed l
-  | InjRV (LitV l) => lit_is_unboxed l
+  | LitV _ | InjLV (LitV _) | InjRV (LitV _) => True
   | _ => False
   end.
 
-Global Instance lit_is_unboxed_dec l : Decision (lit_is_unboxed l).
-Proof. destruct l; simpl; exact (decide _). Defined.
 Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v).
 Proof. destruct v as [ | | | [] | [] ]; simpl; exact (decide _). Defined.
 
@@ -327,14 +312,12 @@ Proof.
  refine (inj_countable' (λ l, match l with
   | LitInt n => (inl (inl n))
   | LitBool b => (inl (inr b))
-  | LitUnit => (inr (inl false))
-  | LitPoison => (inr (inl true))
+  | LitUnit => (inr (inl ()))
   | LitLoc l => (inr (inr l))
   end) (λ l, match l with
   | (inl (inl n)) => LitInt n
   | (inl (inr b)) => LitBool b
-  | (inr (inl false)) => LitUnit
-  | (inr (inl true)) => LitPoison
+  | (inr (inl ())) => LitUnit
   | (inr (inr l)) => LitLoc l
   end) _); by intros [].
 Qed.

@@ -176,7 +176,6 @@ Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
   (ML_lang.LitV (ML_lang.LitInt x)) => ⌜l = (Lint x)⌝
 | (ML_lang.LitV (ML_lang.LitBool b)) => ⌜l = (Lint (if b then 1 else 0))⌝
 | (ML_lang.LitV ML_lang.LitUnit) => ⌜l = (Lint 0)⌝
-| (ML_lang.LitV ML_lang.LitPoison) => False (* TODO: remove poison? *)
 | (ML_lang.LitV (ML_lang.LitLoc ℓ)) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ block_sim_raw ℓ γ
 | (ML_lang.PairV v1 v2) => ∃ γ lv1 lv2, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv1;lv2]) ∗ block_sim v1 lv1 ∗ block_sim v2 lv2
 | (ML_lang.InjLV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv]) ∗ block_sim v lv
@@ -185,7 +184,7 @@ Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
 
 Global Instance block_sim_pers v l : Persistent (block_sim v l).
 Proof.
-  induction v as [[x|b| | |]| | | |] in l|-*; cbn; unshelve eapply (_).
+  induction v as [[x|b| |]| | | |] in l|-*; cbn; unshelve eapply (_).
 Qed.
 
 Definition block_sim_arr (vs:list MLval) (ls : list lval) : iProp Σ := [∗ list] v;l ∈ vs;ls, block_sim v l.
