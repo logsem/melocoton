@@ -8,6 +8,23 @@ From iris.prelude Require Import options.
 Definition gmap_inj `{Countable K} {V} (m : gmap K V) :=
   ∀ k1 k2 v, m !! k1 = Some v → m !! k2 = Some v → k1 = k2.
 
+Lemma gmap_inj_extend `{Countable K} {V} (m : gmap K V) k v :
+  gmap_inj m →
+  k ∉ dom m →
+  (∀ k' v', m !! k' = Some v' → v ≠ v') →
+  gmap_inj (<[k:=v]> m).
+Proof.
+  intros Hinj Hk Hv k1 k2 v' Hk1 Hk2.
+  destruct (decide (k = k1)) as [<-|]; destruct (decide (k = k2)) as [<-|];
+    auto.
+  { rewrite lookup_insert in Hk1. rewrite lookup_insert_ne // in Hk2.
+    simplify_eq. exfalso. by apply Hv in Hk2. }
+  { rewrite lookup_insert_ne // in Hk1. rewrite lookup_insert in Hk2.
+    simplify_eq. exfalso. by apply Hv in Hk1. }
+  { rewrite lookup_insert_ne // in Hk1. rewrite lookup_insert_ne // in Hk2.
+    eapply Hinj; eauto. }
+Qed.
+
 Section language_commons.
   Context {val : Type}.
   (** Classifying expressions into values and calls. *)
