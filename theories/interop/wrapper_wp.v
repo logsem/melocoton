@@ -1,5 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
+From melocoton Require Import named_props.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
@@ -31,18 +32,6 @@ Class wrapperGS Σ := WrapperGS {
   wrapperGS_γat_boundary : gname;
 }.
 
-
-
-Global Notation SIC_ip := "((%nCv & HσC) & (%ζfreeze & %ζσ & %ζrest & %χvirt & %fresh & %σMLvirt &
-           HAroots & HAθ & HAζbl & (%nMLv & HAσMLv & HAnMLv) & HAχbij & HAfresh & HAχNone & #HAζpers & HAbound &
-          %Hfreezeρ & %Hfreezeeq & %Hfreezedj & %Hstore_blocks & %Hstore & %Hχvirt & %Hχinj & %Hfreezeχ & %Hfreshχ & %HGCOK))".
-
-Global Notation SIML_ip := "((%nMLv & HσML) & (%ζσ & %ζrest & %fresh & %σCvirt &
-           HAroots & HAθ & HAζbl & (%nCv & HAσCv & HAnCv) & HAχbij & HAfresh & HAχNone & #HAζpers & HAbound & HAGCrem &
-           %Hfreezeeq & %Hfreezedj & %Hχinj & %Hfreezeχ & %Hfreshχ))".
-
-Global Notation GC_ip := "(HAGCθ & HAGCbound & (%roots_s & %roots_m & HArootss & HArootsm & %Hrootsdom & %Hrootslive & Hrootspto))".
-
 Section Embed_logic.
 
 Context {hlc : has_lc}.
@@ -56,15 +45,15 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-Definition GC (θ : addr_map) : iProp Σ := 
-     ghost_var wrapperGS_γθ (1/2) θ
-   ∗ ghost_var wrapperGS_γat_boundary (1/4) false
-   ∗ ∃ (roots : gset addr) (rootsmap : gmap loc lval),
-       ghost_var wrapperGS_γroots_set (1/2) roots
-     ∗ ghost_map_auth wrapperGS_γroots_map 1 rootsmap
-     ∗ ⌜dom rootsmap = roots⌝
-     ∗ ⌜roots_are_live θ rootsmap⌝
-     ∗ ([∗ map] a ↦ v ∈ rootsmap, (∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)).
+Definition GC (θ : addr_map) : iProp Σ :=
+  ∃ (roots_s : gset addr) (roots_m : gmap loc lval),
+    "HAGCθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
+  ∗ "HAGCbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) false
+  ∗ "HArootss" ∷ ghost_var wrapperGS_γroots_set (1/2) roots_s
+  ∗ "HArootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 roots_m
+  ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
+  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
+  ∗ "Hrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝).
 
 (* TODO: custom notation (like l1 ~~ML l2 )? *)
 (* l1 is a location in the ML heap. l2 is a block location.
@@ -74,26 +63,27 @@ Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (gset_bij_own_elem
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
   ∃ (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (fresh : gmap lloc unit) (σMLvirt : store),
-    ghost_var wrapperGS_γroots_set (1/2) roots
-  ∗ ghost_var wrapperGS_γθ (1/2) θ
-  ∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
-  ∗ (∃ n, state_interp σMLvirt n)
-  ∗ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
-  ∗ ghost_map_auth wrapperGS_γfresh 1 fresh
-  ∗ big_sepM_limited χvirt (dom ζrest) (fun ℓ _ => ℓ ↦M/)
-  ∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
-  ∗ ghost_var wrapperGS_γat_boundary (1/4) false
-  ∗⌜freeze_lstore ζ ζfreeze
-  ∧ ζfreeze = ζσ ∪ ζrest
-  ∧ ζσ ##ₘ ζrest
-  ∧ is_store_blocks χvirt σMLvirt ζσ
-  ∧ is_store χvirt ζfreeze σMLvirt
-  ∧ lloc_map_mono χ χvirt
-  ∧ gmap_inj χ
-  ∧ (∀ x y, χvirt !! x = Some y → y ∈ dom ζfreeze)
-  ∧ (∀ x y, χvirt !! x = Some y → y ∈ dom fresh → False)
-  ∧ GC_correct ζfreeze θ⌝.
+    "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots
+  ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
+  ∗ "HAζbl" ∷ ghost_map_auth wrapperGS_γζblock 1 ζrest
+  ∗ "(%nMLv & HAσMLv & HAnMLv)" ∷ (∃ n, state_interp σMLvirt n)
+  ∗ "HAχbij" ∷ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
+  ∗ "HAfresh" ∷ ghost_map_auth wrapperGS_γfresh 1 fresh
+  ∗ "HAχNone" ∷ big_sepM_limited χvirt (dom ζrest) (fun ℓ _ => ℓ ↦M/)
+  ∗ "#HAζpers" ∷ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
+  ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) false
+  ∗ "%Hfreezeρ" ∷ ⌜freeze_lstore ζ ζfreeze⌝
+  ∗ "%Hfreezeeq" ∷ ⌜ζfreeze = ζσ ∪ ζrest⌝
+  ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζrest⌝
+  ∗ "%Hstore_blocks" ∷ ⌜is_store_blocks χvirt σMLvirt ζσ⌝
+  ∗ "%Hstore" ∷ ⌜is_store χvirt ζfreeze σMLvirt⌝
+  ∗ "%Hχvirt" ∷ ⌜lloc_map_mono χ χvirt⌝
+  ∗ "%Hχinj" ∷ ⌜gmap_inj χ⌝
+  ∗ "%Hfreezeχ" ∷ ⌜∀ x y, χvirt !! x = Some y → y ∈ dom ζfreeze⌝
+  ∗ "%Hfreshχ" ∷ ⌜∀ x y, χvirt !! x = Some y → y ∉ dom fresh⌝
+  ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
 
+(* TODO: names *)
 Definition GC_token_remnant (roots : gset addr) : iProp Σ :=
    ghost_var wrapperGS_γθ (1/2) (∅:addr_map)
  ∗ ghost_var wrapperGS_γroots_set (1/2) roots
@@ -102,28 +92,33 @@ Definition GC_token_remnant (roots : gset addr) : iProp Σ :=
 
 Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
   ∃  (ζσ ζrest : lstore) (fresh : gmap lloc unit) (σCvirt : memory),
-    ghost_var wrapperGS_γroots_set (1/2) (dom roots)
-  ∗ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
-  ∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
-  ∗ (∃ n, state_interp σCvirt n)
-  ∗ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χ)
-  ∗ ghost_map_auth wrapperGS_γfresh (1/2) fresh
-  ∗ big_sepM_limited χ (dom ζrest) (fun ℓ _ => ℓ ↦M/)
-  ∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
-  ∗ ghost_var wrapperGS_γat_boundary (1/2) true
-  ∗ GC_token_remnant (dom roots)
-  ∗⌜ζ = ζσ ∪ ζrest
-  ∧ ζσ ##ₘ ζrest
-  ∧ gmap_inj χ
-  ∧ (∀ x y, χ !! x = Some y → y ∈ dom ζ)
-  ∧ (∀ x y, χ !! x = Some y → y ∈ dom fresh → False)⌝.
+    "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
+  ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
+  ∗ "HAζbl" ∷ ghost_map_auth wrapperGS_γζblock 1 ζrest
+  ∗ "(%nCv & HAσCv & HAnCv)" ∷ (∃ n, state_interp σCvirt n)
+  ∗ "HAχbij" ∷ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χ)
+  ∗ "HAfresh" ∷ ghost_map_auth wrapperGS_γfresh (1/2) fresh
+  ∗ "HAχNone" ∷ big_sepM_limited χ (dom ζrest) (fun ℓ _ => ℓ ↦M/)
+  ∗ "#HAζpers" ∷ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
+  ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
+  ∗ "HAGCrem" ∷ GC_token_remnant (dom roots)
+  ∗ "%Hfreezeeq" ∷ ⌜ζ = ζσ ∪ ζrest⌝
+  ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζrest⌝
+  ∗ "%Hχinj" ∷ ⌜gmap_inj χ⌝
+  ∗ "%Hfreezeχ" ∷ ⌜∀ x y, χ !! x = Some y → y ∈ dom ζ⌝
+  ∗ "%Hfreshχ" ∷ ⌜∀ x y, χ !! x = Some y → y ∉ dom fresh⌝.
 
 Definition public_state_interp : store -> iProp Σ := (λ σ, ∃ n, state_interp σ n)%I.
 Definition private_state_interp : wrapstateML -> iProp Σ := (λ ρml, ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml))%I.
 
-Definition wrap_state_interp (σ : Wrap.state) : iProp Σ := match σ with
-  Wrap.CState ρc mem => (∃ n, state_interp mem n) ∗ C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc)
-| Wrap.MLState ρml σ => public_state_interp σ ∗ private_state_interp ρml
+Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
+  match σ with
+  | Wrap.CState ρc mem =>
+      "[%nCv HσC]" ∷ (∃ n, state_interp mem n) ∗
+      "SIC"        ∷ C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc)
+  | Wrap.MLState ρml σ =>
+      "[%nMLv HσML]" ∷ public_state_interp σ ∗
+      "SIML"         ∷ private_state_interp ρml
 end.
 
 Global Program Instance wrapGS :
@@ -150,7 +145,7 @@ Next Obligation.
   + iExists _, _. iPureIntro. econstructor.
   + iExFalso. iAssert (⌜true = false⌝)%I as "%Hdone".
     * iApply (ghost_var_agree with "Hb [Hσ]").
-      iDestruct "Hσ" as SIC_ip.  iFrame.
+      iNamed "Hσ". iNamed "SIC". iFrame.
     * iPureIntro. congruence.
 Qed.
 
@@ -162,7 +157,7 @@ Notation SI := (weakestpre.state_interp σ).
 Lemma GC_in_C {θ}: ⊢ (SI -∗ GC θ -∗ ⌜∃ ρc mem, σ = CState ρc mem⌝)%I.
 Proof.
   destruct σ. 2: iIntros "_ _"; iPureIntro; do 2 eexists; done.
-  iIntros SIML_ip. iIntros GC_ip.
+  iNamed 1. iNamed 1. iNamed "SIML".
   iPoseProof (ghost_var_agree with "HAbound HAGCbound") as "%Hc".
   congruence.
 Qed.

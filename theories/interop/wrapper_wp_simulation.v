@@ -1,5 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
+From melocoton Require Import named_props.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
@@ -49,8 +50,7 @@ Proof.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
-  iDestruct "Hσ" as SIC_ip.
-  iDestruct "HGC" as GC_ip.
+  iNamed "Hσ". iNamed "HGC". iNamed "SIC".
   iRight. iRight. iModIntro. iSplit.
   1: iPureIntro; cbn; exists (fun _ => True); eexists (), _; repeat split; by eapply RetS.
   cbn. iIntros (X Hstep).
@@ -82,7 +82,7 @@ Proof.
   1: { cbn. unfold Wrap.fill. iApply weakestpre.wp_value'. iFrame. }
   cbn. iSplitL "HAσMLv HAnMLv".
   1: iExists nMLv; iFrame.
-  unfold private_state_interp, ML_state_interp; cbn.
+  unfold private_state_interp, ML_state_interp, named; cbn.
 Admitted.
 
 Lemma wp_simulates E p T ec Φ: 
@@ -97,8 +97,8 @@ Proof.
   rewrite wp_unfold. rewrite /wp_pre.
   iIntros "Hnb HWP %σ Hσ".
   destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iClear "HWP"; iDestruct "Hσ" as SIML_ip; iPoseProof (ghost_var_agree with "Hnb HAbound") as "%HH"; congruence.
-  iDestruct "Hσ" as SIC_ip.
+  1: iExFalso; iClear "HWP"; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb HAbound") as "%HH"; congruence.
+  iNamed "Hσ"; iNamed "SIC".
   iMod ("HWP" $! mem nCv with "HσC") as 
   "[(%x & -> & Hσ & Hret)
   |[(%s' & %vv & %K' & -> & %H2 & >(%Ξ & Hσ & HT & Hr))
@@ -108,7 +108,7 @@ Proof.
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
     iApply ("Hret" $! (CState ρc mem)).
     iSplitL "Hσ". 1: by iExists _.
-    unfold C_state_interp.
+    unfold C_state_interp, named.
     iExists ζfreeze, ζσ, ζrest, χvirt, fresh, σMLvirt.
     iFrame. iFrame "HAζpers".
     iSplitL "HAnMLv"; first by iExists nMLv.
@@ -135,7 +135,7 @@ Proof.
       iSplitR "HWP' Hnb".
       2: iApply ("IH" with "Hnb HWP'").
       cbn. iSplitL "HσC"; first by iExists _.
-      unfold C_state_interp. iExists ζfreeze, ζσ, ζrest, χvirt, fresh, σMLvirt.
+      unfold C_state_interp, named. iExists ζfreeze, ζσ, ζrest, χvirt, fresh, σMLvirt.
       iFrame. iFrame "HAζpers". iSplitL; first by iExists _.
       iPureIntro; split_and!; done.
 Qed.
@@ -156,7 +156,7 @@ Proof.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (σ) "Hσ".
   unfold at_boundary; cbn. destruct σ as [ρml σ | ? ?].
-  2: {iExFalso. iDestruct "Hσ" as SIC_ip. iPoseProof (ghost_var_agree with "Hb HAbound") as "%Heq". congruence. }
+  2: {iExFalso. iNamed "Hσ"; iNamed "SIC". iPoseProof (ghost_var_agree with "Hb HAbound") as "%Heq". congruence. }
   iRight. iRight. iModIntro.
   iSplitR.
   1: { iPureIntro. exists (fun _ => True). eapply mlanguage.head_prim_step. cbn. eapply RunFunctionS; last done. all: admit. }

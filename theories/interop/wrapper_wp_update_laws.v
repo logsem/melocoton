@@ -1,5 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
+From melocoton Require Import named_props.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
@@ -35,7 +36,7 @@ Lemma ml_to_mut θ l vs: ⊢ (GC θ ∗ l ↦∗ vs ∗ SI ==∗ SI ∗ GC θ �
 Proof.
   iIntros "(HGC & Hl & Hσ)".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
-  iDestruct "Hσ" as SIC_ip.
+  iNamed "Hσ". iNamed "SIC".
   iDestruct (gen_heap_valid with "HAσMLv Hl") as %Hlσ.
   destruct (χvirt !! l) as [ll|] eqn:Hlχ.
   2: { exfalso. 
@@ -66,7 +67,7 @@ Proof.
   1: { by iDestruct (gset_bij_own_valid with "HAχbij") as %[? ?]. }
   iSplitR "Hzz". 1: iSplitL "HσC".
   + iExists _. iApply "HσC".
-  + unfold C_state_interp. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, (TagDefault, lvs))]> ζrest).
+  + unfold C_state_interp, named. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, (TagDefault, lvs))]> ζrest).
     iExists χvirt, fresh, (<[l:=None]> σMLvirt). iFrame.
     iSplitL "HAnMLv". 1: iExists _; iFrame.
     iSplitL. 
@@ -118,7 +119,7 @@ Lemma mut_to_ml γ vs b θ: ⊢ (SI ∗ GC θ ∗ γ ↦mut{DfracOwn 1} (TagDefa
 Proof.
   iIntros "(Hσ & HGC & (Hl & (%ℓ & #Hlℓ)) & #Hsim)".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
-  iDestruct "Hσ" as SIC_ip.
+  iNamed "Hσ". iNamed "SIC".
   iPoseProof (block_sim_arr_to_ghost_state with "HAχbij HAζbl [] [] [] [] Hsim ") as "%Hsim".
   1-4: iPureIntro; done.
   iPoseProof (@gset_bij_elem_of with "HAχbij Hlℓ") as "%Hχℓ".
@@ -140,7 +141,7 @@ Proof.
   iModIntro. iFrame "HGC". iSplitR "Hℓ". 2: iExists ℓ; iFrame; done.
   cbn. iSplitL "HσC".
   1: iExists _; iFrame.
-  unfold C_state_interp.
+  unfold C_state_interp, named.
   iExists ζfreeze, (<[γ:=(Mut, (TagDefault, b))]>ζσ), (delete γ ζrest).
   iExists χvirt, fresh, (<[ ℓ := Some vs ]> σMLvirt).
   iFrame.
@@ -180,7 +181,7 @@ Lemma freeze_to_mut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb =
 Proof.
   iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
-  iDestruct "Hσ" as SIC_ip.
+  iNamed "Hσ". iNamed "SIC".
   iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
   iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
   pose (fresh_locs (dom χvirt)) as ℓ.
@@ -201,7 +202,7 @@ Proof.
   iSplitR "Hℓγ Hmtζ".
   2: { iFrame. iExists ℓ. iApply "Hℓγ". }
   cbn. iSplitL "HσC"; first (iExists nCv; iFrame).
-  unfold C_state_interp. unfold lstore.
+  unfold C_state_interp, named. unfold lstore.
   iExists ζfreeze, ζσ, ζrest.
   iExists (<[ℓ:=γ]> χvirt), (delete γ fresh), (<[ ℓ := None ]> σMLvirt).
   iFrame. iFrame "HAζpers".
@@ -258,7 +259,7 @@ Lemma freeze_to_immut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb
 Proof.
   iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
-  iDestruct "Hσ" as SIC_ip.
+  iNamed "Hσ". iNamed "SIC".
   iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
   iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
   iMod ((ghost_map_update (Immut,bb)) with "HAζbl Hmtζ") as "(HAζbl & Hmtζ)".
