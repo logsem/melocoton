@@ -7,15 +7,11 @@ From melocoton.ml_toy_lang Require Import lang.
 (* the type of memory addresses used by the C semantics *)
 Notation addr := iris.heap_lang.locations.loc (only parsing).
 (* We call "mem" a C memory and "word" a C value. *)
-Notation memory := C_lang.state.
+Notation memory := (gmap loc heap_cell).
 Notation word := C_lang.val.
 (* We call "store" an ML memory and "val" an ML value. *)
-(* Notation store := ML_lang.state. *)
-(* FIXME temporary: need to update ML_lang.state *)
 Notation store := (gmap loc (option (list val))).
 Notation val := ML_lang.val.
-
-Section basics.
 
 (************
    Block-level "logival" values and store.
@@ -46,7 +42,7 @@ Section basics.
 *)
 
 (* locations in the block-level store *)
-Definition lloc : Type := nat.
+Notation lloc := nat (only parsing).
 Implicit Type γ : lloc.
 
 (* block-level values *)
@@ -70,7 +66,7 @@ Definition tag_as_int (tg : tag) : Z :=
   | TagInjRV => 1
   end.
 
-Instance tag_as_int_inj : Inj (=) (=) tag_as_int.
+Global Instance tag_as_int_inj : Inj (=) (=) tag_as_int.
 Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
 
 (* a block in the block-level store *)
@@ -80,7 +76,7 @@ Definition block :=
 Definition mutability (b:block) : ismut := let '(i,_) := b in i.
 
 (* a block-level store *)
-Definition lstore : Type := gmap lloc block.
+Notation lstore := (gmap lloc block).
 Implicit Type ζ : lstore.
 
 
@@ -90,8 +86,7 @@ Implicit Type ζ : lstore.
    block-level locations. *)
 
 (* maps an ML location to its corresponding logical location *)
-(* TODO: make notation *)
-Definition lloc_map := (gmap loc lloc).
+Notation lloc_map := (gmap loc lloc).
 Implicit Type χ : lloc_map.
 
 (* maps a logical location to its address in C memory.
@@ -99,12 +94,12 @@ Implicit Type χ : lloc_map.
    *are* moved around by the GC in the actual memory, this means that "the
    current θ" will often arbitrarily change during the execution, each time a GC
    might occur. *)
-Definition addr_map := (gmap lloc addr).
+Notation addr_map := (gmap lloc addr).
 Implicit Type θ : addr_map.
 
 (* maps each root (a heap cell in C memory) to the logical value it is tracking
    and keeping alive *)
-Definition roots_map := (gmap addr lval).
+Notation roots_map := (gmap addr lval).
 
 
 (************
@@ -238,4 +233,3 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
     σ !! ℓ = Some (Some vs) → χ !! ℓ = Some γ → ζ !! γ = Some blk →
     is_heap_elt χ ζ vs blk.
 
-End basics.

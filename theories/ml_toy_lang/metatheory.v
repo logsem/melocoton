@@ -257,7 +257,6 @@ Proof.
       by apply lookup_replicate in HH as (-> & ?). }
     rewrite store_lookup_eq in HH.
     case_bool_decide; simplify_map_eq/=.
-    rewrite lookup_insert_ne // in HH.
     destruct (σ !! l') eqn:Heqo; simplify_map_eq/=.
     apply (Clσ1 (Locoff l' i)).
     rewrite store_lookup_eq; by case_bool_decide; simplify_map_eq/=.

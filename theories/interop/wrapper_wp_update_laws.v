@@ -42,7 +42,7 @@ Proof.
   2: { exfalso. 
        apply not_elem_of_dom_2 in Hlχ.
        apply elem_of_dom_2 in Hlσ.
-       destruct Hstore_blocks as [Hdom Hstore_blocks]. unfold lloc_map in Hdom.
+       destruct Hstore_blocks as [Hdom Hstore_blocks].
        rewrite <- Hdom in Hlχ.
        by apply Hlχ. }
   iMod (gen_heap_update _ _ _ None with "HAσMLv Hl") as "[HAσMLv Hl]".
@@ -164,7 +164,7 @@ Proof.
     * intros Hin. rewrite dom_insert_L in Hin. apply elem_of_union in Hin. destruct Hin as [->%elem_of_singleton|Hin2].
       - exists ℓ, vs. split; try done. by rewrite lookup_insert.
       - destruct (Hsrl Hin2) as (ℓ2 & Vs & H1 & H2); exists ℓ2, Vs; split; try done.
-        rewrite lookup_insert_ne; first done; congruence.
+        rewrite lookup_insert_ne //. intros ->. simplify_map_eq.
     * intros (ℓ2 & Vs & H1 & H2). destruct (decide (ℓ2 = ℓ)) as [->|Hne].
       - rewrite Hχℓ in H1. injection H1; intros ->. rewrite dom_insert_L. apply elem_of_union; left. by apply elem_of_singleton.
       - rewrite dom_insert_L. apply elem_of_union; right. apply Hsrr. eexists _, _; split; try done. rewrite lookup_insert_ne in H2; done.
@@ -199,7 +199,7 @@ Proof.
   1: intros γ' Hγ'%elem_of_map_to_set_pair; apply Hℓdom; by eapply elem_of_dom_2.
   1: intros ℓ' Hℓ'%elem_of_map_to_set_pair; apply (Hfreshχ _ _ Hℓ'); by eapply elem_of_dom.
   iMod (gen_heap_alloc _ ℓ None with "HAσMLv") as "(HAσMLv & HℓNone & Hmeta)".
-  1: eapply not_elem_of_dom_1; by destruct Hstore_blocks as [-> _].
+  1: eapply not_elem_of_dom_1. by destruct Hstore_blocks as [-> _].
   iPoseProof (big_sepM_insert_M _ _ _ ℓ γ with "[] [HℓNone] HAχNone") as "HAχNone".
   1: iPureIntro; by eapply not_elem_of_dom_1.
   1: iIntros "_"; done.
@@ -211,7 +211,7 @@ Proof.
   iSplitR "Hℓγ Hmtζ".
   2: { iFrame. iExists ℓ. iApply "Hℓγ". }
   cbn. iSplitL "HσC HnC"; first (iExists nCv; iFrame).
-  unfold C_state_interp, named. unfold lstore.
+  unfold C_state_interp, named.
   iExists ζfreeze, ζσ, ζrest.
   iExists (<[ℓ:=γ]> χvirt), (delete γ fresh), (<[ ℓ := None ]> σMLvirt).
   iFrame. iFrame "HAζpers".

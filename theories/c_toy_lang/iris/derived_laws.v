@@ -37,7 +37,7 @@ Context `{!heapGS Σ}.
 Context {p:program}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
-Implicit Types σ : state.
+Implicit Types σ : gmap loc heap_cell.
 Implicit Types v : option val.
 Implicit Types vs : list (option val).
 Implicit Types l : loc.

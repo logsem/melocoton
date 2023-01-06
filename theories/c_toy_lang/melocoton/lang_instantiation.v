@@ -8,6 +8,8 @@ From melocoton.c_toy_lang Require Import iris.lang_instantiation.
 From melocoton.language Require Import language.
 From melocoton.c_toy_lang Require Export lang metatheory.
 
+Local Notation state := (gmap loc heap_cell).
+
 Definition of_class (e : mixin_expr_class val) : expr := match e with
   ExprVal v => Val v
 | ExprCall vf vl => FunCall (Val $ LitV $ LitFunPtr vf) (map Val vl) end.

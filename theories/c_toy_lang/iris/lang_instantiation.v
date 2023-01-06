@@ -6,6 +6,7 @@ From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
 From melocoton.c_toy_lang Require Export lang.
 
+Local Notation state := (gmap loc heap_cell).
 
 Inductive bogo_head_step (p:program) : expr → state → list unit → expr → state → list expr → Prop :=
   bogo_obs e1 σ1 e2 σ2 :

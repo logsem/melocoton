@@ -147,7 +147,7 @@ Context {p:program}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types efs : list expr.
-Implicit Types σ : state.
+Implicit Types σ : gmap loc heap_cell.
 Implicit Types v : val.
 Implicit Types l : loc.
 

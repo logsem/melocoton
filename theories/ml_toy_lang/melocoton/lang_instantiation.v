@@ -10,7 +10,7 @@ From melocoton.ml_toy_lang Require Export lang metatheory.
 
 Import ML_lang.
 
-
+Local Notation state := (gmap loc (option (list val))).
 
 Definition of_class (e : mixin_expr_class val) : expr := match e with
   ExprVal v => Val v

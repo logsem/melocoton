@@ -52,8 +52,7 @@ Proof.
   all: rewrite lookup_union in H.
   all: destruct (ζσ !! γ) eqn:Heq; rewrite Heq in H; unfold union_with in H; cbn in H.
   all: destruct (ζrest !! γ) eqn:Heq2; rewrite Heq2 in H; try congruence.
-  1,4,7: exfalso; eapply map_disjoint_spec; done.
-  2,4,6: rewrite Heq2; done.
+  1,3: exfalso; eapply map_disjoint_spec; done.
   all: destruct Hstorebl as [Hstorebl1 Hstorebl2].
   all: unfold block in *.
   all: rewrite <- Heq in H; apply elem_of_dom_2 in Heq; apply Hstorebl2 in Heq.
@@ -138,9 +137,5 @@ Proof.
   1: eapply elem_of_dom_2 in H; set_solver.
   all: eauto.
 Qed.
-
-
-
-
 
 End BlockSimLaws.

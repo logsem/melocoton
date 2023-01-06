@@ -269,7 +269,7 @@ Notation Storing v := (Some (Some v) : heap_cell).
 (*Record state : Type := {
   heap: gmap loc heap_cell
 }.*)
-Definition state : Type := gmap loc heap_cell.
+Local Notation state := (gmap loc heap_cell).
 
 Class program := prog : gmap string function.
 

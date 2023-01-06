@@ -73,11 +73,11 @@ Proof.
     assert (memr !! l = None) as HNone1.
     1: apply not_elem_of_dom; erewrite <- repr_roots_dom; last done; by eapply not_elem_of_dom.
     assert (privmem !! l = None) as Hnone2.
-    rewrite <- (lookup_union_r memr privmem); try done; unfold C_lang.state in Hunion; rewrite <- Hunion; by apply lookup_delete.
+    rewrite <- (lookup_union_r memr privmem); try done; rewrite <- Hunion; by apply lookup_delete.
     eexists privmem, (<[l:=Storing w]> memr). split_and!.
     * econstructor; try done; by eapply not_elem_of_dom.
     * by apply map_disjoint_insert_r.
-    * unfold C_lang.state in * |- *. erewrite <- insert_union_l. rewrite <- Hunion. rewrite insert_delete_insert.
+    * erewrite <- insert_union_l. rewrite <- Hunion. rewrite insert_delete_insert.
       apply map_eq_iff. intros i. destruct (decide (i = l)) as [-> |]; (try by rewrite lookup_insert); by rewrite lookup_insert_ne.
 Qed.
 
@@ -111,10 +111,10 @@ Proof.
     * eapply map_disjoint_insert_l_2; first done.
       erewrite <- (delete_insert mem0); last done.
       by eapply map_disjoint_delete_r.
-    * subst mem. unfold C_lang.state. erewrite <- insert_union_l.
+    * subst mem. erewrite <- insert_union_l.
       rewrite insert_insert. by rewrite insert_union_r.
     * iModIntro. iSplitL "Hheap".
-      - unfold C_lang.state. erewrite <- insert_union_l. rewrite insert_union_r.
+      - erewrite <- insert_union_l. rewrite insert_union_r.
         2: eapply map_disjoint_Some_r; try done; by rewrite lookup_insert.
         rewrite fmap_insert. iFrame.
       - rewrite dom_insert_L. iApply big_sepS_insert; first by eapply not_elem_of_dom. iFrame.
@@ -278,7 +278,7 @@ Proof.
   - rewrite dom_empty_L in Hsub. apply equiv_empty_L in Hsub. apply dom_empty_inv_L in Hsub.
     subst χin. exists ∅, ∅. repeat split.
     + done.
-    + unfold lloc_map. by repeat erewrite dom_empty_L.
+    + by repeat erewrite dom_empty_L.
     + intros []%elem_of_empty.
     + intros (ℓ & Vs & H1 & H2). rewrite lookup_empty in H2. congruence.
     + intros x y H. rewrite lookup_empty in H; congruence.
@@ -410,7 +410,7 @@ Proof.
     eexists (<[ g := _ ]> (ζimm1 ∪ ζimm2)), _.
     assert (ζimm2 ##ₘ ζimm1) as Hζdisj.
     1: eapply map_disjoint_dom_2; set_solver.
-    split; last econstructor; unfold lstore.
+    split; last econstructor.
     * erewrite dom_insert_L, dom_union_L. set_solver.
     * by erewrite lookup_insert.
     * eapply is_val_mono; last apply Hlv1. eauto.
@@ -425,7 +425,7 @@ Proof.
     pose proof (is_fresh (ζforbid ∪ dom ζimm)) as Hg.
     pose (fresh (ζforbid ∪ dom ζimm)) as g; fold g in Hg.
     eexists (<[ g := _ ]> (ζimm)), _.
-    split; last econstructor; unfold lstore.
+    split; last econstructor.
     * erewrite dom_insert_L. set_solver.
     * erewrite lookup_insert; done.
     * eapply is_val_mono; last apply Hlv. eauto.
@@ -434,7 +434,7 @@ Proof.
     pose proof (is_fresh (ζforbid ∪ dom ζimm)) as Hg.
     pose (fresh (ζforbid ∪ dom ζimm)) as g; fold g in Hg.
     eexists (<[ g := _ ]> (ζimm)), _.
-    split; last econstructor; unfold lstore.
+    split; last econstructor.
     * erewrite dom_insert_L. set_solver.
     * erewrite lookup_insert; done.
     * eapply is_val_mono; last apply Hlv. eauto.
@@ -451,7 +451,7 @@ Lemma deserialize_ML_value_arr χ σ vs ζforbid:
 Proof.
   intros Hsafe Hstorebl.
   induction vs as [|v vs IH] in Hsafe,ζforbid|-*.
-  + exists ∅, []. split; last econstructor. unfold lstore. erewrite dom_empty_L; set_solver.
+  + exists ∅, []. split; last econstructor. erewrite dom_empty_L; set_solver.
   + apply Forall_cons_iff in Hsafe.
     destruct Hsafe as (Hsafel & Hsafer).
     destruct (IH ζforbid Hsafer) as (ζimmH & lvsH & HdomH & HvalH).
@@ -459,7 +459,7 @@ Proof.
     eexists (ζimmH ∪ ζimmV), _.
     assert (ζimmH ##ₘ ζimmV) as Hζdisj.
     1: eapply map_disjoint_dom_2; set_solver.
-    split; last econstructor; unfold lstore.
+    split; last econstructor.
     * erewrite dom_union_L. set_solver. 
     * eapply is_val_mono; last apply HvalV. eauto.
       eapply map_union_subseteq_r. by symmetry.
@@ -482,7 +482,7 @@ Lemma deserialize_ML_store χ σ σ' ζσdom ζforbid:
 Proof.
   revert ζforbid ζσdom σ χ.
   induction σ' using map_ind; intros ζforbid ζσdom σ χ Hsafe Hdomsub Hdomeq Hinj Hstore; cbn; last destruct x as [x|].
-  + exists ∅, ∅. split_and!; unfold lstore.
+  + exists ∅, ∅. split_and!.
     * erewrite dom_empty_L. symmetry. eapply elem_of_equiv_empty_L. intros x H1.
       apply Hstore in H1.
       destruct H1 as (?&?&?&Hno); rewrite lookup_empty in Hno. congruence.
@@ -492,14 +492,14 @@ Proof.
   + apply map_Forall_insert in Hsafe; last done.
     destruct Hsafe as (HsafeV & HsafeM).
     destruct (χ !! i) as [γ|] eqn:Heq.
-    2: { eapply not_elem_of_dom in Heq. unfold lloc_map in *|-*. rewrite <- Hdomeq in Heq. exfalso. erewrite dom_insert_L in Hdomsub. apply Heq; set_solver. }
+    2: { eapply not_elem_of_dom in Heq. rewrite <- Hdomeq in Heq. exfalso. erewrite dom_insert_L in Hdomsub. apply Heq; set_solver. }
     destruct (IHσ' (ζforbid ∪ {[γ]}) (ζσdom ∖ {[γ]}) (<[ i := None ]> σ) χ) as (ζσ & ζimm1 & HIH1 & HIH2 & HIH3 & HIH4).
     * eapply map_Forall_impl; first apply HsafeM. intros x1 [y1|] Hd; cbn; last done.
       eapply Forall_impl; first apply Hd. intros v; induction v as [[]| | | |]; cbn; eauto.
       2: intros [H1 H2]; split; eauto.
-      unfold ML_lang.state. erewrite dom_insert_L. set_solver.
-    * unfold ML_lang.state. erewrite dom_insert_L. set_solver.
-    * unfold ML_lang.state. erewrite dom_insert_L. erewrite dom_insert_L in Hdomsub. set_solver.
+      erewrite dom_insert_L. set_solver.
+    * erewrite dom_insert_L. set_solver.
+    * erewrite dom_insert_L. erewrite dom_insert_L in Hdomsub. set_solver.
     * easy.
     * intros γ1; split.
       1: intros [Hel Hne]%elem_of_difference; specialize (Hstore γ1);
@@ -514,21 +514,21 @@ Proof.
       1-2: done.
       assert (γ ∈ ζσdom) as HHγ.
       1: eapply Hstore; do 2 eexists; erewrite lookup_insert; done.
-      eexists (<[ γ := (Mut, (TagDefault, blv)) ]> ζσ), (ζimm1 ∪ ζimm2). split_and!; unfold lstore, lloc_map, ML_lang.state in *.
+      eexists (<[ γ := (Mut, (TagDefault, blv)) ]> ζσ), (ζimm1 ∪ ζimm2). split_and!.
       1: { erewrite dom_insert_L. rewrite HIH1. erewrite union_difference_singleton_L; done. }
       1: { eapply map_disjoint_dom_2. erewrite dom_insert_L. erewrite dom_union_L. eapply map_disjoint_dom_1 in HIH2. set_solver. }
       1: { erewrite dom_union_L. set_solver. }
       intros ℓ vs γ1 blk [[ -> ?]|[Hne Hin1]]%lookup_insert_Some Hin2 Hin3.
       - rewrite Heq in Hin2; injection Hin2; intros <-.
-        erewrite <- insert_union_l in Hin3. unfold lstore in *. erewrite lookup_insert in Hin3. injection Hin3; intros <-.
+        erewrite <- insert_union_l in Hin3. erewrite lookup_insert in Hin3. injection Hin3; intros <-.
         econstructor. injection H0; intros ->. eapply Forall2_impl; first done.
-        intros ? ? ?; eapply is_val_mono; last done. 1:done. unfold lstore in *|-*.
+        intros ? ? ?; eapply is_val_mono; last done. 1:done.
         erewrite <- insert_union_l.
         etransitivity; first eapply insert_subseteq. 2: eapply @insert_mono. 1: eapply not_elem_of_dom; set_solver. 1: apply _.
         etransitivity; eapply map_union_subseteq_r; eapply map_disjoint_dom; last rewrite dom_union_L. 1: set_solver.
         eapply map_disjoint_dom in HIH2. set_solver.
       - specialize (HIH4 ℓ vs γ1 blk Hin1 Hin2).
-        assert (γ ≠ γ1) as Hneγ by (intros ->; eapply Hne; eapply Hinj; done). unfold lstore in *|-*.
+        assert (γ ≠ γ1) as Hneγ by (intros ->; eapply Hne; eapply Hinj; done).
         erewrite <- insert_union_l in Hin3. erewrite lookup_insert_ne in Hin3; last done.
         erewrite map_union_assoc in Hin3. erewrite lookup_union_l in Hin3; last (eapply not_elem_of_dom).
         2: { intros Hc. rewrite HIH1 in HH1. assert (γ1 ∈ ζσdom) as Hcc.
@@ -536,21 +536,21 @@ Proof.
              set_solver. }
         specialize (HIH4 Hin3). inversion HIH4; subst; econstructor.
         eapply Forall2_impl; first done.
-        intros ? ? ?; eapply is_val_mono; last done. 1:done. unfold lstore in *|-*.
+        intros ? ? ?; eapply is_val_mono; last done. 1:done.
         erewrite <- insert_union_l.
         etransitivity; first eapply insert_subseteq. 2: eapply insert_mono. 1: eapply not_elem_of_dom; set_solver.
         erewrite map_union_assoc. eapply map_union_subseteq_l.
   + apply map_Forall_insert in Hsafe; last done.
     destruct Hsafe as (_ & HsafeM).
     destruct (χ !! i) as [γ|] eqn:Heq.
-    2: { eapply not_elem_of_dom in Heq. unfold lloc_map in *|-*. rewrite <- Hdomeq in Heq. exfalso. erewrite dom_insert_L in Hdomsub. apply Heq; set_solver. }
+    2: { eapply not_elem_of_dom in Heq. rewrite <- Hdomeq in Heq. exfalso. erewrite dom_insert_L in Hdomsub. apply Heq; set_solver. }
     destruct (IHσ' (ζforbid ∪ {[γ]}) (ζσdom ∖ {[γ]}) (<[ i := None ]> σ) χ) as (ζσ & ζimm1 & HIH1 & HIH2 & HIH3 & HIH4).
     * eapply map_Forall_impl; first apply HsafeM. intros x1 [y1|] Hd; cbn; last done.
       eapply Forall_impl; first apply Hd. intros v; induction v as [[]| | | |]; cbn; eauto.
       2: intros [H1 H2]; split; eauto.
-      unfold ML_lang.state. erewrite dom_insert_L. set_solver.
-    * unfold ML_lang.state. erewrite dom_insert_L. set_solver.
-    * unfold ML_lang.state. erewrite dom_insert_L. erewrite dom_insert_L in Hdomsub. set_solver.
+      erewrite dom_insert_L. set_solver.
+    * erewrite dom_insert_L. set_solver.
+    * erewrite dom_insert_L. erewrite dom_insert_L in Hdomsub. set_solver.
     * easy.
     * intros γ1; split.
       1: intros [Hel Hne]%elem_of_difference; specialize (Hstore γ1);
@@ -561,7 +561,7 @@ Proof.
            eapply Hne2, Hinj; eauto. }
       eapply Hstore. do 2 eexists; repeat split; try done. erewrite lookup_insert_ne; first done.
       intros ->; rewrite H in H1; congruence.
-    * eexists (ζσ), (ζimm1). split_and!; unfold lstore, lloc_map, ML_lang.state in *.
+    * eexists (ζσ), (ζimm1). split_and!.
       assert (γ ∉ ζσdom) as Hnotin.
       1: { intros Hc. eapply Hstore in Hc. destruct Hc as (x&?&Hin1&Hin2).
            assert (x = i) as -> by by eapply Hinj. rewrite lookup_insert in Hin2. congruence. }
@@ -569,7 +569,7 @@ Proof.
       1: { done. }
       1: { set_solver. }
       intros ℓ vs γ1 blk [[ -> ?]|[Hne Hin1]]%lookup_insert_Some Hin2 Hin3; try congruence.
-      assert (γ ≠ γ1) as Hneγ by (intros ->; eapply Hne; eapply Hinj; done). unfold lstore in *|-*.
+      assert (γ ≠ γ1) as Hneγ by (intros ->; eapply Hne; eapply Hinj; done).
       eapply HIH4; try done.
 Qed.
 
@@ -621,9 +621,9 @@ Proof.
     1: done.
     1: reflexivity.
     1: set_solver.
-    1: unfold lstore; erewrite dom_union_L; set_solver.
-    1: unfold lstore in *|-*; eapply map_disjoint_dom in Hζ2; erewrite dom_union_L; set_solver.
-    { intros k1 k2 k3 k4 Hk1 Hk2 Hk3. specialize (Hζ4 k1 k2 k3 k4 Hk1 Hk2). unfold lstore in *.
+    1: erewrite dom_union_L; set_solver.
+    1: eapply map_disjoint_dom in Hζ2; erewrite dom_union_L; set_solver.
+    { intros k1 k2 k3 k4 Hk1 Hk2 Hk3. specialize (Hζ4 k1 k2 k3 k4 Hk1 Hk2).
       rewrite <- map_union_assoc in Hk3.
       assert (k3 ∈ dom ζσ2) as Hink3.
       1: { destruct H2 as [H21 H22]. apply H22. do 2 eexists; done. }
@@ -636,7 +636,7 @@ Proof.
       econstructor. eapply Forall2_impl; first done. intros x y ?; eapply is_val_mono; last done. 1: done.
       erewrite <- map_union_assoc. etransitivity; last eapply map_union_subseteq_r. 2: eapply map_disjoint_dom; erewrite dom_union_L; set_solver.
       erewrite map_union_assoc. eapply map_union_subseteq_l. }
-    1: { eapply Forall2_impl; first done. intros x y Hxy; eapply is_val_mono; last done. 1: done. unfold lstore in *|-*.
+    1: { eapply Forall2_impl; first done. intros x y Hxy; eapply is_val_mono; last done. 1: done.
          erewrite map_union_assoc. etransitivity; last eapply map_union_subseteq_r; first done.
          eapply map_disjoint_dom; erewrite ! dom_union_L. set_solver. }
     1: admit. (* GC_correct *)

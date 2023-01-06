@@ -22,6 +22,8 @@ Class heapGS_ML Σ := HeapGS_ML {
 }.
 Local Existing Instance heapGS_step_cnt.
 
+Local Notation state := (gmap loc (option (list val))).
+
 Section steps.
   Context `{!heapGS_ML Σ}.
 
@@ -62,7 +64,7 @@ End steps.
 Section DomAuth.
   Context `{!heapGS_ML Σ}.
 
-  Definition dom_auth (σ : gmap loc (option (list val))) : iProp Σ := 
+  Definition dom_auth (σ : state) : iProp Σ :=
     (@own _ _ heapGS_store_domain heapGS_store_domain_name (@auth_auth (@monotoneUR (leibnizO (gset loc)) subseteq) (DfracOwn (pos_to_Qp 1)) (principal subseteq (dom σ))))%I.
 
   Definition dom_part (σ : gset loc) : iProp Σ := 
@@ -109,7 +111,7 @@ End DomAuth.
 Section SafeValues.
   Context `{!heapGS_ML Σ}.
 
-  Fixpoint val_safe_on_heap (σ : state) (v:val) : Prop := match v with
+  Fixpoint val_safe_on_heap (σ : gmap loc (option (list val))) (v:val) : Prop := match v with
       LitV (LitInt _) => True
     | LitV (LitBool _) => True
     | LitV (LitUnit) => True
