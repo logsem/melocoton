@@ -26,7 +26,6 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-(* todo: lemmas to help manipulate is_store_blocks? *)
 Lemma block_sim_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
      gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)

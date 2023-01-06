@@ -27,8 +27,6 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-(* todo: lemmas to help manipulate is_store_blocks? *)
-
 Context (σ : Wrap.state).
 Notation SI := (weakestpre.state_interp σ).
 

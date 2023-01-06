@@ -89,7 +89,7 @@ Definition GC_token_remnant (roots_m : roots_map) : iProp Σ :=
  ∗ "HArootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 (roots_m : gmap loc lval)
  ∗ "Hrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦ None).
 
-Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
+Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
   ∃  (ζσ ζ : lstore) (fresh : gmap lloc unit),
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
   ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
@@ -164,7 +164,7 @@ Qed.
 
 (* todo: version of the notations without dq *)
 Notation "l ↦fresh{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
-                                ∗ ghost_map_elem (K:=lloc) (V:=unit) wrapperGS_γfresh l dq (()))%I
+                                ∗ ghost_map_elem (K:=lloc) (V:=unit) wrapperGS_γfresh l dq ())%I
   (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
 Notation "l ↦mut{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
                               ∗ ∃ ll, block_sim_raw ll l)%I
