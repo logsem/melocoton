@@ -580,8 +580,16 @@ Section language.
   eexists (fill (comp_ectx K K0) e2'), σ'. econstructor. 1: rewrite fill_comp; reflexivity. 1: reflexivity. apply H1.
   Qed.
 
+  Lemma reducible_call_is_in_prog p e K σ s vv : reducible p (fill K e) σ -> to_call e = Some (s,vv) -> p !! s <> None.
+  Proof.
+    intros [e' [σ' [efs Hred]]] H2. unfold to_call in H2. destruct to_class as [[]|] eqn:Heq; try congruence.
+    apply of_to_class in Heq as Heq2; subst. injection H2; intros -> ->.
+    apply prim_step_call_inv in Hred.
+    destruct Hred as (er & fn & Her & Hfn & _).
+    rewrite Hfn; congruence.
+  Qed.
 
-  Lemma reducible_no_threads_reducible p e σ K : reducible_no_threads p e σ → reducible p e σ.
+  Lemma reducible_no_threads_reducible p e σ : reducible_no_threads p e σ → reducible p e σ.
   Proof.
   intros (e' & σ' & Hs).
   now exists e', σ', [].

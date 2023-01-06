@@ -64,12 +64,13 @@ Definition GC (θ : addr_map) : iProp Σ :=
      ∗ ghost_map_auth wrapperGS_γroots_map 1 rootsmap
      ∗ ⌜dom rootsmap = roots⌝
      ∗ ⌜roots_are_live θ rootsmap⌝
-     ∗ ([∗ map] a ↦ v ∈ rootsmap, (∃ w, a ↦C w)).
+     ∗ ([∗ map] a ↦ v ∈ rootsmap, (∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)).
 
 (* TODO: custom notation (like l1 ~~ML l2 )? *)
 (* l1 is a location in the ML heap. l2 is a block location.
    They are similar if identified by χ *)
 Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (gset_bij_own_elem wrapperGS_γχbij l1 l2).
+
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
   ∃ (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (fresh : gmap lloc unit) (σMLvirt : store),
@@ -96,7 +97,7 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
 Definition GC_token_remnant (roots : gset addr) : iProp Σ :=
    ghost_var wrapperGS_γθ (1/2) (∅:addr_map)
  ∗ ghost_var wrapperGS_γroots_set (1/2) roots
- ∗ ghost_map_auth wrapperGS_γroots_map 1 (∅:gmap loc lval)
+ ∗ (∃ (rootsmap : gmap loc lval), ghost_map_auth wrapperGS_γroots_map 1 (rootsmap))
  ∗ ([∗ set] a ∈ roots, a O↦ None).
 
 Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
@@ -131,6 +132,8 @@ Global Program Instance wrapGS :
   state_interp := wrap_state_interp;
   at_boundary := (ghost_var wrapperGS_γat_boundary (1/2) true)%I;
 }.
+
+Definition not_at_boundary := (ghost_var wrapperGS_γat_boundary (1/2) false)%I.
 
 Global Program Instance wrap_linkableGS : linkableGS wrap_lang public_state_interp := {
   private_state_interp := private_state_interp
@@ -191,7 +194,6 @@ Proof.
 Qed.
 
 Definition block_sim_arr (vs:list MLval) (ls : list lval) : iProp Σ := [∗ list] v;l ∈ vs;ls, block_sim v l.
-
 
 End Embed_logic.
 

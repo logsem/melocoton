@@ -199,6 +199,8 @@ Bind Scope val_scope with val.
 
 Inductive function := Fun (b : list binder) (e : expr).
 
+Definition arity (F : function) := match F with Fun b e => length b end.
+
 Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=

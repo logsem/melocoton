@@ -60,10 +60,12 @@ Inductive split_state : state → public_state → private_state → Prop :=
 Local Notation prog := (gmap string C_lang.function).
 
 Implicit Types X : expr * state → Prop.
+
 Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (* Step in the underlying wrapped C program. *)
   | StepCS ec ρc mem ec' mem' X :
-    C_lang.head_step p ec mem ec' mem' →
+    (* TODO: make this head_step again when we add contexts *)
+    language.language.prim_step p ec mem ec' mem' [] →
     X (ExprC ec', CState ρc mem') →
     step_mrel p (ExprC ec, CState ρc mem) X
   (* Administrative step for resolving a call from ML. *)

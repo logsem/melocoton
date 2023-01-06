@@ -36,13 +36,12 @@ Proof.
   iIntros "(HGC & Hl & Hσ)".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
-  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
   iDestruct (gen_heap_valid with "HAσMLv Hl") as %Hlσ.
   destruct (χvirt !! l) as [ll|] eqn:Hlχ.
   2: { exfalso. 
        apply not_elem_of_dom_2 in Hlχ.
        apply elem_of_dom_2 in Hlσ.
-       destruct Hstore_blocks as [Hdom Hstore_blocks]. unfold lloc_map in Hdom. (* XXX lloc_map should be a notation then *)
+       destruct Hstore_blocks as [Hdom Hstore_blocks]. unfold lloc_map in Hdom.
        rewrite <- Hdom in Hlχ.
        by apply Hlχ. }
   iMod (gen_heap_update _ _ _ None with "HAσMLv Hl") as "[HAσMLv Hl]".
@@ -58,7 +57,7 @@ Proof.
   specialize (Hstore l vs ll bb Hlσ Hlχ Hfreezell) as Hstorel.
   inversion Hstorel; subst vs0 bb.
   iAssert (block_sim_arr vs lvs) as "#Hblock".
-  1: { iApply (block_sim_arr_of_ghost_state). 1: iApply "HAχpers". 1: iApply "HAζpers". all:done. }
+  1: by iApply (block_sim_arr_of_ghost_state with "HAχbij HAζpers").
   iAssert (block_sim_raw l ll) as "#Hraw".
   1: iApply (gset_bij_own_elem_get with "HAχbij"); by eapply elem_of_map_to_set_pair.
   assert (ζrest !! ll = None) as HζllNone.
@@ -120,7 +119,6 @@ Proof.
   iIntros "(Hσ & HGC & (Hl & (%ℓ & #Hlℓ)) & #Hsim)".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
-  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
   iPoseProof (block_sim_arr_to_ghost_state with "HAχbij HAζbl [] [] [] [] Hsim ") as "%Hsim".
   1-4: iPureIntro; done.
   iPoseProof (@gset_bij_elem_of with "HAχbij Hlℓ") as "%Hχℓ".
@@ -183,7 +181,6 @@ Proof.
   iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
-  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
   iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
   iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
   pose (fresh_locs (dom χvirt)) as ℓ.
@@ -262,7 +259,6 @@ Proof.
   iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iDestruct "Hσ" as SIC_ip.
-  iPoseProof (gset_bij_own_elem_get_big with "HAχbij") as "#HAχpers".
   iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
   iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
   iMod ((ghost_map_update (Immut,bb)) with "HAζbl Hmtζ") as "(HAζbl & Hmtζ)".

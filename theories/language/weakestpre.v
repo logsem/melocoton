@@ -317,7 +317,7 @@ Proof.
   - iRight. iRight. iModIntro. iDestruct "H3" as "(%Hred & H3)".
     iSplitR; first eauto using reducible_no_threads_fill.
     iIntros "%σ' %e' %Hstep".
-    pose proof (reducible_not_val _ _ _ (reducible_no_threads_reducible _ _ _ K Hred)) as  Hnone.
+    pose proof (reducible_not_val _ _ _ (reducible_no_threads_reducible _ _ _ Hred)) as  Hnone.
     destruct (fill_step_inv _ _ _ _ _ _ _ Hnone Hstep) as (e2'' & -> & H4).
     iSpecialize ("H3" $! σ' e2'' H4). iMod "H3". do 2 iModIntro.
     iMod "H3" as "(Hσ & H3)". iModIntro. iFrame.

@@ -90,7 +90,8 @@ Implicit Type ζ : lstore.
    block-level locations. *)
 
 (* maps an ML location to its corresponding logical location *)
-Definition lloc_map : Type := gmap loc lloc.
+(* TODO: make notation *)
+Definition lloc_map := (gmap loc lloc).
 Implicit Type χ : lloc_map.
 
 (* maps a logical location to its address in C memory.
@@ -98,12 +99,12 @@ Implicit Type χ : lloc_map.
    *are* moved around by the GC in the actual memory, this means that "the
    current θ" will often arbitrarily change during the execution, each time a GC
    might occur. *)
-Definition addr_map : Type := gmap lloc addr.
+Definition addr_map := (gmap lloc addr).
 Implicit Type θ : addr_map.
 
 (* maps each root (a heap cell in C memory) to the logical value it is tracking
    and keeping alive *)
-Definition roots_map : Type := gmap addr lval.
+Definition roots_map := (gmap addr lval).
 
 
 (************

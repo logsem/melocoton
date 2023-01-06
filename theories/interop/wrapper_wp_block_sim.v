@@ -29,7 +29,7 @@ Implicit Types P : iProp Σ.
 (* todo: lemmas to help manipulate is_store_blocks? *)
 Lemma block_sim_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     ([∗ set] ab ∈ map_to_set pair χvirt, gset_bij_own_elem wrapperGS_γχbij ab.1 ab.2)
+     gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
   -∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
@@ -41,7 +41,7 @@ Proof.
   iIntros "Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
   iInduction v as [[x|bo| | |]| | | |] "IH" forall (b H); cbn; inversion H; try done.
   1: iExists γ; iSplit; first done.
-  1: (iPoseProof (big_sepS_elem_of with "Hχ") as "Hχin"; first (by eapply elem_of_map_to_set_pair)); iApply "Hχin".
+  1: iApply (gset_bij_own_elem_get with "Hχ"); by eapply elem_of_map_to_set_pair.
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
   3-4: iExists γ, lv; iSplit; first done; iSplit.
   1,3,5: iApply (big_sepM_lookup with "Hζ"); try done.
@@ -66,7 +66,7 @@ Qed.
 
 Lemma block_sim_arr_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs b :
-     ([∗ set] ab ∈ map_to_set pair χvirt, gset_bij_own_elem wrapperGS_γχbij ab.1 ab.2)
+     gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
   -∗ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
@@ -75,9 +75,9 @@ Lemma block_sim_arr_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : ll
   -∗⌜Forall2 (is_val χvirt ζfreeze) vs b⌝
   -∗ block_sim_arr vs b.
 Proof.
-  iIntros "#Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
-  iApply big_sepL2_intro; first by eapply Forall2_length.
-  iIntros "!> %k %v %l %H1 %H2".
+  iIntros "Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
+  iApply big_sepL2_forall; iSplit; first (iPureIntro; by eapply Forall2_length).
+  iIntros "%k %v %l %H1 %H2".
   iApply (block_sim_of_ghost_state with "Hχ Hζ"); try done.
   iPureIntro. eapply Forall2_lookup_lr; done.
 Qed.
