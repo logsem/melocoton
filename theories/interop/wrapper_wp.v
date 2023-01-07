@@ -90,14 +90,14 @@ Definition GC_token_remnant (roots : gset addr) : iProp Σ :=
  ∗ (∃ (rootsmap : gmap loc lval), ghost_map_auth wrapperGS_γroots_map 1 (rootsmap))
  ∗ ([∗ set] a ∈ roots, a O↦ None).
 
-Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
-  ∃  (ζσ ζrest : lstore) (fresh : gmap lloc unit) (σCvirt : memory),
+Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
+  ∃  (ζσ ζ : lstore) (fresh : gmap lloc unit),
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
   ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
   ∗ "HAζbl" ∷ ghost_map_auth wrapperGS_γζblock 1 ζrest
-  ∗ "(%nCv & HAσCv & HAnCv)" ∷ (∃ n, state_interp σCvirt n)
+  ∗ "(%nCv & HAσCv & HAnCv)" ∷ (∃ n, state_interp (memC ∪ (fmap (fun k => None) roots)) n)
   ∗ "HAχbij" ∷ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χ)
-  ∗ "HAfresh" ∷ ghost_map_auth wrapperGS_γfresh (1/2) fresh
+  ∗ "HAfresh" ∷ ghost_map_auth wrapperGS_γfresh 1 fresh
   ∗ "HAχNone" ∷ big_sepM_limited χ (dom ζrest) (fun ℓ _ => ℓ ↦M/)
   ∗ "#HAζpers" ∷ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
@@ -114,7 +114,7 @@ Definition private_state_interp : wrapstateML -> iProp Σ := (λ ρml, ML_state_
 Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
   match σ with
   | Wrap.CState ρc mem =>
-      "[%nCv HσC]" ∷ (∃ n, state_interp mem n) ∗
+      "(%nCv & HσC & HnC)" ∷ (∃ n, state_interp mem n) ∗
       "SIC"        ∷ C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc)
   | Wrap.MLState ρml σ =>
       "[%nMLv HσML]" ∷ public_state_interp σ ∗

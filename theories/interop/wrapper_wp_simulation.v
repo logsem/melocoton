@@ -40,6 +40,84 @@ Definition forbidden_function_names : list string := ["alloc"; "registerroot"; "
 
 Notation wrap_return := (fun Φ (a:Cval) => (∃ θ' l v, GC θ' ∗ Φ v ∗ ⌜repr_lval θ' l a⌝ ∗ block_sim v l)%I).
 
+Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.
+Proof.
+  induction 1.
+  + by do 2 rewrite dom_empty_L.
+  + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots.
+Qed.
+
+Lemma make_repr θ roots_m mem : 
+    roots_are_live θ roots_m
+ -> map_Forall (λ k v, ∃ w , mem !! k = Some (Storing w) ∧ repr_lval θ v w) roots_m
+ -> ∃ privmem, repr θ roots_m privmem mem.
+Proof.
+  revert mem. unfold C_lang.state in * |- *.
+  induction roots_m as [|l a roots_m Hin IH] using map_ind; intros mem Hlive Hforall.
+  + exists mem, ∅. split_and!.
+    2: eapply map_disjoint_empty_r.
+    2: by rewrite map_empty_union.
+    econstructor.
+  + apply map_Forall_insert_1_1 in Hforall as Hforall2.
+    destruct Hforall2 as (w & Hw & Hrep).
+    specialize (IH (delete l mem)).
+    destruct IH as (privmem & memr & IH & Hdisj & Hunion).
+    1: intros l' g Hg; eapply Hlive. rewrite lookup_insert_ne; first done; intros ->; rewrite Hg in Hin; congruence.
+    1: apply map_Forall_lookup; intros i x Hinix;
+       eapply map_Forall_lookup_1 in Hforall.
+    1: destruct Hforall as (w' & H1 & H2); exists w'; repeat split; try done.
+    1: rewrite lookup_delete_ne; first done.
+    2: rewrite lookup_insert_ne; first done.
+    1-2: intros ->; rewrite Hin in Hinix; congruence.
+    assert (memr !! l = None) as HNone1.
+    1: apply not_elem_of_dom; erewrite <- repr_roots_dom; last done; by eapply not_elem_of_dom.
+    assert (privmem !! l = None) as Hnone2.
+    rewrite <- (lookup_union_r memr privmem); try done; unfold C_lang.state in Hunion. rewrite <- Hunion; by apply lookup_delete.
+    eexists privmem, _. split_and!.
+    * econstructor; try done; by eapply not_elem_of_dom.
+    * by apply map_disjoint_insert_r.
+    * unfold C_lang.state in * |- *. erewrite <- insert_union_l. rewrite <- Hunion. rewrite insert_delete_insert.
+      apply map_eq_iff. intros i. destruct (decide (i = l)) as [-> |]; (try by rewrite lookup_insert); by rewrite lookup_insert_ne.
+Qed.
+
+Lemma repr_lval_inj θ v w w' : repr_lval θ v w -> repr_lval θ v w' -> w = w'.
+Proof.
+  induction 1; inversion 1.
+  + done.
+  + rewrite H in H3. injection H3; intros ->; done.
+Qed.
+
+Lemma set_to_none θ mem roots_m privmem :
+    repr θ roots_m privmem mem
+ -> gen_heap_interp mem
+ -∗ ([∗ map] a0↦v0 ∈ roots_m, ∃ w, a0 ↦C{DfracOwn 1} w ∗ ⌜repr_lval θ v0 w⌝)
+==∗ (gen_heap_interp (privmem ∪ ((λ _ : lval, None) <$> roots_m))
+    ∗[∗ set] a0 ∈ dom roots_m, a0 O↦ None).
+Proof.
+  intros (mm & Hrepr1 & Hrepr2 & Hrepr3).
+  induction Hrepr1 in Hrepr2,Hrepr3,mem,privmem|-*.
+  + iIntros "Hheap Hmap !>".
+    rewrite fmap_empty. rewrite dom_empty_L. rewrite map_union_empty.
+    rewrite map_empty_union in Hrepr3. subst mem. iFrame.
+    iApply big_sepS_empty. done.
+  + iIntros "Hheap Hmap".
+    iPoseProof (big_sepM_insert) as "(Hb1 & _)". 1: eapply not_elem_of_dom, H0.
+    iPoseProof ("Hb1" with "Hmap") as "((%w' & Hw & %Hrepr4) & Hmap)".
+    pose proof (repr_lval_inj _ _ _ _ Hrepr4 H) as Heq; subst w'.
+    iMod (gen_heap_update with "Hheap Hw") as "(Hheap & Hw)".
+    specialize (IHHrepr1 (<[a:=None]> mem) (<[a:=None]> privmem)).
+    iMod (IHHrepr1 with "Hheap Hmap") as "(Hheap & Hmap)".
+    * eapply map_disjoint_insert_l_2; first by eapply not_elem_of_dom.
+      erewrite <- (delete_insert mem0).
+      eapply map_disjoint_delete_r; first apply Hrepr2. by eapply not_elem_of_dom.
+    * subst mem. unfold C_lang.state. erewrite <- insert_union_l.
+      rewrite insert_insert. rewrite insert_union_r; first done. by eapply not_elem_of_dom.
+    * iModIntro. iSplitL "Hheap".
+      - unfold C_lang.state. erewrite <- insert_union_l. rewrite insert_union_r.
+        2: eapply map_disjoint_Some_r; try done; by rewrite lookup_insert.
+        rewrite fmap_insert. iFrame.
+      - rewrite dom_insert_L. iApply big_sepS_insert; first done. iFrame.
+Qed.
 
 Lemma wp_to_val E p T a Φ: 
     wrap_return Φ a
@@ -63,27 +141,59 @@ Proof.
        [exists (ExprVal a); cbn; by rewrite H
        |subst K; cbn in *; subst ec; cbn in Heq; congruence| congruence].
   cbn in H3; injection H3; intros <-.
+
   iAssert (⌜is_val χvirt ζfreeze v l⌝)%I as "%Hval".
   1: iApply (block_sim_to_ghost_state with "HAχbij HAζbl"); done.
-
-  iPoseProof (ghost_var_agree with "HAGCθ HAθ") as "->".
-  iPoseProof (ghost_var_agree with "HArootss HAroots") as "->".
-  iPoseProof (@fractional.fractional_merge _ (ghost_var wrapperGS_γat_boundary (1 / 4) false) (ghost_var wrapperGS_γat_boundary (1 / 4) false) _ (1/4) (1/4) (ghost_var_fractional _ _) with "HAGCbound HAbound") as "Hnb'".
-  assert ((1 / 4 + 1 / 4 = 1 / 2)%Qp) as -> by compute_done.
-  iMod (ghost_var_update_halves with "Hnb Hnb'") as "(Hnb & Hbound)".
+  iAssert (⌜∀ k v, roots_m !! k = Some v → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval θ v w⌝)%I as "%Hroots".
+  1: { iIntros (kk vv Hroots). iPoseProof (big_sepM_lookup with "Hrootspto") as "(%w & Hw & %Hw2)"; first done.
+       iExists w. iSplit; last done. iApply (gen_heap_valid with "HσC Hw"). }
+  apply map_Forall_lookup_2 in Hroots.
+  iPoseProof (ghost_var_agree with "HAGCθ HAθ") as "%Hagree1"; subst θ.
+  iPoseProof (ghost_var_agree with "HArootss HAroots") as "%Hagree2"; subst roots_s.
+  iMod (ghost_var_update_halves with "Hnb [HAGCbound HAbound]") as "(Hnb & Hbound)".
+  1: iPoseProof (@fractional.fractional_merge _ 
+     (ghost_var wrapperGS_γat_boundary (1 / 4) false) (ghost_var wrapperGS_γat_boundary (1 / 4) false) 
+     _ (1/4) (1/4) (ghost_var_fractional _ _) with "HAGCbound HAbound") as "HH".
+  1: by assert ((1 / 4 + 1 / 4 = 1 / 2)%Qp) as -> by compute_done.
+  destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
+  iMod (ghost_var_update_halves with "HAGCθ HAθ") as "(HAGCθ & HAθ)".
+  iAssert (⌜gmap_inj χvirt⌝)%I as "%Hinj".
+  1: { iPoseProof (gset_bij_own_valid with "HAχbij") as "%Hbij". iPureIntro.
+       destruct Hbij as (_ & Hbij). intros l1 l2 vv Hl1 Hl2.
+       eapply gset_bijective_eq_iff. 1: apply Hbij.
+       1-2: eapply elem_of_map_to_set_pair. all: done. }
+  iMod (set_to_none with "HσC Hrootspto") as "(HσC & Hrootspto)".
+  1: done.
 
   do 3 iModIntro. do 2 iExists _.  iSplit.
-  1: iPureIntro; eapply (H4 σMLvirt l v ζfreeze ζσ χvirt ζrest roots_m mem).
+  1: iPureIntro; eapply (H4 σMLvirt l v ζfreeze ζσ χvirt ζrest roots_m privmem).
   all: try done.
   1: rewrite map_union_comm; done.
   1: apply map_disjoint_dom_1; eapply map_disjoint_spec; intros ?????; by eapply map_disjoint_spec.
-  1: admit.
+
   iSplitR "Hv Hnb"; last first.
   1: { cbn. unfold Wrap.fill. iApply weakestpre.wp_value'. iFrame. }
   cbn. iSplitL "HAσMLv HAnMLv".
   1: iExists nMLv; iFrame.
-  unfold private_state_interp, ML_state_interp, named; cbn.
-Admitted.
+  unfold private_state_interp, ML_state_interp, GC_token_remnant, named; cbn.
+  iExists ζσ, ζfreeze, fresh.
+  iFrame "HArootss".
+  iSplitL "HAGCθ"; first iApply "HAGCθ".
+  iFrame "HAζbl".
+  iFrame "HAχbij".
+  iFrame "HAfresh".
+  iFrame "HAζpers".
+  iFrame "Hbound".
+  iFrame "HAθ".
+  rewrite <- Hagree2.
+  iFrame "HAroots".
+  iFrame "HAχNone".
+  iSplitL "HσC HnC".
+  1: iExists nCv; iFrame.
+  iSplitL; last (repeat iSplit; iPureIntro).
+  1: iSplitR "Hrootspto"; first by iExists roots_m.
+  all: done.
+Qed.
 
 Lemma wp_simulates E p T ec Φ: 
     ⌜Forall (fun k => p !! k = None) forbidden_function_names⌝
@@ -99,10 +209,11 @@ Proof.
   destruct σ as [ρml σ | ρc mem].
   1: iExFalso; iClear "HWP"; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb HAbound") as "%HH"; congruence.
   iNamed "Hσ"; iNamed "SIC".
-  iMod ("HWP" $! mem nCv with "HσC") as 
+  iMod ("HWP" $! mem nCv with "[HσC HnC]") as 
   "[(%x & -> & Hσ & Hret)
   |[(%s' & %vv & %K' & -> & %H2 & >(%Ξ & Hσ & HT & Hr))
   |(%Hred & H3)]]".
+  + cbn. iFrame.
   + iPoseProof (wp_to_val with "Hret") as "Hret".
     iSpecialize ("Hret" with "Hnb").
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.

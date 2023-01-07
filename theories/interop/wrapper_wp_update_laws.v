@@ -65,8 +65,8 @@ Proof.
   1: eapply map_disjoint_Some_l; done.
   iAssert (⌜gset_bijective (map_to_set pair χvirt)⌝)%I as "%Hbij".
   1: { by iDestruct (gset_bij_own_valid with "HAχbij") as %[? ?]. }
-  iSplitR "Hzz". 1: iSplitL "HσC".
-  + iExists _. iApply "HσC".
+  iSplitR "Hzz". 1: iSplitL "HσC HnC".
+  + iExists _. iFrame.
   + unfold C_state_interp, named. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, (TagDefault, lvs))]> ζrest).
     iExists χvirt, fresh, (<[l:=None]> σMLvirt). iFrame.
     iSplitL "HAnMLv". 1: iExists _; iFrame.
@@ -139,7 +139,7 @@ Proof.
   iMod (gen_heap_update _ _ _ (Some vs) with "HAσMLv Hℓ") as "[HAσMLv Hℓ]".
   iMod (ghost_map_delete with "HAζbl Hl") as "HAζbl".
   iModIntro. iFrame "HGC". iSplitR "Hℓ". 2: iExists ℓ; iFrame; done.
-  cbn. iSplitL "HσC".
+  cbn. iSplitL "HσC HnC".
   1: iExists _; iFrame.
   unfold C_state_interp, named.
   iExists ζfreeze, (<[γ:=(Mut, (TagDefault, b))]>ζσ), (delete γ ζrest).
@@ -201,7 +201,7 @@ Proof.
   iFrame "HGC".
   iSplitR "Hℓγ Hmtζ".
   2: { iFrame. iExists ℓ. iApply "Hℓγ". }
-  cbn. iSplitL "HσC"; first (iExists nCv; iFrame).
+  cbn. iSplitL "HσC HnC"; first (iExists nCv; iFrame).
   unfold C_state_interp, named. unfold lstore.
   iExists ζfreeze, ζσ, ζrest.
   iExists (<[ℓ:=γ]> χvirt), (delete γ fresh), (<[ ℓ := None ]> σMLvirt).
@@ -272,7 +272,7 @@ Proof.
   iFrame "HGC".
   iSplitL.
   2: done.
-  cbn. iSplitL "HσC"; first (iExists nCv; iFrame).
+  cbn. iSplitL "HσC HnC"; first (iExists nCv; iFrame).
   iExists (<[γ:=(Immut, bb)]> ζfreeze), ζσ, (<[γ:=(Immut, bb)]> ζrest).
   iExists χvirt, (delete γ fresh), σMLvirt.
   iFrame. iFrame "HAζpers".
