@@ -178,21 +178,20 @@ Proof.
   unfold private_state_interp, ML_state_interp, GC_token_remnant, named; cbn.
   iExists ζσ, ζfreeze, fresh.
   iFrame "HArootss".
-  iSplitL "HAGCθ"; first iApply "HAGCθ".
+  iFrame "HAGCθ".
   iFrame "HAζbl".
+  iSplitL "HσC HnC"; first (iExists nCv; iFrame).
   iFrame "HAχbij".
   iFrame "HAfresh".
+  iFrame "HAχNone".
   iFrame "HAζpers".
   iFrame "Hbound".
   iFrame "HAθ".
   rewrite <- Hagree2.
   iFrame "HAroots".
-  iFrame "HAχNone".
-  iSplitL "HσC HnC".
-  1: iExists nCv; iFrame.
-  iSplitL; last (repeat iSplit; iPureIntro).
-  1: iSplitR "Hrootspto"; first by iExists roots_m.
-  all: done.
+  iSplitL; last by repeat iSplit.
+  iSplitR "Hrootspto"; first by iExists roots_m.
+  done.
 Qed.
 
 Lemma wp_simulates E p T ec Φ: 
