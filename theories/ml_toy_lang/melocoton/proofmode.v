@@ -2,7 +2,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From melocoton.ml_toy_lang Require Export lang tactics.
 From melocoton.ml_toy_lang.melocoton Require Export lang_instantiation tactics
-     primitive_laws class_instances.
+     class_instances primitive_laws.
 From melocoton.ml_toy_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
@@ -218,51 +218,74 @@ Implicit Types Δ : envs (uPredI (iResUR Σ)).
 Implicit Types v : val.
 Implicit Types z : Z.
 
-Lemma tac_wp_allocN Δ Δ' s E j K v n Φ :
+Lemma tac_wp_allocN Δ Δ' s E j k K v n Φ :
   (0 ≤ n)%Z →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
+  envs_entails Δ' (val_safe v) →
   (∀ l,
     match envs_app false (Esnoc Enil j (l ↦∗ replicate (Z.to_nat n) v)) Δ' with
-    | Some Δ'' =>
-       envs_entails Δ'' (WP fill K (Val $ LitV $ LitLoc l) @ s; E {{ Φ }})
+    | Some Δ'' => match envs_app true (Esnoc Enil k (val_safe (#l))) Δ'' with
+       | Some Δ''' => envs_entails Δ''' (WP fill K (Val $ LitV $ LitLoc l) @ s; E {{ Φ }})
+       | None => False end
     | None => False
     end) →
   envs_entails Δ (WP fill K (AllocN (Val $ LitV $ LitInt n) (Val v)) @ s; E {{ Φ }}).
 Proof.
-  rewrite envs_entails_unseal=> ? ? HΔ.
+  rewrite envs_entails_unseal=> ?? Hsafe HΔ.
   rewrite -wp_bind. eapply wand_apply; first exact: wp_allocN.
-  rewrite left_id into_laterN_env_sound; apply later_mono, forall_intro=> l.
+  rewrite into_laterN_env_sound -later_sep. apply later_mono.
+  iIntros "Hl". iAssert (val_safe v) as "#Hv".
+  1: by iApply Hsafe.
+  iFrame "Hv".
+  iIntros (l).
   specialize (HΔ l).
-  destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
+  destruct (envs_app false _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
+  destruct (envs_app true _ _) as [Δ'''|] eqn:HΔ''; [ | contradiction ].
+  iIntros "(Hmapsto & Hmeta & #Hsafe)". iApply HΔ.
   rewrite envs_app_sound //; simpl.
-  apply wand_intro_l. by rewrite (sep_elim_l (l ↦∗ _)%I) right_id wand_elim_r.
+  rewrite envs_app_sound //; simpl. iApply ("Hl" with "[Hmapsto] []").
+  1: iFrame.
+  iModIntro. iSplitL; try done.
 Qed.
 
-Lemma tac_wp_alloc Δ Δ' s E j K v Φ :
+Lemma tac_wp_alloc Δ Δ' s E j k K v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
+  envs_entails Δ' (val_safe v) →
   (∀ l,
     match envs_app false (Esnoc Enil j (l ↦M v)) Δ' with
-    | Some Δ'' =>
-       envs_entails Δ'' (WP fill K (Val $ LitV l) @ s; E {{ Φ }})
+    | Some Δ'' =>match envs_app true (Esnoc Enil k (val_safe (#l))) Δ'' with
+       | Some Δ''' => envs_entails Δ''' (WP fill K (Val $ LitV $ LitLoc l) @ s; E {{ Φ }})
+       | None => False end
     | None => False
     end) →
   envs_entails Δ (WP fill K (Alloc (Val v)) @ s; E {{ Φ }}).
 Proof.
-  rewrite envs_entails_unseal=> ? HΔ.
+  rewrite envs_entails_unseal=> ? Hsafe HΔ.
   rewrite -wp_bind. eapply wand_apply; first exact: wp_alloc.
-  rewrite left_id into_laterN_env_sound; apply later_mono, forall_intro=> l.
+  rewrite into_laterN_env_sound -later_sep. apply later_mono.
+  iIntros "Hl". iAssert (val_safe v) as "#Hv".
+  1: by iApply Hsafe.
+  iFrame "Hv".
+  iIntros (l).
   specialize (HΔ l).
-  destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
+  destruct (envs_app false _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
+  destruct (envs_app true _ _) as [Δ'''|] eqn:HΔ''; [ | contradiction ].
+  iIntros "(Hmapsto & Hmeta & #Hsafe)". iApply HΔ.
   rewrite envs_app_sound //; simpl.
-  apply wand_intro_l. by rewrite (sep_elim_l (l ↦M v)%I) right_id wand_elim_r.
+  rewrite envs_app_sound //; simpl. iApply ("Hl" with "[Hmapsto] []").
+  1: iFrame.
+  iModIntro. iSplitL; try done.
 Qed.
 
-Lemma tac_wp_loadN Δ Δ' s E i K b l q n vs v Φ :
+Lemma tac_wp_loadN Δ Δ' s E i j K b l q n vs v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (b, l ↦∗{q} vs)%I →
   (0 ≤ n)%Z →
   vs !! Z.to_nat n = Some v →
-  envs_entails Δ' (WP fill K (Val v) @ s; E {{ Φ }}) →
+  match envs_app true (Esnoc Enil j (val_arr_safe vs)) Δ' with
+   | Some Δ'' => envs_entails Δ'' (WP fill K (Val v) @ s; E {{ Φ }})
+   | None => False end
+   →
   envs_entails Δ (WP fill K (LoadN (LitV l) (LitV $ LitInt n)) @ s; E {{ Φ }}).
 Proof.
   rewrite envs_entails_unseal=> ?? Hn Hvs Hi.
@@ -270,14 +293,20 @@ Proof.
   rewrite into_laterN_env_sound -later_sep envs_lookup_split //; simpl.
   apply later_mono.
   destruct b; simpl.
-  * iIntros "[#$ He]". iIntros "_". iApply Hi. iApply "He". iFrame "#".
-  * by apply sep_mono_r, wand_mono.
+  all: iIntros "[Hmaps1 He]"; (try iDestruct "Hmaps1" as "#Hmaps1");
+       iFrame "Hmaps1"; iIntros "(Hmaps & #Hsafe)";
+       destruct (envs_app true _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ];
+       rewrite envs_app_sound //; simpl;
+       iApply Hi; iApply ("He" with "[Hmaps] []"); try done; iModIntro; by iSplitL.
 Qed.
 
-Lemma tac_wp_load Δ Δ' s E i K b l q v Φ :
+Lemma tac_wp_load Δ Δ' s E i j K b l q v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (b, l ↦M{q} v)%I →
-  envs_entails Δ' (WP fill K (Val v) @ s; E {{ Φ }}) →
+  match envs_app true (Esnoc Enil j (val_safe v)) Δ' with
+   | Some Δ'' => envs_entails Δ'' (WP fill K (Val v) @ s; E {{ Φ }})
+   | None => False end
+   →
   envs_entails Δ (WP fill K (Load (LitV l)) @ s; E {{ Φ }}).
 Proof.
   rewrite envs_entails_unseal=> ?? Hi.
@@ -285,8 +314,11 @@ Proof.
   rewrite into_laterN_env_sound -later_sep envs_lookup_split //; simpl.
   apply later_mono.
   destruct b; simpl.
-  * iIntros "[#$ He]". iIntros "_". iApply Hi. iApply "He". iFrame "#".
-  * by apply sep_mono_r, wand_mono.
+  all: iIntros "[Hmaps1 He]"; (try iDestruct "Hmaps1" as "#Hmaps1");
+       iFrame "Hmaps1"; iIntros "(Hmaps & #Hsafe)";
+       destruct (envs_app true _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ];
+       rewrite envs_app_sound //; simpl;
+       iApply Hi; iApply ("He" with "[Hmaps] []"); try done; iModIntro; by iSplitL.
 Qed.
 
 Lemma tac_wp_length Δ Δ' s E i K b l q vs Φ :
@@ -307,6 +339,7 @@ Qed.
 Lemma tac_wp_storeN Δ Δ' s E i K l n vs v v' Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (false, l ↦∗ vs)%I →
+  envs_entails Δ' (val_safe v') →
   (0 ≤ n < length vs)%Z →
   match envs_simple_replace i false (Esnoc Enil i (l ↦∗ <[Z.to_nat n := v']> vs)) Δ' with
   | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})
@@ -314,27 +347,40 @@ Lemma tac_wp_storeN Δ Δ' s E i K l n vs v v' Φ :
   end →
   envs_entails Δ (WP fill K (StoreN (LitV l) (LitV $ LitInt n) (Val v')) @ s; E {{ Φ }}).
 Proof.
-  rewrite envs_entails_unseal=> ????.
-  destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
+  rewrite envs_entails_unseal=> ?? Hsafe ? Hcont.
+  destruct (envs_simple_replace _ false _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
   rewrite -wp_bind. eapply wand_apply; first by eapply wp_storeN.
-  rewrite into_laterN_env_sound -later_sep envs_simple_replace_sound //; simpl.
-  rewrite right_id. by apply later_mono, sep_mono_r, wand_mono.
+  rewrite into_laterN_env_sound -!later_sep.
+  iIntros "H1 !>".
+  iAssert (val_safe v') as "#Hsafe". 1: by iApply Hsafe. 
+  rewrite envs_simple_replace_sound //; simpl.
+  iDestruct "H1" as "(Hmapsto & Hcont)".
+  iFrame "Hmapsto Hsafe".
+  iIntros "Hl". iApply Hcont. iApply "Hcont".
+  iPoseProof (emp_sep_1 with "Hl") as "($&$)".
 Qed.
 
 Lemma tac_wp_store Δ Δ' s E i K l v v' Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (false, l ↦M v)%I →
+  envs_entails Δ' (val_safe v') →
   match envs_simple_replace i false (Esnoc Enil i (l ↦M v')) Δ' with
   | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})
   | None => False
   end →
   envs_entails Δ (WP fill K (Store (LitV l) (Val v')) @ s; E {{ Φ }}).
 Proof.
-  rewrite envs_entails_unseal=> ???.
-  destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
+  rewrite envs_entails_unseal=> ?? Hsafe Hcont.
+  destruct (envs_simple_replace _ false _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
   rewrite -wp_bind. eapply wand_apply; first by eapply wp_store.
-  rewrite into_laterN_env_sound -later_sep envs_simple_replace_sound //; simpl.
-  rewrite right_id. by apply later_mono, sep_mono_r, wand_mono.
+  rewrite into_laterN_env_sound -!later_sep.
+  iIntros "H1 !>".
+  iAssert (val_safe v') as "#Hsafe". 1: by iApply Hsafe. 
+  rewrite envs_simple_replace_sound //; simpl.
+  iDestruct "H1" as "(Hmapsto & Hcont)".
+  iFrame "Hmapsto Hsafe".
+  iIntros "Hl". iApply Hcont. iApply "Hcont".
+  iPoseProof (emp_sep_1 with "Hl") as "($&$)".
 Qed.
 
 End heap.
@@ -370,14 +416,15 @@ Tactic Notation "wp_smart_apply" open_constr(lem) :=
   wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
                     ltac:(fun cont => wp_pure _; []; cont ()).
 
-Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
+Tactic Notation "wp_alloc" ident(l) "as" constr(H) "," constr(Hlive) :=
   let Htmp := iFresh in
+  let Htmplive := iFresh in
   let finish _ :=
     first [intros l | fail 1 "wp_alloc:" l "not fresh"];
     pm_reduce;
     lazymatch goal with
-    | |- False => fail 1 "wp_alloc:" H "not fresh"
-    | _ => iDestructHyp Htmp as H; wp_finish
+    | |- False => fail 1 "wp_alloc:" H " or " Hlive "not fresh"
+    | _ => iDestructHyp Htmp as H; iDestructHyp Htmplive as Hlive; wp_finish
     end in
   wp_pures;
   (** The code first tries to use allocation lemma for a single reference,
@@ -388,25 +435,32 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let process_single _ :=
         first
-          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloc _ _ _ _ Htmp K))
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloc _ _ _ _ Htmp Htmplive K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
-        [iSolveTC
+        [iSolveTC | try done
         |finish ()]
     in
     let process_array _ :=
         first
-          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_allocN _ _ _ _ Htmp K))
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_allocN _ _ _ _ Htmp Htmplive K))
           |fail 1 "wp_alloc: cannot find 'AllocN' in" e];
-        [idtac|iSolveTC
+        [idtac|iSolveTC | try done
          |finish ()]
     in (process_single ()) || (process_array ())
   | _ => fail "wp_alloc: not a 'wp'"
   end.
 
 Tactic Notation "wp_alloc" ident(l) :=
-  wp_alloc l as "?".
+  wp_alloc l as "?", "?".
 
-Tactic Notation "wp_load" :=
+Tactic Notation "wp_load" "as" constr(H):=
+  let Htmp := iFresh in
+  let finish _ :=
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_load:" H " not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
   let solve_mapsto_single _ :=
     let l := match goal with |- _ = Some (_, (?l ↦M{_} _)%I) => l end in
     iAssumptionCore || fail "wp_load: cannot find" l "↦ ?" in
@@ -418,23 +472,27 @@ Tactic Notation "wp_load" :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let process_single _ :=
       first
-        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load _ _ _ _ _ K))
+        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load _ _ _ _ _ Htmp K))
         |fail 1 "wp_load: cannot find 'Load' in" e];
       [iSolveTC
       |solve_mapsto_single ()
-      |wp_finish]
+      |finish ()]
     in
     let process_array _ :=
       first
-        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_loadN _ _ _ _ _ K))
+        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_loadN _ _ _ _ _ Htmp K))
         |fail 1 "wp_load: cannot find 'LoadN' in" e];
       [iSolveTC
       | |
       | solve_mapsto_array ()
-      |wp_finish]
+      |finish ()]
     in (process_single ()) || (process_array ())
   | _ => fail "wp_load: not a 'wp'"
   end.
+
+
+Tactic Notation "wp_load" :=
+  wp_load as "_".
 
 Tactic Notation "wp_store" :=
   let solve_mapsto_single _ :=
@@ -452,6 +510,7 @@ Tactic Notation "wp_store" :=
         |fail 1 "wp_store: cannot find 'Store' in" e];
       [iSolveTC
       |solve_mapsto_single ()
+      |try done
       |pm_reduce; first [wp_seq|wp_finish]]
     in
     let process_array _ :=
@@ -460,6 +519,7 @@ Tactic Notation "wp_store" :=
         | fail 1 "wp_store: cannot find 'StoreN' in" e];
       [iSolveTC
       |solve_mapsto_array ()
+      |try done
       |
       |pm_reduce; first [wp_seq|wp_finish]]
     in (process_single ()) || (process_array ())

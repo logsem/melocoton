@@ -39,7 +39,7 @@ Lemma block_sim_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_m
   -∗ block_sim v b.
 Proof.
   iIntros "Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
-  iInduction v as [[x|bo| | |]| | | |] "IH" forall (b H); cbn; inversion H; try done.
+  iInduction H as [] "IH"; cbn; try done.
   1: iExists γ; iSplit; first done.
   1: iApply (gset_bij_own_elem_get with "Hχ"); by eapply elem_of_map_to_set_pair.
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
@@ -48,16 +48,15 @@ Proof.
   4: iSplit.
   4,6,7: by iApply "IH". 4: by iApply "IH1".
   all: subst.
-  1: rename H2 into H1.
-  all: pose proof H1 as H1'. 
-  all: rewrite lookup_union in H1.
-  all: destruct (ζσ !! γ) eqn:Heq; rewrite Heq in H1; unfold union_with in H1; cbn in H1.
-  all: destruct (ζrest !! γ) eqn:Heq2; rewrite Heq2 in H1; try congruence.
+  all: pose proof H as H1'.
+  all: rewrite lookup_union in H.
+  all: destruct (ζσ !! γ) eqn:Heq; rewrite Heq in H; unfold union_with in H; cbn in H.
+  all: destruct (ζrest !! γ) eqn:Heq2; rewrite Heq2 in H; try congruence.
   1,4,7: exfalso; eapply map_disjoint_spec; done.
   2,4,6: rewrite Heq2; done.
   all: destruct Hstorebl as [Hstorebl1 Hstorebl2].
   all: unfold block in *.
-  all: rewrite <- Heq in H1; apply elem_of_dom_2 in Heq; apply Hstorebl2 in Heq.
+  all: rewrite <- Heq in H; apply elem_of_dom_2 in Heq; apply Hstorebl2 in Heq.
   all: destruct Heq as (ℓ & Vs & Hχ & Hσml).
   all: unfold is_store in Hstore.
   all: specialize (Hstore _ _ _ _ Hσml Hχ H1').

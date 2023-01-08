@@ -47,22 +47,23 @@ Proof.
   + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots.
 Qed.
 
+(* We can decompose mem, the C heap, into a privmem, which is everything but the roots, and a memr, which are just the rooted cells *)
 Lemma make_repr θ roots_m mem : 
     roots_are_live θ roots_m
  -> map_Forall (λ k v, ∃ w , mem !! k = Some (Storing w) ∧ repr_lval θ v w) roots_m
  -> ∃ privmem, repr θ roots_m privmem mem.
 Proof.
-  revert mem. unfold C_lang.state in * |- *.
+  revert mem.
   induction roots_m as [|l a roots_m Hin IH] using map_ind; intros mem Hlive Hforall.
   + exists mem, ∅. split_and!.
-    2: eapply map_disjoint_empty_r.
-    2: by rewrite map_empty_union.
-    econstructor.
+    * econstructor.
+    * eapply map_disjoint_empty_r.
+    * by rewrite map_empty_union.
   + apply map_Forall_insert_1_1 in Hforall as Hforall2.
     destruct Hforall2 as (w & Hw & Hrep).
     specialize (IH (delete l mem)).
     destruct IH as (privmem & memr & IH & Hdisj & Hunion).
-    1: intros l' g Hg; eapply Hlive. rewrite lookup_insert_ne; first done; intros ->; rewrite Hg in Hin; congruence.
+    1: intros l' g Hg; eapply Hlive; rewrite lookup_insert_ne; first done; intros ->; rewrite Hg in Hin; congruence.
     1: apply map_Forall_lookup; intros i x Hinix;
        eapply map_Forall_lookup_1 in Hforall.
     1: destruct Hforall as (w' & H1 & H2); exists w'; repeat split; try done.
@@ -72,8 +73,8 @@ Proof.
     assert (memr !! l = None) as HNone1.
     1: apply not_elem_of_dom; erewrite <- repr_roots_dom; last done; by eapply not_elem_of_dom.
     assert (privmem !! l = None) as Hnone2.
-    rewrite <- (lookup_union_r memr privmem); try done; unfold C_lang.state in Hunion. rewrite <- Hunion; by apply lookup_delete.
-    eexists privmem, _. split_and!.
+    rewrite <- (lookup_union_r memr privmem); try done; unfold C_lang.state in Hunion; rewrite <- Hunion; by apply lookup_delete.
+    eexists privmem, (<[l:=Storing w]> memr). split_and!.
     * econstructor; try done; by eapply not_elem_of_dom.
     * by apply map_disjoint_insert_r.
     * unfold C_lang.state in * |- *. erewrite <- insert_union_l. rewrite <- Hunion. rewrite insert_delete_insert.
@@ -100,27 +101,27 @@ Proof.
     rewrite fmap_empty. rewrite dom_empty_L. rewrite map_union_empty.
     rewrite map_empty_union in Hrepr3. subst mem. iFrame.
     iApply big_sepS_empty. done.
-  + iIntros "Hheap Hmap".
-    iPoseProof (big_sepM_insert) as "(Hb1 & _)". 1: eapply not_elem_of_dom, H0.
+  + eapply not_elem_of_dom in H0,H1. iIntros "Hheap Hmap".
+    iPoseProof (big_sepM_insert) as "(Hb1 & _)"; first apply H0.
     iPoseProof ("Hb1" with "Hmap") as "((%w' & Hw & %Hrepr4) & Hmap)".
     pose proof (repr_lval_inj _ _ _ _ Hrepr4 H) as Heq; subst w'.
     iMod (gen_heap_update with "Hheap Hw") as "(Hheap & Hw)".
     specialize (IHHrepr1 (<[a:=None]> mem) (<[a:=None]> privmem)).
     iMod (IHHrepr1 with "Hheap Hmap") as "(Hheap & Hmap)".
-    * eapply map_disjoint_insert_l_2; first by eapply not_elem_of_dom.
-      erewrite <- (delete_insert mem0).
-      eapply map_disjoint_delete_r; first apply Hrepr2. by eapply not_elem_of_dom.
+    * eapply map_disjoint_insert_l_2; first done.
+      erewrite <- (delete_insert mem0); last done.
+      by eapply map_disjoint_delete_r.
     * subst mem. unfold C_lang.state. erewrite <- insert_union_l.
-      rewrite insert_insert. rewrite insert_union_r; first done. by eapply not_elem_of_dom.
+      rewrite insert_insert. by rewrite insert_union_r.
     * iModIntro. iSplitL "Hheap".
       - unfold C_lang.state. erewrite <- insert_union_l. rewrite insert_union_r.
         2: eapply map_disjoint_Some_r; try done; by rewrite lookup_insert.
         rewrite fmap_insert. iFrame.
-      - rewrite dom_insert_L. iApply big_sepS_insert; first done. iFrame.
+      - rewrite dom_insert_L. iApply big_sepS_insert; first by eapply not_elem_of_dom. iFrame.
 Qed.
 
 Lemma wp_to_val E p T a Φ: 
-    wrap_return Φ a
+    wrap_return Φ a (* Basically, a WP (Val a) {{a, wrap_return a}} *)
  -∗ not_at_boundary
  -∗ WP (ExprC (C_lang.Val a)) @ (mkPeW (p : prog wrap_lang) T); E {{ v, Φ v ∗ at_boundary _}}.
 Proof.
@@ -129,7 +130,7 @@ Proof.
   iIntros "%σ Hσ".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iNamed "Hσ". iNamed "HGC". iNamed "SIC".
-  iRight. iRight. iModIntro. iSplit.
+  iModIntro. iRight. iRight. iSplit.
   1: iPureIntro; cbn; exists (fun _ => True); eexists (), _; repeat split; by eapply RetS.
   cbn. iIntros (X Hstep).
   destruct Hstep as ([] & e1 & Heq & Hstep).
@@ -141,6 +142,7 @@ Proof.
        [exists (ExprVal a); cbn; by rewrite H
        |subst K; cbn in *; subst ec; cbn in Heq; congruence| congruence].
   cbn in H3; injection H3; intros <-.
+  cbv in H1. subst mem0 ρc0 X0.
 
   iAssert (⌜is_val χvirt ζfreeze v l⌝)%I as "%Hval".
   1: iApply (block_sim_to_ghost_state with "HAχbij HAζbl"); done.
@@ -151,9 +153,8 @@ Proof.
   iPoseProof (ghost_var_agree with "HAGCθ HAθ") as "%Hagree1"; subst θ.
   iPoseProof (ghost_var_agree with "HArootss HAroots") as "%Hagree2"; subst roots_s.
   iMod (ghost_var_update_halves with "Hnb [HAGCbound HAbound]") as "(Hnb & Hbound)".
-  1: iPoseProof (@fractional.fractional_merge _ 
-     (ghost_var wrapperGS_γat_boundary (1 / 4) false) (ghost_var wrapperGS_γat_boundary (1 / 4) false) 
-     _ (1/4) (1/4) (ghost_var_fractional _ _) with "HAGCbound HAbound") as "HH".
+  (* Coq fails to infer ghost_var_fractional in time *)
+  1: iPoseProof (@fractional.fractional_merge _ _ _ _ _ _ (ghost_var_fractional _ _) with "HAGCbound HAbound") as "HH".
   1: by assert ((1 / 4 + 1 / 4 = 1 / 2)%Qp) as -> by compute_done.
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
   iMod (ghost_var_update_halves with "HAGCθ HAθ") as "(HAGCθ & HAθ)".
@@ -172,7 +173,7 @@ Proof.
   1: apply map_disjoint_dom_1; eapply map_disjoint_spec; intros ?????; by eapply map_disjoint_spec.
 
   iSplitR "Hv Hnb"; last first.
-  1: { cbn. unfold Wrap.fill. iApply weakestpre.wp_value'. iFrame. }
+  1: { iApply weakestpre.wp_value'. iFrame. }
   cbn. iSplitL "HAσMLv HAnMLv".
   1: iExists nMLv; iFrame.
   unfold private_state_interp, ML_state_interp, GC_token_remnant, named; cbn.
@@ -189,18 +190,19 @@ Proof.
   iFrame "HAθ".
   rewrite <- Hagree2.
   iFrame "HAroots".
-  iSplitL; last by repeat iSplit.
-  iSplitR "Hrootspto"; first by iExists roots_m.
+  iFrame "Hrootspto".
+  iFrame "HArootsm".
   done.
 Qed.
 
-Lemma wp_simulates E p T ec Φ: 
-    ⌜Forall (fun k => p !! k = None) forbidden_function_names⌝
- -∗ not_at_boundary
+Context (p : language.prog C_lang).
+Context (Hforbid : Forall (fun k => p !! k = None) forbidden_function_names).
+
+Lemma wp_simulates E T ec Φ: 
+    not_at_boundary
  -∗ WP ec @ (mkPeC p WP_ext_call_spec); E {{a, wrap_return Φ a }}
  -∗ WP (ExprC ec) @ (mkPeW (p : prog wrap_lang) T); E {{ v, Φ v ∗ at_boundary _}}.
 Proof.
-  iIntros "%Hforbid".
   iLöb as "IH" forall (ec).
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   rewrite wp_unfold. rewrite /wp_pre.
@@ -238,6 +240,7 @@ Proof.
            [ by eapply language.language.reducible_no_threads_reducible
            | done
            | eapply @List.Forall_forall in Hforbid; [apply Hforbid | cbv; eauto 20]].
+      cbv in H1,H4.
       subst ec0 ρc0 mem0 X0. cbn.
       iMod ("H3" $! _ _ H3) as "H3".
       do 2 iModIntro. iMod "H3" as "(HσC & HWP')".
@@ -251,8 +254,136 @@ Proof.
 Qed.
 
 
+Definition is_store_blocks_proto (χ : lloc_map) (σ : store) (ζ : gset lloc) : Prop :=
+  dom σ = dom χ ∧
+  (∀ γ, γ ∈ ζ ↔ ∃ ℓ Vs, χ !! ℓ = Some γ ∧ σ !! ℓ = Some (Some Vs)).
+
+Lemma find_new_chi_zeta χin σ (forbidS : gset lloc):
+    dom χin ⊆ dom σ
+  → gmap_inj χin
+  → ∃ χC ζσ, 
+      lloc_map_mono χin χC 
+    ∧ is_store_blocks_proto χC σ ζσ
+    ∧ forall x y, χC !! x = Some y → y ∈ forbidS → χin !! x = Some y.
+Proof.
+  revert χin forbidS.
+  induction σ as [ | ℓ vo σ Hnone IH] using map_ind; intros χin forbidS Hsub Hinj.
+  - rewrite dom_empty_L in Hsub. apply equiv_empty_L in Hsub. apply dom_empty_inv_L in Hsub.
+    subst χin. exists ∅, ∅. repeat split.
+    + done.
+    + unfold lloc_map. by repeat erewrite dom_empty_L.
+    + intros []%elem_of_empty.
+    + intros (ℓ & Vs & H1 & H2). rewrite lookup_empty in H2. congruence.
+    + intros x y H. rewrite lookup_empty in H; congruence.
+  - rewrite dom_insert_L in Hsub. destruct (χin !! ℓ) as [g|] eqn:Heq.
+    + destruct (IH (delete ℓ χin) ({[ g ]} ∪ forbidS)) as (χC & ζσ & (Hmono1 & Hmono2) & (Hstore1 & Hstore2) & Hforbid).
+      1: erewrite dom_delete_L; set_solver.
+      1: { intros x y1 y2 [_ H1]%lookup_delete_Some [_ H2]%lookup_delete_Some. by eapply (Hinj x y1 y2). }
+      exists (<[ ℓ := g ]> χC).
+      destruct vo as [v|].
+      * exists ({[g]} ∪ ζσ). repeat split.
+        -- eapply delete_insert_subseteq; done.
+        -- intros x1 x2 y [[? ?]|[H1ne H1]]%lookup_insert_Some [[? ?]|[H2ne H2]]%lookup_insert_Some; subst.
+           1: congruence.
+           1: specialize (Hforbid _ _ H2 (ltac:(set_solver)));
+              apply lookup_delete_Some in Hforbid;
+              eapply Hinj; try done; apply Hforbid.
+           1: specialize (Hforbid _ _ H1 (ltac:(set_solver)));
+              apply lookup_delete_Some in Hforbid;
+              eapply Hinj; try done; apply Hforbid.
+           1: eapply Hmono2; done.
+        -- rewrite ! dom_insert_L. by rewrite Hstore1.
+        -- intros [->%elem_of_singleton|Hin]%elem_of_union.
+           ++ exists ℓ, v. by rewrite ! lookup_insert.
+           ++ apply Hstore2 in Hin as Hin2.
+              destruct Hin2 as (ℓ2 & v2 & HH1 & HH2).
+              exists ℓ2, v2. rewrite ! lookup_insert_ne; first done.
+              all: intros <-; rewrite Hnone in HH2; congruence.
+        -- intros (ℓ2 & v2 & [[? ?]|[H1ne H1]]%lookup_insert_Some & [[? ?]|[H2ne H2]]%lookup_insert_Some); subst.
+           ++ set_solver.
+           ++ set_solver.
+           ++ set_solver.
+           ++ eapply elem_of_union_r. eapply Hstore2. by do 2 eexists.
+        -- intros x y [[? ?]|[H1ne H1]]%lookup_insert_Some Hin; subst.
+           ++ done.
+           ++ specialize (Hforbid x y H1).
+              rewrite lookup_delete_ne in Hforbid; last done. apply Hforbid. set_solver.
+      * exists ζσ. repeat split.
+        -- eapply delete_insert_subseteq; done.
+        -- intros x1 x2 y [[? ?]|[H1ne H1]]%lookup_insert_Some [[? ?]|[H2ne H2]]%lookup_insert_Some; subst.
+           1: congruence.
+           1: specialize (Hforbid _ _ H2 (ltac:(set_solver)));
+              apply lookup_delete_Some in Hforbid;
+              eapply Hinj; try done; apply Hforbid.
+           1: specialize (Hforbid _ _ H1 (ltac:(set_solver)));
+              apply lookup_delete_Some in Hforbid;
+              eapply Hinj; try done; apply Hforbid.
+           1: eapply Hmono2; done.
+        -- rewrite ! dom_insert_L. by rewrite Hstore1.
+        -- intros Hin.
+           apply Hstore2 in Hin as Hin2.
+           destruct Hin2 as (ℓ2 & v2 & HH1 & HH2).
+           exists ℓ2, v2. rewrite ! lookup_insert_ne; first done.
+           all: intros <-; rewrite Hnone in HH2; congruence.
+        -- intros (ℓ2 & v2 & [[? ?]|[H1ne H1]]%lookup_insert_Some & [[? ?]|[H2ne H2]]%lookup_insert_Some); subst; try congruence.
+           eapply Hstore2. by do 2 eexists.
+        -- intros x y [[? ?]|[H1ne H1]]%lookup_insert_Some Hin; subst.
+           ++ done.
+           ++ specialize (Hforbid x y H1).
+              rewrite lookup_delete_ne in Hforbid; last done. apply Hforbid. set_solver.
+    + pose (map_to_set (fun a b => b) χin : gset lloc) as used_g.
+      pose (fresh (forbidS ∪ used_g)) as g.
+      pose proof (is_fresh (forbidS ∪ used_g)) as Hg. fold g in Hg.
+      destruct (IH χin ({[ g ]} ∪ forbidS)) as (χC & ζσ & (Hmono1 & Hmono2) & (Hstore1 & Hstore2) & Hforbid).
+      1: eapply not_elem_of_dom in Heq; set_solver.
+      1: done.
+      exists (<[ ℓ := g ]> χC).
+      destruct vo as [v|].
+      * exists ({[g]} ∪ ζσ). repeat split.
+        -- by eapply insert_subseteq_r.
+        -- intros x1 x2 y [[Heq1 Heq2]|[H1ne H1]]%lookup_insert_Some [[Heq3 Heq4]|[H2ne H2]]%lookup_insert_Some.
+           1: congruence.
+           1-2: exfalso; eapply Hg; eapply elem_of_union_r; unfold used_g; eapply elem_of_map_to_set; eexists _, y; split; last done;
+                eapply Hforbid; first done; set_solver.
+           1: eapply Hmono2; done.
+        -- rewrite ! dom_insert_L. by rewrite Hstore1.
+        -- intros [->%elem_of_singleton|Hin]%elem_of_union.
+           ++ exists ℓ, v. by rewrite ! lookup_insert.
+           ++ apply Hstore2 in Hin as Hin2.
+              destruct Hin2 as (ℓ2 & v2 & HH1 & HH2).
+              exists ℓ2, v2. rewrite ! lookup_insert_ne; first done.
+              all: intros <-; rewrite Hnone in HH2; congruence.
+        -- intros (ℓ2 & v2 & [[? ?]|[H1ne H1]]%lookup_insert_Some & [[? ?]|[H2ne H2]]%lookup_insert_Some); subst.
+           ++ set_solver.
+           ++ set_solver.
+           ++ set_solver.
+           ++ eapply elem_of_union_r. eapply Hstore2. by do 2 eexists.
+        -- intros x y [[? ?]|[H1ne H1]]%lookup_insert_Some Hin; subst.
+           ++ exfalso; eapply Hg; eapply elem_of_union_l; done.
+           ++ eapply Hforbid; try done; set_solver.
+      * exists ζσ. repeat split.
+        -- by eapply insert_subseteq_r.
+        -- intros x1 x2 y [[Heq1 Heq2]|[H1ne H1]]%lookup_insert_Some [[Heq3 Heq4]|[H2ne H2]]%lookup_insert_Some.
+           1: congruence.
+           1-2: exfalso; eapply Hg; eapply elem_of_union_r; unfold used_g; eapply elem_of_map_to_set; eexists _, y; split; last done;
+                eapply Hforbid; first done; set_solver.
+           1: eapply Hmono2; done.
+        -- rewrite ! dom_insert_L. by rewrite Hstore1.
+        -- intros Hin.
+           apply Hstore2 in Hin as Hin2.
+           destruct Hin2 as (ℓ2 & v2 & HH1 & HH2).
+           exists ℓ2, v2. rewrite ! lookup_insert_ne; first done.
+           all: intros <-; rewrite Hnone in HH2; congruence.
+        -- intros (ℓ2 & v2 & [[? ?]|[H1ne H1]]%lookup_insert_Some & [[? ?]|[H2ne H2]]%lookup_insert_Some); subst; try congruence.
+           eapply Hstore2. by do 2 eexists.
+        -- intros x y [[? ?]|[H1ne H1]]%lookup_insert_Some Hin; subst.
+           ++ exfalso; eapply Hg; set_solver.
+           ++ eapply Hforbid; try done; set_solver.
+Qed.
+
 Lemma run_function_correct F (vv : list ML_lang.val) T p E Φ: 
-    ⌜arity F = length vv⌝
+    ⌜Forall (fun k => p !! k = None) forbidden_function_names⌝
+ -∗ ⌜arity F = length vv⌝
  -∗ at_boundary _
  -∗ (∀ θ ll aa ec, 
        GC θ 
@@ -262,12 +393,13 @@ Lemma run_function_correct F (vv : list ML_lang.val) T p E Φ:
     -∗ WP ec @ (mkPeC p WP_ext_call_spec); E {{a, wrap_return Φ a }})
  -∗ WP RunFunction F vv @ (mkPeW (p : prog wrap_lang) T); E {{ v, Φ v ∗ at_boundary _}}.
 Proof.
-  iIntros "%Harity Hb Hwp".
+  iIntros "%Hforbid %Harity Hb Hwp".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (σ) "Hσ".
   unfold at_boundary; cbn. destruct σ as [ρml σ | ? ?].
   2: {iExFalso. iNamed "Hσ"; iNamed "SIC". iPoseProof (ghost_var_agree with "Hb HAbound") as "%Heq". congruence. }
-  iRight. iRight. iModIntro.
+  iModIntro. iRight. iRight.
+  iNamed "Hσ". iNamed "SIML". iNamed "HAGCrem".
   iSplitR.
   1: { iPureIntro. exists (fun _ => True). eapply mlanguage.head_prim_step. cbn. eapply RunFunctionS; last done. all: admit. }
 Admitted.

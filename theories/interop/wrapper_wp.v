@@ -22,7 +22,7 @@ Class wrapperGS Σ := WrapperGS {
   wrapperGS_locsetGS :> ghost_varG Σ (gsetUR loc);
   wrapperGS_addrmapGS :> ghost_varG Σ (leibnizO addr_map);
   wrapperGS_at_boundary :> ghost_varG Σ (leibnizO bool);
-  wrapperGS_gsetbihGS :> gset_bijG Σ loc lloc;
+  wrapperGS_gsetbijGS :> gset_bijG Σ loc lloc;
   wrapperGS_γζblock : gname;
   wrapperGS_γfresh : gname;
   wrapperGS_γroots_set : gname;
@@ -66,7 +66,7 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots
   ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
   ∗ "HAζbl" ∷ ghost_map_auth wrapperGS_γζblock 1 ζrest
-  ∗ "(%nMLv & HAσMLv & HAnMLv)" ∷ (∃ n, state_interp σMLvirt n)
+  ∗ "(%nMLv & HAσMLv & HAnMLv & HAσdom & HAσsafe)" ∷ (∃ n, state_interp σMLvirt n)
   ∗ "HAχbij" ∷ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χvirt)
   ∗ "HAfresh" ∷ ghost_map_auth wrapperGS_γfresh 1 fresh
   ∗ "HAχNone" ∷ big_sepM_limited χvirt (dom ζrest) (fun ℓ _ => ℓ ↦M/)
@@ -84,11 +84,11 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
 
 (* TODO: names *)
-Definition GC_token_remnant (roots : gset addr) : iProp Σ :=
-   ghost_var wrapperGS_γθ (1/2) (∅:addr_map)
- ∗ ghost_var wrapperGS_γroots_set (1/2) roots
- ∗ (∃ (rootsmap : gmap loc lval), ghost_map_auth wrapperGS_γroots_map 1 (rootsmap))
- ∗ ([∗ set] a ∈ roots, a O↦ None).
+Definition GC_token_remnant (roots_m : roots_map) : iProp Σ :=
+   "HAGCθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅:addr_map)
+ ∗ "HArootss" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots_m)
+ ∗ "HArootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 (roots_m : gmap loc lval)
+ ∗ "Hrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦ None).
 
 Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ := 
   ∃  (ζσ ζ : lstore) (fresh : gmap lloc unit),
@@ -101,7 +101,7 @@ Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "HAχNone" ∷ big_sepM_limited χ (dom ζrest) (fun ℓ _ => ℓ ↦M/)
   ∗ "#HAζpers" ∷ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
-  ∗ "HAGCrem" ∷ GC_token_remnant (dom roots)
+  ∗ "HAGCrem" ∷ GC_token_remnant roots
   ∗ "%Hfreezeeq" ∷ ⌜ζ = ζσ ∪ ζrest⌝
   ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζrest⌝
   ∗ "%Hχinj" ∷ ⌜gmap_inj χ⌝
@@ -181,7 +181,7 @@ Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
 | (ML_lang.PairV v1 v2) => ∃ γ lv1 lv2, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv1;lv2]) ∗ block_sim v1 lv1 ∗ block_sim v2 lv2
 | (ML_lang.InjLV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv]) ∗ block_sim v lv
 | (ML_lang.InjRV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv]) ∗ block_sim v lv 
-| (ML_lang.RecV _ _ _) => False end. (* TODO: callbacks ?? *)
+| (ML_lang.RecV _ _ _) => True end. (* TODO: callbacks ?? *)
 
 Global Instance block_sim_pers v l : Persistent (block_sim v l).
 Proof.

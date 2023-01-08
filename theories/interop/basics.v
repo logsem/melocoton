@@ -196,7 +196,6 @@ Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Pro
   mem = memr ∪ privmem.
 
 (* Block-level representation of ML values and store *)
-
 Inductive is_val : lloc_map → lstore → val → lval → Prop :=
   (* non-loc base literals *)
   | is_val_int χ ζ x :
@@ -223,7 +222,9 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
   | is_val_injr χ ζ v lv γ :
     ζ !! γ = Some (Immut, (TagInjRV, [lv])) →
     is_val χ ζ v lv →
-    is_val χ ζ (ML_lang.InjRV v) (Lloc γ).
+    is_val χ ζ (ML_lang.InjRV v) (Lloc γ)
+  | is_val_funcall χ ζ b1 b2 e lv:
+    is_val χ ζ (RecV b1 b2 e) lv.
 
 (* Elements of the ML store are lists of values representing refs and arrays;
    they correspond to a mutable block with the default tag. *)

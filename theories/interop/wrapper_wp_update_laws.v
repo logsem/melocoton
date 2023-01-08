@@ -69,7 +69,10 @@ Proof.
   + iExists _. iFrame.
   + unfold C_state_interp, named. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, (TagDefault, lvs))]> ζrest).
     iExists χvirt, fresh, (<[l:=None]> σMLvirt). iFrame.
-    iSplitL "HAnMLv". 1: iExists _; iFrame.
+    iSplitL "HAnMLv HAσdom HAσsafe".
+    1: { iExists _; iFrame. iSplitL "HAσdom".
+         + iApply (dom_auth_dom with "HAσdom"). rewrite dom_insert_L. eapply elem_of_dom_2 in Hlσ. set_solver.
+         + iApply (big_sepM_insert_override_2 with "HAσsafe"); first done; by iIntros "_". }
     iSplitL. 
     1: { rewrite dom_insert_L.
          iApply (big_sepM_insert_inj with "[] [] [] [Hl] HAχNone"). 4: iApply "Hl".
