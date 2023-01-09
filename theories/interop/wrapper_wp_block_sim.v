@@ -130,4 +130,17 @@ Proof.
   iApply (block_sim_to_ghost_state with "Hχ Hζ"); try done.
   iApply ("Hsim" $! i v b H1 H2).
 Qed.
+
+Lemma is_val_is_safe_on_heap χ ζ σ v l : dom χ ⊆ dom σ → is_val χ ζ v l → val_safe_on_heap σ v.
+Proof.
+  intros H1; induction 1; cbn; try done.
+  2: split.
+  1: eapply elem_of_dom_2 in H; set_solver.
+  all: eauto.
+Qed.
+
+
+
+
+
 End BlockSimLaws.

@@ -163,6 +163,18 @@ Proof.
 Qed.
 
 
+Lemma big_sepM_limited_to_pure M S P Q: 
+    big_sepM_limited M S P
+ -∗ (∀ k v, ⌜M !! k = Some v⌝ -∗ ⌜v ∈ S⌝ -∗ P k v -∗ ⌜Q k v⌝)
+ -∗ ⌜∀ k v, M !! k = Some v → v ∈ S → Q k v⌝.
+Proof.
+  iIntros "H1 H2".
+  iIntros (k v H1 H2).
+  iApply ("H2" $! k v H1 H2).
+  iApply (big_sepM_lookup with "H1"); done.
+Qed.
+  
+
 End big_sepM_limit.
 
 

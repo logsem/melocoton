@@ -141,6 +141,9 @@ Proof.
   iDestruct (gen_heap_valid with "HAσMLv Hℓ") as "%Hlσ".
   iMod (gen_heap_update _ _ _ (Some vs) with "HAσMLv Hℓ") as "[HAσMLv Hℓ]".
   iMod (ghost_map_delete with "HAζbl Hl") as "HAζbl".
+  iMod (val_arr_safe_to_ghost_state with "[#] HAσdom") as "(HAσdom & H1)".
+  { iPureIntro. eapply Forall2_Forall_l; first exact Hsim. eapply Forall_forall; intros k1 v1 x.
+    eapply is_val_is_safe_on_heap. destruct Hstore_blocks; set_solver. }
   iModIntro. iFrame "HGC". iSplitR "Hℓ". 2: iExists ℓ; iFrame; done.
   cbn. iSplitL "HσC HnC".
   1: iExists _; iFrame.
@@ -148,8 +151,9 @@ Proof.
   iExists ζfreeze, (<[γ:=(Mut, (TagDefault, b))]>ζσ), (delete γ ζrest).
   iExists χvirt, fresh, (<[ ℓ := Some vs ]> σMLvirt).
   iFrame.
-  iSplitL "HAnMLv". 2: iSplitL. 3: iSplitL. 4: iPureIntro; split_and!; eauto.
-  + iExists _; done.
+  iSplitL "HAnMLv HAσdom HAσsafe H1". 2: iSplitL. 3: iSplitL. 4: iPureIntro; split_and!; eauto.
+  + iExists _; iFrame. iSplitL "HAσdom"; first (iApply (dom_auth_dom with "HAσdom"); erewrite dom_insert_L; eapply elem_of_dom_2 in Hlσ; set_solver).
+    iApply (big_sepM_insert_override_2 with "HAσsafe [H1]"); first done; by iIntros "_".
   + rewrite dom_delete_L. iFrame.
   + iPoseProof big_sepM_delete as "(HH & _)"; last iPoseProof ("HH" with "HAζpers") as "(_ & HAζpers2)"; done.
   + erewrite (union_insert_delete ζσ ζrest). 2: eapply map_disjoint_Some_r. 2: apply Hfreezedj. all: done.
@@ -200,6 +204,8 @@ Proof.
   1: iPureIntro; by eapply not_elem_of_dom_1.
   1: iIntros "_"; done.
   iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
+  iMod (dom_auth_extend _ (<[ ℓ := None ]> σMLvirt) with "HAσdom []") as "HAσdom".
+  1: iPureIntro; rewrite dom_insert_L; set_solver.
   iModIntro.
   iFrame "HGC".
   iSplitR "Hℓγ Hmtζ".
@@ -209,8 +215,8 @@ Proof.
   iExists ζfreeze, ζσ, ζrest.
   iExists (<[ℓ:=γ]> χvirt), (delete γ fresh), (<[ ℓ := None ]> σMLvirt).
   iFrame. iFrame "HAζpers".
-  iSplitL "HAnMLv". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
-  + iExists nMLv; done.
+  iSplitL "HAnMLv HAσsafe". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
+  + iExists nMLv; iFrame. iApply (big_sepM_insert_2 with "[] HAσsafe"); done.
   + rewrite map_to_set_insert_L. iFrame. by eapply not_elem_of_dom.
   + destruct Hstore_blocks as [Hsl Hsr]; split.
     - rewrite ! dom_insert_L. rewrite Hsl; done.

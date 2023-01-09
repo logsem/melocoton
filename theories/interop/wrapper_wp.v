@@ -60,7 +60,6 @@ Definition GC (θ : addr_map) : iProp Σ :=
    They are similar if identified by χ *)
 Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (gset_bij_own_elem wrapperGS_γχbij l1 l2).
 
-
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
   ∃ (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (fresh : gmap lloc unit) (σMLvirt : store),
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots
@@ -96,6 +95,7 @@ Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
   ∗ "HAζbl" ∷ ghost_map_auth wrapperGS_γζblock 1 ζrest
   ∗ "(%nCv & HAσCv & HAnCv)" ∷ (∃ n, state_interp (memC ∪ (fmap (fun k => None) roots)) n)
+  ∗ "#HAσdomF" ∷ dom_part (dom χ)
   ∗ "HAχbij" ∷ gset_bij_own_auth wrapperGS_γχbij (DfracOwn 1) (map_to_set pair χ)
   ∗ "HAfresh" ∷ ghost_map_auth wrapperGS_γfresh 1 fresh
   ∗ "HAχNone" ∷ big_sepM_limited χ (dom ζrest) (fun ℓ _ => ℓ ↦M/)
@@ -117,7 +117,7 @@ Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
       "(%nCv & HσC & HnC)" ∷ (∃ n, state_interp mem n) ∗
       "SIC"        ∷ C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc)
   | Wrap.MLState ρml σ =>
-      "[%nMLv HσML]" ∷ public_state_interp σ ∗
+      "(%nMLv & HσML & HvML & HσMLdom & HσMLval)" ∷ public_state_interp σ ∗
       "SIML"         ∷ private_state_interp ρml
 end.
 
