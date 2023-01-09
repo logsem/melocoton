@@ -35,7 +35,8 @@ Qed.
 
 Inductive prim :=
   | Palloc | Pregisterroot | Punregisterroot
-  | Pmodify | Preadfield | Pval2int | Pint2val.
+  | Pmodify | Preadfield | Pval2int | Pint2val
+  | Pcallback.
 
 Local Notation prog := (gmap string prim).
 
@@ -47,7 +48,8 @@ Definition prims_prog : prog :=
       ("modify", Pmodify);
       ("readfield", Preadfield);
       ("val2int", Pval2int);
-      ("int2val", Pint2val)
+      ("int2val", Pint2val);
+      ("callback", Pcallback)
   ].
 
 Inductive simple_expr : Type :=
@@ -109,6 +111,109 @@ Inductive split_state : state → public_state → private_state → Prop :=
 
 Implicit Types X : expr * state → Prop.
 
+Definition ml_to_c
+  (vs : list val) (ρml : wrapstateML) (σ : store)
+  (ws : list word) (ρc : wrapstateC) (mem : memory)
+: Prop :=
+  ∃ ζσ ζnewimm lvs,
+    (* Demonically get a new extended map χC. New bindings in χC correspond to
+       new locations allocated from ML. *)
+    lloc_map_mono (χML ρml) (χC ρc) ∧
+    (* The extended χC binds γs for all locations ℓ in σ; the γs that are mapped
+       to [Some ...] in σ make up the domain of a map ζσ (whose contents are
+       also chosen demonically). In other words, here ζσ has exactly one block
+       for each location in σ that is mapped to [Some ...]. *)
+    is_store_blocks (χC ρc) σ ζσ ∧
+    (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
+       into a lstore) + ζimm (new immutable blocks allocated from ML). These
+       three parts must be disjoint. [ζML ρml] will typically contain immutable
+       blocks, mutable blocks allocated in C but not yet shared with the ML
+       code, or mutable blocks whose ownership was kept on the C side (and thus
+       correspond to a [None] in σ). *)
+    ζC ρc = ζML ρml ∪ ζσ ∪ ζnewimm ∧
+    dom (ζML ρml) ## dom ζσ ∧
+    dom (ζML ρml) ## dom ζnewimm ∧
+    dom ζσ ## dom ζnewimm ∧
+    (* Taken together, the contents of the new lloc_map χC and new lstore ζC
+       must represent the contents of σ. (This further constraints the demonic
+       choice of ζσ.) *)
+    is_store (χC ρc) (ζC ρc) σ ∧
+    (* Demonically pick block-level values lvs that represent the arguments vs. *)
+    Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
+    (* Demonically pick an addr_map θC satisfying the GC_correct property. *)
+    GC_correct (ζC ρc) (θC ρc) ∧
+    (* Rooted values must additionally be live in θC. *)
+    roots_are_live (θC ρc) (rootsML ρml) ∧
+    (* Pick C-level words that are live and represent the arguments of the
+       function. (repr_lval on a location entails that it is live.) *)
+    Forall2 (repr_lval (θC ρc)) lvs ws ∧
+    (* Pick C memory (mem) that represents the roots (through θC) + the
+       remaining private C memory. *)
+    repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
+    rootsC ρc = dom (rootsML ρml).
+
+Lemma ml_to_c_words_length vs ρml σ ws ρc mem :
+  ml_to_c vs ρml σ ws ρc mem →
+  length vs = length ws.
+Proof.
+  intros (?&?&?&HH). destruct_and! HH.
+  repeat match goal with H : _ |- _ => apply Forall2_length in H end.
+  lia.
+Qed.
+
+(* Note: I believe that the "freezing step" does properly forbid freezing a
+   mutable block that has already been passed to the outside world --- but
+   seeing why is not obvious. I expect it to work through the combination of:
+   - sharing a logical block as a mutable value requires registering it in χ
+   - χ only always grows monotonically
+   - an immutable block cannot be represented as a ML-level heap-allocated value
+     (see definition of is_store)
+   - thus: trying to freeze a mutable block means that we would have to
+     unregister it from χ in order for [is_store ...] to hold. But χ must only
+     grow. Qed...
+*)
+Definition c_to_ml
+  (ws : list word) (ρc : wrapstateC) (mem : memory)
+  (X : list val → wrapstateML → store → Prop)
+: Prop :=
+  ∀ σ lvs vs ζ ζσ χML ζML rootsML privmemML,
+    (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
+       Freezing allows allocating a fresh block, mutating it, then changing
+       it into an immutable block that represents an immutable ML value. *)
+    freeze_lstore (ζC ρc) ζ →
+    (* Angelically extend (χC ρc) into (χML ρml). This makes it possible to
+       expose new blocks to ML. *)
+    lloc_map_mono (χC ρc) χML →
+    (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
+       part ζσ that is going to be converted into the ML store σ. *)
+    ζ = ζML ∪ ζσ →
+    dom ζML ## dom ζσ →
+    (* Angelically pick an ML store σ where each location mapped to [Some
+       ...] corresponds to a block in ζσ. *)
+    is_store_blocks χML σ ζσ →
+    (* The contents of ζ must represent the new σ. *)
+    is_store χML ζ σ →
+    (* Angelically pick a block-level return value lv that corresponds to the
+       C value w. *)
+    Forall2 (repr_lval (θC ρc)) lvs ws →
+    (* Angelically pick a ML return value v that corresponds to the
+       block-level value lv. *)
+    Forall2 (is_val χML ζ) vs lvs →
+    (* Split the C memory mem into the memory for the roots and the rest
+       ("private" C memory). *)
+    repr (θC ρc) rootsML privmemML mem →
+    dom rootsML = rootsC ρc →
+    X vs (WrapstateML χML ζML rootsML privmemML) σ.
+
+Lemma c_to_ml_vals_length ws ρc mem (X : list val → wrapstateML → store → Prop) :
+  c_to_ml ws ρc mem X →
+  c_to_ml ws ρc mem (λ vs ρml σ, length ws = length vs ∧ X vs ρml σ).
+Proof.
+  unfold c_to_ml. intros H **. split.
+  { repeat match goal with H : _ |- _ => apply Forall2_length in H end; lia. }
+  naive_solver.
+Qed.
+
 Inductive head_step_mrel (internalp : ml_program) (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (* Step in the underlying wrapped ML program. *)
   | StepCS eml ρml σ eml' σ' X :
@@ -120,98 +225,43 @@ Inductive head_step_mrel (internalp : ml_program) (p : prog) : expr * state → 
     p !! fn_name = Some prm →
     X (WrSE (RunPrimitive prm args), ρ) →
     head_step_mrel internalp p (WrSE (ExprCall fn_name args), ρ) X
-  (* Outgoing call to a C function from ML. *)
-  | MakeCallS fn_name vs ρml σ ζσ ζnewimm lvs ws eml k mem χC ζC θC X :
+  (* External call of the ML code to a C function. *)
+  | MakeCallS fn_name vs ρml σ ws ρc mem eml k X :
     language.to_class eml = Some (commons.ExprCall fn_name vs) →
     p !! fn_name = None →
-    (* Demonically get a new extended map χC. New bindings in χC correspond to
-       new locations allocated from ML. *)
-    lloc_map_mono (χML ρml) χC →
-    (* The extended χC binds γs for all locations ℓ in σ; the γs that are mapped
-       to [Some ...] in σ make up the domain of a map ζσ (whose contents are
-       also chosen demonically). In other words, here ζσ has exactly one block
-       for each location in σ that is mapped to [Some ...]. *)
-    is_store_blocks χC σ ζσ →
-    (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
-       into a lstore) + ζimm (new immutable blocks allocated from ML). These
-       three parts must be disjoint. [ζML ρml] will typically contain immutable
-       blocks, mutable blocks allocated in C but not yet shared with the ML
-       code, or mutable blocks whose ownership was kept on the C side (and thus
-       correspond to a [None] in σ). *)
-    ζC = ζML ρml ∪ ζσ ∪ ζnewimm →
-    dom (ζML ρml) ## dom ζσ →
-    dom (ζML ρml) ## dom ζnewimm →
-    dom ζσ ## dom ζnewimm →
-    (* Taken together, the contents of the new lloc_map χC and new lstore ζC
-       must represent the contents of σ. (This further constraints the demonic
-       choice of ζσ.) *)
-    is_store χC ζC σ →
-    (* Demonically pick block-level values lvs that represent the arguments vs. *)
-    Forall2 (is_val χC ζC) vs lvs →
-    (* Demonically pick an addr_map θC satisfying the GC_correct property. *)
-    GC_correct ζC θC →
-    (* Rooted values must additionally be live in θC. *)
-    roots_are_live θC (rootsML ρml) →
-    (* Pick C-level words that are live and represent the arguments of the
-       function. (repr_lval on a location entails that it is live.) *)
-    Forall2 (repr_lval θC) lvs ws →
-    (* Pick C memory (mem) that represents the roots (through θC) + the
-       remaining private C memory. *)
-    repr θC (rootsML ρml) (privmemML ρml) mem →
-    (* Step to an external call to C function fn_name with arguments ws *)
-    X (WrE (ExprCall fn_name ws) k, CState (WrapstateC χC ζC θC (dom (rootsML ρml))) mem) →
+    ml_to_c vs ρml σ ws ρc mem →
+    X (WrE (ExprCall fn_name ws) k, CState ρc mem) →
     head_step_mrel internalp p (WrSE (ExprML (language.fill k eml)), MLState ρml σ) X
-  (* Returning execution to ML with a C value. *)
-  (* Note: I believe that the "freezing step" does properly forbid freezing a
-     mutable block that has already been passed to the outside world --- but
-     seeing why is not obvious. I expect it to work through the combination of:
-     - sharing a logical block as a mutable value requires registering it in χ
-     - χ only always grows monotonically
-     - an immutable block cannot be represented as a ML-level heap-allocated value
-       (see definition of is_store)
-     - thus: trying to freeze a mutable block means that we would have to
-       unregister it from χ in order for [is_store ...] to hold. But χ must only
-       grow. Qed...
-  *)
+  (* Given a C value (result of a C extcall), resume execution into ML code. *)
   | RetS w ki ρc mem X :
-    (∀ σ lv v ζ ζσ χML ζML rootsML privmemML,
-       (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
-          Freezing allows allocating a fresh block, mutating it, then changing
-          it into an immutable block that represents an immutable ML value. *)
-       freeze_lstore (ζC ρc) ζ →
-       (* Angelically extend (χC ρc) into (χML ρml). This makes it possible to
-          expose new blocks to ML. *)
-       lloc_map_mono (χC ρc) χML →
-       (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
-          part ζσ that is going to be converted into the ML store σ. *)
-       ζ = ζML ∪ ζσ →
-       dom ζML ## dom ζσ →
-       (* Angelically pick an ML store σ where each location mapped to [Some
-          ...] corresponds to a block in ζσ. *)
-       is_store_blocks χML σ ζσ →
-       (* The contents of ζ must represent the new σ. *)
-       is_store χML ζ σ →
-       (* Angelically pick a block-level return value lv that corresponds to the
-          C value w. *)
-       repr_lval (θC ρc) lv w →
-       (* Angelically pick a ML return value v that corresponds to the
-          block-level value lv. *)
-       is_val χML ζ v lv →
-       (* Split the C memory mem into the memory for the roots and the rest
-          ("private" C memory). *)
-       repr (θC ρc) rootsML privmemML mem →
-       dom rootsML = rootsC ρc →
-       X (WrSE (ExprML (language.fill [ki] (ML_lang.of_val v))),
-           MLState (WrapstateML χML ζML rootsML privmemML) σ)) →
+    c_to_ml [w] ρc mem (λ vs ρml σ, ∃ v, vs = [v] ∧
+      X (WrSE (ExprML (language.fill [ki] (ML_lang.of_val v))), MLState ρml σ)) →
     head_step_mrel internalp p (WrE (ExprV w) [ki], CState ρc mem) X
-  (* call from C to the "alloc" primitive *)
+  (* Execution finishes with an ML value, translate it into a C value *)
+  | ValS eml ρml σ v w ρc mem X :
+    ML_lang.to_val eml = Some v →
+    ml_to_c [v] ρml σ [w] ρc mem →
+    X (WrSE (ExprV w), CState ρc mem) →
+    head_step_mrel internalp p (WrSE (ExprML eml), MLState ρml σ) X
+  (* Call from C to the "callback" primitive *)
+  | PrimCallbackS ρc mem γ w w' f x e X :
+    (* this could alternatively be defined by piggybacking on top of RetS, by
+       stepping to a ExprV in an AppLCtx, but it feels more hackish? *)
+    repr_lval (θC ρc) (Lloc γ) w →
+    (ζC ρc) !! γ = Some (Bclosure f x e) →
+    c_to_ml [w'] ρc mem (λ vs ρml σ, ∃ v, vs = [v] ∧
+      X (WrSE (ExprML (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v))),
+          CState ρc mem)) →
+    head_step_mrel internalp p
+      (WrSE (RunPrimitive Pcallback [w; w']), CState ρc mem) X
+  (* call to "alloc" *)
   | PrimAllocS tgnum tg sz roots ρc privmem mem γ a mem' ζC' θC' X :
-    tgnum = tag_as_int tg →
+    tgnum = vblock_tag_as_int tg →
     (0 ≤ sz)%Z →
     dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
     γ ∉ dom (ζC ρc) →
-    ζC' = {[ γ := (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz))) ]} ∪ (ζC ρc) →
+    ζC' = {[ γ := Bvblock (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz))) ]} ∪ (ζC ρc) →
     GC_correct ζC' θC' →
     repr θC' roots privmem mem' →
     roots_are_live θC' roots →
@@ -256,7 +306,7 @@ Inductive head_step_mrel (internalp : ml_program) (p : prog) : expr * state → 
   | PrimReadfieldS w i ρc mem γ mut tag lvs lv w' X :
     (0 ≤ i)%Z →
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (mut, (tag, lvs)) →
+    (ζC ρc) !! γ = Some (Bvblock (mut, (tag, lvs))) →
     lvs !! (Z.to_nat i) = Some lv →
     repr_lval (θC ρc) lv w' →
     X (WrSE (ExprV w'), CState ρc mem) →
@@ -285,6 +335,8 @@ Next Obligation.
   | eapply ExprCallS
   | eapply MakeCallS
   | eapply RetS
+  | eapply ValS
+  | eapply PrimCallbackS
   | eapply PrimAllocS
   | eapply PrimRegisterrootS
   | eapply PrimUnregisterrootS
@@ -292,7 +344,7 @@ Next Obligation.
   | eapply PrimReadfieldS
   | eapply PrimVal2intS
   | eapply PrimInt2valS
-  ]; naive_solver.
+  ]; unfold c_to_ml in *; naive_solver.
 Qed.
 
 Lemma mlanguage_mixin ip :
