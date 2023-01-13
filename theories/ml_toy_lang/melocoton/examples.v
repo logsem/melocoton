@@ -32,7 +32,7 @@ Proof.
   iStartProof. unfold call_inc.
   wp_pures. unfold Z.add.
 
-  wp_alloc l as "Hl", "Hlive".
+  wp_alloc l as "Hl".
   wp_pures. wp_store.
   wp_extern.
   iModIntro. cbn. iExists 41%Z. iFrame. iIntros "Hl".
