@@ -82,14 +82,21 @@ Implicit Type ζ : lstore.
 
 (************
    In order to tie the logical block-level store to the ML and C stores, the
-   wrapper also maintains a number of mappings, that e.g. relate ML locations to
-   block-level locations. *)
+   wrapper maintains a map that relates ML locations to block-level
+   locations, and a map that relates block-level locations with C values. *)
 
-(* maps an ML location to its corresponding logical location *)
-Notation lloc_map := (gmap loc lloc).
+(* For each block-level location, we track whether it correspond to a ML-level
+   location ℓ (case [LlocPublic ℓ]), or whether it only exists in the
+   block-level heap (case [LlocPrivate]). *)
+Inductive lloc_visibility :=
+  | LlocPublic (ℓ : loc)
+  | LlocPrivate.
+
+(* An [lloc_map] maps a block location to its visibility status *)
+Notation lloc_map := (gmap lloc lloc_visibility).
 Implicit Type χ : lloc_map.
 
-(* maps a logical location to its address in C memory.
+(* An [addr_map] maps a block location to its "current" C address.
    Note: since blocks do not move around in the logical store, even though they
    *are* moved around by the GC in the actual memory, this means that "the
    current θ" will often arbitrarily change during the execution, each time a GC
@@ -101,6 +108,16 @@ Implicit Type θ : addr_map.
    and keeping alive *)
 Notation roots_map := (gmap addr lval).
 
+
+(*************
+   lloc_map injectivity: lloc_maps are always injective wrt public locs
+*)
+
+Definition lloc_map_inj χ :=
+  ∀ γ1 γ2 ℓ,
+    χ !! γ1 = Some (LlocPublic ℓ) →
+    χ !! γ2 = Some (LlocPublic ℓ) →
+    γ1 = γ2.
 
 (************
    Block-level state changes.
@@ -122,9 +139,31 @@ Definition freeze_lstore (ζ1 ζ2 : lstore) : Prop :=
   dom ζ1 = dom ζ2 ∧
   (∀ γ b1 b2, ζ1 !! γ = Some b1 → ζ2 !! γ = Some b2 → freeze_block b1 b2).
 
+Inductive expose_lloc : lloc_visibility → lloc_visibility → Prop :=
+  | expose_lloc_private ℓ : expose_lloc LlocPrivate (LlocPublic ℓ)
+  | expose_lloc_refl vis : expose_lloc vis vis.
+
+Definition expose_llocs (χ1 χ2 : lloc_map) : Prop :=
+  dom χ1 = dom χ2 ∧
+  lloc_map_inj χ2 ∧
+  (∀ γ vis1 vis2, χ1 !! γ = Some vis1 → χ2 !! γ = Some vis2 → expose_lloc vis1 vis2).
+
 Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
-  dom σ = dom χ ∧
-  (∀ γ, γ ∈ dom ζ ↔ ∃ ℓ Vs, χ !! ℓ = Some γ ∧ σ !! ℓ = Some (Some Vs)).
+  (∀ ℓ, ℓ ∈ dom σ → ∃ γ, χ !! γ = Some (LlocPublic ℓ)) ∧
+  (∀ γ, γ ∈ dom ζ ↔ ∃ ℓ Vs, χ !! γ = Some (LlocPublic ℓ) ∧ σ !! ℓ = Some (Some Vs)).
+
+Definition is_private_blocks (χ : lloc_map) (ζ : lstore) : Prop :=
+  ∀ γ, γ ∈ dom ζ → χ !! γ = Some LlocPrivate.
+
+Lemma is_store_blocks_is_private_blocks_disjoint χ σ ζs ζp :
+  is_store_blocks χ σ ζs →
+  is_private_blocks χ ζp →
+  ζs ##ₘ ζp.
+Proof.
+  intros [Hs1 Hs2] Hp. apply map_disjoint_spec. intros ℓ b1 b2 Hsℓ Hpℓ.
+  apply elem_of_dom_2, Hs2 in Hsℓ as (?&?&?&?).
+  apply elem_of_dom_2, Hp in Hpℓ. congruence.
+Qed.
 
 (* An lloc_map χ maintains a monotonically growing correspondance between ML
    locations and block-level locations. When crossing a wrapper boundary, χ
@@ -135,7 +174,7 @@ Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
    we already know that χ1 is injective, and we are trying to impose constraints
    on χ2.) *)
 Definition lloc_map_mono (χ1 χ2 : lloc_map) : Prop :=
-  χ1 ⊆ χ2 ∧ gmap_inj χ2.
+  χ1 ⊆ χ2 ∧ lloc_map_inj χ2.
 
 (* Helper relation to modify the contents of a block at a given index (which has
    to be in the bounds). Used to define the semantics of the "modify" primitive.
@@ -201,7 +240,7 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ (ML_lang.LitV ML_lang.LitUnit) (Lint 0)
   (* locations *)
   | is_val_loc χ ζ ℓ γ :
-    χ !! ℓ = Some γ →
+    χ !! γ = Some (LlocPublic ℓ) →
     is_val χ ζ (ML_lang.LitV (ML_lang.LitLoc ℓ)) (Lloc γ)
   (* pairs *)
   | is_val_pair χ ζ v1 v2 γ lv1 lv2 :
@@ -230,7 +269,7 @@ Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Pro
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
   ∀ ℓ vs γ blk,
-    σ !! ℓ = Some (Some vs) → χ !! ℓ = Some γ → ζ !! γ = Some blk →
+    σ !! ℓ = Some (Some vs) → χ !! γ = Some (LlocPublic ℓ) → ζ !! γ = Some blk →
     is_heap_elt χ ζ vs blk.
 
 
@@ -239,7 +278,7 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
 
 Lemma lloc_map_mono_inj χ1 χ2 :
   lloc_map_mono χ1 χ2 →
-  gmap_inj χ2.
+  lloc_map_inj χ2.
 Proof. intro H. apply H. Qed.
 Global Hint Resolve lloc_map_mono_inj : core.
 
@@ -264,46 +303,42 @@ Qed.
 Lemma is_store_blocks_has_loc χ σ ζ ℓ Vs :
   is_store_blocks χ σ ζ →
   σ !! ℓ = Some (Some Vs) →
-  ∃ γ, χ !! ℓ = Some γ ∧ γ ∈ dom ζ.
+  ∃ γ, χ !! γ = Some (LlocPublic ℓ) ∧ γ ∈ dom ζ.
 Proof.
   intros [H1 H2] Hℓ.
-  destruct (χ !! ℓ) as [γ|] eqn:Hlχ.
-  2: { exfalso. apply not_elem_of_dom_2 in Hlχ. rewrite -H1 in Hlχ.
-       by apply elem_of_dom_2 in Hℓ. }
-  exists γ. split; auto. apply H2. eauto.
+  destruct (H1 ℓ) as (γ & Hγ); [by eapply elem_of_dom_2|].
+  eexists; split; eauto. apply H2. eauto.
 Qed.
 
 Lemma is_store_blocks_discarded_loc χ σ ζ ℓ γ :
   is_store_blocks χ σ ζ →
-  gmap_inj χ →
   σ !! ℓ = Some None →
-  χ !! ℓ = Some γ →
+  χ !! γ = Some (LlocPublic ℓ) →
   γ ∉ dom ζ.
 Proof.
-  intros [Hdom Hstore] Hinj Hσ Hχ [ℓ' (Hℓ' & Hχ' & ?)]%Hstore.
-  specialize (Hinj _ _ _ Hχ Hχ'). subst ℓ'. congruence.
+  intros [Hdom Hstore] Hσ Hχ [ℓ' (Hℓ' & Hχ' & ?)]%Hstore.
+  simplify_map_eq.
 Qed.
 
 Lemma is_store_blocks_discard_loc χ σ ζ ℓ γ Vs :
   is_store_blocks χ σ ζ →
-  gmap_inj χ →
-  χ !! ℓ = Some γ →
+  lloc_map_inj χ →
+  χ !! γ = Some (LlocPublic ℓ) →
   σ !! ℓ = Some (Some Vs) →
   is_store_blocks χ (<[ℓ:=None]> σ) (delete γ ζ).
 Proof.
   intros [Hs1 Hs2] χinj Hχℓ Hσℓ. split.
-  { rewrite -Hs1 dom_insert_L. apply elem_of_dom_2 in Hσℓ. set_solver. }
+  { intros ℓ'. rewrite dom_insert_lookup_L//. eauto. }
   intros γ'. destruct (decide (γ = γ')) as [<-|].
   { split. { rewrite dom_delete_L. set_solver. }
-    intros (ℓ' & Vs' & Hχℓ' & Hσℓ'). exfalso.
-    pose proof (χinj _ _ _ Hχℓ Hχℓ') as <-. rewrite lookup_insert in Hσℓ'.
-    congruence. }
+    intros (ℓ' & Vs' & Hχℓ' & Hσℓ'). simplify_map_eq. }
   { rewrite dom_delete_L elem_of_difference. split.
-    { intros [Hγ' _]. apply Hs2 in Hγ' as (ℓ'' & ? & ? & ?).
+    { intros [Hγ' _]. apply Hs2 in Hγ' as (ℓ'' & ? & Hχℓ'' & ?).
       do 2 eexists. split; eauto. rewrite lookup_insert_ne //.
-      intros ->. simplify_map_eq. }
+      intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ''). }
     { intros (ℓ' & Vs' & Hχℓ' & Hσℓ').
-      rewrite lookup_insert_ne in Hσℓ'. 2: by intros ->; simplify_map_eq.
+      rewrite lookup_insert_ne in Hσℓ'.
+      2: { intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ'). }
       split; [| set_solver]. apply Hs2. do 2 eexists. split; eauto. } }
 Qed.
 
@@ -319,12 +354,13 @@ Qed.
 
 Lemma is_store_blocks_restore_loc χ σ ζ ℓ γ Vs blk:
   is_store_blocks χ σ ζ →
-  χ !! ℓ = Some γ →
+  lloc_map_inj χ →
+  χ !! γ = Some (LlocPublic ℓ) →
   σ !! ℓ = Some None →
   is_store_blocks χ (<[ℓ:=Some Vs]> σ) (<[γ:=blk]> ζ).
 Proof.
-  intros [Hsl Hsr] Hχℓ Hσℓ. split.
-  { rewrite <-Hsl. rewrite dom_insert_lookup_L //. }
+  intros [Hsl Hsr] Hχinj Hχℓ Hσℓ. split.
+  { intros ℓ'. rewrite dom_insert_lookup_L //. eauto. }
   intros γ'. destruct (Hsr γ') as [Hsrl Hsrr]; split.
   * intros Hin. rewrite dom_insert_L in Hin. apply elem_of_union in Hin.
     destruct Hin as [->%elem_of_singleton|Hin2].
@@ -332,25 +368,26 @@ Proof.
     - destruct (Hsrl Hin2) as (ℓ2 & Vs2 & H1 & H2); exists ℓ2, Vs2; split; try done.
       rewrite lookup_insert_ne; first done; congruence.
   * intros (ℓ2 & Vs2 & H1 & H2). destruct (decide (ℓ2 = ℓ)) as [->|Hne].
-    - rewrite Hχℓ in H1. injection H1; intros ->. rewrite dom_insert_L.
-      apply elem_of_union; left. by apply elem_of_singleton.
+    - specialize (Hχinj _ _ _ Hχℓ H1). simplify_map_eq. set_solver.
     - rewrite dom_insert_L. apply elem_of_union; right. apply Hsrr.
       eexists _, _; split; try done. rewrite lookup_insert_ne in H2; done.
 Qed.
 
 Lemma is_store_restore_loc χ ζ σ ℓ γ Vs blk :
   is_store χ ζ σ →
-  χ !! ℓ = Some γ →
+  lloc_map_inj χ →
+  χ !! γ = Some (LlocPublic ℓ) →
   ζ !! γ = Some blk →
   is_heap_elt χ ζ Vs blk →
   is_store χ ζ (<[ℓ:=Some Vs]> σ).
 Proof.
-  intros Hstore Hχℓ Hζγ Hblk ℓ1 vs1 γ1 bl1 Hs1 Hs2 Hs3.
+  intros Hstore Hχinj Hχℓ Hζγ Hblk ℓ1 vs1 γ1 bl1 Hs1 Hs2 Hs3.
   destruct (decide (ℓ = ℓ1)) as [<- | Hne].
-  * rewrite Hχℓ in Hs2. rewrite lookup_insert in Hs1. by simplify_map_eq.
+  * specialize (Hχinj _ _ _ Hχℓ Hs2). by simplify_map_eq.
   * rewrite lookup_insert_ne in Hs1; last done. eapply Hstore; done.
 Qed.
 
+(*
 Lemma is_store_blocks_expose_lloc χ ζ σ ℓ γ :
   is_store_blocks χ σ ζ →
   ℓ ∉ dom χ →
@@ -399,6 +436,7 @@ Proof.
     econstructor. eapply Forall2_impl; first done.
     intros x y H5. eapply is_val_insert_immut; eauto.
 Qed.
+*)
 
 Lemma GC_correct_freeze_lloc ζ θ γ b :
   GC_correct ζ θ →

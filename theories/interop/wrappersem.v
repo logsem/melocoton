@@ -76,26 +76,29 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
   (* Incoming call of a C function from ML. *)
   | RunFunctionS fn vs ρml σ ζσ ζnewimm lvs ws ec mem χC ζC θC X :
     (* Demonically get a new extended map χC. New bindings in χC correspond to
-       new locations allocated from ML. *)
+       new locations in the ML heap (e.g. allocated by ML). *)
     lloc_map_mono (χML ρml) χC →
-    (* The extended χC binds γs for all locations ℓ in σ; the γs that are mapped
+    (* The extended χC binds γs for all locations ℓ in σ; the ℓs that are mapped
        to [Some ...] in σ make up the domain of a map ζσ (whose contents are
-       also chosen demonically). In other words, here ζσ has exactly one block
-       for each location in σ that is mapped to [Some ...]. *)
+       also chosen demonically). In other words, ζσ has exactly one block for
+       each location in σ that is mapped to [Some ...]. *)
     is_store_blocks χC σ ζσ →
+    (* Representing the contents of the new ML heap may also require some new
+       immutable blocks, which we represent in ζnewimm. The address of blocks
+       in ζnewimm is LlocPrivate. *)
+    is_private_blocks χC ζnewimm →
     (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
-       into a lstore) + ζimm (new immutable blocks allocated from ML). These
-       three parts must be disjoint. [ζML ρml] will typically contain immutable
-       blocks, mutable blocks allocated in C but not yet shared with the ML
-       code, or mutable blocks whose ownership was kept on the C side (and thus
+       into a lstore) + ζnewimm (new immutable blocks allocated from ML). These
+       three parts must be disjoint. (ζσ and ζnewimm are disjoint by
+       definition). [ζML ρml] may contain immutable blocks, mutable blocks
+       allocated in C but not yet shared with the ML code, or mutable blocks
+       exposed to ML but whose ownership was kept on the C side (and thus
        correspond to a [None] in σ). *)
     ζC = ζML ρml ∪ ζσ ∪ ζnewimm →
-    dom (ζML ρml) ## dom ζσ →
-    dom (ζML ρml) ## dom ζnewimm →
-    dom ζσ ## dom ζnewimm →
+    ζML ρml ##ₘ (ζσ ∪ ζnewimm) →
     (* Taken together, the contents of the new lloc_map χC and new lstore ζC
        must represent the contents of σ. (This further constraints the demonic
-       choice of ζσ.) *)
+       choice of ζσ and ζnewimm.) *)
     is_store χC ζC σ →
     (* Demonically pick block-level values lvs that represent the arguments vs. *)
     Forall2 (is_val χC ζC) vs lvs →
@@ -117,13 +120,14 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
   (* Note: I believe that the "freezing step" does properly forbid freezing a
      mutable block that has already been passed to the outside world --- but
      seeing why is not obvious. I expect it to work through the combination of:
-     - sharing a logical block as a mutable value requires registering it in χ
-     - χ only always grows monotonically
-     - an immutable block cannot be represented as a ML-level heap-allocated value
-       (see definition of is_store)
-     - thus: trying to freeze a mutable block means that we would have to
-       unregister it from χ in order for [is_store ...] to hold. But χ must only
-       grow. Qed...
+     - sharing a logical block as a mutable value requires mapping its address to
+       LlocPublic ℓ (cf is_store)
+     - χ can only be updated to go from LlocPrivate to LlocPublic (cf expose_lloc)
+       and otherwise grows monotonically
+     - through is_store, blocks that have a public address must satisfy
+       is_heap_elt and thus be mutable (cf is_heap_elt)
+     - thus: trying to freeze a mutable block means breaking [is_store] unless
+       we change back its address to private, which is not possible.
   *)
   | RetS ec w ρc mem X :
     C_lang.to_val ec = Some w →
@@ -132,13 +136,14 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
           Freezing allows allocating a fresh block, mutating it, then changing
           it into an immutable block that represents an immutable ML value. *)
        freeze_lstore (ζC ρc) ζ →
-       (* Angelically extend (χC ρc) into (χML ρml). This makes it possible to
+       (* Angelically expose blocks by making their address public, picking a
+          fresh ML location for them in the process. This makes it possible to
           expose new blocks to ML. *)
-       lloc_map_mono (χC ρc) χML →
+       expose_llocs (χC ρc) χML →
        (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
           part ζσ that is going to be converted into the ML store σ. *)
        ζ = ζML ∪ ζσ →
-       dom ζML ## dom ζσ →
+       ζML ##ₘ ζσ →
        (* Angelically pick an ML store σ where each location mapped to [Some
           ...] corresponds to a block in ζσ. *)
        is_store_blocks χML σ ζσ →
