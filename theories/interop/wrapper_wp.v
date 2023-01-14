@@ -10,7 +10,7 @@ From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import linking_wp basics.
+From melocoton.interop Require Import linking_wp basics basics_resources.
 Import Wrap.
 
 Class wrapperGS Σ := WrapperGS {
@@ -20,7 +20,7 @@ Class wrapperGS Σ := WrapperGS {
   wrapperGS_locsetGS :> ghost_varG Σ (gsetUR loc);
   wrapperGS_addrmapGS :> ghost_varG Σ (leibnizO addr_map);
   wrapperGS_at_boundary :> ghost_varG Σ (leibnizO bool);
-  wrapperGS_γζblock : gname;
+  wrapperGS_γζ : gname;
   wrapperGS_γroots_set : gname;
   wrapperGS_γroots_map : gname;
   wrapperGS_γθ : gname;
@@ -41,69 +41,6 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-Definition lloc_own_priv (γ : lloc) : iProp Σ :=
-  γ ↪[wrapperGS_γχ] LlocPrivate.
-
-Definition lloc_own_pub (γ : lloc) (ℓ : loc) : iProp Σ :=
-  γ ↪[wrapperGS_γχ]□ LlocPublic ℓ.
-
-Instance lloc_own_pub_persistent γ ℓ : Persistent (lloc_own_pub γ ℓ).
-Proof using. apply _. Qed.
-
-Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
-  "Hχgmap" ∷ ghost_map_auth wrapperGS_γχ 1 χ ∗
-  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ).
-
-Lemma lloc_own_auth_get_pub_all χ :
-  lloc_own_auth χ -∗
-  [∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ.
-Proof using.
-  iNamed 1. iApply "Hχpubs".
-Qed.
-
-Lemma lloc_own_auth_get_pub χ γ ℓ :
-  χ !! γ = Some (LlocPublic ℓ) →
-  lloc_own_auth χ -∗
-  lloc_own_pub γ ℓ.
-Proof using.
-  intros Hγ. iNamed 1.
-  iDestruct (big_sepM_lookup with "Hχpubs") as "?"; eauto.
-Qed.
-
-Lemma lloc_own_pub_of χ γ ℓ :
-  lloc_own_auth χ -∗
-  lloc_own_pub γ ℓ -∗
-  ⌜χ !! γ = Some (LlocPublic ℓ)⌝.
-Proof using.
-  iIntros "Hχ Hpub". iNamed "Hχ".
-  by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
-Qed.
-
-Lemma lloc_own_priv_of χ γ :
-  lloc_own_auth χ -∗
-  lloc_own_priv γ -∗
-  ⌜χ !! γ = Some LlocPrivate⌝.
-Proof using.
-  iIntros "Hχ Hpub". iNamed "Hχ".
-  by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
-Qed.
-
-Lemma lloc_own_expose χ γ ℓ :
-  lloc_own_auth χ -∗
-  lloc_own_priv γ ==∗
-  lloc_own_auth (<[γ:=LlocPublic ℓ]> χ) ∗ lloc_own_pub γ ℓ.
-Proof using.
-  iIntros "Hχ Hγ".
-  iDestruct (lloc_own_priv_of with "Hχ Hγ") as %Hχγ.
-  iNamed "Hχ".
-  iMod (ghost_map_update with "Hχgmap Hγ") as "[$ Hγ]".
-  iMod (ghost_map_elem_persist with "Hγ") as "#Hγ".
-  iFrame "Hγ". iModIntro.
-  rewrite lloc_map_pubs_insert_pub.
-  iApply big_sepM_insert; eauto.
-  apply lloc_map_pubs_lookup_None; eauto.
-Qed.
-
 Definition GC (θ : addr_map) : iProp Σ :=
   ∃ (roots_s : gset addr) (roots_m : gmap addr lval),
     "HAGCθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
@@ -118,17 +55,16 @@ Definition GC (θ : addr_map) : iProp Σ :=
 (* l1 is a location in the ML heap. l2 is a block location.
    They are similar if identified by χ *)
 Definition block_sim_raw (ℓ : loc) (γ : lloc) : iProp Σ :=
-  lloc_own_pub γ ℓ.
+  lloc_own_pub wrapperGS_γχ γ ℓ.
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
   ∃ (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store),
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots
   ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
-  ∗ "HAζbl" ∷ ghost_map_auth wrapperGS_γζblock 1 ζrest
+  ∗ "HAζrest" ∷ lstore_own_auth wrapperGS_γζ ζrest
   ∗ "(%nMLv & HAσMLv & HAnMLv & HAσdom)" ∷ (∃ n, state_interp σMLvirt n)
-  ∗ "HAχvirt" ∷ lloc_own_auth χvirt
+  ∗ "HAχvirt" ∷ lloc_own_auth wrapperGS_γχ χvirt
   ∗ "HAχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χvirt ζrest, ℓ ↦M/)
-  ∗ "#HAζpers" ∷ ([∗ map] γ↦bb ∈ lstore_immut_blocks ζrest, γ ↪[ wrapperGS_γζblock ]□ bb)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) false
   ∗ "%Hfreezeρ" ∷ ⌜freeze_lstore ζ ζfreeze⌝
   ∗ "%Hfreezeeq" ∷ ⌜ζfreeze = ζσ ∪ ζrest⌝
@@ -151,12 +87,11 @@ Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map)
   ∃ (ζσ ζ : lstore),
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
   ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
-  ∗ "HAζbl" ∷ ghost_map_auth wrapperGS_γζblock 1 ζrest
+  ∗ "HAζrest" ∷ lstore_own_auth wrapperGS_γζ ζrest
   ∗ "(%nCv & HAσCv & HAnCv)" ∷ (∃ n, state_interp (memC ∪ (fmap (fun k => None) roots)) n)
   ∗ "#HAσdomF" ∷ dom_part (lloc_map_pub_locs χ)
-  ∗ "HAχ" ∷ lloc_own_auth χ
+  ∗ "HAχ" ∷ lloc_own_auth wrapperGS_γχ χ
   ∗ "HAχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χ ζrest, ℓ ↦M/)
-  ∗ "#HAζpers" ∷ ([∗ map] γ↦bb ∈ lstore_immut_blocks ζrest, γ ↪[ wrapperGS_γζblock ]□ bb)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
   ∗ "HAGCrem" ∷ GC_token_remnant roots
   ∗ "%Hfreezeeq" ∷ ⌜ζ = ζσ ∪ ζrest⌝
@@ -218,14 +153,15 @@ Proof.
   congruence.
 Qed.
 
-(* todo: version of the notations without dq *)
-Notation "l ↦fresh{ dq } b" := (ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
-                                 ∗ lloc_own_priv l)%I
+Notation "l ↦fresh{ dq } b" := (lstore_own_mut wrapperGS_γζ l dq (Mut, b) ∗ lloc_own_priv wrapperGS_γχ l)%I
   (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
-Notation "l ↦mut{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
-                              ∗ ∃ ll, block_sim_raw ll l)%I
+Notation "l ↦fresh b" := (l ↦fresh{DfracOwn 1} b)%I
+  (at level 20, format "l  ↦fresh  b") : bi_scope.
+Notation "l ↦mut{ dq } b" := (lstore_own_mut wrapperGS_γζ l dq (Mut, b) ∗ ∃ ll, block_sim_raw ll l)%I
   (at level 20, format "l  ↦mut{ dq }  b") : bi_scope.
-Notation "l ↦imm b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l DfracDiscarded (Immut, b))%I
+Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
+  (at level 20, format "l  ↦mut  b") : bi_scope.
+Notation "l ↦imm b" := (lstore_own_immut wrapperGS_γζ l (Immut, b))%I
   (at level 20, format "l  ↦imm  b") : bi_scope.
 
 Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
@@ -247,13 +183,14 @@ Definition block_sim_arr (vs:list MLval) (ls : list lval) : iProp Σ := [∗ lis
 
 End Embed_logic.
 
-
-(* todo: version of the notations without dq *)
-Global Notation "l ↦fresh{ dq } b" := (ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
-                                        ∗ lloc_own_priv l)%I
+(* reexport notations *)
+Notation "l ↦fresh{ dq } b" := (lstore_own_mut wrapperGS_γζ l dq (Mut, b) ∗ lloc_own_priv wrapperGS_γχ l)%I
   (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
-Global Notation "l ↦mut{ dq } b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l dq (Mut, b)
-                              ∗ ∃ ll, block_sim_raw ll l)%I
+Notation "l ↦fresh b" := (l ↦fresh{DfracOwn 1} b)%I
+  (at level 20, format "l  ↦fresh  b") : bi_scope.
+Notation "l ↦mut{ dq } b" := (lstore_own_mut wrapperGS_γζ l dq (Mut, b) ∗ ∃ ll, block_sim_raw ll l)%I
   (at level 20, format "l  ↦mut{ dq }  b") : bi_scope.
-Global Notation "l ↦imm b" := (  ghost_map_elem (K:=lloc) (V:=block) wrapperGS_γζblock l DfracDiscarded (Immut, b))%I
+Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
+  (at level 20, format "l  ↦mut  b") : bi_scope.
+Notation "l ↦imm b" := (lstore_own_immut wrapperGS_γζ l (Immut, b))%I
   (at level 20, format "l  ↦imm  b") : bi_scope.

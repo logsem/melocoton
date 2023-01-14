@@ -1,5 +1,6 @@
 From Coq Require Import ZArith.
 From stdpp Require Import base gmap list.
+From iris.heap_lang Require Export locations.
 From melocoton Require Import commons.
 From melocoton.c_toy_lang Require Import lang.
 From melocoton.ml_toy_lang Require Import lang.
@@ -323,6 +324,16 @@ Lemma elem_of_lloc_map_pub_locs_1 ℓ γ χ :
 Proof. intros HH. apply elem_of_lloc_map_pub_locs. eauto. Qed.
 Global Hint Resolve elem_of_lloc_map_pub_locs_1 : core.
 
+Lemma pub_locs_in_lstore_lookup_notin χ ζ γ :
+  ζ !! γ = None →
+  pub_locs_in_lstore χ ζ !! γ = None.
+Proof.
+  intros Hnotin. apply map_filter_lookup_None. right.
+  intros ? ?%lloc_map_pubs_lookup_Some ?.
+  by apply not_elem_of_dom_2 in Hnotin.
+Qed.
+Global Hint Resolve pub_locs_in_lstore_lookup_notin : core.
+
 Lemma pub_locs_in_lstore_insert_lstore_pub χ ζ γ ℓ blk :
   χ !! γ = Some (LlocPublic ℓ) →
   pub_locs_in_lstore χ (<[γ:=blk]> ζ) = <[γ:=ℓ]> (pub_locs_in_lstore χ ζ).
@@ -370,33 +381,61 @@ Proof.
   apply option_guard_iff. set_solver.
 Qed.
 
-Lemma lstore_immut_blocks_lookup_immut ζ γ tgvs :
-  lstore_immut_blocks ζ !! γ = Some (Immut, tgvs) ↔ ζ !! γ = Some (Immut, tgvs).
+Lemma lstore_immut_blocks_lookup_Some ζ γ b :
+  lstore_immut_blocks ζ !! γ = Some b ↔ ζ !! γ = Some b ∧ mutability b = Immut.
 Proof.
-  rewrite /lstore_immut_blocks map_filter_lookup /=.
-  set X := (ζ !! γ). destruct (ζ !! γ) as [[i ?]|]; subst X; cbn;
+  rewrite /lstore_immut_blocks map_filter_lookup /=. destruct b as [? ?].
+  set X := (ζ !! γ). destruct (ζ !! γ) as [[i' ?]|]; subst X; cbn;
     try naive_solver.
-  destruct (decide (i = Immut)).
-  { rewrite option_guard_True //. }
+  destruct (decide (i' = Immut)); subst.
+  { rewrite option_guard_True //. naive_solver. }
   { rewrite option_guard_False //. naive_solver. }
+Qed.
+
+Lemma lstore_immut_blocks_lookup_notin ζ γ :
+  ζ !! γ = None →
+  lstore_immut_blocks ζ !! γ = None.
+Proof.
+  intros Hnotin. rewrite /lstore_immut_blocks map_filter_lookup Hnotin //.
+Qed.
+Global Hint Resolve lstore_immut_blocks_lookup_notin : core.
+
+Lemma lstore_immut_blocks_lookup_mut ζ γ b :
+  ζ !! γ = Some b →
+  mutability b = Mut →
+  lstore_immut_blocks ζ !! γ = None.
+Proof.
+  intros Hb Hmut. rewrite /lstore_immut_blocks map_filter_lookup Hb /=.
+  rewrite option_guard_False//. congruence.
+Qed.
+Global Hint Resolve lstore_immut_blocks_lookup_mut : core.
+
+Lemma lstore_immut_blocks_lookup_immut ζ γ b :
+  ζ !! γ = Some b →
+  mutability b = Immut →
+  lstore_immut_blocks ζ !! γ = Some b.
+Proof.
+  intros ? ?. rewrite lstore_immut_blocks_lookup_Some. naive_solver.
 Qed.
 
 Lemma lstore_immut_blocks_insert_mut ζ γ bb :
   mutability bb = Mut →
-  ζ !! γ = None →
-  lstore_immut_blocks (<[γ:=bb]> ζ) = lstore_immut_blocks ζ.
+  lstore_immut_blocks (<[γ:=bb]> ζ) = delete γ (lstore_immut_blocks ζ).
 Proof.
-  intros HH ?. rewrite /lstore_immut_blocks map_filter_insert_False; [|congruence].
-  rewrite delete_notin //.
+  intros Hmut. rewrite /lstore_immut_blocks map_filter_insert_False; [|congruence].
+  apply map_filter_delete.
 Qed.
 
 Lemma lstore_immut_blocks_insert_immut ζ γ bb :
   mutability bb = Immut →
   lstore_immut_blocks (<[γ:=bb]> ζ) = <[γ:=bb]> (lstore_immut_blocks ζ).
 Proof.
-  intros HH. rewrite /lstore_immut_blocks map_filter_insert_True; [|congruence].
-  done.
+  intros HH. rewrite /lstore_immut_blocks map_filter_insert_True; done.
 Qed.
+
+Lemma lstore_immut_blocks_delete ζ γ :
+  lstore_immut_blocks (delete γ ζ) = delete γ (lstore_immut_blocks ζ).
+Proof. rewrite /lstore_immut_blocks. apply map_filter_delete. Qed.
 
 Lemma lloc_map_mono_inj χ1 χ2 :
   lloc_map_mono χ1 χ2 →

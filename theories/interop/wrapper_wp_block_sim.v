@@ -9,7 +9,7 @@ From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import linking_wp basics wrapper_wp.
+From melocoton.interop Require Import basics basics_resources wrapper_wp.
 Import Wrap.
 
 Section BlockSimLaws.
@@ -27,8 +27,8 @@ Implicit Types P : iProp Σ.
 
 Lemma block_sim_of_ghost_state (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     lloc_own_auth χvirt
-  -∗ ([∗ map] γ↦bb ∈ lstore_immut_blocks ζrest, γ ↪[ wrapperGS_γζblock ]□ bb)
+     lloc_own_auth wrapperGS_γχ χvirt
+  -∗ lstore_own_auth wrapperGS_γζ ζrest
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
@@ -36,15 +36,17 @@ Lemma block_sim_of_ghost_state (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_ma
   -∗⌜is_val χvirt ζfreeze v b⌝
   -∗ block_sim v b.
 Proof.
-  iIntros "Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
-  iInduction H as [] "IH"; cbn; try done.
+  iIntros "Hχ Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
+  iDestruct (lstore_own_auth_get_immut_all with "Hζ") as "#Hζimm".
+  iInduction H as [] "IH" forall "Hζ Hχ"; cbn; try done.
   1: iExists γ; iSplit; first done.
   1: by iApply (lloc_own_auth_get_pub with "Hχ").
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
   3-4: iExists γ, lv; iSplit; first done; iSplit.
-  1,3,5: iApply (big_sepM_lookup with "Hζ"); try done.
+  1,3,5: iApply (big_sepM_lookup with "Hζimm"); try done.
   4: iSplit.
-  4,6,7: by iApply "IH". 4: by iApply "IH1".
+  4,6,7: by iApply ("IH" with "[] [] [] Hζ Hχ").
+  4: by iApply ("IH1" with "[] [] [] Hζ Hχ").
   all: simplify_eq.
   all: apply lstore_immut_blocks_lookup_immut.
   all: match goal with H: (_ ∪ _) !! _ = Some _ |- _ =>
@@ -56,10 +58,10 @@ Proof.
   all: inversion Hstore.
 Qed.
 
-Lemma block_sim_arr_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
+Lemma block_sim_arr_of_ghost_state (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs b :
-     lloc_own_auth χvirt
-  -∗ ([∗ map] γ↦bb ∈ lstore_immut_blocks ζrest, γ ↪[ wrapperGS_γζblock ]□ bb)
+     lloc_own_auth wrapperGS_γχ χvirt
+  -∗ lstore_own_auth wrapperGS_γζ ζrest
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
@@ -67,7 +69,7 @@ Lemma block_sim_arr_of_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : ll
   -∗⌜Forall2 (is_val χvirt ζfreeze) vs b⌝
   -∗ block_sim_arr vs b.
 Proof.
-  iIntros "Hχ #Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
+  iIntros "Hχ Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
   iApply big_sepL2_forall; iSplit; first (iPureIntro; by eapply Forall2_length).
   iIntros "%k %v %l %H1 %H2".
   iApply (block_sim_of_ghost_state with "Hχ Hζ"); try done.
@@ -76,8 +78,8 @@ Qed.
 
 Lemma block_sim_to_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     lloc_own_auth χvirt
-  -∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
+     lloc_own_auth wrapperGS_γχ χvirt
+  -∗ lstore_own_auth wrapperGS_γζ ζrest
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
@@ -96,17 +98,14 @@ Proof.
      iPoseProof ("IH1" with "Hχ Hζ Hlv2") as "%Hr2".
   2-3: iDestruct "Hsim" as "(%γ & %lv & -> & Hsim & Hlv)";
        iPoseProof ("IH" with "Hχ Hζ Hlv") as "%Hr".
-  1-3: unshelve iPoseProof (@ghost_map_lookup with "Hζ Hsim") as "%HH";
-       iPureIntro; econstructor; eauto; subst;
-       rewrite lookup_union; rewrite HH;
-       destruct (ζσ !! γ) eqn:Heq; rewrite Heq; try done;
-       eapply @map_disjoint_spec in Hdis; done.
+  1-3: unshelve iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%HH _]".
+  all: iPureIntro; econstructor; eauto; by simplify_map_eq.
 Qed.
 
 Lemma block_sim_arr_to_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs bb :
-     lloc_own_auth χvirt
-  -∗ ghost_map_auth wrapperGS_γζblock 1 ζrest
+     lloc_own_auth wrapperGS_γχ χvirt
+  -∗ lstore_own_auth wrapperGS_γζ ζrest
   -∗⌜ζfreeze = ζσ ∪ ζrest⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
