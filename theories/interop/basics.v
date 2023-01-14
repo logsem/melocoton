@@ -155,16 +155,6 @@ Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
 Definition is_private_blocks (χ : lloc_map) (ζ : lstore) : Prop :=
   ∀ γ, γ ∈ dom ζ → χ !! γ = Some LlocPrivate.
 
-Lemma is_store_blocks_is_private_blocks_disjoint χ σ ζs ζp :
-  is_store_blocks χ σ ζs →
-  is_private_blocks χ ζp →
-  ζs ##ₘ ζp.
-Proof.
-  intros [Hs1 Hs2] Hp. apply map_disjoint_spec. intros ℓ b1 b2 Hsℓ Hpℓ.
-  apply elem_of_dom_2, Hs2 in Hsℓ as (?&?&?&?).
-  apply elem_of_dom_2, Hp in Hpℓ. congruence.
-Qed.
-
 (* An lloc_map χ maintains a monotonically growing correspondance between ML
    locations and block-level locations. When crossing a wrapper boundary, χ
    typically needs to be extended to account for allocation of new blocks on
@@ -274,7 +264,139 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
 
 
 (******************************************************************************)
-(* lemmas *)
+(* auxiliary definitions and lemmas *)
+
+Global Instance ismut_eqdecision : EqDecision ismut.
+Proof. intros [] []; solve_decision. Qed.
+
+Definition lloc_map_pubs (χ : lloc_map) : gmap lloc loc :=
+  omap (λ vis, match vis with LlocPublic ℓ => Some ℓ | LlocPrivate => None end) χ.
+
+Definition lloc_map_pub_locs (χ : lloc_map) : gset loc :=
+  list_to_set ((map_to_list (lloc_map_pubs χ)).*2).
+
+Definition pub_locs_in_lstore (χ : lloc_map) (ζ : lstore) : gmap lloc loc :=
+  filter (λ '(γ, _), γ ∈ dom ζ) (lloc_map_pubs χ).
+
+Definition lstore_immut_blocks (ζ : lstore) : lstore :=
+  filter (λ '(_, bb), mutability bb = Immut) ζ.
+
+Lemma lloc_map_pubs_lookup_Some χ γ ℓ :
+  lloc_map_pubs χ !! γ = Some ℓ ↔ χ !! γ = Some (LlocPublic ℓ).
+Proof.
+  rewrite /lloc_map_pubs lookup_omap.
+  destruct (χ !! γ) as [[]|]; naive_solver.
+Qed.
+
+Lemma lloc_map_pubs_lookup_Some_1 χ γ ℓ :
+  lloc_map_pubs χ !! γ = Some ℓ → χ !! γ = Some (LlocPublic ℓ).
+Proof. apply lloc_map_pubs_lookup_Some. Qed.
+Global Hint Resolve lloc_map_pubs_lookup_Some_1 : core.
+
+Lemma lloc_map_pubs_lookup_Some_2 χ γ ℓ :
+  χ !! γ = Some (LlocPublic ℓ) → lloc_map_pubs χ !! γ = Some ℓ.
+Proof. apply lloc_map_pubs_lookup_Some. Qed.
+Global Hint Resolve lloc_map_pubs_lookup_Some_2 : core.
+
+Lemma lloc_map_pubs_lookup_None χ γ :
+  lloc_map_pubs χ !! γ = None ↔ χ !! γ = None ∨ χ !! γ = Some LlocPrivate.
+Proof.
+  rewrite /lloc_map_pubs lookup_omap.
+  destruct (χ !! γ) as [[]|]; naive_solver.
+Qed.
+
+Lemma lloc_map_pubs_insert_pub χ γ ℓ :
+  lloc_map_pubs (<[γ:=LlocPublic ℓ]> χ) = <[γ:=ℓ]> (lloc_map_pubs χ).
+Proof. rewrite /lloc_map_pubs omap_insert //. Qed.
+
+Lemma elem_of_lloc_map_pub_locs ℓ χ :
+  ℓ ∈ lloc_map_pub_locs χ ↔ ∃ γ, χ !! γ = Some (LlocPublic ℓ).
+Proof.
+  rewrite elem_of_list_to_set elem_of_list_fmap.
+  split; [intros ([? ?] & -> & HH) | intros (? & ?)].
+  { rewrite elem_of_map_to_list in HH. eauto. }
+  { eexists (_, _). cbn. split; eauto. rewrite elem_of_map_to_list. eauto. }
+Qed.
+
+Lemma elem_of_lloc_map_pub_locs_1 ℓ γ χ :
+  χ !! γ = Some (LlocPublic ℓ) → ℓ ∈ lloc_map_pub_locs χ.
+Proof. intros HH. apply elem_of_lloc_map_pub_locs. eauto. Qed.
+Global Hint Resolve elem_of_lloc_map_pub_locs_1 : core.
+
+Lemma pub_locs_in_lstore_insert_lstore_pub χ ζ γ ℓ blk :
+  χ !! γ = Some (LlocPublic ℓ) →
+  pub_locs_in_lstore χ (<[γ:=blk]> ζ) = <[γ:=ℓ]> (pub_locs_in_lstore χ ζ).
+Proof.
+  intros Hγ. rewrite /pub_locs_in_lstore dom_insert_L. eapply map_eq.
+  intros γ'. destruct (decide (γ = γ')) as [<-|].
+  { rewrite lookup_insert. apply map_filter_lookup_Some.
+    rewrite lloc_map_pubs_lookup_Some. set_solver. }
+  rewrite lookup_insert_ne//. rewrite !map_filter_lookup.
+  destruct (lloc_map_pubs χ !! γ'); eauto; cbn.
+  apply option_guard_iff. set_solver.
+Qed.
+
+Lemma pub_locs_in_lstore_insert_existing χ ζ γ blk :
+  γ ∈ dom ζ →
+  pub_locs_in_lstore χ (<[γ:=blk]> ζ) = pub_locs_in_lstore χ ζ.
+Proof.
+  intros Hγζ. rewrite /pub_locs_in_lstore dom_insert_L. eapply map_eq.
+  intros γ'. rewrite !map_filter_lookup.
+  destruct (lloc_map_pubs χ !! γ'); eauto; cbn.
+  destruct (decide (γ = γ')) as [<-|].
+  { rewrite !option_guard_True; set_solver. }
+  apply option_guard_iff. set_solver.
+Qed.
+
+Lemma pub_locs_in_lstore_insert_pub χ ζ γ ℓ :
+  γ ∈ dom ζ →
+  pub_locs_in_lstore (<[γ:=LlocPublic ℓ]> χ) ζ = <[γ:=ℓ]> (pub_locs_in_lstore χ ζ).
+Proof.
+  intros Hγ. rewrite /pub_locs_in_lstore lloc_map_pubs_insert_pub. eapply map_eq.
+  intros γ'. rewrite map_filter_lookup.
+  destruct (decide (γ = γ')) as [<-|]; simplify_map_eq.
+  { destruct (decide (γ ∈ dom ζ)); by simplify_map_eq. }
+  rewrite map_filter_lookup //.
+Qed.
+
+Lemma pub_locs_in_lstore_delete_lstore χ ζ γ :
+  pub_locs_in_lstore χ (delete γ ζ) = delete γ (pub_locs_in_lstore χ ζ).
+Proof.
+  rewrite /pub_locs_in_lstore dom_delete_L. eapply map_eq.
+  intros γ'. destruct (decide (γ = γ')) as [<-|].
+  { rewrite lookup_delete. apply map_filter_lookup_None. set_solver. }
+  rewrite lookup_delete_ne//. rewrite !map_filter_lookup.
+  destruct (lloc_map_pubs χ !! γ'); eauto; cbn.
+  apply option_guard_iff. set_solver.
+Qed.
+
+Lemma lstore_immut_blocks_lookup_immut ζ γ tgvs :
+  lstore_immut_blocks ζ !! γ = Some (Immut, tgvs) ↔ ζ !! γ = Some (Immut, tgvs).
+Proof.
+  rewrite /lstore_immut_blocks map_filter_lookup /=.
+  set X := (ζ !! γ). destruct (ζ !! γ) as [[i ?]|]; subst X; cbn;
+    try naive_solver.
+  destruct (decide (i = Immut)).
+  { rewrite option_guard_True //. }
+  { rewrite option_guard_False //. naive_solver. }
+Qed.
+
+Lemma lstore_immut_blocks_insert_mut ζ γ bb :
+  mutability bb = Mut →
+  ζ !! γ = None →
+  lstore_immut_blocks (<[γ:=bb]> ζ) = lstore_immut_blocks ζ.
+Proof.
+  intros HH ?. rewrite /lstore_immut_blocks map_filter_insert_False; [|congruence].
+  rewrite delete_notin //.
+Qed.
+
+Lemma lstore_immut_blocks_insert_immut ζ γ bb :
+  mutability bb = Immut →
+  lstore_immut_blocks (<[γ:=bb]> ζ) = <[γ:=bb]> (lstore_immut_blocks ζ).
+Proof.
+  intros HH. rewrite /lstore_immut_blocks map_filter_insert_True; [|congruence].
+  done.
+Qed.
 
 Lemma lloc_map_mono_inj χ1 χ2 :
   lloc_map_mono χ1 χ2 →
@@ -282,10 +404,71 @@ Lemma lloc_map_mono_inj χ1 χ2 :
 Proof. intro H. apply H. Qed.
 Global Hint Resolve lloc_map_mono_inj : core.
 
-Lemma is_val_mono χ χL ζ ζL x y : χ ⊆ χL -> ζ ⊆ ζL -> is_val χ ζ x y → is_val χL ζL x y.
+Lemma lloc_map_inj_insert_pub χ ℓ γ :
+  lloc_map_inj χ →
+  ℓ ∉ lloc_map_pub_locs χ →
+  lloc_map_inj (<[γ := LlocPublic ℓ]> χ).
+Proof.
+  intros Hinj Hℓ γ1 γ2 ℓ' H1 H2.
+  destruct (decide (γ1 = γ2)); auto. exfalso.
+  destruct (decide (γ = γ1)) as [<-|]; simplify_map_eq; eauto.
+  destruct (decide (γ = γ2)) as [<-|]; simplify_map_eq; eauto.
+Qed.
+
+Lemma expose_llocs_inj χ1 χ2 :
+  expose_llocs χ1 χ2 →
+  lloc_map_inj χ2.
+Proof. intro H. apply H. Qed.
+Global Hint Resolve expose_llocs_inj : core.
+
+Lemma expose_llocs_trans χ1 χ2 χ3 :
+  expose_llocs χ1 χ2 →
+  expose_llocs χ2 χ3 →
+  expose_llocs χ1 χ3.
+Proof.
+  intros (Hdom1 & Hinj1 & He1) (Hdom2 & Hinj2 & He2).
+  repeat split.
+  - by rewrite Hdom1.
+  - done.
+  - intros γ vis1 vis2 H1 H3. destruct (χ2 !! γ) eqn:H2.
+    2: { apply not_elem_of_dom in H2. apply elem_of_dom_2 in H1. set_solver. }
+    specialize (He1 _ _ _ H1 H2). specialize (He2 _ _ _ H2 H3).
+    inversion He1; inversion He2; simplify_eq; econstructor; eauto.
+Qed.
+
+Lemma expose_llocs_insert χ γ ℓ :
+  χ !! γ = Some LlocPrivate →
+  ℓ ∉ lloc_map_pub_locs χ →
+  lloc_map_inj χ →
+  expose_llocs χ (<[γ := LlocPublic ℓ]> χ).
+Proof.
+  intros Hγ Hℓ Hinj. repeat split.
+  - rewrite dom_insert_L. apply elem_of_dom_2 in Hγ. set_solver.
+  - eapply lloc_map_inj_insert_pub; eauto.
+  - intros γ' vis1 vis2 H1 H2.
+    destruct (decide (γ = γ')) as [<-|]; simplify_map_eq; econstructor; eauto.
+Qed.
+
+Lemma is_val_mono χ χL ζ ζL x y :
+  χ ⊆ χL → ζ ⊆ ζL →
+  is_val χ ζ x y →
+  is_val χL ζL x y.
 Proof.
   intros H1 H2; induction 1 in χL,ζL,H1,H2|-*; econstructor; eauto.
   all: eapply lookup_weaken; done.
+Qed.
+
+Lemma is_val_expose_llocs χ χ' ζ v lv :
+  expose_llocs χ χ' →
+  is_val χ ζ v lv →
+  is_val χ' ζ v lv.
+Proof.
+  intros He. induction 1 in χ',He; econstructor; eauto.
+  destruct He as (Hdom & Hinj & He).
+  destruct (χ' !! γ) eqn:HH.
+  2: { exfalso. apply not_elem_of_dom_2 in HH. rewrite -Hdom in HH.
+       apply not_elem_of_dom_1 in HH. naive_solver. }
+  specialize (He _ _ _ ltac:(eassumption) HH). inversion He; auto.
 Qed.
 
 Lemma is_val_insert_immut χ ζ γ bb bb2 x y :
@@ -298,6 +481,16 @@ Proof.
   all: rewrite lookup_insert_ne; first done.
   all: intros ->; destruct bb2 as [mut [? ?]]; cbn in *.
   all: subst mut; rewrite H1 in H; congruence.
+Qed.
+
+Lemma is_store_blocks_is_private_blocks_disjoint χ σ ζs ζp :
+  is_store_blocks χ σ ζs →
+  is_private_blocks χ ζp →
+  ζs ##ₘ ζp.
+Proof.
+  intros [Hs1 Hs2] Hp. apply map_disjoint_spec. intros ℓ b1 b2 Hsℓ Hpℓ.
+  apply elem_of_dom_2, Hs2 in Hsℓ as (?&?&?&?).
+  apply elem_of_dom_2, Hp in Hpℓ. congruence.
 Qed.
 
 Lemma is_store_blocks_has_loc χ σ ζ ℓ Vs :
@@ -387,56 +580,62 @@ Proof.
   * rewrite lookup_insert_ne in Hs1; last done. eapply Hstore; done.
 Qed.
 
-(*
 Lemma is_store_blocks_expose_lloc χ ζ σ ℓ γ :
   is_store_blocks χ σ ζ →
-  ℓ ∉ dom χ →
-  is_store_blocks (<[ℓ:=γ]> χ) (<[ℓ:=None]> σ) ζ.
+  χ !! γ = Some LlocPrivate →
+  ℓ ∉ dom σ →
+  is_store_blocks (<[γ:=LlocPublic ℓ]> χ) (<[ℓ:=None]> σ) ζ.
 Proof.
-  intros [Hsl Hsr] Hℓdom. split.
-  - rewrite ! dom_insert_L. rewrite Hsl; done.
-  - intros γ1; destruct (Hsr γ1) as [Hsrl Hsrr]; split.
-    * intros Hin. destruct (Hsrl Hin) as (ℓ1 & Vs & H1 & H2).
-      exists ℓ1, Vs. destruct (decide (ℓ1 = ℓ)) as [-> | Hn].
-      2: rewrite ! lookup_insert_ne; try done.
-      exfalso. apply Hℓdom. by eapply elem_of_dom.
+  intros [Hsl Hsr] Hγ Hℓdom. split.
+  - intros ℓ'. rewrite !dom_insert_L elem_of_union elem_of_singleton.
+    intros [<-|Hℓ']. by exists γ; simplify_map_eq.
+    specialize (Hsl _ Hℓ') as (γ'&?). exists γ'.
+    rewrite lookup_insert_ne //. set_solver.
+  - intros γ'; destruct (Hsr γ') as [Hsrl Hsrr]. split.
+    * intros Hin. specialize (Hsrl Hin) as (ℓ' & Vs' & H1 & H2).
+      eexists ℓ', Vs'. rewrite lookup_insert_ne. 2: congruence.
+      split; eauto. rewrite lookup_insert_ne//.
+      eapply not_elem_of_dom in Hℓdom. naive_solver.
     * intros (ℓ2 & Vs & H1 & H2). destruct (decide (ℓ = ℓ2)) as [<- | Hn].
       1: rewrite lookup_insert in H2; congruence.
-      apply Hsrr. exists ℓ2, Vs.
-      rewrite lookup_insert_ne in H1; last done.  rewrite lookup_insert_ne in H2; done.
+      apply Hsrr. destruct (decide (γ = γ')) as [<-|]; [by simplify_map_eq|].
+      rewrite !lookup_insert_ne // in H1, H2. exists ℓ2, Vs. eauto.
 Qed.
 
 Lemma is_store_expose_lloc χ ζ σ ℓ γ :
   is_store χ ζ σ →
-  ℓ ∉ dom χ →
-  is_store (<[ℓ:=γ]> χ) ζ (<[ℓ:=None]> σ).
+  χ !! γ = Some LlocPrivate →
+  ℓ ∉ dom σ →
+  ℓ ∉ lloc_map_pub_locs χ →
+  lloc_map_inj χ →
+  is_store (<[γ:=LlocPublic ℓ]> χ) ζ (<[ℓ:=None]> σ).
 Proof.
-  intros Hstore Hℓdom ℓ1 vs γ1 blk H1 H2 H3. destruct (decide (ℓ = ℓ1)) as [<- | Hn].
-  1: rewrite lookup_insert in H1; congruence.
-  rewrite lookup_insert_ne in H1; last done. rewrite lookup_insert_ne in H2; last done.
+  intros Hstore Hγ Hℓdom Hℓpubs Hinj ℓ1 vs γ1 blk H1 H2 H3.
+  destruct (decide (ℓ = ℓ1)) as [<- | Hn]; [by simplify_map_eq|].
+  destruct (decide (γ = γ1)) as [<- |]; [by simplify_map_eq|].
+  rewrite !lookup_insert_ne // in H1, H2.
   specialize (Hstore _ _ _ _ H1 H2 H3).
   inversion Hstore; subst.
-  econstructor. eapply Forall2_impl; first apply H.
-  intros x y Hval. eapply is_val_mono; last done; eauto.
-  apply insert_subseteq. by eapply not_elem_of_dom.
+  econstructor. eapply Forall2_impl; first eauto.
+  intros x y Hval. eapply is_val_expose_llocs; last done; eauto.
+  eapply expose_llocs_insert; eauto.
 Qed.
 
 Lemma is_store_freeze_lloc χ ζ σ γ b:
   is_store χ ζ σ →
-  (∀ ℓ' γ', χ !! ℓ' = Some γ' → γ ≠ γ') →
+  χ !! γ = Some LlocPrivate →
   ζ !! γ = Some (Mut, b) →
   is_store χ (<[γ:=(Immut, b)]> ζ) σ.
 Proof.
-  intros Hstore Hfreshχ Hζγ l vs' γ1 bb H1 H2 H3.
+  intros Hstore Hpriv Hζγ l vs' γ1 bb H1 H2 H3.
   destruct (decide (γ = γ1)) as [<- | H4].
-  * exfalso. eapply Hfreshχ; eauto.
+  * simplify_map_eq.
   * rewrite lookup_insert_ne in H3; last done.
     specialize (Hstore _ _ _ _ H1 H2 H3).
     inversion Hstore. subst vs bb.
     econstructor. eapply Forall2_impl; first done.
     intros x y H5. eapply is_val_insert_immut; eauto.
 Qed.
-*)
 
 Lemma GC_correct_freeze_lloc ζ θ γ b :
   GC_correct ζ θ →

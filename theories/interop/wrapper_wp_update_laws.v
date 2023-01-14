@@ -7,7 +7,6 @@ From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import wrappersem wrapperstate.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
-From melocoton Require Import big_sepM_limited.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
@@ -49,26 +48,25 @@ Proof.
   specialize (Hstore l vs ll bb Hlσ Hlχ Hfreezell) as Hstorel.
   inversion Hstorel; subst vs0 bb.
   iAssert (block_sim_arr vs lvs) as "#Hblock".
-  1: by iApply (block_sim_arr_of_ghost_state with "HAχbij HAζpers").
+  1: by iApply (block_sim_arr_of_ghost_state with "HAχvirt HAζpers").
   iAssert (block_sim_raw l ll) as "#Hraw".
-  1: iApply (gset_bij_own_elem_get with "HAχbij"); by eapply elem_of_map_to_set_pair.
+  1: by iApply (lloc_own_auth_get_pub with "HAχvirt").
   assert (ζrest !! ll = None) as HζllNone.
   1: eapply map_disjoint_Some_l; done.
   iSplitR "Hzz". 1: iSplitL "HσC HnC".
   + iExists _. iFrame.
   + unfold C_state_interp, named. iExists (ζfreeze), (delete ll ζσ), (<[ll:=(Mut, (TagDefault, lvs))]> ζrest).
-    iExists χvirt, fresh, (<[l:=None]> σMLvirt). iFrame.
-    iSplitL "HAnMLv HAσdom HAσsafe".
-    1: { iExists _; iFrame. iSplitL "HAσdom".
-         + iApply (dom_auth_dom with "HAσdom"). rewrite dom_insert_L. eapply elem_of_dom_2 in Hlσ. set_solver.
-         + iApply (big_sepM_insert_override_2 with "HAσsafe"); first done; by iIntros "_". }
-    iSplitL. 
-    { rewrite dom_insert_L.
-      iApply (big_sepM_insert_inj with "[] [] [] [Hl] HAχNone"); eauto.
-      iPureIntro. by apply not_elem_of_dom_2. }
+    iExists χvirt, (<[l:=None]> σMLvirt). iFrame.
+    iSplitL "HAnMLv HAσdom".
+    1: { iExists _; iFrame. iApply (dom_auth_dom with "HAσdom").
+         rewrite dom_insert_L. eapply elem_of_dom_2 in Hlσ. set_solver. }
     iSplitL.
-    { iApply big_sepM_insert; eauto.
-      iFrame "HAζpers". cbn; iIntros "%Hne"; congruence. }
+    { rewrite (pub_locs_in_lstore_insert_lstore_pub _ _ _ l) //.
+      iApply big_sepM_insert; [| by iFrame].
+      apply map_filter_lookup_None. right. intros ? ?%lloc_map_pubs_lookup_Some ?.
+      simplify_map_eq. by apply not_elem_of_dom in HζllNone. }
+    iSplitL.
+    { rewrite lstore_immut_blocks_insert_mut //. }
     iPureIntro. split_and!.
     all: eauto.
     - symmetry. subst. by apply union_delete_insert.
@@ -85,33 +83,28 @@ Proof.
   iIntros "(Hσ & HGC & (Hl & (%ℓ & #Hlℓ)) & #Hsim)".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iNamed "Hσ". iNamed "SIC".
-  iPoseProof (block_sim_arr_to_ghost_state with "HAχbij HAζbl [] [] [] [] Hsim ") as "%Hsim".
+  iPoseProof (block_sim_arr_to_ghost_state with "HAχvirt HAζbl [] [] [] [] Hsim ") as "%Hsim".
   1-4: iPureIntro; done.
-  iPoseProof (@gset_bij_elem_of with "HAχbij Hlℓ") as "%Hχℓ".
+  iPoseProof (lloc_own_pub_of with "HAχvirt Hlℓ") as "%Hχℓ".
   unfold is_store in Hstore.
-  iPoseProof (@ghost_map_lookup with "HAζbl Hl") as "%Hζl".
-  apply elem_of_map_to_set_pair in Hχℓ.
-  iPoseProof (big_sepM_delete_S with "[] [] HAχNone") as "(Hℓ & HAχNone)"; eauto.
-  1: iPureIntro; eapply elem_of_dom_2; done.
-  iPoseProof ("Hℓ" $! Hχℓ) as "Hℓ".
+  iPoseProof (ghost_map_lookup with "HAζbl Hl") as "%Hζl".
+  iDestruct (big_sepM_delete _ _ _ ℓ with "HAχNone") as "[Hℓ HAχNone]".
+  { eapply map_filter_lookup_Some. rewrite lloc_map_pubs_lookup_Some.
+    split; eauto. by eapply elem_of_dom_2. }
   iDestruct (gen_heap_valid with "HAσMLv Hℓ") as "%Hlσ".
   iMod (gen_heap_update _ _ _ (Some vs) with "HAσMLv Hℓ") as "[HAσMLv Hℓ]".
   iMod (ghost_map_delete with "HAζbl Hl") as "HAζbl".
-  iMod (val_arr_safe_to_ghost_state with "[#] HAσdom") as "(HAσdom & H1)".
-  { iPureIntro. eapply Forall2_Forall_l; first exact Hsim. eapply Forall_forall; intros k1 v1 x.
-    eapply is_val_is_safe_on_heap. destruct Hstore_blocks; set_solver. }
   iModIntro. iFrame "HGC". iSplitR "Hℓ". 2: iExists ℓ; iFrame; done.
   cbn. iSplitL "HσC HnC".
   1: iExists _; iFrame.
   unfold C_state_interp, named.
   iExists ζfreeze, (<[γ:=(Mut, (TagDefault, b))]>ζσ), (delete γ ζrest).
-  iExists χvirt, fresh, (<[ ℓ := Some vs ]> σMLvirt).
+  iExists χvirt, (<[ ℓ := Some vs ]> σMLvirt).
   iFrame.
-  iSplitL "HAnMLv HAσdom HAσsafe H1". 2: iSplitL. 3: iSplitL. 4: iPureIntro; split_and!; eauto.
-  + iExists _; iFrame. iSplitL "HAσdom"; first (iApply (dom_auth_dom with "HAσdom"); erewrite dom_insert_L; eapply elem_of_dom_2 in Hlσ; set_solver).
-    iApply (big_sepM_insert_override_2 with "HAσsafe [H1]"); first done; by iIntros "_".
-  + by rewrite dom_delete_L.
-  + iPoseProof big_sepM_delete as "(HH & _)"; last iPoseProof ("HH" with "HAζpers") as "(_ & HAζpers2)"; done.
+  iSplitL "HAnMLv HAσdom". 2: iSplitL. 3: iSplitL. 4: iPureIntro; split_and!; eauto.
+  + iExists _; iFrame. iApply (dom_auth_dom with "HAσdom"); erewrite dom_insert_L; eapply elem_of_dom_2 in Hlσ; set_solver.
+  + rewrite pub_locs_in_lstore_delete_lstore //.
+  + rewrite /lstore_immut_blocks map_filter_delete_not //. naive_solver.
   + erewrite (union_insert_delete ζσ ζrest). 2: eapply map_disjoint_Some_r. all: eauto.
   + apply map_disjoint_insert_l_2. 1: apply lookup_delete.
     apply map_disjoint_delete_r. done.
@@ -123,23 +116,23 @@ Qed.
 
 Lemma freeze_to_mut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb ==∗ SI ∗ GC θ ∗ γ ↦mut{DfracOwn 1} bb)%I.
 Proof.
-  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
+  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iNamed "Hσ". iNamed "SIC".
-  iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
-  iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
-  pose (fresh_locs (dom χvirt)) as ℓ.
-  assert (ℓ ∉ dom χvirt) as Hℓdom.
-  1: { epose proof (fresh_locs_fresh (dom χvirt) 0) as Hfresh.
-       unfold loc_add in Hfresh. rewrite Z.add_0_r in Hfresh. apply Hfresh. lia. }
-  iMod (gset_bij_own_extend with "HAχbij") as "(HAχbij & Hℓγ)".
-  1: intros γ' Hγ'%elem_of_map_to_set_pair; apply Hℓdom; by eapply elem_of_dom_2.
-  1: intros ℓ' Hℓ'%elem_of_map_to_set_pair; apply (Hfreshχ _ _ Hℓ'); by eapply elem_of_dom.
+  iPoseProof (ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
+  pose (fresh_locs (lloc_map_pub_locs χvirt)) as ℓ.
+  assert (ℓ ∉ lloc_map_pub_locs χvirt).
+  { intros Hℓ. apply (fresh_locs_fresh (lloc_map_pub_locs χvirt) 0 ltac:(lia)).
+    rewrite /loc_add Z.add_0_r //. }
+  assert (ℓ ∉ dom σMLvirt).
+  { intros Hℓ. destruct Hstore_blocks as [H1 _].
+    destruct (H1 _ Hℓ) as (γ'&Hγ'). by apply elem_of_lloc_map_pub_locs_1 in Hγ'. }
+  iDestruct (lloc_own_priv_of with "HAχvirt Hmtfresh") as %Hχvirtγ.
+  iMod (lloc_own_expose with "HAχvirt Hmtfresh") as "[HAχvirt #Hℓγ]".
   iMod (gen_heap_alloc _ ℓ None with "HAσMLv") as "(HAσMLv & HℓNone & Hmeta)".
-  1: eapply not_elem_of_dom_1. by destruct Hstore_blocks as [-> _].
-  iPoseProof (big_sepM_insert_M _ _ _ ℓ γ with "[] [HℓNone] HAχNone") as "HAχNone"; eauto.
-  1: iPureIntro; by eapply not_elem_of_dom_1.
-  iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
+  1: by eapply not_elem_of_dom_1.
+  iPoseProof (big_sepM_insert _ _ γ ℓ with "[$HAχNone $HℓNone]") as "HAχNone".
+  { eapply map_filter_lookup_None. left. eapply lloc_map_pubs_lookup_None; eauto. }
   iMod (dom_auth_extend _ (<[ ℓ := None ]> σMLvirt) with "HAσdom []") as "HAσdom".
   1: iPureIntro; rewrite dom_insert_L; set_solver.
   iModIntro.
@@ -149,40 +142,32 @@ Proof.
   cbn. iSplitL "HσC HnC"; first (iExists nCv; iFrame).
   unfold C_state_interp, named.
   iExists ζfreeze, ζσ, ζrest.
-  iExists (<[ℓ:=γ]> χvirt), (delete γ fresh), (<[ ℓ := None ]> σMLvirt).
+  iExists (<[γ:=LlocPublic ℓ]> χvirt), (<[ ℓ := None ]> σMLvirt).
   iFrame. iFrame "HAζpers".
-  iSplitL "HAnMLv HAσsafe". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
-  + iExists nMLv; iFrame. iApply (big_sepM_insert_2 with "[] HAσsafe"); done.
-  + rewrite map_to_set_insert_L //. by eapply not_elem_of_dom.
+  iSplitL "HAnMLv". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
+  + iExists nMLv; iFrame.
+  + rewrite pub_locs_in_lstore_insert_pub //. by eapply elem_of_dom_2.
   + eapply is_store_blocks_expose_lloc; eauto.
   + eapply is_store_expose_lloc; eauto.
-  + destruct Hχvirt as [H1 H2]. split.
-    - etransitivity; first done.
-      eapply insert_subseteq. eapply not_elem_of_dom; done.
-    - eapply gmap_inj_extend; eauto. intros ? ? ? <-. eapply Hfreshχ; eauto.
-      by eapply elem_of_dom_2.
-  + intros x y Hxy; destruct (decide (x=ℓ)) as [->|Hne].
-    - subst. rewrite lookup_insert in Hxy; injection Hxy; intros ->. rewrite dom_union_L; apply elem_of_union; right. by eapply elem_of_dom.
-    - rewrite lookup_insert_ne in Hxy; last done. by eapply Hfreezeχ.
-  + intros x y Hxy; destruct (decide (x=ℓ)) as [->|Hne].
-    - subst. rewrite lookup_insert in Hxy; injection Hxy; intros ->. intros H%elem_of_dom. rewrite lookup_delete in H. destruct H; congruence.
-    - rewrite lookup_insert_ne in Hxy; last done. intros H%elem_of_dom. destruct H as [xx [Hx1 Hx2]%lookup_delete_Some]. eapply Hfreshχ; first done.
-      by eapply elem_of_dom.
+  + eapply expose_llocs_trans; first eassumption.
+    eapply expose_llocs_insert; eauto.
+  + intros ℓ' γ' HH. destruct (decide (γ=γ')) as [<-|]; simplify_map_eq.
+    - rewrite dom_union_L elem_of_union. right. by eapply elem_of_dom_2.
+    - by eapply Hfreezeχ.
 Qed.
 
 Lemma freeze_to_immut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb ==∗ SI ∗ GC θ ∗ γ ↦imm bb)%I.
 Proof.
-  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
+  iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))".
   iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iNamed "Hσ". iNamed "SIC".
-  iPoseProof (@ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
-  iPoseProof (@ghost_map_lookup with "HAfresh Hmtfresh") as "%Hfreshγ".
+  iPoseProof (ghost_map_lookup with "HAζbl Hmtζ") as "%Hζγ".
+  iDestruct (lloc_own_priv_of with "HAχvirt Hmtfresh") as %Hχvirtγ.
   iMod ((ghost_map_update (Immut,bb)) with "HAζbl Hmtζ") as "(HAζbl & Hmtζ)".
   iMod (ghost_map_elem_persist with "Hmtζ") as "#Hmtζ".
-  iMod (ghost_map_delete with "HAfresh Hmtfresh") as "HAfresh".
-  iPoseProof (big_sepM_insert_override_2 with "HAζpers []") as "#HAζpers2"; first done.
-  1: iIntros "_ _"; iApply "Hmtζ".
-  iClear "HAζpers". iRename "HAζpers2" into "HAζpers".
+  iDestruct (big_sepM_insert with "[$HAζpers $Hmtζ]") as "#HAζpers2".
+  { eapply map_filter_lookup_None. right. intros ? ?. by simplify_map_eq. }
+  rewrite -lstore_immut_blocks_insert_immut //.
   iModIntro.
   iFrame "HGC".
   iSplitL.
@@ -192,41 +177,16 @@ Proof.
   assert (Hζγ': ζfreeze !! γ = Some (Mut, bb)).
   { subst. rewrite lookup_union_r; eauto. by eapply map_disjoint_Some_l. }
   iExists (<[γ:=(Immut, bb)]> ζfreeze), ζσ, (<[γ:=(Immut, bb)]> ζrest).
-  iExists χvirt, (delete γ fresh), σMLvirt.
-  iFrame. iFrame "HAζpers".
+  iExists χvirt, σMLvirt.
+  iFrame. iFrame "HAζpers2".
   iSplitL "HAnMLv". 2: iSplitL. 3: iPureIntro; split_and!; eauto.
   + iExists nMLv; done.
-  + rewrite dom_insert_L. rewrite subseteq_union_1_L. 1:done.
-    intros ? ->%elem_of_singleton. by eapply elem_of_dom.
+  + rewrite pub_locs_in_lstore_insert_existing; eauto. by eapply elem_of_dom_2.
   + eapply freeze_lstore_freeze_lloc; eauto.
   + subst. rewrite insert_union_r. 1: done. eapply map_disjoint_Some_l; done.
   + apply map_disjoint_insert_r. split; last done. by eapply map_disjoint_Some_l.
   + eapply is_store_freeze_lloc; eauto.
-    intros ? ? ? <-. eapply Hfreshχ; eauto. by eapply elem_of_dom_2.
   + intros x y H. rewrite dom_insert_L. apply elem_of_union; right. by eapply Hfreezeχ.
-  + intros x y H1 H2. rewrite dom_delete_L in H2. apply elem_of_difference in H2.
-    destruct H2; eapply Hfreshχ; done.
   + eapply GC_correct_freeze_lloc; eauto.
 Qed.
 End UpdateLaws.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
