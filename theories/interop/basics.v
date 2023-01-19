@@ -74,6 +74,8 @@ Definition block :=
   (ismut * (tag * list lval))%type.
 
 Definition mutability (b:block) : ismut := let '(i,_) := b in i.
+Definition block_tag (b:block) : tag := let '(i,(t,d)) := b in t.
+Definition block_data (b:block) : list lval := let '(i,(t,d)) := b in d.
 
 (* a block-level store *)
 Notation lstore := (gmap lloc block).

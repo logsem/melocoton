@@ -170,6 +170,17 @@ Proof.
       by eapply elem_of_dom.
 Qed.
 
+Lemma lval_is_safe_dom ζ1 ζ2 v : dom ζ1 = dom ζ2 → lval_is_safe ζ1 v → lval_is_safe ζ2 v.
+Proof.
+  intros H1 H2; destruct v; cbn in *|-*; congruence.
+Qed.
+
+Lemma block_is_safe_dom ζ1 ζ2 vs : dom ζ1 = dom ζ2 → block_is_safe ζ1 vs → block_is_safe ζ2 vs.
+Proof.
+  intros H1; induction 1; cbn in *|-*; econstructor; try done.
+  by eapply lval_is_safe_dom.
+Qed.
+
 Lemma freeze_to_immut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh{DfracOwn 1} bb ==∗ SI ∗ GC θ ∗ γ ↦imm bb)%I.
 Proof.
   iIntros "(Hσ & HGC & (Hmtζ & Hmtfresh))". 
@@ -207,6 +218,12 @@ Proof.
   + intros x y H1 H2. rewrite dom_delete_L in H2. apply elem_of_difference in H2.
     destruct H2; eapply Hfreshχ; done.
   + eapply GC_correct_freeze_lloc; eauto.
+  + eapply map_Forall_insert_2.
+    * destruct bb. eapply block_is_safe_dom. 2: eapply (map_Forall_lookup_1 _ _ _ _ Hsafeζ Hζγ').
+      rewrite dom_insert_L. eapply elem_of_dom_2 in Hζγ'; set_solver.
+    * eapply map_Forall_impl; first apply Hsafeζ. intros ? [?[? vs]] H.
+      eapply block_is_safe_dom; last done.
+      rewrite dom_insert_L. eapply elem_of_dom_2 in Hζγ'; set_solver.
 Qed.
 End UpdateLaws.
 

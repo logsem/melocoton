@@ -60,6 +60,10 @@ Definition GC (θ : addr_map) : iProp Σ :=
    They are similar if identified by χ *)
 Definition block_sim_raw (l1 : loc) (l2 : lloc) : iProp Σ := (gset_bij_own_elem wrapperGS_γχbij l1 l2).
 
+Definition lval_is_safe (ζ : lstore) (v : lval) := match v with Lloc γ => γ ∈ dom ζ | _ => True end.
+Definition block_is_safe (ζ : lstore) (vs : list lval) := Forall (lval_is_safe ζ) vs.
+Definition lstore_is_safe (ζ : lstore) := map_Forall (fun k '(m,(t,vs)) => block_is_safe ζ vs) ζ.
+
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
   ∃ (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (fresh : gmap lloc unit) (σMLvirt : store),
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots
@@ -80,7 +84,8 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "%Hχinj" ∷ ⌜gmap_inj χ⌝
   ∗ "%Hfreezeχ" ∷ ⌜∀ x y, χvirt !! x = Some y → y ∈ dom ζfreeze⌝
   ∗ "%Hfreshχ" ∷ ⌜∀ x y, χvirt !! x = Some y → y ∉ dom fresh⌝
-  ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
+  ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝
+  ∗ "%Hsafeζ" ∷ ⌜lstore_is_safe ζfreeze⌝.
 
 (* TODO: names *)
 Definition GC_token_remnant (roots_m : roots_map) : iProp Σ :=
@@ -102,11 +107,14 @@ Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "#HAζpers" ∷ ([∗ map] l ↦ bb ∈ ζrest, ⌜mutability bb = Immut⌝ -∗ l ↪[ wrapperGS_γζblock ]□ bb)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
   ∗ "HAGCrem" ∷ GC_token_remnant roots
+  ∗ "%Hrootssafe" ∷ ⌜map_Forall (fun a v => lval_is_safe ζ v) roots⌝
   ∗ "%Hfreezeeq" ∷ ⌜ζ = ζσ ∪ ζrest⌝
   ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζrest⌝
   ∗ "%Hχinj" ∷ ⌜gmap_inj χ⌝
   ∗ "%Hfreezeχ" ∷ ⌜∀ x y, χ !! x = Some y → y ∈ dom ζ⌝
-  ∗ "%Hfreshχ" ∷ ⌜∀ x y, χ !! x = Some y → y ∉ dom fresh⌝.
+  ∗ "%Hfreshχ" ∷ ⌜∀ x y, χ !! x = Some y → y ∉ dom fresh⌝
+  ∗ "%Hζσχ" ∷ ⌜∀ γ, γ ∈ dom ζσ → ∃ ℓ, χ !! ℓ = Some γ⌝
+  ∗ "%Hsafeζ" ∷ ⌜lstore_is_safe ζ⌝.
 
 Definition public_state_interp : store -> iProp Σ := (λ σ, ∃ n, state_interp σ n)%I.
 Definition private_state_interp : wrapstateML -> iProp Σ := (λ ρml, ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml))%I.
