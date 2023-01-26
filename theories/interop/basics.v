@@ -187,10 +187,11 @@ Inductive modify_block : block → nat → lval → block → Prop :=
    exist in ζ) *)
 Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
   gmap_inj θ ∧
-  ∀ γ, γ ∈ dom θ →
-    ∃ m tg vs,
-      ζ !! γ = Some (m, (tg, vs)) ∧
-        ∀ γ', Lloc γ' ∈ vs → γ' ∈ dom θ.
+  ∀ γ m tg vs γ',
+    γ ∈ dom θ →
+    ζ !! γ = Some (m, (tg, vs)) →
+    Lloc γ' ∈ vs →
+    γ' ∈ dom θ.
 
 Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
   ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
@@ -681,11 +682,9 @@ Lemma GC_correct_freeze_lloc ζ θ γ b :
   ζ !! γ = Some (Mut, b) →
   GC_correct (<[γ := (Immut, b)]> ζ) θ.
 Proof.
-  intros [H1 H2] Hζγ; split; first done.
-  intros γ1 Hγ. destruct (H2 γ1 Hγ) as (m & tgt & vs' & Hfreeze & Hlloc).
-  destruct (decide (γ1 = γ)) as [-> |].
-  - simplify_map_eq. eauto.
-  - rewrite lookup_insert_ne; eauto.
+  intros [H1 H2] Hζγ; split; first done. intros γ1 **.
+  destruct (decide (γ1 = γ)) as [-> |];
+    simplify_map_eq; eauto.
 Qed.
 
 Lemma freeze_lstore_freeze_lloc ζ ζ' γ b :
