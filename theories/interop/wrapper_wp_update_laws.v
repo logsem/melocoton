@@ -170,12 +170,13 @@ Proof.
       by eapply elem_of_dom.
 Qed.
 
-Lemma lval_is_safe_dom ζ1 ζ2 v : dom ζ1 = dom ζ2 → lval_is_safe ζ1 v → lval_is_safe ζ2 v.
+Lemma lval_is_safe_dom ζ1 ζ2 v : dom ζ1 ⊆ dom ζ2 → lval_is_safe ζ1 v → lval_is_safe ζ2 v.
 Proof.
-  intros H1 H2; destruct v; cbn in *|-*; congruence.
+  intros H1 H2; destruct v; cbn in *|-*; try congruence.
+  apply H1. done.
 Qed.
 
-Lemma block_is_safe_dom ζ1 ζ2 vs : dom ζ1 = dom ζ2 → block_is_safe ζ1 vs → block_is_safe ζ2 vs.
+Lemma block_is_safe_dom ζ1 ζ2 vs : dom ζ1 ⊆ dom ζ2 → block_is_safe ζ1 vs → block_is_safe ζ2 vs.
 Proof.
   intros H1; induction 1; cbn in *|-*; econstructor; try done.
   by eapply lval_is_safe_dom.
