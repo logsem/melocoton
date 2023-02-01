@@ -251,7 +251,7 @@ Inductive head_step_mrel (internalp : ml_program) (p : prog) : expr * state → 
     (ζC ρc) !! γ = Some (Bclosure f x e) →
     c_to_ml [w'] ρc mem (λ vs ρml σ, ∃ v, vs = [v] ∧
       X (WrSE (ExprML (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v))),
-          CState ρc mem)) →
+          MLState ρml σ)) →
     head_step_mrel internalp p
       (WrSE (RunPrimitive Pcallback [w; w']), CState ρc mem) X
   (* call to "alloc" *)
