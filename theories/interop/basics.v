@@ -325,6 +325,17 @@ Lemma elem_of_lloc_map_pub_locs_1 ℓ γ χ :
 Proof. intros HH. apply elem_of_lloc_map_pub_locs. eauto. Qed.
 Global Hint Resolve elem_of_lloc_map_pub_locs_1 : core.
 
+Lemma pub_locs_in_lstore_lookup χ ζ γ ℓ :
+  γ ∈ dom ζ
+→ χ !! γ = Some (LlocPublic ℓ)
+→ pub_locs_in_lstore χ ζ !! γ = Some ℓ.
+Proof.
+  intros H1 H2. unfold pub_locs_in_lstore.
+  erewrite map_filter_lookup_Some_2. 3: done. 1: done.
+  erewrite lloc_map_pubs_lookup_Some_2; done.
+Qed.
+
+
 Lemma pub_locs_in_lstore_lookup_notin χ ζ γ :
   ζ !! γ = None →
   pub_locs_in_lstore χ ζ !! γ = None.
@@ -443,6 +454,13 @@ Lemma lloc_map_mono_inj χ1 χ2 :
   lloc_map_inj χ2.
 Proof. intro H. apply H. Qed.
 Global Hint Resolve lloc_map_mono_inj : core.
+
+
+Lemma lloc_map_mono_trans χ1 χ2 χ3 : lloc_map_mono χ1 χ2 → lloc_map_mono χ2 χ3 → lloc_map_mono χ1 χ3.
+Proof.
+  intros [H1 _] [H2 H3]. split.
+  1: by etransitivity. done.
+Qed.
 
 Lemma lloc_map_inj_insert_pub χ ℓ γ :
   lloc_map_inj χ →

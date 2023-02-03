@@ -69,6 +69,9 @@ Proof.
     - apply map_disjoint_insert_r_2. 1: apply lookup_delete.
       apply map_disjoint_delete_l. done.
     - eapply is_store_blocks_discard_loc; eauto.
+    - intros γ [bl [[<-  <- ]|[? ?]]%lookup_insert_Some]%elem_of_dom.
+      1: by eapply elem_of_dom_2.
+      apply Hother_blocks; by eapply elem_of_dom_2.
     - eapply is_store_discard_loc; eauto.
   + iExists lvs, ll. eauto.
 Qed.
@@ -103,6 +106,8 @@ Proof.
   + apply map_disjoint_insert_l_2. 1: apply lookup_delete.
     apply map_disjoint_delete_r. done.
   + eapply is_store_blocks_restore_loc; eauto.
+  + intros γ' [blk [Hne Hblk]%lookup_delete_Some]%elem_of_dom. eapply Hother_blocks.
+    by eapply elem_of_dom_2.
   + eapply is_store_restore_loc; eauto.
     { rewrite Hfreezeeq. eapply lookup_union_Some_r; eauto. }
     by constructor.
@@ -141,12 +146,11 @@ Proof.
   iSplitL "HAnMLv"; eauto. iSplitL. 2: iPureIntro; split_and!; eauto.
   + rewrite pub_locs_in_lstore_insert_pub //. by eapply elem_of_dom_2.
   + eapply is_store_blocks_expose_lloc; eauto.
+  + intros γ' Hγ'. rewrite dom_insert_L. eapply elem_of_union; right.
+    by apply Hother_blocks.
   + eapply is_store_expose_lloc; eauto.
   + eapply expose_llocs_trans; first eassumption.
     eapply expose_llocs_insert; eauto.
-  + intros ℓ' γ' HH. destruct (decide (γ=γ')) as [<-|]; simplify_map_eq.
-    - rewrite dom_union_L elem_of_union. right. by eapply elem_of_dom_2.
-    - by eapply Hfreezeχ.
 Qed.
 
 Lemma freeze_to_immut γ bb θ: ⊢ (SI ∗ GC θ ∗ γ ↦fresh bb ==∗ SI ∗ GC θ ∗ γ ↦imm bb)%I.
@@ -170,8 +174,10 @@ Proof.
   + eapply freeze_lstore_freeze_lloc; eauto.
   + subst. rewrite insert_union_r. 1: done. eapply map_disjoint_Some_l; done.
   + apply map_disjoint_insert_r. split; last done. by eapply map_disjoint_Some_l.
+  + intros γ' [bl [[<-  <- ]|[? ?]]%lookup_insert_Some]%elem_of_dom.
+      1: by eapply elem_of_dom_2.
+      apply Hother_blocks; by eapply elem_of_dom_2.
   + eapply is_store_freeze_lloc; eauto.
-  + intros x y H. rewrite dom_insert_L. apply elem_of_union; right. by eapply Hfreezeχ.
   + eapply GC_correct_freeze_lloc; eauto.
 Qed.
 

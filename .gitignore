@@ -2,3 +2,5 @@ _build
 .lia.cache
 *.crashcoqide
 *#
+
+_opam

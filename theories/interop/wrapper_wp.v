@@ -70,10 +70,10 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "%Hfreezeeq" ∷ ⌜ζfreeze = ζσ ∪ ζrest⌝
   ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζrest⌝
   ∗ "%Hstore_blocks" ∷ ⌜is_store_blocks χvirt σMLvirt ζσ⌝
+  ∗ "%Hother_blocks" ∷ ⌜∀ γ, γ ∈ dom ζrest → γ ∈ dom χvirt⌝
   ∗ "%Hstore" ∷ ⌜is_store χvirt ζfreeze σMLvirt⌝
   ∗ "%Hχvirt" ∷ ⌜expose_llocs χ χvirt⌝
-  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝
-  ∗ "%Hfreezeχ" ∷ ⌜∀ ℓ γ, χvirt !! γ = Some (LlocPublic ℓ) → γ ∈ dom ζfreeze⌝ (* ? *)
+  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝ (* TODO redundant? *)
   ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
 
 (* TODO: names *)
@@ -84,20 +84,16 @@ Definition GC_token_remnant (roots_m : roots_map) : iProp Σ :=
  ∗ "Hrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦ None).
 
 Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
-  ∃ (ζσ ζ : lstore),
     "HAroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
   ∗ "HAθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
   ∗ "HAζrest" ∷ lstore_own_auth wrapperGS_γζ ζrest
   ∗ "(%nCv & HAσCv & HAnCv)" ∷ (∃ n, state_interp (memC ∪ (fmap (fun k => None) roots)) n)
-  ∗ "#HAσdomF" ∷ dom_part (lloc_map_pub_locs χ)
   ∗ "HAχ" ∷ lloc_own_auth wrapperGS_γχ χ
   ∗ "HAχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χ ζrest, ℓ ↦M/)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
   ∗ "HAGCrem" ∷ GC_token_remnant roots
-  ∗ "%Hfreezeeq" ∷ ⌜ζ = ζσ ∪ ζrest⌝
-  ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζrest⌝
   ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝
-  ∗ "%Hfreezeχ" ∷ ⌜∀ ℓ γ, χ !! γ = Some (LlocPublic ℓ) → γ ∈ dom ζ⌝.
+  ∗ "%Hother_blocks" ∷ ⌜∀ γ, γ ∈ dom ζrest → γ ∈ dom χ⌝.
 
 Definition public_state_interp : store -> iProp Σ := (λ σ, ∃ n, state_interp σ n)%I.
 Definition private_state_interp : wrapstateML -> iProp Σ := (λ ρml, ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml))%I.
@@ -108,7 +104,7 @@ Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
       "(%nCv & HσC & HnC)" ∷ (∃ n, state_interp mem n) ∗
       "SIC"        ∷ C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc)
   | Wrap.MLState ρml σ =>
-      "(%nMLv & HσML & HvML & HσMLdom & HσMLval)" ∷ public_state_interp σ ∗
+      "(%nMLv & HσML & HvML & HσMLdom)" ∷ public_state_interp σ ∗
       "SIML"         ∷ private_state_interp ρml
 end.
 
