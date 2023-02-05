@@ -93,7 +93,8 @@ Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
   ∗ "HAGCrem" ∷ GC_token_remnant roots
   ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝
-  ∗ "%Hother_blocks" ∷ ⌜∀ γ, γ ∈ dom ζrest → γ ∈ dom χ⌝.
+  ∗ "%Hother_blocks" ∷ ⌜∀ γ, γ ∈ dom ζrest → γ ∈ dom χ⌝
+  ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
 
 Definition public_state_interp : store -> iProp Σ := (λ σ, ∃ n, state_interp σ n)%I.
 Definition private_state_interp : wrapstateML -> iProp Σ := (λ ρml, ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml))%I.

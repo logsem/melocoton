@@ -25,6 +25,20 @@ Proof.
     eapply Hinj; eauto. }
 Qed.
 
+Definition codom {A B : Type} `{Countable A} `{Countable B}: gmap A B → gset B := map_to_set (fun a b => b).
+
+Lemma codom_spec {A B : Type} `{Countable A} `{Countable B} (m : gmap A B) v : v ∈ codom m <-> exists k, m !! k = Some v.
+Proof.
+  split.
+  - intros (k&?&Hl&->)%elem_of_map_to_set. by eexists.
+  - intros (k&Hk); eapply elem_of_map_to_set; by eexists _,_.
+Qed.
+
+Lemma codom_spec_2 {A B : Type} `{Countable A} `{Countable B} (m : gmap A B) k v : m !! k = Some v → v ∈ codom m.
+Proof.
+  intros HH. apply codom_spec. by eexists.
+Qed.
+
 Section language_commons.
   Context {val : Type}.
   (** Classifying expressions into values and calls. *)

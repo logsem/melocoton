@@ -11,7 +11,7 @@ From melocoton Require Import big_sepM_limited.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import linking_wp basics wrapper_wp wrapper_wp_block_sim wrapper_wp_update_laws.
+From melocoton.interop Require Import linking_wp basics wrapper_wp wrapper_wp_block_sim.
 Import Wrap.
 
 Section Simulation.
@@ -196,6 +196,7 @@ Proof.
   iPureIntro; split_and!.
   1: destruct Hχvirt as (_ & HHH); apply HHH.
   1: apply Hother_blocks.
+  1: destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
 Qed.
 
 Context (p : language.prog C_lang).
@@ -282,7 +283,7 @@ Proof.
     + apply elem_of_filter in H. destruct H as [[? Hc]?]. congruence.
 Defined.
 
-Lemma allocate_in_χ_pub χ ℓ : lloc_map_inj χ → exists χ' γ, lloc_map_mono χ χ' ∧ χ' !! γ = Some (LlocPublic ℓ) ∧ ∀ γ' r, γ' ≠ γ → χ' !! γ' = r → χ !! γ' = r.
+Lemma ensure_in_χ_pub χ ℓ : lloc_map_inj χ → exists χ' γ, lloc_map_mono χ χ' ∧ χ' !! γ = Some (LlocPublic ℓ) ∧ ∀ γ' r, γ' ≠ γ → χ' !! γ' = r → χ !! γ' = r.
 Proof.
   intros Hinj.
   destruct (find_in_χ χ ℓ) as [[γ Hgam]|Hnot].
@@ -298,301 +299,520 @@ Proof.
   all: exfalso; eapply Hnot; eexists _; erewrite H0, H2; done.
 Qed.
 
-Lemma allocate_in_χ_priv χ : lloc_map_inj χ → exists χ' γ, lloc_map_mono χ χ' ∧ χ' !! γ = Some (LlocPrivate) ∧ γ ∉ dom χ.
+Definition extended_to (χold : lloc_map) (ζ : lstore) (χnew : lloc_map) :=
+  lloc_map_mono χold χnew ∧ dom χold ## dom ζ ∧ is_private_blocks χnew ζ.
+
+Lemma extended_to_inj χ1 ζ χ2 : extended_to χ1 ζ χ2 → lloc_map_inj χ2.
+Proof.
+  intros (H&_); apply H.
+Qed.
+
+Lemma extended_to_dom_subset χ1 ζ χ2 : extended_to χ1 ζ χ2 → dom ζ ⊆ dom χ2.
+Proof.
+  intros (H1&H2&H3).
+  eapply elem_of_subseteq. intros γ Hx; eapply elem_of_dom_2. by apply H3.
+Qed.
+
+Definition allocate_in_χ_priv (χold : lloc_map) v : lloc_map_inj χold → exists χnew γ, extended_to χold {[γ := v]} χnew.
 Proof.
   intros Hinj.
-  eexists (<[fresh (dom χ) := LlocPrivate]> χ), _.
-  erewrite lookup_insert; split_and!; last apply is_fresh; last done.
-  split.
-  1: eapply insert_subseteq, not_elem_of_dom, is_fresh.
-  intros γ1 γ2 ℓ' [[? ?]|[? ?]]%lookup_insert_Some [[? ?]|[? ?]]%lookup_insert_Some; subst; try congruence.
-  by eapply Hinj.
+  eexists (<[fresh (dom χold) := LlocPrivate]> χold), (fresh (dom χold)).
+  unfold extended_to; split_and!; first split.
+  - eapply insert_subseteq, not_elem_of_dom, is_fresh.
+  - intros γ1 γ2 ℓ' [[? ?]|[? ?]]%lookup_insert_Some [[? ?]|[? ?]]%lookup_insert_Some; subst; try congruence.
+    by eapply Hinj.
+  - rewrite dom_singleton_L. eapply disjoint_singleton_r. by apply is_fresh.
+  - intros x. rewrite dom_singleton_L. intros ->%elem_of_singleton.
+    eapply lookup_insert.
+Qed.
+
+Lemma disjoint_strengthen T `{Countable T} (A1 A2 B1 B2 : gset T) : A1 ## B1 → A2 ⊆ A1 → B2 ⊆ B1 → A2 ## B2.
+Proof.
+  intros HD H1 H2.
+  apply elem_of_disjoint.
+  intros x HA HB.
+  edestruct (@elem_of_disjoint) as [HL _]; eapply HL.
+  - apply HD.
+  - eapply elem_of_weaken; first apply HA. done.
+  - eapply elem_of_weaken; first apply HB. done.
+Qed.
+
+Lemma extended_to_trans (χ1 χ2 χ3 : lloc_map) (ζ1 ζ2 : lstore) : 
+  extended_to χ1 ζ1 χ2 →
+  extended_to χ2 ζ2 χ3 →
+  extended_to χ1 (ζ1 ∪ ζ2) χ3 /\ ζ1 ##ₘ ζ2.
+Proof.
+  intros (HA1 & HA2 & HA3) (HB1 & HB2 & HB3). unfold extended_to; split_and!.
+  - split; last apply HB1. etransitivity; first apply HA1; apply HB1.
+  - erewrite dom_union_L. eapply disjoint_union_r. split; first done.
+    eapply disjoint_strengthen. 1: apply HB2. 2: done. apply subseteq_dom, HA1.
+  - intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; last by apply HB3.
+    eapply lookup_weaken; first by apply HA3.
+    apply HB1.
+  - eapply map_disjoint_dom. eapply disjoint_strengthen. 1: apply HB2. 2: done.
+    eapply extended_to_dom_subset; done.
+Qed.
+
+Lemma extended_to_trans_2 (χ1 χ2 χ3 : lloc_map) (ζ1 ζ2 : lstore) : 
+  extended_to χ1 ζ1 χ2 →
+  extended_to χ2 ζ2 χ3 →
+  extended_to χ1 (ζ2 ∪ ζ1) χ3 /\ ζ1 ##ₘ ζ2.
+Proof.
+  intros H1 H2.
+  destruct (extended_to_trans χ1 χ2 χ3 ζ1 ζ2) as (H3&H4). 1-2: done.
+  erewrite map_union_comm; done.
+Qed.
+
+Lemma extended_to_refl χ1 :
+  lloc_map_inj χ1 →
+  extended_to χ1 ∅ χ1.
+Proof.
+  by repeat split.
+Qed.
+
+Lemma extended_to_mono χ1 χ2 :
+  lloc_map_mono χ1 χ2 →
+  extended_to χ1 ∅ χ2.
+Proof.
+  intros (H1 & H2); by repeat split.
+Qed.
+
+Lemma is_val_extended_to_weaken χ1 χ2 ζ1 ζ2 v lv:
+  is_val χ1 ζ1 v lv →
+  extended_to χ1 ζ2 χ2 →
+  is_val χ2 (ζ1 ∪ ζ2) v lv.
+Proof.
+  intros H1 (H21&H22&H23).
+  eapply is_val_mono; last done.
+  1: apply H21.
+  apply map_union_subseteq_l.
 Qed.
 
 Lemma deserialize_ML_value χMLold v :  
   lloc_map_inj χMLold
 → ∃ χC ζimm lv,
-    lloc_map_mono χMLold χC 
-  ∧ is_private_blocks χC ζimm
-  ∧ dom χMLold ## dom ζimm
+    extended_to χMLold ζimm χC
   ∧ is_val χC ζimm v lv.
 Proof.
   induction v as [[x|bo| |ℓ]| |v1 IHv1 v2 IHv2|v IHv|v IHv] in χMLold|-*; intros Hinj.
-  1-3,5: eexists χMLold, ∅, _; split_and!;
-       [ done | done | rewrite dom_empty_L; set_solver | econstructor].
+  1-3,5: eexists χMLold, ∅, _; split_and!; [by eapply extended_to_refl | econstructor ].
   Unshelve. 5: exact (Lloc 0). (* what happens for functions *)
-  1: destruct (allocate_in_χ_pub χMLold ℓ) as (χ' & γ & Hχ' & Hγ & _); first done;
-     exists χ', ∅, (Lloc γ); (split_and!; last by econstructor); done.
-  1: { destruct (IHv1 χMLold) as (χ1 & ζ1 & lv1 & (Hχ1&Hχ1inj) & Hζ1 & Hd1 & Hlv1); first done.
-       destruct (IHv2 χ1) as (χ2 & ζ2 & lv2 & (Hχ2&Hχ2inj) & Hζ2 & Hd2 & Hlv2); first done.
-       destruct (allocate_in_χ_priv χ2) as (χ3 & γ & (Hχ3&Hχ3inj) & Hγ & Hγne); first done.
-       assert (dom ζ1 ## dom ζ2) as Hdis.
-       1: eapply elem_of_disjoint; intros γ' H1 H2; edestruct (@elem_of_disjoint) as [HL _]; 
-          eapply HL; [exact Hd2 | |exact H2]; eapply elem_of_dom_2; eapply Hζ1; done.
-       assert ( {[ γ ]} ## dom ζ1 ∪ dom ζ2) as Hdis2.
-       1: eapply disjoint_singleton_l; intros [H|H]%elem_of_union; apply Hγne; eapply elem_of_weaken.
-       1: by eapply elem_of_dom_2, Hζ1. 1: by eapply subseteq_dom.
-       1: by eapply elem_of_dom_2, Hζ2. 1: done.
-       eexists χ3, (<[γ := _]> (ζ1 ∪ ζ2)), _; split_and!.
-       4: econstructor; first by erewrite lookup_insert.
-       4-5: eapply is_val_mono; last done; first by repeat (etransitivity; first done).
-       1: repeat (eapply lloc_map_mono_trans; first done); split; try done; apply Hχ3.
-       1: intros γ'; rewrite ! dom_insert_L  ! dom_union_L;
-          intros [H%elem_of_singleton|[H|H]%elem_of_union]%elem_of_union.
-       - congruence.
-       - eapply lookup_weaken; first by eapply Hζ1.
-         by repeat (etransitivity; first done).
-       - eapply lookup_weaken; first by eapply Hζ2. done.
-       - rewrite ! dom_insert_L  ! dom_union_L. repeat (apply disjoint_union_r; split).
-         + eapply disjoint_singleton_r. intros Hc. apply Hγne. eapply elem_of_weaken; first done.
-           apply subseteq_dom. by repeat (etransitivity; last done).
-         + done.
-         + eapply elem_of_disjoint. intros γ' H1 H2.
-           edestruct (@elem_of_disjoint) as [HL _]. eapply HL. 1: apply Hd2. 2: apply H2.
-           eapply elem_of_weaken; first apply H1. apply subseteq_dom; done.
-       - etransitivity; last eapply insert_subseteq. 2: eapply not_elem_of_dom; rewrite dom_union_L; set_solver.
-         eapply map_union_subseteq_l.
-       - etransitivity; last eapply insert_subseteq. 2: eapply not_elem_of_dom; rewrite dom_union_L; set_solver.
-         eapply map_union_subseteq_r. eapply map_disjoint_dom; done. }
-  all: destruct (IHv χMLold) as (χ1 & ζ1 & lv1 & (Hχ1&Hχ1inj) & Hζ1 & Hd1 & Hlv1); first done;
-       destruct (allocate_in_χ_priv χ1) as (χ3 & γ & (Hχ3&Hχ3inj) & Hγ & Hγne); first done;
-       assert ( {[ γ ]} ## dom ζ1) as Hdis2 by
-       (eapply disjoint_singleton_l; intros H; apply Hγne; eapply elem_of_weaken; [ by eapply elem_of_dom_2, Hζ1 | done ]);
-       eexists χ3, (<[γ := _]> (ζ1)), _; split_and!.
-  1,5: repeat (eapply lloc_map_mono_trans; first done); split; try done; apply Hχ3.
-  3,6: econstructor; first by erewrite lookup_insert.
-  3,4: eapply is_val_mono; last done; first by repeat (etransitivity; first done).
-  3,4: eapply insert_subseteq; eapply not_elem_of_dom; set_solver.
-  1,3: intros γ'; rewrite ! dom_insert_L; intros [H%elem_of_singleton|H]%elem_of_union; try congruence. 
-  1-2: (eapply lookup_weaken; first by apply Hζ1); done.
-  1-2: rewrite ! dom_insert_L; eapply disjoint_union_r; split; try done.
-  1-2: eapply disjoint_singleton_r; intros Hc; apply Hγne; eapply elem_of_weaken; first done;
-       apply subseteq_dom; by repeat (etransitivity; last done).
+  - destruct (ensure_in_χ_pub χMLold ℓ) as (χ' & γ & Hχ' & Hγ & _); first done.
+    exists χ', ∅, (Lloc γ); (split_and!; last by econstructor).
+    by eapply extended_to_mono.
+  - destruct (IHv1 χMLold) as (χ1 & ζ1 & lv1 & Hext1 & Hlv1); first done.
+    destruct (IHv2 χ1) as (χ2 & ζ2 & lv2 & Hext2 & Hlv2); first by eapply extended_to_inj.
+    pose (Immut,(TagDefault,[lv1;lv2])) as blk.
+    edestruct (allocate_in_χ_priv χ2 blk) as (χ3 & γ & Hext3); first by eapply extended_to_inj.
+    eassert (extended_to χMLold _ χ3).
+    1: do 2 (eapply extended_to_trans; last done); done.
+    do 3 eexists; split; first done.
+    econstructor.
+    + rewrite lookup_union_r; first by erewrite lookup_singleton.
+      eapply map_disjoint_Some_r. 1: eapply extended_to_trans_2; first eapply extended_to_trans; done.
+      apply lookup_singleton.
+    + eapply is_val_extended_to_weaken; last done.
+      eapply is_val_extended_to_weaken; done.
+    + eapply is_val_extended_to_weaken; last done.
+      eapply is_val_mono; last done; try done.
+      eapply map_union_subseteq_r. eapply extended_to_trans; done.
+  - destruct (IHv χMLold) as (χ1 & ζ1 & lv1 & Hext1 & Hlv1); first done.
+    epose (Immut,(_,[lv1])) as blk.
+    edestruct (allocate_in_χ_priv χ1 blk) as (χ3 & γ & Hext3); first by eapply extended_to_inj.
+    eassert (extended_to χMLold _ χ3).
+    1: (eapply extended_to_trans; last done); done.
+    do 3 eexists; split; first done.
+    econstructor.
+    + rewrite lookup_union_r; first by erewrite lookup_singleton.
+      eapply map_disjoint_Some_r. 1: eapply extended_to_trans_2; done.
+      apply lookup_singleton.
+    + eapply is_val_extended_to_weaken; done.
+  - destruct (IHv χMLold) as (χ1 & ζ1 & lv1 & Hext1 & Hlv1); first done.
+    epose (Immut,(_,[lv1])) as blk.
+    edestruct (allocate_in_χ_priv χ1 blk) as (χ3 & γ & Hext3); first by eapply extended_to_inj.
+    eassert (extended_to χMLold _ χ3).
+    1: (eapply extended_to_trans; last done); done.
+    do 3 eexists; split; first done.
+    econstructor.
+    + rewrite lookup_union_r; first by erewrite lookup_singleton.
+      eapply map_disjoint_Some_r. 1: eapply extended_to_trans_2; done.
+      apply lookup_singleton.
+    + eapply is_val_extended_to_weaken; done.
 Qed.
 
 Lemma deserialize_ML_values χMLold vs :  
   lloc_map_inj χMLold
 → ∃ χC ζimm lvs,
-    lloc_map_mono χMLold χC 
-  ∧ is_private_blocks χC ζimm
-  ∧ dom χMLold ## dom ζimm
+    extended_to χMLold ζimm χC
   ∧ Forall2 (is_val χC ζimm) vs lvs.
 Proof.
   induction vs as [|v vs IH] in χMLold|-*; intros Hinj.
-  - eexists χMLold, ∅, _; split_and!;
-    [ done | done | rewrite dom_empty_L; set_solver | econstructor].
-  - destruct (deserialize_ML_value χMLold v Hinj) as (χ1 & ζ1 & lv & (Hχ1&Hχ1inj) & Hζ1 & Hd1 & Hlv1).
-    destruct (IH χ1 Hχ1inj) as (χ2 & ζ2 & lvs & (Hχ2&Hχ2inj) & Hζ2 & Hd2 & Hlv2).
-    exists χ2, (ζ1 ∪ ζ2), (lv::lvs). split_and!.
-    + split; last done. by etransitivity.
-    + intros γ. rewrite ! dom_union_L. intros [H|H]%elem_of_union.
-      1: (eapply lookup_weaken; first by apply Hζ1); done.
-      1: by eapply Hζ2.
-    + rewrite dom_union_L. eapply disjoint_union_r. split; first done.
-      eapply elem_of_disjoint. intros γ' H1 H2.
-      edestruct (@elem_of_disjoint) as [HL _]. eapply HL. 1: apply Hd2. 2: apply H2.
-      eapply elem_of_weaken; first apply H1. apply subseteq_dom; done.
-    + econstructor. 1: eapply is_val_mono; last done; try done; eapply map_union_subseteq_l.
-      eapply Forall2_impl; first done. 
-      intros ? ? Hv. eapply is_val_mono; last done; try done.
-      eapply map_union_subseteq_r. eapply map_disjoint_dom.
-      eapply elem_of_disjoint. intros γ' H1 H2.
-      edestruct (@elem_of_disjoint) as [HL _]. eapply HL. 1: apply Hd2. 2: apply H2.
-      eapply elem_of_dom_2. apply Hζ1. done.
+  - eexists χMLold, ∅, _; split_and!; [by eapply extended_to_refl | econstructor ].
+  - destruct (deserialize_ML_value χMLold v Hinj) as (χ1 & ζ1 & lv & Hext1 & Hlv1).
+    destruct (IH χ1) as (χ2 & ζ2 & lvs & Hext2 & Hlv2); first by eapply extended_to_inj.
+    eassert (extended_to χMLold _ χ2) by by eapply extended_to_trans.
+    eexists _, _, (lv::lvs). split_and!; first done.
+    econstructor.
+    + by eapply is_val_extended_to_weaken.
+    + eapply Forall2_impl; first done.
+      intros v' lv' H1. eapply is_val_mono; last done; try done.
+      eapply map_union_subseteq_r, extended_to_trans; done.
 Qed.
 
 Lemma deserialize_ML_block χMLold vs :  
   lloc_map_inj χMLold
 → ∃ χC ζimm blk,
-    lloc_map_mono χMLold χC 
-  ∧ is_private_blocks χC ζimm
-  ∧ dom χMLold ## dom ζimm
+    extended_to χMLold ζimm χC
   ∧ is_heap_elt χC ζimm vs blk.
 Proof.
   intros H.
-  destruct (deserialize_ML_values χMLold vs H) as (χC & ζimm & lvs & H1 & H2 & H3 & H4).
-  exists χC, ζimm, (Mut,(TagDefault,lvs)). split_and!; done.
+  destruct (deserialize_ML_values χMLold vs H) as (χC & ζimm & lvs & H1 & H2).
+  by exists χC, ζimm, (Mut,(TagDefault,lvs)).
 Qed.
 
-Lemma deserialize_ML_heap ζMLold χMLold σ : 
+
+Lemma is_store_blocks_mono_weaken χ1 χ2 ζ σ:
+  is_store_blocks χ1 ζ σ →
+  lloc_map_mono χ1 χ2 →
+  is_store_blocks χ2 ζ σ.
+Proof.
+  intros (H1&H2) [Hsub H3]. split.
+  - intros x Hx. destruct (H1 x Hx) as [y Hy]; exists y.
+    eapply lookup_weaken; done.
+  - intros γ; destruct (H2 γ) as [H2L H2R]; split.
+    + intros H; destruct (H2L H) as (ℓ&Vs&HH1&HH2). do 2 eexists; repeat split; try done.
+      eapply lookup_weaken; done.
+    + intros (ℓ&Vs&HH1&HH2).
+      apply H2R. do 2 eexists; repeat split; try done.
+      destruct (H1 ℓ) as (γ2&Hγ2); first by eapply elem_of_dom_2.
+      rewrite <- Hγ2.
+      eapply lookup_weaken in Hγ2; last done.
+      f_equiv. eapply H3; done.
+Qed.
+
+Lemma is_heap_elt_weaken χ ζ vs blk ζ' χ' :
+  is_heap_elt χ ζ vs blk
+→ χ ⊆ χ'
+→ ζ ⊆ ζ'
+→ is_heap_elt χ' ζ' vs blk.
+Proof.
+  intros H1 H2 H3.
+  inversion H1; subst.
+  econstructor. eapply Forall2_impl; first done.
+  intros x y H4; eapply is_val_mono; last done. all:done.
+Qed.
+
+Lemma is_heap_elt_weaken_2 χ ζ vs blk ζ' χ' :
+  is_heap_elt χ ζ vs blk
+→ extended_to χ' ζ χ
+→ dom ζ' ⊆ dom χ'
+→ is_heap_elt χ (ζ' ∪ ζ) vs blk.
+Proof.
+  intros H1 H2 H3.
+  eapply is_heap_elt_weaken. 1: done.
+  1: done. eapply map_union_subseteq_r.
+  eapply map_disjoint_dom. eapply disjoint_strengthen.
+  1: apply H2. 1-2:done.
+Qed.
+
+Lemma deserialize_ML_heap χMLold σ : 
+  lloc_map_inj χMLold
+→ ∃ χC ζσ ζnewimm,
+    extended_to χMLold ζnewimm χC
+  ∧ is_store_blocks χC σ ζσ
+  ∧ is_store χC (ζσ ∪ ζnewimm) σ.
+Proof.
+  revert χMLold.
+  induction σ as [|ℓ [vv|] σ Hin IH] using map_ind; intros χMLold HχMLold .
+  - exists χMLold, ∅, ∅; split_and!. 2: econstructor.
+    + by eapply extended_to_refl.
+    + intros γ; rewrite dom_empty_L; done.
+    + split; rewrite dom_empty_L. 1: done.
+      intros (ℓ & Vs & H1 & H2). exfalso. rewrite lookup_empty in H2. done.
+    + intros ℓ Vs γ blk Hc. exfalso. rewrite lookup_empty in Hc. done.
+  - destruct (IH χMLold) as (χ0 & ζσ & ζi0 & Hext & Hstbl & Hstore). 1: done.
+    destruct (ensure_in_χ_pub χ0 ℓ) as (χ1 & γ & Hχ1 & Hγ & Hold); first by eapply extended_to_inj.
+    apply extended_to_mono in Hχ1.
+    destruct (deserialize_ML_block χ1 vv) as (χ2 & ζi2 & lvs & Hext2 & Helt); first by eapply extended_to_inj.
+    edestruct (extended_to_trans) as (HextA&Hdisj1). 1: exact Hext. 1: eapply extended_to_trans; done.
+    rewrite map_empty_union in Hdisj1.
+    rewrite map_empty_union in HextA.
+    assert (is_store_blocks χ2 (<[ℓ:=Some vv]> σ) (<[γ:=lvs]> ζσ)) as Hstore2.
+    1: {eapply is_store_blocks_restore_loc.
+        * eapply is_store_blocks_mono_weaken; first done. eapply extended_to_trans; done.
+        * apply Hext2.
+        * eapply lookup_weaken. 1: done. apply Hext2.
+        * by right. }
+    assert (dom (<[γ:=lvs]> ζσ ∪ ζi0) ⊆ dom χ1) as Hsub3.
+    { rewrite dom_union_L. eapply union_subseteq. split.
+      * rewrite dom_insert_L. apply union_subseteq. split.
+        eapply singleton_subseteq_l; first by eapply elem_of_dom_2.
+        eapply elem_of_subseteq; intros k Hk.
+        destruct Hstbl as (HH1&HH2). apply HH2 in Hk. destruct Hk as (?&?&H1&H2).
+        eapply elem_of_dom_2. eapply lookup_weaken; first apply H1.
+        eapply Hχ1.
+      * etransitivity; last eapply subseteq_dom, Hχ1.
+        eapply extended_to_dom_subset; done. }
+    eexists χ2, (<[γ := lvs]> ζσ), (ζi0 ∪ ζi2). split_and!. 1-2:done.
+    + intros ℓ' vs γ' blk H1 H2 H3.  destruct HextA as (HH1&HH2&HH3).
+      apply lookup_union_Some in H3. 1: destruct H3 as [H3|H3].
+      3: { eapply map_disjoint_dom; eapply elem_of_disjoint.
+           intros x Hx1 Hx2; specialize (HH3 x Hx2). destruct Hstore2 as [HHL HHR].
+           apply HHR in Hx1. destruct Hx1 as (l1 & Vs1 & ? & ?); congruence. }
+      2: { rewrite HH3 in H2; last by eapply elem_of_dom_2. congruence. }
+      apply lookup_insert_Some in H3. destruct H3 as [[? ?]|[Hne H3]].
+      * subst. rewrite map_union_assoc.
+        eapply lookup_weaken in Hγ. 2: eapply Hext2. rewrite Hγ in H2. injection H2; intros ->.
+        rewrite lookup_insert in H1. injection H1; intros ->.
+        by eapply is_heap_elt_weaken_2.
+      * eapply lookup_insert_Some in H1. destruct H1 as [[-> H]|[Hne1 H1]].
+        1: {exfalso. apply Hne. eapply HH1. 2: done. eapply lookup_weaken; first done. apply Hext2. }
+        assert (χ0 !! γ' = Some (LlocPublic ℓ')) as H2'.
+        1: {destruct Hstbl as [HHL HHR]. destruct (HHL ℓ') as (gg&Hgg); first by eapply elem_of_dom_2.
+            rewrite <- Hgg; f_equal. eapply HH1. 1: done. eapply lookup_weaken; first done. etransitivity; last eapply Hext2; eapply Hχ1. }
+        eapply is_heap_elt_weaken.
+        1: eapply Hstore. 1: done. 3: etransitivity; first eapply Hχ1; last apply Hext2.
+        2: erewrite lookup_union_l; first done. 1: done.
+        1: eapply not_elem_of_dom; intros H; eapply Hext in H; congruence.
+        etransitivity; first eapply map_union_mono_l.
+        2: etransitivity; first eapply map_union_mono_r. 4: done.
+        1: eapply map_union_subseteq_l.
+        1: eapply is_store_blocks_is_private_blocks_disjoint; done.
+        eapply insert_subseteq, not_elem_of_dom.
+        intros H. destruct Hstbl as [HHL HHR]. eapply HHR in H.
+        destruct H as (?&?&Heq1&HeqF). eapply lookup_weaken in Heq1; first erewrite Hγ in Heq1. 2: apply Hχ1.
+        injection Heq1; intros ->; rewrite HeqF in Hin; congruence.
+  - destruct (IH χMLold) as (χ0 & ζσ & ζi0 & Hext & Hstbl & Hstore). 1: done.
+    destruct (ensure_in_χ_pub χ0 ℓ) as (χ1 & γ & Hχ1 & Hγ & Hold); first by eapply extended_to_inj.
+    edestruct (extended_to_trans) as (HextA&Hdisj1); first exact Hext. 1: eapply extended_to_mono, Hχ1.
+    exists χ1, ζσ, ζi0. split_and!. 2: destruct Hstbl as [HL HR]; split.
+    + rewrite map_union_empty in HextA. done.
+    + rewrite dom_insert_L. intros ℓ0 [->%elem_of_singleton|H]%elem_of_union.
+      1: eexists; done.
+      destruct (HL ℓ0 H) as (γ1&Hγ1). exists γ1; eapply lookup_weaken; first done.
+      eapply Hχ1.
+    + intros γ0; specialize (HR γ0) as (HRL&HRR). split.
+      1: intros H; destruct (HRL H) as (ℓ0 & Vs & H3 & H5); do 2 eexists;
+        split; first (eapply lookup_weaken; first done; eapply Hχ1);
+        rewrite lookup_insert_ne; first done;
+        intros ->; rewrite Hin in H5; congruence.
+      intros (ℓ0&Vs&HH1&HH2).
+      rewrite lookup_insert_Some in HH2; destruct HH2 as [[? ?]|[Hne HH2]].
+      1: congruence.
+      eapply HRR. eexists ℓ0, Vs. split; last done.
+      eapply elem_of_dom_2 in HH2.
+      destruct (HL ℓ0 HH2) as (γ1&Hγ1). rewrite <- Hγ1. f_equal.
+      eapply Hχ1; try done. eapply lookup_weaken, Hχ1; done.
+    + intros ℓ1 vs γ1 blk [[? ?]|[? H1]]%lookup_insert_Some H2 H3; try congruence.
+      eapply is_heap_elt_weaken. 1: eapply Hstore; try done.
+      3: done. 2: eapply Hχ1.
+      destruct Hstbl as [HHL HHR].
+      destruct (HHL ℓ1) as (k1&Hk1); first by eapply elem_of_dom_2.
+      rewrite <- Hk1. f_equal. eapply Hχ1; try done. eapply lookup_weaken, Hχ1; done.
+Qed.
+
+Lemma deserialize_ML_heap_extra ζMLold χMLold σ : 
   lloc_map_inj χMLold
 → dom ζMLold ⊆ dom χMLold
-→ (map_Forall (fun _ ℓ => σ !! ℓ = Some None \/ σ !! ℓ = None) (pub_locs_in_lstore χMLold ζMLold))
+→ (map_Forall (fun _ ℓ => σ !! ℓ = Some None) (pub_locs_in_lstore χMLold ζMLold))
 → ∃ χC ζσ ζnewimm,
-    lloc_map_mono χMLold χC 
+    extended_to χMLold ζnewimm χC
   ∧ is_store_blocks χC σ ζσ
-  ∧ is_private_blocks χC ζnewimm
   ∧ ζMLold ##ₘ (ζσ ∪ ζnewimm)
   ∧ is_store χC (ζMLold ∪ ζσ ∪ ζnewimm) σ.
 Proof.
-  revert ζMLold χMLold.
-  induction σ as [|ℓ [vv|] σ Hin IH] using map_ind; intros ζMLold χMLold HχMLold Hsubset Hnone.
-  - exists χMLold, ∅, ∅; split_and!.
-    + done.
-    + split; rewrite dom_empty_L. 1: done. split. 1: done.
-      intros (ℓ & Vs & H1 & H2). exfalso. rewrite lookup_empty in H2. done.
-    + intros γ; rewrite dom_empty_L; done.
-    + apply map_disjoint_dom. rewrite ! dom_union_L dom_empty_L union_empty_r_L. apply disjoint_empty_r.
-    + intros ℓ Vs γ blk Hc. exfalso. rewrite lookup_empty in Hc. done.
-  - destruct (IH ζMLold χMLold) as (χ0 & ζσ & ζi0 & Hχ0 & (HζσL & HζσR) & Hζi0 & Hd0 & Hstore). 1-2: done.
-    1: { eapply map_Forall_impl. 1: apply Hnone.
-         intros i k [[[? ?]|[Hne H]]%lookup_insert_Some|[H Hne]%lookup_insert_None]; try congruence.
-         1: by left. by right. }
-    destruct (allocate_in_χ_pub χ0 ℓ) as (χ1 & γ & Hχ1 & Hγ & Hold); first apply Hχ0.
-    destruct (deserialize_ML_block χ1 vv) as (χ2 & ζi2 & lvs & Hχ2 & Hζi2 & Hdom & Helt); first apply Hχ1.
-    assert (γ ∉ dom ζMLold) as HγML.
-    1: { intros Hc. assert (χMLold !! γ = Some (LlocPublic ℓ)).
-         1: assert (γ ∈ dom χMLold) as [k Hk]%elem_of_dom by set_solver.
-         1: enough (k = LlocPublic ℓ) by now subst.
-         1: eapply lookup_weaken_inv; first done; last done.
-         1: etransitivity; last eapply Hχ1; eapply Hχ0.
-         assert (pub_locs_in_lstore χMLold ζMLold !! γ = Some ℓ) as Hpl.
-         1: eapply pub_locs_in_lstore_lookup; done.
-         pose proof (map_Forall_lookup_1 _ _ _ _ Hnone Hpl) as HHH. cbn in HHH.
-         rewrite ! lookup_insert in HHH. destruct HHH; congruence. }
-    assert (ζi0 ##ₘ ζi2) as Hdisji0i2.
-    1: { apply map_disjoint_spec. intros ? ? ? H1%elem_of_dom_2 H2%elem_of_dom_2.
-         edestruct @elem_of_disjoint as [HL HR]; eapply HL. 1: apply Hdom. 2: done.
-         eapply elem_of_dom_2. eapply lookup_weaken. 2: apply Hχ1. by apply Hζi0. }
-    exists χ2, (<[γ := lvs]> ζσ), (ζi0 ∪ ζi2). split_and!. 1-2: split.
-    + etransitivity; first apply Hχ0. etransitivity; first apply Hχ1. apply Hχ2.
-    + apply Hχ2.
-    + intros ℓ' Hℓ'. rewrite dom_insert_L in Hℓ'. apply elem_of_union in Hℓ'. destruct Hℓ' as [->%elem_of_singleton|H].
-      1: eexists; eapply lookup_weaken; first done; eapply Hχ2.
-      destruct (HζσL ℓ' H) as (γ' & Hγ'). exists γ'. eapply lookup_weaken; first apply Hγ'.
-      etransitivity; first apply Hχ1. eapply Hχ2.
-    + intros γ'; destruct (HζσR γ') as [HL HR]; rewrite ! dom_insert_L; split. 
-      2: intros (ℓ' & Vs & HH1 & [[? ?]|[Hne HH]]%lookup_insert_Some).
-      1: intros [->%elem_of_singleton|H]%elem_of_union.
-      * exists ℓ, vv. split. 1: eapply lookup_weaken; first done; eapply Hχ2.
-        rewrite lookup_insert; done.
-      * destruct (HL H) as (ℓ' & Vs & HH1 & HH2). exists ℓ', Vs; split.
-        1: eapply lookup_weaken; first eapply HH1. etransitivity; first apply Hχ1. apply Hχ2.
-        rewrite lookup_insert_ne; try done. intros ->; rewrite Hin in HH2; congruence.
-      * subst. injection H0; intros ->. eapply elem_of_union; left. eapply elem_of_singleton.
-        destruct Hχ2 as [HHL HHR]; eapply HHR. 1: done. 1: eapply lookup_weaken; first done. apply HHL.
-      * eapply elem_of_union. right.
-        destruct (HζσL ℓ') as (γ2 & HH2); first by eapply elem_of_dom_2.
-        apply HR. exists ℓ', Vs. split_and!. 2: done.
-        enough (γ' = γ2) as -> by done.
-        destruct Hχ2 as [HHL HHR]; eapply HHR; try done. eapply lookup_weaken; first done.
-        etransitivity; first eapply Hχ1. eapply HHL.
-    + intros γ' H. rewrite dom_union_L in H. apply elem_of_union in H. destruct H as [H|H].
-      * destruct Hχ2 as [HHL _]; eapply lookup_weaken. 1: by apply Hζi0.
-        etransitivity; first eapply Hχ1. eapply HHL.
-      * destruct Hχ2 as [HHL _]; by apply Hζi2.
-    + apply map_disjoint_dom. rewrite ! dom_union_L. rewrite dom_insert_L.
-      rewrite <- union_assoc_L.
-      apply disjoint_union_r. split.
-      1: eapply elem_of_disjoint; intros ? Hζ ->%elem_of_singleton; apply HγML; done. 
-      rewrite union_assoc_L. apply disjoint_union_r; split.
-      1: apply map_disjoint_dom in Hd0; rewrite dom_union_L in Hd0; done.
-      eapply elem_of_disjoint. intros x H1 H2. edestruct @elem_of_disjoint as [HL]; eapply HL. 1: apply Hdom. 2: done.
-      eapply elem_of_weaken. 1: apply H1.
-      etransitivity; last apply subseteq_dom, Hχ1.
-      etransitivity; last apply subseteq_dom, Hχ0.
-      eapply Hsubset.
-    + intros ℓ' vs γ' blk H1 H2 H3.
-      apply lookup_insert_Some in H1. destruct H1 as [[? ?]|[Hne H1]].
-      * subst ℓ'. injection H0; intros ->.
-        assert (γ' = γ) as ->.
-        1: destruct Hχ2 as [HHL HHR]; eapply HHR; first done; eapply lookup_weaken; last apply HHL; done.
-        rewrite lookup_union_l in H3.
-        2: { eapply not_elem_of_dom. rewrite dom_union_L. intros [H|H]%elem_of_union.
-             1: apply Hζi0 in H. 2: apply Hζi2 in H; congruence.
-             eapply lookup_weaken in H. 1: erewrite H2 in H; congruence.
-             etransitivity. 1: apply Hχ1. apply Hχ2. }
-        rewrite lookup_union_r in H3.
-        2: { eapply not_elem_of_dom. done. }
-        rewrite lookup_insert in H3. injection H3; intros ->.
-        inversion Helt; subst. econstructor.
-        eapply Forall2_impl. 1: apply H.
-        intros x y Hc. eapply is_val_mono. 3: apply Hc. 1: done.
-        rewrite ! map_union_assoc.
-        apply map_union_subseteq_r.
-        eapply map_disjoint_dom. eapply elem_of_disjoint.
-        intros γ'. rewrite ! dom_union_L. rewrite dom_insert_L.
-        intros [[H1|[H1|H1]%elem_of_union]%elem_of_union|H1]%elem_of_union Ho.
-        all: edestruct @elem_of_disjoint as [HL HR]; last eapply HL; first apply Hdom; last done.
-        -- eapply elem_of_weaken. 2: etransitivity; first apply Hsubset. 2: eapply subseteq_dom. 2: etransitivity; last eapply Hχ1. 2: etransitivity; last eapply Hχ0.
-           2: reflexivity. done.
-        -- apply elem_of_singleton in H1; subst; eapply elem_of_dom_2; done.
-        -- eapply elem_of_weaken. 2: eapply subseteq_dom; eapply Hχ1. apply HζσR in H1. destruct H1 as (l & _ & HH & _).
-           eapply elem_of_dom_2. done.
-        -- eapply elem_of_dom_2. eapply lookup_weaken. 1: by eapply Hζi0. eapply Hχ1.
-      * assert (χ0 !! γ' = χ2 !! γ') as Hass.
-        1: { apply elem_of_dom_2 in H1. apply HζσL in H1.
-             destruct H1 as (γA & HγA). rewrite H2. rewrite <- HγA. f_equal. destruct Hχ2 as [HHHL HHH]; eapply HHH. 1: done.
-             eapply lookup_weaken; first done. etransitivity; first eapply Hχ1; apply HHHL. }
-        rewrite <- Hass in H2.
-        assert ((ζMLold ∪ ζσ ∪ ζi0) !! γ' = Some blk) as H3'.
-        1: { assert (γ' ∈ dom ζσ) as HH1. 
-             1: eapply HζσR; exists ℓ', vs; repeat split; done.
-             apply elem_of_dom in HH1. destruct HH1 as [bb Hbb].
-             assert (ζi0 !! γ' = None) as HH3.
-             1: { eapply not_elem_of_dom. intros H. pose proof (Hζi0 _ H) as HH2. rewrite HH2 in H2; congruence. }
-             assert (ζMLold !! γ' = None) as HH.
-             1: { eapply map_disjoint_Some_r. 1: done. rewrite lookup_union_l. all: done. }
-             rewrite lookup_union_l. 2: done.
-             rewrite lookup_union_r. 2: done.
-             apply lookup_union_Some_inv_l in H3.
-             2: apply lookup_union_None; split; try done.
-             2: eapply not_elem_of_dom; intros H; pose proof (Hζi2 _ H) as HH2; rewrite <- Hass in HH2;  rewrite HH2 in H2; congruence.
-             apply lookup_union_Some_inv_r in H3. 2: done.
-             apply lookup_insert_Some in H3. destruct H3 as [[? ?]|[? ?]]; last done.
-             subst γ'. eapply lookup_weaken in H2. 2: apply Hχ1. rewrite H2 in Hγ. congruence. }
-        specialize (Hstore ℓ' vs γ' blk H1 H2 H3') as Hstore1.
-        inversion Hstore1; subst. econstructor.
-        eapply Forall2_impl; first done. intros x y He; eapply is_val_mono.
-        3:done. 1: etransitivity; first eapply Hχ1; eapply Hχ2.
-        rewrite <- ! map_union_assoc.
-        eapply map_union_mono_l. etransitivity.
-        1: eapply map_union_mono_l. 2: eapply map_union_mono_r.
-        1: apply map_union_subseteq_l.
-        1: { apply map_disjoint_spec. intros γ3 b1 b2.
-             intros [[Heq1 Heq2]|[Hne1 HH1]]%lookup_insert_Some;
-             intros [HH2|HH2]%lookup_union_Some. 3,6:done.
-             - subst γ3. eapply elem_of_dom_2 in HH2. apply Hζi0 in HH2. eapply lookup_weaken in HH2. 1: erewrite HH2 in Hγ; done. eapply Hχ1.
-             - subst γ3. eapply elem_of_dom_2 in HH2. apply Hζi2 in HH2. eapply lookup_weaken_inv in HH2. 2: eapply Hγ. 2: eapply Hχ2. congruence.
-             - eapply elem_of_dom_2 in HH2. apply Hζi0 in HH2. eapply elem_of_dom_2 in HH1. eapply HζσR in HH1. destruct HH1 as (?&?&H0&?). rewrite HH2 in H0; congruence.
-             - eapply elem_of_dom_2 in HH2. apply Hζi2 in HH2. eapply elem_of_dom_2 in HH1. eapply HζσR in HH1. destruct HH1 as (?&?&H0&?).
-               eapply lookup_weaken in H0. 2: etransitivity; first apply Hχ1; apply Hχ2. rewrite HH2 in H0; congruence. }
-        eapply insert_subseteq. eapply not_elem_of_dom. intros Hcc. apply HζσR in Hcc.
-        destruct Hcc as (ll&bb&HH1&HH2). eapply lookup_weaken in HH1. 2: apply Hχ1. rewrite Hγ in HH1.
-        injection HH1; intros ->. rewrite HH2 in Hin; congruence.
-  - destruct (IH ζMLold χMLold) as (χ0 & ζσ & ζi0 & Hχ0 & (HζσL & HζσR) & Hζi0 & Hd0 & Hstore). 1-2: done.
-    1: { eapply map_Forall_impl. 1: apply Hnone.
-         intros i k [[[? ?]|[Hne H]]%lookup_insert_Some|[H Hne]%lookup_insert_None]; try congruence.
-         1: right; subst; done. 1: by left. by right. }
-    destruct (allocate_in_χ_pub χ0 ℓ) as (χ1 & γ & Hχ1 & Hγ & Hold); first apply Hχ0.
-    exists χ1, ζσ, ζi0. split_and!. 1-2: split.
-    + etransitivity; first apply Hχ0. apply Hχ1.
-    + apply Hχ1.
-    + intros ℓ' Hℓ'. rewrite dom_insert_L in Hℓ'. apply elem_of_union in Hℓ'. destruct Hℓ' as [->%elem_of_singleton|H].
-      1: eexists; done.
-      destruct (HζσL ℓ' H) as (γ' & Hγ'). exists γ'. eapply lookup_weaken; first apply Hγ'.
-      apply Hχ1.
-    + intros γ'; destruct (HζσR γ') as [HL HR]; split.
-      * intros H. destruct (HL H) as (ℓ' & Vs & HH1 & HH2). exists ℓ', Vs; split.
-        1: eapply lookup_weaken; first eapply HH1; apply Hχ1.
-        rewrite lookup_insert_ne; try done. intros ->; rewrite Hin in HH2; congruence.
-      * intros (ℓ' & Vs & HH1 & HH2). eapply HR. exists ℓ', Vs.
-        apply lookup_insert_Some in HH2. destruct HH2 as [[? Hc]|[Hne HH]]; first congruence.
-        split; last done.
-        destruct (HζσL ℓ') as (γ2 & HH2); first by eapply elem_of_dom_2.
-        enough (γ' = γ2) as -> by done.
-        destruct Hχ1 as [HHL HHR]; eapply HHR; try done. by eapply lookup_weaken.
-    + intros γ' H. destruct Hχ1 as [HHL _]; eapply lookup_weaken. 2: apply HHL. by apply Hζi0.
-    + done.
-    + intros ℓ' vs γ' blk H1 H2 H3.
-      apply lookup_insert_Some in H1. destruct H1 as [[? Hc]|[Hne H1]]; first congruence.
-      assert (χ0 !! γ' = χ1 !! γ') as Hass. 1: eapply Hold; last done. intros ->; exfalso; destruct Hχ1 as [_ HHR]; congruence.
-      rewrite <- Hass in H2.
-      specialize (Hstore ℓ' vs γ' blk H1 H2 H3) as Hstore1.
-      inversion Hstore1; subst. econstructor.
-      eapply Forall2_impl; first done. intros x y He; eapply is_val_mono. 1: apply Hχ1. done. done.
+  intros H1 H2 H3.
+  destruct (deserialize_ML_heap χMLold σ) as (χC&ζσ&ζi&HA1&HA2&HA3). 1: apply H1.
+  assert (ζMLold ##ₘ ζσ ∪ ζi) as Hdisj.
+  1: eapply map_disjoint_union_r; split; last (eapply map_disjoint_dom, disjoint_strengthen; first apply HA1; done).
+  1: { eapply map_disjoint_spec. intros γ b1 b2 HH1 HH2.
+       destruct HA2 as [_ HA2R]. eapply elem_of_dom_2 in HH2. apply HA2R in HH2.
+       destruct HH2 as (ℓ & Vs & HH7 & HH8).
+       erewrite (map_Forall_lookup_1 _ _ _ _ H3) in HH8.
+       2: { eapply elem_of_dom_2 in HH1. erewrite pub_locs_in_lstore_lookup; first done; first done.
+            eapply elem_of_weaken in H2; last done.
+            eapply elem_of_dom in H2; destruct H2 as [k Hk]. rewrite Hk. 
+            eapply lookup_weaken in Hk; first erewrite HH7 in Hk. 2: eapply HA1. done. }
+       congruence. }
+  do 3 eexists; split_and!; try done.
+  - intros ℓ vs γ b He1 He2 He3.
+    eapply is_heap_elt_weaken. 1: eapply HA3; try done. 2: done.
+    + rewrite <- map_union_assoc in He3. eapply lookup_union_Some in He3; destruct He3; try done.
+      destruct (HA2) as [HL HR]. destruct (HR γ) as [HRL HRR]. eapply elem_of_dom in HRR. destruct HRR as [vv Hvv].
+      2: do 2 eexists; done.
+      exfalso. erewrite map_disjoint_Some_r in H; try congruence. 1: done.
+      erewrite lookup_union_Some_l; last done; first done.
+    + erewrite <- map_union_assoc. eapply map_union_subseteq_r. done.
 Qed.
 
+Lemma collect_dom_θ_vs (θdom : gset lloc) (vs : list lval) : exists θdom' : gset lloc, forall γ, (Lloc γ ∈ vs ∨ γ ∈ θdom) ↔ γ ∈ θdom'.
+Proof.
+  induction vs as [|[|ℓ] vs (θdom1 & IH)].
+  - exists θdom. intros γ. split; last eauto. intros [[]%not_elem_of_nil|?]; done.
+  - exists θdom1. intros γ. split.
+    + intros [[Hc|H]%elem_of_cons|?]; try congruence; apply IH. 1: by left. by right.
+    + intros [H|H]%IH; last by right. left. right. done.
+  - exists (θdom1 ∪ {[ ℓ ]}). intros γ. split.
+    + intros [[Hc|H]%elem_of_cons|?]; eapply elem_of_union. 1: right; eapply elem_of_singleton; congruence.
+      all: left; apply IH. 1: by left. by right.
+    + intros [[H|H]%IH| ->%elem_of_singleton]%elem_of_union. 1: left; right; done. 1: right; done.    
+      left; left; done.
+Qed.
+
+Lemma collect_dom_θ_ζ_blocks (θdom : gset lloc) (ζ : lstore) : exists θdom' : gset lloc,
+    forall γ, ((exists γ1 m t vs, ζ !! γ1 = Some (m, (t, vs)) ∧ Lloc γ ∈ vs) ∨ γ ∈ θdom) ↔ γ ∈ θdom'.
+Proof.
+  induction ζ as [|k [m [t vs]] ζ Hne (θdom1 & Hdom1)] using map_ind.
+  - exists θdom; split.
+    + intros [(γ1&m&t&vs&H1&H2)|Hold]; last done.
+      rewrite lookup_empty in H1; done.
+    + intros H; by right.
+  - destruct (collect_dom_θ_vs θdom1 vs) as (θdom2 & Hdom2).
+    exists θdom2. intros γ; split.
+    + intros [(γ1&m'&t'&vs'&[[-> Hinj]|[Hne2 Hin]]%lookup_insert_Some&H2)|Hold].
+      1: apply Hdom2; left; congruence.
+      1: apply Hdom2; right; apply Hdom1; left; by repeat eexists.
+      1: apply Hdom2; right; apply Hdom1; right; done.
+    + intros [H|[(γ1&m'&t'&vs'&H1&H2)|H]%Hdom1]%Hdom2.
+      1: left; do 4 eexists; split; first eapply lookup_insert; done.
+      2: by right.
+      left; do 4 eexists; split; last done; first rewrite lookup_insert_ne; first done.
+      intros ->; rewrite Hne in H1; congruence.
+Qed.
+
+Lemma collect_dom_θ_ζ (θdom : gset lloc) (ζ : lstore) : exists θdom' : gset lloc,
+    forall γ, (γ ∈ dom ζ ∨ (exists γ1 m t vs, ζ !! γ1 = Some (m, (t, vs)) ∧ Lloc γ ∈ vs) ∨ γ ∈ θdom) ↔ γ ∈ θdom'.
+Proof.
+  destruct (collect_dom_θ_ζ_blocks θdom ζ) as (θdom1 & Hdom1).
+  exists (dom ζ ∪ θdom1). intros γ; split.
+  - (intros [H|H]; apply elem_of_union); first by left.
+    right; apply Hdom1; done.
+  - intros [H|H]%elem_of_union; first by left. right; by apply Hdom1.
+Qed.
+
+Lemma collect_dom_θ_roots (θdom : gset lloc) (roots : roots_map) : exists θdom' : gset lloc,
+    forall γ, ((exists k, roots !! k = Some (Lloc γ)) ∨ γ ∈ θdom) ↔ γ ∈ θdom'.
+Proof.
+  induction roots as [|k [z|l] roots Hne (θdom1 & IH)] using map_ind.
+  - exists θdom. intros γ. split; last eauto. intros [[? H%lookup_empty_Some]|?]; done.
+  - exists θdom1. intros γ. split.
+    + intros [[k1 [[-> ?]|[H1 H2]]%lookup_insert_Some]|?]; try congruence; apply IH. 2: by right. left. by eexists.
+    + intros [[k' Hk]|H]%IH; last by right. left. exists k'. rewrite lookup_insert_ne; first done. intros ->; rewrite Hne in Hk; done.
+  - exists (θdom1 ∪ {[ l ]}). intros γ. split.
+    + intros [[k1 [[-> ?]|[H1 H2]]%lookup_insert_Some]|?]; try congruence; eapply elem_of_union. 1: right; eapply elem_of_singleton; congruence.
+      all: left; apply IH. 2: by right. left; by eexists.
+    + intros [[[k' Hk]|H]%IH| ->%elem_of_singleton]%elem_of_union. 2: by right. 2: left; exists k; by rewrite lookup_insert.
+      left; exists k'; rewrite lookup_insert_ne; first done. intros ->; rewrite Hne in Hk; congruence.
+Qed.
+
+Lemma injectivify_map (S : gset lloc) : exists M : addr_map, dom M = S ∧ gmap_inj M.
+Proof.
+  induction S as [|s S Hne (M & <- & Hinj)] using set_ind_L.
+  - exists ∅; split; first by rewrite dom_empty_L. intros ??? H1; exfalso. rewrite lookup_empty in H1; done.
+  - exists (<[s := fresh (codom M)]> M). split.
+    1: by rewrite dom_insert_L.
+    apply gmap_inj_extend; try done.
+    intros k' v' H%codom_spec_2 <-. unshelve eapply is_fresh; last exact H. all: apply _.
+Qed.
+
+Lemma find_repr_lval_vv θ v : 
+   (forall γ, Lloc γ = v → γ ∈ dom θ)
+ → exists l, repr_lval θ v l.
+Proof.
+  intros H. destruct v as [z|a].
+  - eexists; by econstructor.
+  - destruct (θ !! a) as [va|] eqn:Heq.
+    2: eapply not_elem_of_dom in Heq; exfalso; apply Heq; apply H; done.
+    eexists; econstructor; apply Heq.
+Qed.
+
+Lemma find_repr_lval_vs θ vs : 
+   (forall γ, Lloc γ ∈ vs → γ ∈ dom θ)
+ → exists ls, Forall2 (repr_lval θ) vs ls.
+Proof.
+  intros H; induction vs as [|v vs IH] in H|-*.
+  - exists nil. econstructor.
+  - destruct IH as [ls IH]; first (intros γ Hγ; eapply H; right; done).
+    destruct (find_repr_lval_vv θ v) as [l Hl].
+    1: intros γ <-; apply H; by left.
+    eexists. econstructor; done.
+Qed.
+
+Lemma find_repr_roots θ roots privmem : 
+   roots_are_live θ roots
+ → dom privmem ## dom roots
+ → exists mem, repr θ roots privmem mem.
+Proof.
+  revert privmem. unfold repr.
+  induction roots as [|l a roots_m Hin IH] using map_ind; intros privmem Hlive Hdisj.
+  - exists privmem, ∅. split_and!.
+    + econstructor.
+    + eapply map_disjoint_empty_r.
+    + by rewrite map_empty_union.
+  - destruct (IH privmem) as (mem1 & memr1 & Hrepr1 & Hdisj1 & Heq1).
+    1: { intros a1 w1 H1; eapply Hlive; rewrite lookup_insert_ne; first done.
+         intros ->; rewrite Hin in H1; congruence. }
+    1: rewrite dom_insert_L in Hdisj; set_solver.
+    destruct (find_repr_lval_vv θ a) as (w & Hw).
+    1: intros γ <-; eapply Hlive; apply lookup_insert.
+    exists (<[l:=Storing w]> mem1), (<[l:=Storing w]> memr1). split_and!.
+    + econstructor. 1: done. 1:done. 2: erewrite <- repr_roots_dom; last apply Hrepr1. all: by eapply not_elem_of_dom.
+    + apply map_disjoint_dom in Hdisj1. apply map_disjoint_dom.
+      rewrite dom_insert_L. rewrite dom_insert_L in Hdisj. set_solver.
+    + erewrite Heq1. now rewrite insert_union_l.
+Qed.
+
+
+Lemma set_to_some θ mem roots_m privmem :
+    repr θ roots_m privmem mem
+ -> gen_heap_interp (privmem ∪ ((λ _ : lval, None) <$> roots_m))
+ -∗ ([∗ set] a0 ∈ dom roots_m, a0 O↦ None)
+ ==∗ gen_heap_interp mem
+     ∗ ([∗ map] a0↦v0 ∈ roots_m, ∃ w, a0 ↦C{DfracOwn 1} w ∗ ⌜repr_lval θ v0 w⌝).
+Proof.
+  intros (mm & Hrepr1 & Hrepr2 & Hrepr3).
+  induction Hrepr1 in Hrepr2,Hrepr3,mem,privmem|-*.
+  + iIntros "Hheap Hset !>".
+    rewrite fmap_empty. rewrite dom_empty_L. rewrite map_union_empty.
+    rewrite map_empty_union in Hrepr3. subst mem. iFrame.
+    iApply big_sepM_empty. done.
+  + eapply not_elem_of_dom in H0,H1. iIntros "Hheap Hset".
+    rewrite dom_insert_L.
+    iPoseProof (big_sepS_insert) as "(Hb1 & _)"; first eapply not_elem_of_dom_2, H0.
+    iPoseProof ("Hb1" with "Hset") as "(Hw & Hset)".
+    rewrite fmap_insert. rewrite <- insert_union_r.
+    2: eapply map_disjoint_Some_r; first done; by rewrite lookup_insert.
+    iMod (gen_heap_update _ _ _ (Storing w) with "Hheap Hw") as "(Hheap & Hw)".
+    rewrite insert_insert.
+    rewrite insert_union_l.
+    iMod (IHHrepr1 with "Hheap Hset") as "(Hheap & Hset)".
+    * eapply map_disjoint_insert_l_2; first done.
+      erewrite <- (delete_insert mem0); last done.
+      by eapply map_disjoint_delete_r.
+    * done.
+    * rewrite <- insert_union_r; last done.
+      subst mem. rewrite insert_union_l. iModIntro.
+      iFrame.
+      iApply (big_sepM_insert_2 with "[Hw] Hset").
+      iExists w. iFrame. done.
+Qed.
+
+Lemma zip_args_length a b : length a = length b → exists v, C_lang.zip_args a b = Some v.
+Proof.
+  intros Hlen.
+  assert (Forall2 (fun _ _ => True) a b) as Hforall by by apply Forall2_true.
+  clear Hlen. induction Hforall as [|[|s] ar bx br _ Hforall [v IH]].
+  - cbn. eexists _; done.
+  - cbn. eexists; apply IH.
+  - eexists. cbn. rewrite IH. cbn. done.
+Qed.
+
+Lemma apply_function_arity F ws : arity F = length ws → ∃ k, C_lang.apply_function F ws = Some k.
+Proof.
+  intros H. destruct F as [c args]. cbn in H|-*.
+  destruct (zip_args_length c ws) as [σ Hσ]; first done.
+  eexists; rewrite Hσ. done.
+Qed.
 
 Lemma run_function_correct F (vv : list ML_lang.val) T E Φ: 
     ⌜arity F = length vv⌝
@@ -623,25 +843,124 @@ Proof.
          iPoseProof (gen_heap_valid with "HH H1") as "%Hv".
          iPureIntro. apply map_Forall_insert. 1: done. split; done. }
 
-  destruct (deserialize_ML_heap (ζML ρml) (χML ρml) σ) as (χ1 & ζσ & ζσimm & Hχ1 & Hζσ & Hζσimm & Hdisj1 & Hstore).
-  1: done.
-  1: eapply elem_of_subseteq; done.
-  1: eapply map_Forall_impl; first exact Hpublocs; intros ? ? ? ; by left.
-  destruct (deserialize_ML_values χ1 vv) as (χ2 & ζimm & lvs & Hχ2 & Hζimm & Hdisj2 & Hlvs).
-  1: apply Hχ1.
-  
-
-
   iSplitR.
   + iPureIntro. exists (fun _ => True). eapply mlanguage.head_prim_step. cbn.
-    eapply (RunFunctionS p F vv ρml σ ζσ (ζσimm ∪ ζimm) _ _ _ _ χ2 _ _ (fun _ => True)). 7-13: admit.
-    1: {split; try apply Hχ2. etransitivity; last apply Hχ2; apply Hχ1. }
-    1: { admit. }
-    1: { admit. }
-    1: { reflexivity. }
-    1: { admit. }
-    1: { admit. }
 
-Admitted.
+    destruct (deserialize_ML_heap_extra (ζML ρml) (χML ρml) σ) as (χ1 & ζσ & ζσimm & Hext & Hstorebl & Hdisj & Hstore).
+    1: done.
+    1: eapply elem_of_subseteq; done.
+    1: done.
+    destruct (deserialize_ML_values χ1 vv) as (χ2 & ζimm & lvs & Hext2 & Hvs).
+    1: apply Hext.
+
+    assert (ζML ρml ∪ ζσ ∪ ζσimm ##ₘ ζimm) as Hdis1.
+    1: { eapply map_disjoint_dom. eapply disjoint_strengthen. 1: eapply Hext2. 2: done.
+         rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset.
+         rewrite dom_union_L. eapply union_subseteq; split.
+         1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext.
+         intros γ Hγ. destruct Hstorebl as [_ HR]. apply HR in Hγ. destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. }
+
+    pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC.
+
+    destruct (collect_dom_θ_ζ ∅ ζC) as (θdom1 & Hθdom1).
+    destruct (collect_dom_θ_vs θdom1 lvs) as (θdom2 & Hθdom2).
+    destruct (collect_dom_θ_roots θdom2 (rootsML ρml)) as (θdom3 & Hθdom3).
+    destruct (injectivify_map θdom3) as (θC & Hdom & Hinj).
+    destruct (find_repr_lval_vs θC lvs) as (ws & Hws).
+    1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done.
+    destruct (apply_function_arity F ws) as (ec & Hec).
+    1: rewrite Harity; etransitivity; eapply Forall2_length; done.
+    assert (roots_are_live θC (rootsML ρml)) as Hrootslive.
+    1: { intros a γ H1. subst θdom3. apply Hθdom3. left. by eexists. }
+    destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); try done.
+
+    eapply (RunFunctionS p F vv ρml σ ζσ (ζσimm ∪ ζimm) lvs ws ec mem χ2 ζC θC (fun _ => True)).
+    1: eapply extended_to_trans; done.
+    1: destruct Hstorebl as [HL HR]; split.
+    1: { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. }
+    1: { intros γ; destruct (HR γ) as [HRL HRH]; split.
+         1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); exists ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2.
+         intros (ℓ & Vs & H1 & H2). apply HRH. exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (γ2 & Hγ2).
+         enough (γ2 = γ) as -> by done. eapply Hext2. 2: done. eapply lookup_weaken; first done; eapply Hext2. }
+    1: { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken.
+         1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. }
+    1: { reflexivity. }
+    1: { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.
+         eapply map_disjoint_dom, disjoint_strengthen; first eapply map_disjoint_dom, Hdis1; try done.
+         erewrite ! dom_union_L; set_solver. }
+    1: { intros ℓ vs γ b H1 H2 H3. unfold ζC in *. rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3.
+         apply lookup_union_Some_inv_l in H3.
+         2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence.
+         eapply is_heap_elt_weaken. 1: eapply Hstore; try done.
+         2: apply Hext2.
+         + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv]; first by eapply elem_of_dom_2.
+           rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done.
+         + eapply map_union_subseteq_l. }
+    1: { eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono; last done; first done.
+         unfold ζC. rewrite ! map_union_assoc. eapply map_union_subseteq_r. done. }
+    1: { split; first done. subst θdom3. intros γ m tg vs γ' _ H2 H3.
+         apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 4 eexists; done. }
+    1: { done. }
+    1: { done. }
+    1: { done. }
+    1: { done. }
+    1: { done. }
+  + iIntros (X Hstep).
+    destruct Hstep as ([] & e1 & Heq & Hstep).
+    cbv in Heq; subst e1.
+    inversion Hstep.
+    cbv in H1. subst fn vs ρml0 σ0 X0.
+
+    iMod (ghost_var_update_halves with "Hb HAbound") as "(Hnb & Hnb2)".
+    1: iPoseProof (@fractional.fractional _ _ (ghost_var_fractional _ _)) as "[HH _]".
+    iDestruct ("HH" with "[Hnb2]") as "(HAGCbound & HAbound)".
+    1: by assert ((1 / 4 + 1 / 4 = 1 / 2)%Qp) as <- by compute_done.
+    iClear "HH".
+    iMod (ghost_var_update_halves with "HAθ HAGCθ") as "(HAθ & HAGCθ)".
+    iMod (lstore_own_insert_many with "HAζrest") as "(HAζrest & Hζnewimm)".
+    1: apply map_disjoint_union_r in H7 as [H71 H72]; apply H72.
+    iMod (lloc_own_mono with "HAχ") as "HAχ"; first done.
+    assert (ζσ ##ₘ ζnewimm) as Hdisj2 by by eapply is_store_blocks_is_private_blocks_disjoint.
+    apply map_disjoint_union_r in H7 as [H71 H72].
+    assert (ζC = ζσ ∪ (ζML ρml ∪ ζnewimm)) as H6B.
+    1: { rewrite map_union_assoc. rewrite (map_union_comm ζσ); first done. by symmetry. }
+    iPoseProof (block_sim_arr_of_ghost_state _ _ _ _ _ vv lvs with "HAχ HAζrest [] [] [] [] []") as "#Hsim".
+    1-5: iPureIntro. 5: exact H9. 1-3:done. 1: by apply map_disjoint_union_r.
+    iMod (set_to_some with "HAσCv Hrootspto") as "(HAσCv & Hrootspto)"; first done.
+
+    do 3 iModIntro.
+    do 2 iExists _.
+    iSplitR; first (iPureIntro; exact H16).
+
+    iSpecialize ("Hwp" $! θC lvs ws ec).
+    iSplitR "Hnb Hwp HAGCθ HAGCbound HArootss HArootsm Hrootspto".
+    * unfold wrap_state_interp, C_state_interp; cbn.
+      iSplitL "HAσCv HAnCv"; first (iExists nCv; iFrame).
+      iExists ζC, ζσ, (ζML ρml ∪ ζnewimm), χC, σ.
+      iFrame.
+      iSplitL "HvML"; first by iExists _.
+      rewrite pub_locs_in_lstore_insert_priv_store; last done.
+      erewrite pub_locs_in_lstore_mono at 1; last apply H3; last done.
+      iFrame "HAχNone".
+      iPureIntro. split_and!.
+      1: reflexivity.
+      1: done.
+      1: apply map_disjoint_union_r; done.
+      1: done.
+      1: { rewrite dom_union_L. intros γ [H|H]%elem_of_union.
+           - eapply elem_of_weaken; first by eapply Hother_blocks.
+             eapply subseteq_dom, H3.
+           - by eapply elem_of_dom_2, H5. }
+      1: done.
+      1: { split; first done.
+           split; first apply H3.
+           intros γ v1 v2 H1 H2. rewrite H1 in H2. injection H2; intros ->. econstructor. }
+      1: apply H3.
+      1: done.
+    * iApply (wp_simulates with "Hnb"); iApply ("Hwp" with "[- ] [] [] Hsim"); try done.
+      unfold GC; cbn.
+      iExists (dom (rootsML ρml)), (rootsML ρml).
+      iFrame "HAGCθ HAGCbound HArootss HArootsm Hrootspto". done.
+Qed.
 
 End Simulation.

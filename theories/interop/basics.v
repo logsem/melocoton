@@ -311,6 +311,10 @@ Lemma lloc_map_pubs_insert_pub χ γ ℓ :
   lloc_map_pubs (<[γ:=LlocPublic ℓ]> χ) = <[γ:=ℓ]> (lloc_map_pubs χ).
 Proof. rewrite /lloc_map_pubs omap_insert //. Qed.
 
+Lemma lloc_map_pubs_insert_priv χ γ :
+  lloc_map_pubs (<[γ:=LlocPrivate]> χ) = delete γ (lloc_map_pubs χ).
+Proof. rewrite /lloc_map_pubs omap_insert //. Qed.
+
 Lemma elem_of_lloc_map_pub_locs ℓ χ :
   ℓ ∈ lloc_map_pub_locs χ ↔ ∃ γ, χ !! γ = Some (LlocPublic ℓ).
 Proof.
@@ -380,6 +384,51 @@ Proof.
   destruct (decide (γ = γ')) as [<-|]; simplify_map_eq.
   { destruct (decide (γ ∈ dom ζ)); by simplify_map_eq. }
   rewrite map_filter_lookup //.
+Qed.
+
+Lemma pub_locs_in_lstore_insert_priv χ ζ γ b :
+  χ !! γ = Some LlocPrivate →
+  pub_locs_in_lstore χ (<[γ:=b]> ζ) = pub_locs_in_lstore χ ζ.
+Proof.
+  intros Hγ. rewrite /pub_locs_in_lstore.
+  apply map_filter_strong_ext_1.
+  intros γ' ℓ; split; intros [H1 H2]; split; try done.
+  2: erewrite dom_insert_L; eapply elem_of_union; by right.
+  erewrite dom_insert_L in H1; eapply elem_of_union in H1; destruct H1 as [H1%elem_of_singleton|H1].
+  2: done.
+  apply lloc_map_pubs_lookup_Some_1 in H2. congruence.
+Qed.
+
+Lemma pub_locs_in_lstore_insert_priv_store χ ζ ζ2 :
+  is_private_blocks χ ζ2 →
+  pub_locs_in_lstore χ (ζ ∪ ζ2) = pub_locs_in_lstore χ ζ.
+Proof.
+  intros Hγ. rewrite /pub_locs_in_lstore.
+  apply map_filter_strong_ext_1.
+  intros γ' ℓ; split; intros [H1 H2]; split; try done.
+  2: erewrite dom_union_L; eapply elem_of_union; by left.
+  erewrite dom_union_L in H1; eapply elem_of_union in H1; destruct H1 as [H1|H1].
+  1: done.
+  specialize (Hγ γ' H1).
+  apply lloc_map_pubs_lookup_Some_1 in H2.
+  congruence.
+Qed.
+
+Lemma pub_locs_in_lstore_mono χ1 χ2 ζ :
+  dom ζ ⊆ dom χ1 →
+  lloc_map_mono χ1 χ2 →
+  pub_locs_in_lstore χ1 ζ = pub_locs_in_lstore χ2 ζ.
+Proof.
+  intros Hsub (Hsub2&Hinj).
+  unfold pub_locs_in_lstore.
+  apply map_filter_strong_ext_1.
+  intros γ' ℓ; split; intros [H1 H2]; split; try done.
+  - apply lloc_map_pubs_lookup_Some. apply lloc_map_pubs_lookup_Some in H2.
+    eapply lookup_weaken; done.
+  - apply lloc_map_pubs_lookup_Some. apply lloc_map_pubs_lookup_Some in H2.
+    eapply elem_of_weaken in H1; last apply Hsub.
+    eapply elem_of_dom in H1; destruct H1 as [v Hv].
+    eapply lookup_weaken_inv in H2; last apply Hsub2; last done. congruence.
 Qed.
 
 Lemma pub_locs_in_lstore_delete_lstore χ ζ γ :
@@ -607,17 +656,18 @@ Lemma is_store_blocks_restore_loc χ σ ζ ℓ γ Vs blk:
   is_store_blocks χ σ ζ →
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
-  σ !! ℓ = Some None →
+  (σ !! ℓ = Some None ∨ σ !! ℓ = None) →
   is_store_blocks χ (<[ℓ:=Some Vs]> σ) (<[γ:=blk]> ζ).
 Proof.
   intros [Hsl Hsr] Hχinj Hχℓ Hσℓ. split.
-  { intros ℓ'. rewrite dom_insert_lookup_L //. eauto. }
+  { intros ℓ'. rewrite dom_insert_L //. intros [->%elem_of_singleton|H]%elem_of_union.
+    1: by eexists. eauto. }
   intros γ'. destruct (Hsr γ') as [Hsrl Hsrr]; split.
   * intros Hin. rewrite dom_insert_L in Hin. apply elem_of_union in Hin.
     destruct Hin as [->%elem_of_singleton|Hin2].
     - exists ℓ, Vs. split; try done. by rewrite lookup_insert.
     - destruct (Hsrl Hin2) as (ℓ2 & Vs2 & H1 & H2); exists ℓ2, Vs2; split; try done.
-      rewrite lookup_insert_ne; first done; congruence.
+      rewrite lookup_insert_ne; first done; destruct Hσℓ; congruence.
   * intros (ℓ2 & Vs2 & H1 & H2). destruct (decide (ℓ2 = ℓ)) as [->|Hne].
     - specialize (Hχinj _ _ _ Hχℓ H1). simplify_map_eq. set_solver.
     - rewrite dom_insert_L. apply elem_of_union; right. apply Hsrr.
@@ -703,6 +753,13 @@ Proof.
   intros [H1 H2] Hζγ; split; first done. intros γ1 **.
   destruct (decide (γ1 = γ)) as [-> |];
     simplify_map_eq; eauto.
+Qed.
+
+Global Instance freeze_lstore_refl : Reflexive (freeze_lstore).
+Proof.
+  intros ζ; split; first done.
+  intros γ b1 b2 H1 H2. rewrite H1 in H2; injection H2; intros ->.
+  apply freeze_block_refl.
 Qed.
 
 Lemma freeze_lstore_freeze_lloc ζ ζ' γ b :
