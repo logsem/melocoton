@@ -18,7 +18,8 @@ Import Wrap.
 Global Notation MLval := ML_lang.val.
 Global Notation Cval := C_lang.val.
 
-Definition forbidden_function_names : list string := ["alloc"; "registerroot"; "unregisterroot"; "modify"; "readfield"; "int2val"; "val2int"].
+Definition forbidden_function_names : list string :=
+  ["alloc"; "registerroot"; "unregisterroot"; "modify"; "readfield"; "int2val"; "val2int"].
 
 
 Section Utils.
@@ -37,20 +38,31 @@ Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T 
 Notation spec := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
 
 Definition WP_int2val_spec : spec := (λ n vl wp,
-   "(%θ & %z & HGC & -> & -> & HWP)" 
+   "(%θ & %z & HGC & -> & -> & HWP)"
     ∷ (∃ θ z, GC θ ∗ ⌜n = "int2val"⌝ ∗ ⌜vl = [C_lang.LitV $ C_lang.LitInt $ z]⌝ ∗ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ wp w )))%I.
 
 Definition WP_val2int_spec : spec := (λ n vl wp,
-   "(%θ & %w & %z & HGC & -> & %Hrepr & -> & HWP)" 
+   "(%θ & %w & %z & HGC & -> & %Hrepr & -> & HWP)"
     ∷ (∃ θ w z, GC θ ∗ ⌜n = "val2int"⌝ ∗ ⌜repr_lval θ (Lint z) w⌝ ∗ ⌜vl = [ w ]⌝ ∗ (GC θ -∗ wp (C_lang.LitV $ C_lang.LitInt $ z) )))%I.
 
-Definition WP_ext_call_spec : spec := (λ n vl wp,
-    WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp)%I.
+Definition WP_registerroot_spec : spec := (λ n vl wp,
+   "(%θ & %l & %v & %w & HGC & -> & -> & Hpto & %Hrepr & HWP)"
+    ∷ (∃ θ l v w, GC θ ∗ ⌜n = "registerroot"⌝ ∗ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗ l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
+      (GC θ -∗ l ↦roots v -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
 
-Lemma WP_ext_call_sound s v T : WP_ext_call_spec s v T -∗ ⌜s ∈ forbidden_function_names⌝.
+Definition WP_unregisterroot_spec : spec := (λ n vl wp,
+   "(%θ & %l & %v & HGC & -> & -> & Hpto & HWP)"
+    ∷ (∃ θ l v, GC θ ∗ ⌜n = "unregisterroot"⌝ ∗ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗ l ↦roots v ∗
+      (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
+
+Definition WP_ext_call_spec : spec := (λ n vl wp,
+    WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp ∨ WP_registerroot_spec n vl wp ∨ WP_unregisterroot_spec n vl wp)%I.
+
+Lemma WP_ext_call_sound s v2 T : WP_ext_call_spec s v2 T -∗ ⌜s ∈ forbidden_function_names⌝.
 Proof.
-  iIntros "[H|H]"; unfold WP_int2val_spec; unfold WP_val2int_spec; iNamed "H";
-  iPureIntro; unfold forbidden_function_names;
+  iIntros "[H|[H|[H|H]]]";
+  unfold WP_int2val_spec; unfold WP_val2int_spec; unfold WP_registerroot_spec; unfold WP_unregisterroot_spec;
+  iNamed "H"; iPureIntro; unfold forbidden_function_names;
   repeat (try done; try left; right).
 Qed.
 
