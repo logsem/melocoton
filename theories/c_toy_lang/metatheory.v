@@ -333,3 +333,43 @@ Proof.
     rewrite difference_union_distr_l_L. f_equal.
     rewrite <- union_list_map_delete. now rewrite map_map.
 Qed.
+
+Lemma zip_args_length_1 a b : length a = length b → exists v, C_lang.zip_args a b = Some v.
+Proof.
+  intros Hlen.
+  assert (Forall2 (fun _ _ => True) a b) as Hforall by by apply Forall2_true.
+  clear Hlen. induction Hforall as [|[|s] ar bx br _ Hforall [v IH]].
+  - cbn. eexists _; done.
+  - cbn. eexists; apply IH.
+  - eexists. cbn. rewrite IH. done.
+Qed.
+
+Lemma zip_args_length_2 a b : (exists v, C_lang.zip_args a b = Some v) → length a = length b.
+Proof.
+  intros (v&Hv).
+  induction a as [|[|a] ar IH] in b,v,Hv|-*.
+  1: destruct b; cbn in *; congruence.
+  all: destruct b as [|b br]; cbn in *; try congruence.
+  all: f_equal. 1: eapply IH; try done.
+  unfold option_map in Hv.
+  destruct (zip_args ar br) as [m|] eqn:Heq; cbn in *; try congruence.
+  eapply IH; done.
+Qed.
+
+Lemma zip_args_length a b : length a = length b ↔ exists v, C_lang.zip_args a b = Some v.
+Proof.
+  split. 1: apply zip_args_length_1. apply zip_args_length_2.
+Qed.
+
+Lemma apply_function_arity F ws : arity F = length ws ↔ ∃ k, C_lang.apply_function F ws = Some k.
+Proof.
+  destruct F as [c args]; cbn. split.
+  - intros H. destruct (zip_args_length_1 c ws) as [σ Hσ]; first done.
+    eexists; by rewrite Hσ.
+  - intros (k&Hk). apply zip_args_length. destruct (zip_args c ws) as [m|] eqn:Heq; try done.
+    by eexists.
+Qed.
+
+
+
+

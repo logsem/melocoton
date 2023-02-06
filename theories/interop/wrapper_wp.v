@@ -70,7 +70,7 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "%Hfreezeeq" ∷ ⌜ζfreeze = ζσ ∪ ζrest⌝
   ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζrest⌝
   ∗ "%Hstore_blocks" ∷ ⌜is_store_blocks χvirt σMLvirt ζσ⌝
-  ∗ "%Hother_blocks" ∷ ⌜∀ γ, γ ∈ dom ζrest → γ ∈ dom χvirt⌝
+  ∗ "%Hother_blocks" ∷ ⌜dom ζrest ⊆ dom χvirt⌝
   ∗ "%Hstore" ∷ ⌜is_store χvirt ζfreeze σMLvirt⌝
   ∗ "%Hχvirt" ∷ ⌜expose_llocs χ χvirt⌝
   ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝ (* TODO redundant? *)
@@ -93,7 +93,7 @@ Definition ML_state_interp (ζrest : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "HAbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
   ∗ "HAGCrem" ∷ GC_token_remnant roots
   ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝
-  ∗ "%Hother_blocks" ∷ ⌜∀ γ, γ ∈ dom ζrest → γ ∈ dom χ⌝
+  ∗ "%Hother_blocks" ∷ ⌜dom ζrest ⊆ dom χ⌝
   ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
 
 Definition public_state_interp : store -> iProp Σ := (λ σ, ∃ n, state_interp σ n)%I.
@@ -160,6 +160,10 @@ Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
   (at level 20, format "l  ↦mut  b") : bi_scope.
 Notation "l ↦imm b" := (lstore_own_immut wrapperGS_γζ l (Immut, b))%I
   (at level 20, format "l  ↦imm  b") : bi_scope.
+Notation "l ↦roots{ dq } w" := (l ↪[wrapperGS_γroots_map]{dq} w)%I
+  (at level 20, format "l  ↦roots{ dq }  w") : bi_scope.
+Notation "l ↦roots w" := (l ↪[wrapperGS_γroots_map] w)%I
+  (at level 20, format "l  ↦roots  w") : bi_scope.
 
 Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
   (ML_lang.LitV (ML_lang.LitInt x)) => ⌜l = (Lint x)⌝
@@ -191,3 +195,8 @@ Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
   (at level 20, format "l  ↦mut  b") : bi_scope.
 Notation "l ↦imm b" := (lstore_own_immut wrapperGS_γζ l (Immut, b))%I
   (at level 20, format "l  ↦imm  b") : bi_scope.
+Notation "l ↦roots{ dq } w" := (l ↪[wrapperGS_γroots_map]{dq} w)%I
+  (at level 20, format "l  ↦roots{ dq }  w") : bi_scope.
+Notation "l ↦roots w" := (l ↪[wrapperGS_γroots_map] w)%I
+  (at level 20, format "l  ↦roots  w") : bi_scope.
+

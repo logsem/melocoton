@@ -776,3 +776,18 @@ Proof.
       inversion HR; subst; econstructor.
     * rewrite lookup_insert_ne in H2; last done. by eapply HR.
 Qed.
+
+Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.
+Proof.
+  induction 1.
+  + by do 2 rewrite dom_empty_L.
+  + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots.
+Qed.
+
+Lemma repr_lval_inj θ v w w' : repr_lval θ v w -> repr_lval θ v w' -> w = w'.
+Proof.
+  induction 1; inversion 1.
+  + done.
+  + rewrite H in H3. injection H3; intros ->; done.
+Qed.
+
