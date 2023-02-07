@@ -55,13 +55,32 @@ Definition WP_unregisterroot_spec : spec := (λ n vl wp,
     ∷ (∃ θ l v, GC θ ∗ ⌜n = "unregisterroot"⌝ ∗ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗ l ↦roots v ∗
       (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
 
+(* The most general spec, prove stuff for specific block-level pointstos later *)
+Definition WP_modify_spec : spec := (λ n vl wp,
+   "(%θ & %w & %i & %v' & %w' & %γ & %tg & %vs & HGC & -> & -> & %Hreprw & Hpto & %Hreprw' & %Hi1 & %Hi2 & HWP)"
+    ∷ (∃ θ w i v' w' γ tg vs, GC θ ∗ ⌜n = "modify"⌝ ∗ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i; w' ]⌝ 
+                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_mut wrapperGS_γζ γ (DfracOwn 1) (Mut, (tg, vs)) ∗ ⌜repr_lval θ v' w'⌝
+                   ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
+      (GC θ -∗ lstore_own_mut wrapperGS_γζ γ (DfracOwn 1) (Mut, (tg, <[Z.to_nat i:=v']> vs)) -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
+
+(* The most general spec, prove stuff for specific block-level pointstos later *)
+Definition WP_readfield_spec : spec := (λ n vl wp,
+   "(%θ & %w & %i & %γ & %dq & %m & %tg & %vs & HGC & -> & -> & %Hreprw & Hpto & %Hi1 & %Hi2 & HWP)"
+    ∷ (∃ θ w i γ dq m tg vs, GC θ ∗ ⌜n = "readfield"⌝ ∗ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ 
+                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_elem wrapperGS_γζ γ dq (m, (tg, vs))
+                   ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
+      (∀ v' w', GC θ -∗ lstore_own_elem wrapperGS_γζ γ dq (m, (tg, vs)) -∗ ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗ ⌜repr_lval θ v' w'⌝ -∗ wp w' )))%I.
+
+
 Definition WP_ext_call_spec : spec := (λ n vl wp,
-    WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp ∨ WP_registerroot_spec n vl wp ∨ WP_unregisterroot_spec n vl wp)%I.
+    WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp ∨ WP_registerroot_spec n vl wp ∨ WP_unregisterroot_spec n vl wp
+  ∨ WP_modify_spec n vl wp ∨ WP_readfield_spec n vl wp)%I.
 
 Lemma WP_ext_call_sound s v2 T : WP_ext_call_spec s v2 T -∗ ⌜s ∈ forbidden_function_names⌝.
 Proof.
-  iIntros "[H|[H|[H|H]]]";
+  iIntros "[H|[H|[H|[H|[H|H]]]]]";
   unfold WP_int2val_spec; unfold WP_val2int_spec; unfold WP_registerroot_spec; unfold WP_unregisterroot_spec;
+  unfold WP_modify_spec; unfold WP_readfield_spec;
   iNamed "H"; iPureIntro; unfold forbidden_function_names;
   repeat (try done; try left; right).
 Qed.
@@ -609,6 +628,21 @@ Proof.
       erewrite lookup_union_Some_l; last done; first done.
     + erewrite <- map_union_assoc. eapply map_union_subseteq_r. done.
 Qed.
+
+Lemma sigma_None_extract χpub σ :
+  ⊢ gen_heap_interp σ
+ -∗ ([∗ map] ℓ ∈ χpub, ℓ ↦M/)
+ -∗ ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) χpub⌝.
+Proof.
+  induction χpub as [|k l χpub Hin IH] using map_ind; iIntros "HH HK".
+  - iPureIntro. apply map_Forall_empty.
+  - iPoseProof (big_sepM_insert) as "[HL _]". 1: apply Hin.
+    iPoseProof ("HL" with "HK") as "[H1 H2]".
+    iPoseProof (IH with "HH H2") as "%HIH". 1: iFrame.
+    iPoseProof (gen_heap_valid with "HH H1") as "%Hv".
+    iPureIntro. apply map_Forall_insert. 1: done. split; done.
+Qed.
+
 
 End ChiZetaConstruction.
 

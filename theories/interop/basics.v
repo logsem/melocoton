@@ -791,3 +791,10 @@ Proof.
   + rewrite H in H3. injection H3; intros ->; done.
 Qed.
 
+Lemma repr_lval_inj_1 θ v v' w : gmap_inj θ → repr_lval θ v w -> repr_lval θ v' w -> v = v'.
+Proof.
+  intros H; induction 1; inversion 1.
+  + done.
+  + subst. f_equal. by eapply H.
+Qed.
+

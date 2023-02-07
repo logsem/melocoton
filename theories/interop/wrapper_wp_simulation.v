@@ -184,15 +184,7 @@ Proof.
   iModIntro. iRight. iRight.
   iNamed "Hσ". iNamed "SIML". iNamed "HAGCrem".
 
-  iAssert (⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml))⌝)%I with "[HσML HAχNone]" as "%Hpublocs".
-  1: { generalize (pub_locs_in_lstore (χML ρml) (ζML ρml)) as mm. intros mm. iStopProof.
-       induction mm as [|k l mm Hin IH] using map_ind; iIntros "(HH & HK)".
-       - iPureIntro. apply map_Forall_empty.
-       - iPoseProof (big_sepM_insert) as "[HL _]". 1: apply Hin.
-         iPoseProof ("HL" with "HK") as "[H1 H2]".
-         iPoseProof (IH with "[HH H2]") as "%HIH". 1: iFrame.
-         iPoseProof (gen_heap_valid with "HH H1") as "%Hv".
-         iPureIntro. apply map_Forall_insert. 1: done. split; done. }
+  iPoseProof (sigma_None_extract with "HσML HAχNone") as "%Hpublocs".
 
   iSplitR.
   + iPureIntro. exists (fun _ => True). eapply mlanguage.head_prim_step. cbn.
