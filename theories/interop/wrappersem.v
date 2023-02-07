@@ -61,6 +61,114 @@ Local Notation prog := (gmap string C_lang.function).
 
 Implicit Types X : expr * state → Prop.
 
+Definition ml_to_c
+  (vs : list val) (ρml : wrapstateML) (σ : store)
+  (ws : list word) (ρc : wrapstateC) (mem : memory)
+: Prop :=
+  ∃ (ζσ ζnewimm : lstore) (lvs : list lval),
+    (* Demonically get a new extended map χC. New bindings in χC correspond to
+       new locations in the ML heap (e.g. allocated by ML). *)
+    lloc_map_mono (χML ρml) (χC ρc) ∧
+    (* The extended χC binds γs for all locations ℓ in σ; the ℓs that are mapped
+       to [Some ...] in σ make up the domain of a map ζσ (whose contents are
+       also chosen demonically). In other words, ζσ has exactly one block for
+       each location in σ that is mapped to [Some ...]. *)
+    is_store_blocks (χC ρc) σ ζσ ∧
+    (* Representing the contents of the new ML heap may also require some new
+       immutable blocks, which we represent in ζnewimm. The address of blocks
+       in ζnewimm is LlocPrivate. *)
+    is_private_blocks (χC ρc) ζnewimm ∧
+    (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
+       into a lstore) + ζnewimm (new immutable blocks allocated from ML). These
+       three parts must be disjoint. (ζσ and ζnewimm are disjoint by
+       definition). [ζML ρml] may contain immutable blocks, mutable blocks
+       allocated in C but not yet shared with the ML code, or mutable blocks
+       exposed to ML but whose ownership was kept on the C side (and thus
+       correspond to a [None] in σ). *)
+    ζC ρc = ζML ρml ∪ ζσ ∪ ζnewimm ∧
+    ζML ρml ##ₘ (ζσ ∪ ζnewimm) ∧
+    (* Taken together, the contents of the new lloc_map χC and new lstore ζC
+       must represent the contents of σ. (This further constraints the demonic
+       choice of ζσ and ζnewimm.) *)
+    is_store (χC ρc) (ζC ρc) σ ∧
+    (* Demonically pick block-level values lvs that represent the arguments vs. *)
+    Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
+    (* Demonically pick an addr_map θC satisfying the GC_correct property. *)
+    GC_correct (ζC ρc) (θC ρc) ∧
+    (* Rooted values must additionally be live in θC. *)
+    roots_are_live (θC ρc) (rootsML ρml) ∧
+    (* Pick C-level words that are live and represent the arguments of the
+       function. (repr_lval on a location entails that it is live.) *)
+    Forall2 (repr_lval (θC ρc)) lvs ws ∧
+    (* Pick C memory (mem) that represents the roots (through θC) + the
+       remaining private C memory. *)
+    rootsC ρc = dom (rootsML ρml) ∧
+    repr (θC ρc) (rootsML ρml) (privmemML ρml) mem.
+
+Lemma ml_to_c_words_length vs ρml σ ws ρc mem :
+  ml_to_c vs ρml σ ws ρc mem →
+  length vs = length ws.
+Proof.
+  intros (?&?&?&HH). destruct_and! HH.
+  repeat match goal with H : _ |- _ => apply Forall2_length in H end.
+  lia.
+Qed.
+
+(* Note: I believe that the "freezing step" does properly forbid freezing a
+   mutable block that has already been passed to the outside world --- but
+   seeing why is not obvious. I expect it to work through the combination of:
+   - sharing a logical block as a mutable value requires mapping its address to
+     LlocPublic ℓ (cf is_store)
+   - χ can only be updated to go from LlocPrivate to LlocPublic (cf expose_lloc)
+     and otherwise grows monotonically
+   - through is_store, blocks that have a public address must satisfy
+     is_heap_elt and thus be mutable (cf is_heap_elt)
+   - thus: trying to freeze a mutable block means breaking [is_store] unless
+     we change back its address to private, which is not possible.
+*)
+Definition c_to_ml
+  (w : word) (ρc : wrapstateC) (mem : memory)
+  (X : val → wrapstateML → store → Prop)
+: Prop :=
+  ∀ σ lv v ζ ζσ χML ζML rootsML privmemML,
+    (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
+       Freezing allows allocating a fresh block, mutating it, then changing
+       it into an immutable block that represents an immutable ML value. *)
+    freeze_lstore (ζC ρc) ζ →
+    (* Angelically expose blocks by making their address public, picking a
+       fresh ML location for them in the process. This makes it possible to
+       expose new blocks to ML. *)
+    expose_llocs (χC ρc) χML →
+    (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
+       part ζσ that is going to be converted into the ML store σ. *)
+    ζ = ζML ∪ ζσ →
+    ζML ##ₘ ζσ →
+    (* Angelically pick an ML store σ where each location mapped to [Some
+       ...] corresponds to a block in ζσ. *)
+    is_store_blocks χML σ ζσ →
+    (* The contents of ζ must represent the new σ. *)
+    is_store χML ζ σ →
+    (* Angelically pick a block-level value lv that corresponds to the
+       C value w. *)
+    repr_lval (θC ρc) lv w →
+    (* Angelically pick an ML value v that correspond to the
+       block-level value lv. *)
+    is_val χML ζ v lv →
+    (* Split the C memory mem into the memory for the roots and the rest
+       ("private" C memory). *)
+    repr (θC ρc) rootsML privmemML mem →
+    dom rootsML = rootsC ρc →
+    X v (WrapstateML χML ζML rootsML privmemML) σ.
+
+Lemma c_to_ml_covariant_in_X w ρc mem (X X' : val → wrapstateML → store → Prop) :
+  (∀ v ρml σ, X v ρml σ → X' v ρml σ) →
+  c_to_ml w ρc mem X →
+  c_to_ml w ρc mem X'.
+Proof. intros HX HH. unfold c_to_ml; naive_solver. Qed.
+
+Lemma c_to_ml_True w ρc mem : c_to_ml w ρc mem (λ _ _ _, True).
+Proof. unfold c_to_ml; naive_solver. Qed.
+
 Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (* Step in the underlying wrapped C program. *)
   | StepCS ec ρc mem ec' mem' X :
@@ -74,92 +182,16 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     X (RunFunction fn args, ρ) →
     step_mrel p (ExprCall fn_name args, ρ) X
   (* Incoming call of a C function from ML. *)
-  | RunFunctionS fn vs ρml σ ζσ ζnewimm lvs ws ec mem χC ζC θC X :
-    (* Demonically get a new extended map χC. New bindings in χC correspond to
-       new locations in the ML heap (e.g. allocated by ML). *)
-    lloc_map_mono (χML ρml) χC →
-    (* The extended χC binds γs for all locations ℓ in σ; the ℓs that are mapped
-       to [Some ...] in σ make up the domain of a map ζσ (whose contents are
-       also chosen demonically). In other words, ζσ has exactly one block for
-       each location in σ that is mapped to [Some ...]. *)
-    is_store_blocks χC σ ζσ →
-    (* Representing the contents of the new ML heap may also require some new
-       immutable blocks, which we represent in ζnewimm. The address of blocks
-       in ζnewimm is LlocPrivate. *)
-    is_private_blocks χC ζnewimm →
-    (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
-       into a lstore) + ζnewimm (new immutable blocks allocated from ML). These
-       three parts must be disjoint. (ζσ and ζnewimm are disjoint by
-       definition). [ζML ρml] may contain immutable blocks, mutable blocks
-       allocated in C but not yet shared with the ML code, or mutable blocks
-       exposed to ML but whose ownership was kept on the C side (and thus
-       correspond to a [None] in σ). *)
-    ζC = ζML ρml ∪ ζσ ∪ ζnewimm →
-    ζML ρml ##ₘ (ζσ ∪ ζnewimm) →
-    (* Taken together, the contents of the new lloc_map χC and new lstore ζC
-       must represent the contents of σ. (This further constraints the demonic
-       choice of ζσ and ζnewimm.) *)
-    is_store χC ζC σ →
-    (* Demonically pick block-level values lvs that represent the arguments vs. *)
-    Forall2 (is_val χC ζC) vs lvs →
-    (* Demonically pick an addr_map θC satisfying the GC_correct property. *)
-    GC_correct ζC θC →
-    (* Rooted values must additionally be live in θC. *)
-    roots_are_live θC (rootsML ρml) →
-    (* Pick C-level words that are live and represent the arguments of the
-       function. (repr_lval on a location entails that it is live.) *)
-    Forall2 (repr_lval θC) lvs ws →
-    (* Pick C memory (mem) that represents the roots (through θC) + the
-       remaining private C memory. *)
-    repr θC (rootsML ρml) (privmemML ρml) mem →
+  | RunFunctionS fn vs ρml σ ws ρc mem ec X :
     (* Apply the C function; the result is a C expression ec. *)
+    ml_to_c vs ρml σ ws ρc mem →
     C_lang.apply_function fn ws = Some ec →
-    X (ExprC ec, CState (WrapstateC χC ζC θC (dom (rootsML ρml))) mem) →
+    X (ExprC ec, CState ρc mem) →
     step_mrel p (RunFunction fn vs, MLState ρml σ) X
   (* Wrapped C function returning to ML. *)
-  (* Note: I believe that the "freezing step" does properly forbid freezing a
-     mutable block that has already been passed to the outside world --- but
-     seeing why is not obvious. I expect it to work through the combination of:
-     - sharing a logical block as a mutable value requires mapping its address to
-       LlocPublic ℓ (cf is_store)
-     - χ can only be updated to go from LlocPrivate to LlocPublic (cf expose_lloc)
-       and otherwise grows monotonically
-     - through is_store, blocks that have a public address must satisfy
-       is_heap_elt and thus be mutable (cf is_heap_elt)
-     - thus: trying to freeze a mutable block means breaking [is_store] unless
-       we change back its address to private, which is not possible.
-  *)
   | RetS ec w ρc mem X :
     C_lang.to_val ec = Some w →
-    (∀ σ lv v ζ ζσ χML ζML rootsML privmemML,
-       (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
-          Freezing allows allocating a fresh block, mutating it, then changing
-          it into an immutable block that represents an immutable ML value. *)
-       freeze_lstore (ζC ρc) ζ →
-       (* Angelically expose blocks by making their address public, picking a
-          fresh ML location for them in the process. This makes it possible to
-          expose new blocks to ML. *)
-       expose_llocs (χC ρc) χML →
-       (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
-          part ζσ that is going to be converted into the ML store σ. *)
-       ζ = ζML ∪ ζσ →
-       ζML ##ₘ ζσ →
-       (* Angelically pick an ML store σ where each location mapped to [Some
-          ...] corresponds to a block in ζσ. *)
-       is_store_blocks χML σ ζσ →
-       (* The contents of ζ must represent the new σ. *)
-       is_store χML ζ σ →
-       (* Angelically pick a block-level return value lv that corresponds to the
-          C value w. *)
-       repr_lval (θC ρc) lv w →
-       (* Angelically pick a ML return value v that corresponds to the
-          block-level value lv. *)
-       is_val χML ζ v lv →
-       (* Split the C memory mem into the memory for the roots and the rest
-          ("private" C memory). *)
-       repr (θC ρc) rootsML privmemML mem →
-       dom rootsML = rootsC ρc →
-       X (ExprV v, MLState (WrapstateML χML ζML rootsML privmemML) σ)) →
+    c_to_ml w ρc mem (λ v ρml σ, X (ExprV v, MLState ρml σ)) →
     step_mrel p (ExprC ec, CState ρc mem) X
   (* call from C to the "alloc" primitive *)
   | PrimAllocS K ec tgnum tg sz roots ρc privmem mem γ a mem' χC' ζC' θC' X :
@@ -245,7 +277,7 @@ Next Obligation.
   | eapply PrimReadfieldS
   | eapply PrimVal2intS
   | eapply PrimInt2valS
-  ]; naive_solver.
+  ]; unfold c_to_ml in *; naive_solver.
 Qed.
 
 Lemma mlanguage_mixin :
