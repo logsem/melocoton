@@ -162,20 +162,21 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
        X (ExprV v, MLState (WrapstateML χML ζML rootsML privmemML) σ)) →
     step_mrel p (ExprC ec, CState ρc mem) X
   (* call from C to the "alloc" primitive *)
-  | PrimAllocS K ec tgnum tg sz roots ρc privmem mem γ a mem' ζC' θC' X :
+  | PrimAllocS K ec tgnum tg sz roots ρc privmem mem γ a mem' χC' ζC' θC' X :
     language.to_call ec = Some ("alloc", [LitV (LitInt tgnum); LitV (LitInt sz)]) →
     tgnum = tag_as_int tg →
     (0 ≤ sz)%Z →
     dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
-    γ ∉ dom (ζC ρc) →
+    χC ρc !! γ = None →
+    χC' = {[ γ := LlocPrivate ]} ∪ (χC ρc) →
     ζC' = {[ γ := (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz))) ]} ∪ (ζC ρc) →
     GC_correct ζC' θC' →
     repr θC' roots privmem mem' →
     roots_are_live θC' roots →
     θC' !! γ = Some a →
     X (ExprC (language.fill K (C_lang.of_val (C_lang.LitV (C_lang.LitLoc a)))),
-       CState (WrapstateC (χC ρc) ζC' θC' (rootsC ρc)) mem') →
+       CState (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
   (* call to "registerroot" *)
   | PrimRegisterrootS K ec a ρc mem rootsC' X :
