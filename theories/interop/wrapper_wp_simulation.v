@@ -132,21 +132,6 @@ Proof.
       iPureIntro; split_and!; done.
 Qed.
 
-(* TODO move? *)
-Lemma interp_ML_discarded_locs_pub ρml σ :
-  wrap_state_interp (Wrap.MLState ρml σ) -∗
-  ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml))⌝.
-Proof.
-  iNamed 1. iNamed "SIML". iRevert "HσML HAχNone". iClear "∗".
-  generalize (pub_locs_in_lstore (χML ρml) (ζML ρml)) as mm. intros mm. iStopProof.
-  induction mm as [|k l mm Hin IH] using map_ind.
-  - iIntros "_ _ _". iPureIntro. apply map_Forall_empty.
-  - iIntros "_ HL HK".
-    iDestruct (big_sepM_insert with "HK") as "[? ?]"; first done.
-    iDestruct (IH with "[$] [$] [$]") as %HIH.
-    iPoseProof (gen_heap_valid with "[$] [$]") as "%Hv".
-    iPureIntro. by apply map_Forall_insert.
-Qed.
 
 Lemma run_function_correct F (vv : list ML_lang.val) T E Φ:
     ⌜arity F = length vv⌝
@@ -166,8 +151,8 @@ Proof.
   2: {iExFalso. iNamed "Hσ"; iNamed "SIC". iPoseProof (ghost_var_agree with "Hb HAbound") as "%Heq". congruence. }
   iModIntro. iRight. iRight.
   iSplit.
-  + iDestruct (interp_ML_discarded_locs_pub with "Hσ") as %Hpublocs.
-    iNamed "Hσ". iNamed "SIML".
+  + iNamed "Hσ". iNamed "SIML".
+    iDestruct (interp_ML_discarded_locs_pub with "HσML HAχNone") as %Hpublocs.
     iPureIntro. exists (fun _ => True). eapply mlanguage.head_prim_step. cbn.
     destruct (ml_to_c_exists vv ρml σ) as (ws & ρc & mem & Hml_to_c); eauto.
     destruct (apply_function_arity F ws) as (HL&_); destruct HL as (ec&Hec).
