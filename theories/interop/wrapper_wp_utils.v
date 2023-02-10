@@ -71,13 +71,6 @@ Definition WP_readfield_spec : spec := (λ n vl wp,
                    ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
       (∀ v' w', GC θ -∗ lstore_own_elem wrapperGS_γζ γ dq (m, (tg, vs)) -∗ ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗ ⌜repr_lval θ v' w'⌝ -∗ wp w' )))%I.
 
-Definition WP_readfield_spec : spec := (λ n vl wp,
-   "(%θ & %w & %i & %γ & %dq & %m & %tg & %vs & HGC & -> & -> & %Hreprw & Hpto & %Hi1 & %Hi2 & HWP)"
-    ∷ (∃ θ w i γ dq m tg vs, GC θ ∗ ⌜n = "readfield"⌝ ∗ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ 
-                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_elem wrapperGS_γζ γ dq (m, (tg, vs))
-                   ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
-      (∀ v' w', GC θ -∗ lstore_own_elem wrapperGS_γζ γ dq (m, (tg, vs)) -∗ ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗ ⌜repr_lval θ v' w'⌝ -∗ wp w' )))%I.
-
 
 Definition WP_ext_call_spec : spec := (λ n vl wp,
     WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp ∨ WP_registerroot_spec n vl wp ∨ WP_unregisterroot_spec n vl wp

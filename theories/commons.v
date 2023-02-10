@@ -39,6 +39,17 @@ Proof.
   intros HH. apply codom_spec. by eexists.
 Qed.
 
+Lemma list_insert_lookup_inv  A (vs:list A) (i:nat) v k : k ∈ <[ i := v ]> vs → k = v ∨ k ∈ vs.
+Proof.
+  induction vs as [|vh vs IH] in i|-*.
+  - intros []%elem_of_nil.
+  - destruct i; cbn.
+    + intros [<- | Hvs]%elem_of_cons; first by left. by do 2 right.
+    + intros [<- | Hvs]%elem_of_cons; first (right; by left).
+      destruct (IH _ Hvs) as [-> | Hr]; first by left.
+      by do 2 right.
+Qed.
+
 Section language_commons.
   Context {val : Type}.
   (** Classifying expressions into values and calls. *)

@@ -240,17 +240,6 @@ Proof.
       - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
 Qed.
 
-Lemma list_insert_lookup_inv  A (vs:list A) (i:nat) v k : k ∈ <[ i := v ]> vs → k = v ∨ k ∈ vs.
-Proof.
-  induction vs as [|vh vs IH] in i|-*.
-  - intros []%elem_of_nil.
-  - destruct i; cbn.
-    + intros [<- | Hvs]%elem_of_cons; first by left. by do 2 right.
-    + intros [<- | Hvs]%elem_of_cons; first (right; by left).
-      destruct (IH _ Hvs) as [-> | Hr]; first by left.
-      by do 2 right.
-Qed.
-
 Lemma wp_ext_call_modify : ext_call_is_sound WP_modify_spec.
 Proof.
   intros E T s vv K Ξ Φ.
