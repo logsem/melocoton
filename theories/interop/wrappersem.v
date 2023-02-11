@@ -182,20 +182,21 @@ Local Notation CLocV w := (C_lang.LitV (C_lang.LitLoc w)).
 Local Notation CIntV x := (C_lang.LitV (C_lang.LitInt x)).
 
 (* Semantics of wrapper primitives, that can be called from the wrapped C
-   program as external functions. *)
+   program as external functions. The callback primitive is treated separately
+   and has a dedicated case in [head_step_mrel] below. *)
 (* XXX naming issue: language interface prim_step vs this prim_step *)
 Inductive c_prim_step :
   prim → list word → wrapstateC → memory →
   word → wrapstateC → memory → Prop
 :=
   | PrimAllocS tgnum tg sz roots ρc privmem mem γ a mem' χC' ζC' θC' :
-    tgnum = tag_as_int tg →
+    tgnum = vblock_tag_as_int tg →
     (0 ≤ sz)%Z →
     dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
     χC ρc !! γ = None →
     χC' = {[ γ := LlocPrivate ]} ∪ (χC ρc) →
-    ζC' = {[ γ := (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz))) ]} ∪ (ζC ρc) →
+    ζC' = {[ γ := (Bvblock (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz)))) ]} ∪ (ζC ρc) →
     GC_correct ζC' θC' →
     repr θC' roots privmem mem' →
     roots_are_live θC' roots →
@@ -228,7 +229,7 @@ Inductive c_prim_step :
   | PrimReadfieldS w i ρc mem γ mut tag lvs lv w' :
     (0 ≤ i)%Z →
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (mut, (tag, lvs)) →
+    (ζC ρc) !! γ = Some (Bvblock (mut, (tag, lvs))) →
     lvs !! (Z.to_nat i) = Some lv →
     repr_lval (θC ρc) lv w' →
     c_prim_step
@@ -277,11 +278,19 @@ Inductive head_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     ml_to_c [v] ρml σ [w] ρc mem →
     X (WrSE (ExprV w), CState ρc mem) →
     head_step_mrel p (WrSE (ExprML eml), MLState ρml σ) X
-  (* Call to a primitive *)
+  (* Call to a primitive (except for callback, see next case) *)
   | PrimS prm ws w ρc mem ρc' mem' X :
     c_prim_step prm ws ρc mem w ρc' mem' →
     X (WrSE (ExprV w), CState ρc' mem') →
-    head_step_mrel p (WrSE (RunPrimitive prm ws), CState ρc mem) X.
+    head_step_mrel p (WrSE (RunPrimitive prm ws), CState ρc mem) X
+  (* Call to the callback primitive *)
+  | CallbackS ρc mem γ w w' f x e X :
+    repr_lval (θC ρc) (Lloc γ) w →
+    (ζC ρc) !! γ = Some (Bclosure f x e) →
+    c_to_ml w' ρc mem (λ v ρml σ,
+      X (WrSE (ExprML (App (Val (RecV f x e)) (Val v))),
+          MLState ρml σ)) →
+    head_step_mrel p (WrSE (RunPrimitive Pcallback [w; w']), CState ρc mem) X.
 
 Program Definition head_step (P : prog) : umrel (expr * state) :=
   {| mrel := head_step_mrel P |}.
@@ -294,6 +303,7 @@ Next Obligation.
   | eapply RetS
   | eapply ValS
   | eapply PrimS
+  | eapply CallbackS
   ]; unfold c_to_ml in *; naive_solver.
 Qed.
 

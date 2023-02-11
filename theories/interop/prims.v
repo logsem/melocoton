@@ -3,7 +3,8 @@ From stdpp Require Import base strings gmap.
 
 Inductive prim :=
   | Palloc | Pregisterroot | Punregisterroot
-  | Pmodify | Preadfield | Pval2int | Pint2val.
+  | Pmodify | Preadfield | Pval2int | Pint2val
+  | Pcallback.
 
 Inductive is_prim : string → prim → Prop :=
   | alloc_is_prim : is_prim "alloc" Palloc
@@ -12,7 +13,8 @@ Inductive is_prim : string → prim → Prop :=
   | modify_is_prim : is_prim "modify" Pmodify
   | readfield_is_prim : is_prim "readfield" Preadfield
   | val2int_is_prim : is_prim "val2int" Pval2int
-  | int2val_is_prim : is_prim "int2val" Pint2val.
+  | int2val_is_prim : is_prim "int2val" Pint2val
+  | callback_is_prim : is_prim "callback" Pcallback.
 
 Global Hint Constructors is_prim : core.
 
@@ -42,6 +44,7 @@ Proof.
   destruct (decide (s = "readfield")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "val2int")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "int2val")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "callback")) as [->|]. left; eexists; constructor.
   right. by intros [? H]; inversion H.
 Qed.
 
@@ -53,7 +56,8 @@ Definition prims_prog : gmap string prim :=
       ("modify", Pmodify);
       ("readfield", Preadfield);
       ("val2int", Pval2int);
-      ("int2val", Pint2val)
+      ("int2val", Pint2val);
+      ("callback", Pcallback)
   ].
 
 Lemma lookup_prims_prog s p :
@@ -67,6 +71,8 @@ Proof.
     destruct (decide (s = "modify")) as [->|]; simplify_map_eq; first constructor.
     destruct (decide (s = "readfield")) as [->|]; simplify_map_eq; first constructor.
     destruct (decide (s = "val2int")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "int2val")) as [->|]; simplify_map_eq; first constructor. }
+    destruct (decide (s = "int2val")) as [->|]; simplify_map_eq; first constructor.
+    destruct (decide (s = "callback")) as [->|]; simplify_map_eq; first constructor.
+  }
   { inversion 1; by simplify_map_eq. }
 Qed.
