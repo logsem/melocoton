@@ -77,7 +77,7 @@ Proof.
   rewrite wp_unfold. rewrite /wp_pre.
   iIntros "Hnb HWP %σ Hσ".
   destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iClear "HWP"; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb HAbound") as "%HH"; congruence.
+  1: iExFalso; iClear "HWP"; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
   iNamed "Hσ"; iNamed "SIC".
   iMod ("HWP" $! mem nCv with "[HσC HnC]") as 
   "[(%x & -> & Hσ & Hret)
@@ -88,23 +88,13 @@ Proof.
     iSpecialize ("Hret" with "Hnb").
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
     iApply ("Hret" $! (CState ρc mem)).
-    iSplitL "Hσ". 1: by iExists _.
-    unfold C_state_interp, named.
-    iExists ζfreeze, ζσ, ζrest, χvirt, σMLvirt.
-    iFrame.
-    iSplitL "HAnMLv"; first by iExists nMLv.
-    iPureIntro. split_and!; done.
+    iSplitL "Hσ". 1: by iExists _. iFrame.
   + iPoseProof (wp_ext_call_collect_all with "[] Hnb HT [Hr]") as "Hwp"; first done.
     1: iIntros "!> %r HΞ Hnb"; iApply ("IH" with "Hnb");
        by iApply "Hr".
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
     iApply ("Hwp" $! (CState ρc mem)).
-    iSplitL "Hσ". 1: by iExists _.
-    unfold C_state_interp, named.
-    iExists ζfreeze, ζσ, ζrest, χvirt, σMLvirt.
-    iFrame.
-    iSplitL "HAnMLv"; first by iExists nMLv.
-    iPureIntro. split_and!; done.
+    iSplitL "Hσ". 1: by iExists _. iFrame.
   + cbn in Hred. iModIntro. iRight. iRight. iSplit.
     * iPureIntro. exists (fun _ => True). eapply head_prim_step.
       destruct Hred as (e' & σ' & Hprim). econstructor; last done. cbn. eapply Hprim.
@@ -126,10 +116,7 @@ Proof.
       iModIntro. iExists _, _. iSplitR; first (iPureIntro; apply H4).
       iSplitR "HWP' Hnb".
       2: iApply ("IH" with "Hnb HWP'").
-      cbn. iSplitL "HσC"; first by iExists _.
-      unfold C_state_interp, named. iExists ζfreeze, ζσ, ζrest, χvirt, σMLvirt.
-      iFrame. iSplitL; first by iExists _.
-      iPureIntro; split_and!; done.
+      cbn. iSplitL "HσC"; first by iExists _. iFrame.
 Qed.
 
 
@@ -148,11 +135,11 @@ Proof.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (σ) "Hσ".
   unfold at_boundary; cbn. destruct σ as [ρml σ | ? ?].
-  2: {iExFalso. iNamed "Hσ"; iNamed "SIC". iPoseProof (ghost_var_agree with "Hb HAbound") as "%Heq". congruence. }
+  2: {iExFalso. iNamed "Hσ"; iNamed "SIC". iPoseProof (ghost_var_agree with "Hb SIbound") as "%Heq". congruence. }
   iModIntro. iRight. iRight.
   iSplit.
   + iNamed "Hσ". iNamed "SIML".
-    iDestruct (interp_ML_discarded_locs_pub with "HσML HAχNone") as %Hpublocs.
+    iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as %Hpublocs.
     iPureIntro. exists (fun _ => True). eapply mlanguage.head_prim_step. cbn.
     destruct (ml_to_c_exists vv ρml σ) as (ws & ρc & mem & Hml_to_c); eauto.
     destruct (apply_function_arity F ws) as (HL&_); destruct HL as (ec&Hec).

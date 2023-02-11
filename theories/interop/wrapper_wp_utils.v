@@ -59,17 +59,17 @@ Definition WP_unregisterroot_spec : spec := (λ n vl wp,
 Definition WP_modify_spec : spec := (λ n vl wp,
    "(%θ & %w & %i & %v' & %w' & %γ & %tg & %vs & HGC & -> & -> & %Hreprw & Hpto & %Hreprw' & %Hi1 & %Hi2 & HWP)"
     ∷ (∃ θ w i v' w' γ tg vs, GC θ ∗ ⌜n = "modify"⌝ ∗ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i; w' ]⌝ 
-                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_mut wrapperGS_γζ γ (DfracOwn 1) (Mut, (tg, vs)) ∗ ⌜repr_lval θ v' w'⌝
+                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, vs)) ∗ ⌜repr_lval θ v' w'⌝
                    ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
-      (GC θ -∗ lstore_own_mut wrapperGS_γζ γ (DfracOwn 1) (Mut, (tg, <[Z.to_nat i:=v']> vs)) -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
+      (GC θ -∗ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, <[Z.to_nat i:=v']> vs)) -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
 Definition WP_readfield_spec : spec := (λ n vl wp,
    "(%θ & %w & %i & %γ & %dq & %m & %tg & %vs & HGC & -> & -> & %Hreprw & Hpto & %Hi1 & %Hi2 & HWP)"
     ∷ (∃ θ w i γ dq m tg vs, GC θ ∗ ⌜n = "readfield"⌝ ∗ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ 
-                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_elem wrapperGS_γζ γ dq (m, (tg, vs))
+                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs))
                    ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
-      (∀ v' w', GC θ -∗ lstore_own_elem wrapperGS_γζ γ dq (m, (tg, vs)) -∗ ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗ ⌜repr_lval θ v' w'⌝ -∗ wp w' )))%I.
+      (∀ v' w', GC θ -∗ lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs)) -∗ ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗ ⌜repr_lval θ v' w'⌝ -∗ wp w' )))%I.
 
 
 Definition WP_ext_call_spec : spec := (λ n vl wp,

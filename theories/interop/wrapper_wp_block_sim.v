@@ -25,14 +25,14 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
-Lemma block_sim_of_ghost_state (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
+Lemma block_sim_of_ghost_state (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     lloc_own_auth wrapperGS_γχ χvirt
-  -∗ lstore_own_auth wrapperGS_γζ ζrest
-  -∗⌜ζfreeze = ζσ ∪ ζrest⌝
+     lloc_own_auth wrapperGS_γχvirt χvirt
+  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+  -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
-  -∗⌜ζσ ##ₘ ζrest⌝
+  -∗⌜ζσ ##ₘ ζvirt⌝
   -∗⌜is_val χvirt ζfreeze v b⌝
   -∗ block_sim v b.
 Proof.
@@ -58,14 +58,14 @@ Proof.
   all: inversion Hstore.
 Qed.
 
-Lemma block_sim_arr_of_ghost_state (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
+Lemma block_sim_arr_of_ghost_state (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs b :
-     lloc_own_auth wrapperGS_γχ χvirt
-  -∗ lstore_own_auth wrapperGS_γζ ζrest
-  -∗⌜ζfreeze = ζσ ∪ ζrest⌝
+     lloc_own_auth wrapperGS_γχvirt χvirt
+  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+  -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
-  -∗⌜ζσ ##ₘ ζrest⌝
+  -∗⌜ζσ ##ₘ ζvirt⌝
   -∗⌜Forall2 (is_val χvirt ζfreeze) vs b⌝
   -∗ block_sim_arr vs b.
 Proof.
@@ -76,14 +76,14 @@ Proof.
   iPureIntro. eapply Forall2_lookup_lr; done.
 Qed.
 
-Lemma block_sim_to_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
+Lemma block_sim_to_ghost_state  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     lloc_own_auth wrapperGS_γχ χvirt
-  -∗ lstore_own_auth wrapperGS_γζ ζrest
-  -∗⌜ζfreeze = ζσ ∪ ζrest⌝
+     lloc_own_auth wrapperGS_γχvirt χvirt
+  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+  -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
-  -∗⌜ζσ ##ₘ ζrest⌝
+  -∗⌜ζσ ##ₘ ζvirt⌝
   -∗ block_sim v b
   -∗⌜is_val χvirt ζfreeze v b⌝.
 Proof.
@@ -102,14 +102,14 @@ Proof.
   all: iPureIntro; econstructor; eauto; by simplify_map_eq.
 Qed.
 
-Lemma block_sim_arr_to_ghost_state  (ζfreeze ζσ ζrest : lstore) (χvirt : lloc_map) (σMLvirt : store)
+Lemma block_sim_arr_to_ghost_state  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs bb :
-     lloc_own_auth wrapperGS_γχ χvirt
-  -∗ lstore_own_auth wrapperGS_γζ ζrest
-  -∗⌜ζfreeze = ζσ ∪ ζrest⌝
+     lloc_own_auth wrapperGS_γχvirt χvirt
+  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+  -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
-  -∗⌜ζσ ##ₘ ζrest⌝
+  -∗⌜ζσ ##ₘ ζvirt⌝
   -∗ block_sim_arr vs bb
   -∗⌜Forall2 (is_val χvirt ζfreeze) vs bb⌝.
 Proof.
