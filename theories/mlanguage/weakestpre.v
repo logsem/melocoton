@@ -23,29 +23,37 @@ MlangGS {
 
 Arguments at_boundary {_ _} Λ {_}.
 
+Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
+    (p : mixin_prog Λ.(func))
+    (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
+    (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
+    state Λ -d> coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ σ E e Φ,
+  (
+      (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ∗ Φ v)
+    ∨ (∃ f vs K, ⌜e = fill K (of_class Λ (ExprCall f vs))⌝ ∗ ⌜p !! f = None⌝ ∗
+       at_boundary Λ ∗ state_interp σ ∗
+       ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r ∗ at_boundary Λ -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ)
+    ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
+       ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ)
+  )%I.
+
 Definition wp_pre `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
     (p : mixin_prog Λ.(func))
     (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ E e Φ,
-  (∀ σ, state_interp σ ={E}=∗
-       (∃ v, ⌜e = of_class Λ (ExprVal v)⌝ ∗ state_interp σ ∗ Φ v)
-     ∨ (∃ f vs K, ⌜e = fill K (of_class Λ (ExprCall f vs))⌝ ∗ ⌜p !! f = None⌝ ∗
-        at_boundary Λ ∗ state_interp σ ∗
-        ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r ∗ at_boundary Λ -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ)
-     ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
-        ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ))%I.
+  (∀ σ, state_interp σ ={E}=∗ wp_pre_cases p T wp σ E e Φ)%I.
 
 Local Instance wp_pre_contractive
       `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
       {p:mixin_prog Λ.(func)} T :
   Contractive (wp_pre p T).
 Proof.
-  rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
+  rewrite /wp_pre /wp_pre_cases /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Record prog_environ {val} (Λ : mlanguage val) Σ := {
+Record prog_environ {val} (Λ : mlanguage val) Σ := Penv {
   penv_prog : gmap string Λ.(func);
   penv_proto : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ;
 }.
@@ -84,7 +92,7 @@ Global Instance wp_ne pe E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) pe E e).
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
-  rewrite !wp_unfold /wp_pre /=.
+  rewrite !wp_unfold /wp_pre /wp_pre_cases /=.
   do 11 f_equiv. 1: do 8 f_equiv.
   all: f_contractive.
   1: do 1 f_equiv. 2: do 2 f_equiv.

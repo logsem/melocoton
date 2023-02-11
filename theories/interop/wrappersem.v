@@ -5,7 +5,7 @@ From melocoton.ml_toy_lang Require Import melocoton.lang_instantiation.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.ml_toy_lang Require Import lang.
 From melocoton.c_toy_lang Require Import lang.
-From melocoton.interop Require Import basics linking wrapperstate.
+From melocoton.interop Require Import basics linking wrapperstate prims.
 
 Module Wrap.
 Section wrappersem.
@@ -169,6 +169,70 @@ Proof. intros HX HH. unfold c_to_ml; naive_solver. Qed.
 Lemma c_to_ml_True w ρc mem : c_to_ml w ρc mem (λ _ _ _, True).
 Proof. unfold c_to_ml; naive_solver. Qed.
 
+(* Semantics of wrapper primitives, that can be called from the wrapped C
+   program as external functions. *)
+(* XXX naming issue: language interface prim_step vs this prim_step *)
+Inductive c_prim_step :
+  prim → list word → wrapstateC → memory →
+  word → wrapstateC → memory → Prop
+:=
+  | PrimAllocS tgnum tg sz roots ρc privmem mem γ a mem' χC' ζC' θC' :
+    tgnum = tag_as_int tg →
+    (0 ≤ sz)%Z →
+    dom roots = rootsC ρc →
+    repr (θC ρc) roots privmem mem →
+    χC ρc !! γ = None →
+    χC' = {[ γ := LlocPrivate ]} ∪ (χC ρc) →
+    ζC' = {[ γ := (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz))) ]} ∪ (ζC ρc) →
+    GC_correct ζC' θC' →
+    repr θC' roots privmem mem' →
+    roots_are_live θC' roots →
+    θC' !! γ = Some a →
+    c_prim_step
+      Palloc [LitV (LitInt tgnum); LitV (LitInt sz)] ρc mem
+      (C_lang.LitV (C_lang.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem'
+  | PrimRegisterrootS a ρc mem rootsC' :
+    a ∉ rootsC ρc →
+    rootsC' = {[ a ]} ∪ rootsC ρc →
+    c_prim_step
+      Pregisterroot [LitV (LitLoc a)] ρc mem
+      (LitV (LitInt 0)) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem
+  | PrimUnregisterrootS a ρc mem rootsC' :
+    a ∈ rootsC ρc →
+    rootsC' = rootsC ρc ∖ {[ a ]} →
+    c_prim_step
+      Punregisterroot [LitV (LitLoc a)] ρc mem
+      (LitV (LitInt 0)) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem
+  | PrimModifyS w i w' ρc mem γ lv blk blk' ζC' :
+    (0 ≤ i)%Z →
+    repr_lval (θC ρc) (Lloc γ) w →
+    (ζC ρc) !! γ = Some blk →
+    repr_lval (θC ρc) lv w' →
+    modify_block blk (Z.to_nat i) lv blk' →
+    ζC' = <[ γ := blk' ]> (ζC ρc) →
+    c_prim_step
+      Pmodify [w; LitV (LitInt i); w'] ρc mem
+      (LitV (LitInt 0)) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem
+  | PrimReadfieldS w i ρc mem γ mut tag lvs lv w' :
+    (0 ≤ i)%Z →
+    repr_lval (θC ρc) (Lloc γ) w →
+    (ζC ρc) !! γ = Some (mut, (tag, lvs)) →
+    lvs !! (Z.to_nat i) = Some lv →
+    repr_lval (θC ρc) lv w' →
+    c_prim_step
+      Preadfield [w; LitV (LitInt i)] ρc mem
+      w' ρc mem
+  | PrimVal2intS ρc mem w x :
+    repr_lval (θC ρc) (Lint x) w →
+    c_prim_step
+      Pval2int [w] ρc mem
+      (LitV (LitInt x)) ρc mem
+  | PrimInt2valS ρc mem x w :
+    repr_lval (θC ρc) (Lint x) w →
+    c_prim_step
+      Pint2val [LitV (LitInt x)] ρc mem
+      w ρc mem.
+
 Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (* Step in the underlying wrapped C program. *)
   | StepCS ec ρc mem ec' mem' X :
@@ -193,72 +257,12 @@ Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Pr
     C_lang.to_val ec = Some w →
     c_to_ml w ρc mem (λ v ρml σ, X (ExprV v, MLState ρml σ)) →
     step_mrel p (ExprC ec, CState ρc mem) X
-  (* call from C to the "alloc" primitive *)
-  | PrimAllocS K ec tgnum tg sz roots ρc privmem mem γ a mem' χC' ζC' θC' X :
-    language.to_call ec = Some ("alloc", [LitV (LitInt tgnum); LitV (LitInt sz)]) →
-    tgnum = tag_as_int tg →
-    (0 ≤ sz)%Z →
-    dom roots = rootsC ρc →
-    repr (θC ρc) roots privmem mem →
-    χC ρc !! γ = None →
-    χC' = {[ γ := LlocPrivate ]} ∪ (χC ρc) →
-    ζC' = {[ γ := (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz))) ]} ∪ (ζC ρc) →
-    GC_correct ζC' θC' →
-    repr θC' roots privmem mem' →
-    roots_are_live θC' roots →
-    θC' !! γ = Some a →
-    X (ExprC (language.fill K (C_lang.of_val (C_lang.LitV (C_lang.LitLoc a)))),
-       CState (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
-    step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
-  (* call to "registerroot" *)
-  | PrimRegisterrootS K ec a ρc mem rootsC' X :
-    language.to_call ec = Some ("registerroot", [LitV (LitLoc a)]) →
-    a ∉ rootsC ρc →
-    rootsC' = {[ a ]} ∪ rootsC ρc →
-    X (ExprC (language.fill K (C_lang.of_val (LitV (LitInt 0)))),
-       CState (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem) →
-    step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
-  (* call to "unregisterroot" *)
-  | PrimUnregisterrootS K ec a ρc mem rootsC' X :
-    language.to_call ec = Some ("unregisterroot", [LitV (LitLoc a)]) →
-    a ∈ rootsC ρc →
-    rootsC' = rootsC ρc ∖ {[ a ]} →
-    X (ExprC (language.fill K (C_lang.of_val (LitV (LitInt 0)))),
-       CState (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem) →
-    step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
-  (* call to "modify" *)
-  | PrimModifyS K ec w i w' ρc mem γ lv blk blk' ζC' X :
-    language.to_call ec = Some ("modify", [w; LitV (LitInt i); w']) →
-    (0 ≤ i)%Z →
-    repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some blk →
-    repr_lval (θC ρc) lv w' →
-    modify_block blk (Z.to_nat i) lv blk' →
-    ζC' = <[ γ := blk' ]> (ζC ρc) →
-    X (ExprC (language.fill K (C_lang.of_val (LitV (LitInt 0)))),
-       CState (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem) →
-    step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
-  (* call to "readfield" *)
-  | PrimReadfieldS K ec w i ρc mem γ mut tag lvs lv w' X :
-    language.to_call ec = Some ("readfield", [w; LitV (LitInt i)]) →
-    (0 ≤ i)%Z →
-    repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (mut, (tag, lvs)) →
-    lvs !! (Z.to_nat i) = Some lv →
-    repr_lval (θC ρc) lv w' →
-    X (ExprC (language.fill K (C_lang.of_val w')), CState ρc mem) →
-    step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
-  (* call to "val2int" *)
-  | PrimVal2intS K ec ρc mem w x X :
-    language.to_call ec = Some ("val2int", [w]) →
-    repr_lval (θC ρc) (Lint x) w →
-    X (ExprC (language.fill K (C_lang.of_val (LitV (LitInt x)))), (CState ρc mem)) →
-    step_mrel p (ExprC (language.fill K ec), CState ρc mem) X
-  (* call to "int2val" *)
-  | PrimInt2valS K ec ρc mem x w X :
-    language.to_call ec = Some ("int2val", [LitV (LitInt x)]) →
-    repr_lval (θC ρc) (Lint x) w →
-    X (ExprC (language.fill K (C_lang.of_val w)), (CState ρc mem)) →
+  (* call from C to a wrapper primitive *)
+  | PrimS K ec prim_name prm ws w ρc mem ρc' mem' X :
+    language.to_call ec = Some (prim_name, ws) →
+    is_prim prim_name prm →
+    c_prim_step prm ws ρc mem w ρc' mem' →
+    X (ExprC (language.fill K (C_lang.of_val w)), CState ρc' mem') →
     step_mrel p (ExprC (language.fill K ec), CState ρc mem) X.
 
 Program Definition step (P : prog) : umrel (expr * state) :=
@@ -270,13 +274,7 @@ Next Obligation.
   | eapply ExprCallS
   | eapply RunFunctionS
   | eapply RetS
-  | eapply PrimAllocS
-  | eapply PrimRegisterrootS
-  | eapply PrimUnregisterrootS
-  | eapply PrimModifyS
-  | eapply PrimReadfieldS
-  | eapply PrimVal2intS
-  | eapply PrimInt2valS
+  | eapply PrimS
   ]; unfold c_to_ml in *; naive_solver.
 Qed.
 

@@ -53,11 +53,12 @@ Proof.
   destruct Hstep as ([] & e1 & Heq & Hstep).
   cbv in Heq; subst e1.
   inversion Hstep.
-  1: exfalso; apply language.language.val_stuck in H3; cbn in H3; done.
-  2-8: exfalso; unfold language.to_call in H2; destruct language.to_class as [[]|] eqn:Heq; try congruence;
-       destruct (language.fill_class' K ec) as [?|[vv ?]];
-       [exists (ExprVal a); cbn; by rewrite H
-       |subst K; cbn in *; subst ec; cbn in Heq; congruence| congruence].
+  { exfalso; apply language.language.val_stuck in H3; cbn in H3; done. }
+  2: { exfalso. unfold language.to_call in H2; destruct language.to_class as [[]|] eqn:Heq; try congruence.
+       destruct (language.fill_class' K ec) as [?|[vv ?]].
+       { exists (ExprVal a); cbn; by rewrite H. }
+       { subst K; cbn in *; subst ec; cbn in Heq; congruence. }
+       { congruence. } }
   cbv [fill Wrap.fill wrap_lang] in *.
   cbn [C_lang.to_val] in *; simplify_eq.
 
@@ -89,7 +90,8 @@ Proof.
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
     iApply ("Hret" $! (CState ρc mem)).
     iSplitL "Hσ". 1: by iExists _. iFrame.
-  + iPoseProof (wp_ext_call_collect_all with "[] Hnb HT [Hr]") as "Hwp"; first done.
+  + iPoseProof (wp_ext_call_collect_all with "[] Hnb HT [Hr]") as "Hwp";
+      [done|done|..].
     1: iIntros "!> %r HΞ Hnb"; iApply ("IH" with "Hnb");
        by iApply "Hr".
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -101,14 +103,16 @@ Proof.
     * iIntros (X Hstep).
       destruct Hstep as ([] & x & Hre & Hstep). cbv in Hre; subst x.
       cbn in Hstep; unfold step,mrel in Hstep; cbn in Hstep.
-      inversion Hstep. 2-9: exfalso.
+      inversion Hstep.
       2: { apply C_lang.of_to_val in H3; subst ec.
            apply language.language.reducible_no_threads_reducible in Hred.
            apply language.language.reducible_not_val in Hred. cbn in Hred; congruence. }
-      2-8: subst ec; eapply reducible_call_is_in_prog; 
+      2: { (* XXX cleanup *)
+           exfalso; subst ec; eapply reducible_call_is_in_prog;
            [ by eapply language.language.reducible_no_threads_reducible
            | done
-           | eapply @List.Forall_forall in Hforbid; [apply Hforbid | cbv; eauto 20]].
+           | eapply @List.Forall_forall in Hforbid; [apply Hforbid|]].
+           inversion H3; naive_solver. }
       cbv in H1,H4.
       subst ec0 ρc0 mem0 X0. cbn.
       iMod ("H3" $! _ _ H3) as "H3".

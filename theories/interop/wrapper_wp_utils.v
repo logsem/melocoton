@@ -875,14 +875,3 @@ Proof.
 Qed.
 
 End Utils.
-
-
-Global Ltac inversion_call_step Hstep ww :=
-      let Heq1 := fresh "Heq1" in let Heq2 := fresh "Heq2" in
-      inversion Hstep;
-        first (exfalso; by eapply (call_no_StepCS ww));
-        first (exfalso; by eapply (call_no_RetS ww));
-        (edestruct (call_inversion ww) as (Heq1&Heq2&<-); first done; first done; first done; try (exfalso; congruence));
-        ((try injection Heq1); (try injection Heq2); repeat (first [intros -> | intros <-])).
-
-
