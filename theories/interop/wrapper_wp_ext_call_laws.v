@@ -7,7 +7,6 @@ From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import wrappersem basics_resources wrapperstate.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
-From melocoton Require Import big_sepM_limited.
 From iris.proofmode Require Import proofmode.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws notation.
