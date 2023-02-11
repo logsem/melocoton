@@ -1,63 +1,72 @@
 From stdpp Require Import base strings list gmap.
 From melocoton Require Import multirelations.
-From melocoton.c_toy_lang Require Import melocoton.lang_instantiation.
-From melocoton.ml_toy_lang Require Import melocoton.lang_instantiation.
+From melocoton.language Require Import language.
 From melocoton.mlanguage Require Import mlanguage.
-From melocoton.ml_toy_lang Require Import lang.
 From melocoton.c_toy_lang Require Import lang.
+From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation.
 From melocoton.interop Require Import basics linking wrapperstate prims.
 
 Module Wrap.
 Section wrappersem.
 
-(* the wrapped C program accepts incoming function calls with ML values as
-   arguments, and produces an ML value as output. *)
-(* we don't have callbacks yet, so there's no "make an external call"
-   expression: the wrapped C program can only be called into, not make "external
-   calls" to ML yet. *)
+Local Notation prog := (gmap string prim).
+
+Inductive simple_expr : Type :=
+  (* the wrapped module returns with a C value *)
+  | ExprV (w : word)
+  (* A call to a C function, which can be either:
+     - an outgoing call by the wrapped code to an external C function;
+     - an incoming call to a runtime primitive, which will be implemented by the wrapper
+   *)
+  | ExprCall (fn_name : string) (args : list word)
+  (* Call to a runtime primitive *)
+  | RunPrimitive (prm : prim) (args : list word)
+  (* Execution of wrapped ML code *)
+  | ExprML (eml : ML_lang.expr).
+
+Definition ectx := language.ectx ML_lang.
+
 Inductive expr : Type :=
-  | ExprV (v : val)
-  | ExprCall (fn_name : string) (args : list val)
-  | RunFunction (fn : C_lang.function) (args : list val)
-  | ExprC (ec : C_lang.expr).
+  WrE (se: simple_expr) (k: ectx).
 
-Definition apply_func (fn : C_lang.function) (args : list val) : option expr :=
-  Some (RunFunction fn args).
+Notation WrSE se := (WrE se []).
 
-Definition of_class (c : mixin_expr_class val) : expr :=
+Definition apply_func (prm : prim) (args : list word) : option expr :=
+  Some (WrSE (RunPrimitive prm args)).
+
+Definition of_class (c : mixin_expr_class word) : expr :=
   match c with
-  | ExprVal v => ExprV v
-  | commons.ExprCall fn_name args => ExprCall fn_name args
+  | ExprVal w => WrSE (ExprV w)
+  | commons.ExprCall fn_name args => WrSE (ExprCall fn_name args)
   end.
 
-Definition to_class (e : expr) : option (mixin_expr_class val) :=
+Definition to_class (e : expr) : option (mixin_expr_class word) :=
   match e with
-  | ExprV v => Some (ExprVal v)
-  | ExprCall fn_name args => Some (commons.ExprCall fn_name args)
+  | WrSE (ExprV w) => Some (ExprVal w)
+  | WrSE (ExprCall fn_name args) => Some (commons.ExprCall fn_name args)
   | _ => None
   end.
 
-(* wrapper evaluation contexts should become more interesting when we add callbacks *)
-Definition ectx : Type := unit.
-Definition fill : ectx → expr → expr := λ _ e, e.
+Definition comp_ectx (K1 K2 : ectx) : ectx :=
+  K2 ++ K1.
+
+Definition fill (K : ectx) (e : expr) : expr :=
+  let 'WrE se k := e in
+  WrE se (k ++ K).
 
 Inductive state : Type :=
   (* state of the wrapper, which depends on whether we are yielding control to
-     ML or executing the wrapped C program. *)
+     C or executing the wrapped ML program. *)
   | MLState (ρml : wrapstateML) (σ : store)
   | CState (ρc : wrapstateC) (mem : memory).
 
-Definition private_state : Type :=
-  (* without callbacks we only need ML-related private state *)
-  wrapstateML.
+Local Notation private_state := wrapstateC.
+Local Notation public_state := memory.
 
-Local Notation public_state := store.
-
+(* boundary states are ones in the [CState _ _] case *)
 Inductive split_state : state → public_state → private_state → Prop :=
-  | WrapSplitSt ρml σ :
-    split_state (MLState ρml σ) σ ρml.
-
-Local Notation prog := (gmap string C_lang.function).
+  | WrapSplitSt ρc mem :
+    split_state (CState ρc mem) mem ρc.
 
 Implicit Types X : expr * state → Prop.
 
@@ -169,6 +178,9 @@ Proof. intros HX HH. unfold c_to_ml; naive_solver. Qed.
 Lemma c_to_ml_True w ρc mem : c_to_ml w ρc mem (λ _ _ _, True).
 Proof. unfold c_to_ml; naive_solver. Qed.
 
+Local Notation CLocV w := (C_lang.LitV (C_lang.LitLoc w)).
+Local Notation CIntV x := (C_lang.LitV (C_lang.LitInt x)).
+
 (* Semantics of wrapper primitives, that can be called from the wrapped C
    program as external functions. *)
 (* XXX naming issue: language interface prim_step vs this prim_step *)
@@ -189,20 +201,20 @@ Inductive c_prim_step :
     roots_are_live θC' roots →
     θC' !! γ = Some a →
     c_prim_step
-      Palloc [LitV (LitInt tgnum); LitV (LitInt sz)] ρc mem
+      Palloc [CIntV tgnum; CIntV sz] ρc mem
       (C_lang.LitV (C_lang.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem'
   | PrimRegisterrootS a ρc mem rootsC' :
     a ∉ rootsC ρc →
     rootsC' = {[ a ]} ∪ rootsC ρc →
     c_prim_step
-      Pregisterroot [LitV (LitLoc a)] ρc mem
-      (LitV (LitInt 0)) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem
+      Pregisterroot [CLocV a] ρc mem
+      (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem
   | PrimUnregisterrootS a ρc mem rootsC' :
     a ∈ rootsC ρc →
     rootsC' = rootsC ρc ∖ {[ a ]} →
     c_prim_step
-      Punregisterroot [LitV (LitLoc a)] ρc mem
-      (LitV (LitInt 0)) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem
+      Punregisterroot [CLocV a] ρc mem
+      (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem
   | PrimModifyS w i w' ρc mem γ lv blk blk' ζC' :
     (0 ≤ i)%Z →
     repr_lval (θC ρc) (Lloc γ) w →
@@ -211,8 +223,8 @@ Inductive c_prim_step :
     modify_block blk (Z.to_nat i) lv blk' →
     ζC' = <[ γ := blk' ]> (ζC ρc) →
     c_prim_step
-      Pmodify [w; LitV (LitInt i); w'] ρc mem
-      (LitV (LitInt 0)) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem
+      Pmodify [w; CIntV i; w'] ρc mem
+      (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem
   | PrimReadfieldS w i ρc mem γ mut tag lvs lv w' :
     (0 ≤ i)%Z →
     repr_lval (θC ρc) (Lloc γ) w →
@@ -220,93 +232,115 @@ Inductive c_prim_step :
     lvs !! (Z.to_nat i) = Some lv →
     repr_lval (θC ρc) lv w' →
     c_prim_step
-      Preadfield [w; LitV (LitInt i)] ρc mem
+      Preadfield [w; CIntV i] ρc mem
       w' ρc mem
   | PrimVal2intS ρc mem w x :
     repr_lval (θC ρc) (Lint x) w →
     c_prim_step
       Pval2int [w] ρc mem
-      (LitV (LitInt x)) ρc mem
+      (CIntV x) ρc mem
   | PrimInt2valS ρc mem x w :
     repr_lval (θC ρc) (Lint x) w →
     c_prim_step
-      Pint2val [LitV (LitInt x)] ρc mem
+      Pint2val [CIntV x] ρc mem
       w ρc mem.
 
-Inductive step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
-  (* Step in the underlying wrapped C program. *)
-  | StepCS ec ρc mem ec' mem' X :
-    (* TODO: make this head_step again when we add contexts *)
-    language.language.prim_step p ec mem ec' mem' [] →
-    X (ExprC ec', CState ρc mem') →
-    step_mrel p (ExprC ec, CState ρc mem) X
-  (* Administrative step for resolving a call from ML. *)
-  | ExprCallS fn_name args fn ρ X :
-    p !! fn_name = Some fn →
-    X (RunFunction fn args, ρ) →
-    step_mrel p (ExprCall fn_name args, ρ) X
-  (* Incoming call of a C function from ML. *)
-  | RunFunctionS fn vs ρml σ ws ρc mem ec X :
-    (* Apply the C function; the result is a C expression ec. *)
+Inductive head_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
+  (* Step in the underlying wrapped ML program. *)
+  | StepMLS eml ρml σ eml' σ' X :
+    (* We assume a closed ML expression: the "prog" collection of functions does
+       not make too much sense at the ML level. Composition of ML "modules" is
+       better modeled by composing expressions/evaluation contexts. *)
+    language.language.prim_step ∅ eml σ eml' σ' [] →
+    X (WrSE (ExprML eml'), MLState ρml σ') →
+    head_step_mrel p (WrSE (ExprML eml), MLState ρml σ) X
+  (* Administrative step for resolving a call to a primitive. *)
+  | ExprCallS fn_name args prm ρ X :
+    p !! fn_name = Some prm →
+    X (WrSE (RunPrimitive prm args), ρ) →
+    head_step_mrel p (WrSE (ExprCall fn_name args), ρ) X
+  (* External call of the ML code to a C function. *)
+  | MakeCallS fn_name vs ρml σ ws ρc mem eml k X :
+    language.to_class eml = Some (commons.ExprCall fn_name vs) →
+    p !! fn_name = None →
     ml_to_c vs ρml σ ws ρc mem →
-    C_lang.apply_function fn ws = Some ec →
-    X (ExprC ec, CState ρc mem) →
-    step_mrel p (RunFunction fn vs, MLState ρml σ) X
-  (* Wrapped C function returning to ML. *)
-  | RetS ec w ρc mem X :
-    C_lang.to_val ec = Some w →
-    c_to_ml w ρc mem (λ v ρml σ, X (ExprV v, MLState ρml σ)) →
-    step_mrel p (ExprC ec, CState ρc mem) X
-  (* call from C to a wrapper primitive *)
-  | PrimS K ec prim_name prm ws w ρc mem ρc' mem' X :
-    language.to_call ec = Some (prim_name, ws) →
-    is_prim prim_name prm →
+    X (WrE (ExprCall fn_name ws) k, CState ρc mem) →
+    head_step_mrel p (WrSE (ExprML (language.fill k eml)), MLState ρml σ) X
+  (* Given a C value (result of a C extcall), resume execution into ML code. *)
+  | RetS w ki ρc mem X :
+    c_to_ml w ρc mem (λ v ρml σ,
+      X (WrSE (ExprML (language.fill [ki] (of_val v))), MLState ρml σ)) →
+    head_step_mrel p (WrE (ExprV w) [ki], CState ρc mem) X
+  (* Execution finishes with an ML value, translate it into a C value *)
+  | ValS eml ρml σ v w ρc mem X :
+    to_val eml = Some v →
+    ml_to_c [v] ρml σ [w] ρc mem →
+    X (WrSE (ExprV w), CState ρc mem) →
+    head_step_mrel p (WrSE (ExprML eml), MLState ρml σ) X
+  (* Call to a primitive *)
+  | PrimS prm ws w ρc mem ρc' mem' X :
     c_prim_step prm ws ρc mem w ρc' mem' →
-    X (ExprC (language.fill K (C_lang.of_val w)), CState ρc' mem') →
-    step_mrel p (ExprC (language.fill K ec), CState ρc mem) X.
+    X (WrSE (ExprV w), CState ρc' mem') →
+    head_step_mrel p (WrSE (RunPrimitive prm ws), CState ρc mem) X.
 
-Program Definition step (P : prog) : umrel (expr * state) :=
-  {| mrel := step_mrel P |}.
+Program Definition head_step (P : prog) : umrel (expr * state) :=
+  {| mrel := head_step_mrel P |}.
 Next Obligation.
   unfold upclosed. intros p [e ρ] X Y H HXY.
   destruct H; [
-    eapply StepCS
+    eapply StepMLS
   | eapply ExprCallS
-  | eapply RunFunctionS
+  | eapply MakeCallS
   | eapply RetS
+  | eapply ValS
   | eapply PrimS
   ]; unfold c_to_ml in *; naive_solver.
 Qed.
 
 Lemma mlanguage_mixin :
-  MlanguageMixin (val:=ML_lang.val) of_class to_class tt (λ _ _, tt) fill
-    apply_func step.
+  MlanguageMixin (val:=word) of_class to_class [] comp_ectx fill
+    apply_func head_step.
 Proof using.
   constructor.
   - intros c. destruct c; reflexivity.
-  - intros e c. destruct e; cbn. all: inversion 1; cbn; auto.
+  - intros e c. destruct e as [e k]. destruct e; cbn.
+    1,2: destruct k. all: inversion 1; cbn; auto.
   - intros p v st X. cbn. inversion 1; subst; naive_solver.
   - intros p fname v st X. split.
     + cbn. inversion 1; subst; naive_solver.
-    + intros (fn & e & ? & Hfn & ?). cbn. unfold apply_func in Hfn.
+    + intros (prm & e & ? & Hprm & ?). cbn. unfold apply_func in Hprm.
       simplify_eq. econstructor; eauto.
-  - intros ? [] ? ? ?. rewrite /fill /=. eauto.
-  - eauto.
-  - eauto.
-  - intros [] ? ?. by unfold fill.
-  - intros [] ? ?. eauto.
-  - intros p [] [] ? ? ? ?. naive_solver.
-  - intros ? []. naive_solver.
+  - intros ? ? [? ?] ? ?. rewrite /fill /=. intros. simplify_eq/=. eauto.
+  - intros [e k]. rewrite /fill /empty_ectx app_nil_r //.
+  - intros K1 K2 [e k]. rewrite /fill /comp_ectx app_assoc //.
+  - intros K [e1 k1] [e2 k2]. cbn. inversion 1; subst.
+    rewrite (app_inv_tail K k1 k2) //.
+  - intros K [e k]. unfold fill. intros Hsome.
+    destruct (decide (K = [])). by left. exfalso.
+    assert (k ++ K ≠ []). { intros [? ?]%app_eq_nil. done. }
+    cbn in Hsome. destruct (k ++ K) eqn:?.
+    2: destruct e; by inversion Hsome. by destruct e.
+  - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ X.
+    rewrite /fill. inversion 1; subst.
+    destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.
+    all: intros _; inversion 1; subst; unfold comp_ectx; cbn; eauto.
+    naive_solver.
+  - intros p K [e k] σ X. rewrite /fill. inversion 1; subst.
+    all: try match goal with H : _ |- _ => symmetry in H; apply app_nil in H end.
+    all: try match goal with H : _ |- _ => symmetry in H; apply app_singleton in H end.
+    all: naive_solver.
 Qed.
 
 End wrappersem.
 End Wrap.
 
-Canonical Structure wrap_lang : mlanguage val :=
+Notation WrSE se := (Wrap.WrE se []).
+
+Canonical Structure wrap_lang : mlanguage word :=
   Mlanguage Wrap.mlanguage_mixin.
 
-Global Program Instance wrap_linkable : linkable wrap_lang store := {
-  private_state := Wrap.private_state;
+Global Program Instance wrap_linkable : linkable wrap_lang memory := {
+  private_state := wrapstateC;
   split_state := Wrap.split_state;
 }.
 Next Obligation. intros *. inversion 1; inversion 1; by simplify_eq. Qed.
