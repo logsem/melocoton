@@ -798,3 +798,32 @@ Proof.
   + subst. f_equal. by eapply H.
 Qed.
 
+(******************************************************************************)
+(* auxiliary hints & tactics *)
+
+Global Hint Constructors repr_lval : core.
+
+Ltac inv_repr_lval :=
+  repeat match goal with
+  | H : repr_lval _ (Lloc _) _ |- _ =>
+      inversion H; subst; clear H
+  | H : repr_lval _ (Lint _) _ |- _ =>
+      inversion H; subst; clear H
+  end.
+
+Ltac inv_modify_block :=
+  match goal with
+  | H : modify_block _ _ _ _ |- _ =>
+      inversion H; simplify_eq; clear H
+  end.
+
+Ltac repr_lval_inj :=
+  repeat match goal with
+  | Hinj : gmap_inj ?θ,
+    Hr1 : repr_lval ?θ ?v ?w,
+    Hr2 : repr_lval ?θ ?v' ?w |- _ =>
+      pose proof (repr_lval_inj_1 _ _ _ _ Hinj Hr1 Hr2); subst v'; clear Hr2
+  | Hr1 : repr_lval _ ?v ?w,
+    Hr2 : repr_lval _ ?v ?w' |- _ =>
+      pose proof (repr_lval_inj _ _ _ _ Hr1 Hr2); subst w'; clear Hr2
+  end.

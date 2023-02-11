@@ -60,7 +60,7 @@ Proof.
   { iPureIntro; split_and!; eauto.
     intros l' γ [[-> ->]|[Hne HH]]%lookup_insert_Some.
     2: by eapply Hrootslive.
-    inversion Hrepr; subst. by eapply elem_of_dom_2. }
+    inv_repr_lval. by eapply elem_of_dom_2. }
 Qed.
 
 Lemma load_from_root E (l:loc) (v : lval) dq θ :
@@ -94,15 +94,17 @@ Definition ext_call_is_sound (Hspec : string -d> list Cval -d> (Cval -d> iPropO 
  -∗ WP (ExprC (fillCCall K s vv)) @ (mkPeW (p : prog wrap_lang) T); E {{ v, Φ v}}.
 
 
+Local Ltac SI_not_at_boundary :=
+  iDestruct (SI_not_at_boundary_is_in_ML with "Hσ Hnb") as %(ρc & mem & ->);
+  iNamed "Hσ"; iNamed "SIC".
+
 Lemma wp_ext_call_int2val : ext_call_is_sound WP_int2val_spec.
 Proof.
   intros E T s vv K Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "%Hnone Hnb HT IH %σ Hσ".
-  destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
-  iNamed "Hσ"; iNamed "SIC".
-  cbn. unfold WP_int2val_spec. iNamed "HT". iNamed "HGC". SI_GC_agree.
+  iIntros "%Hnone Hnb HT IH %σ Hσ". cbn.
+  SI_not_at_boundary. iNamed "HT".
+  iNamed "HGC". SI_GC_agree.
   iModIntro. iRight. iRight. iSplitR.
   + iPureIntro. econstructor. eapply head_prim_step.
     eapply (PrimInt2valS _ _ _ _ _ _ _ (fun k => True)).
@@ -127,10 +129,7 @@ Proof.
   intros E T s vv K Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%Hnone Hnb HT IH %σ Hσ".
-  destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
-  iNamed "Hσ"; iNamed "SIC".
-  cbn. unfold WP_val2int_spec. iNamed "HT". iNamed "HGC". SI_GC_agree.
+  SI_not_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
   iModIntro. iRight. iRight. iSplitR.
   + iPureIntro. econstructor. eapply head_prim_step.
     eapply (PrimVal2intS _ _ _ _ _ _ _ (fun k => True)). 2: apply Hrepr. all:done.
@@ -144,8 +143,7 @@ Proof.
     iSplitL "SIζ SIχ SIθ SIroots SIbound HnC HσC".
     { iFrame; eauto. }
     iApply ("IH" with "[-Hnb] Hnb").
-    inversion Hrepr; subst. inversion H5; subst. (* FIXME *)
-    iApply ("HWP"). do 10 iExists _; unfold named; iFrame. eauto.
+    inv_repr_lval. iApply ("HWP"). do 10 iExists _; unfold named; iFrame. eauto.
 Qed.
 
 Lemma wp_ext_call_registerroot : ext_call_is_sound WP_registerroot_spec.
@@ -153,10 +151,7 @@ Proof.
   intros E T s vv K Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%Hnone Hnb HT IH %σ Hσ".
-  destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
-  iNamed "Hσ"; iNamed "SIC".
-  cbn. unfold WP_registerroot_spec. iNamed "HT". iNamed "HGC". SI_GC_agree.
+  SI_not_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
 
   iAssert (⌜l ∈ dom roots_m⌝ → False)%I as "%Hdom".
   1: { iIntros "%H". eapply elem_of_dom in H; destruct H as [k Hk].
@@ -190,7 +185,7 @@ Proof.
     do 10 iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
     - rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.
     - intros ℓ γ [[-> ->]|[Hne HH]]%lookup_insert_Some; last by eapply Hrootslive.
-      inversion Hrepr; subst. by eapply elem_of_dom_2.
+      inv_repr_lval. by eapply elem_of_dom_2.
 Qed.
 
 Lemma wp_ext_call_unregisterroot : ext_call_is_sound WP_unregisterroot_spec.
@@ -198,11 +193,7 @@ Proof.
   intros E T s vv K Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%Hnone Hnb HT IH %σ Hσ".
-  destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
-  iNamed "Hσ"; iNamed "SIC".
-  cbn. unfold WP_unregisterroot_spec. iNamed "HT". iNamed "HGC".
-  SI_GC_agree.
+  SI_not_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
   iPoseProof (ghost_map_lookup with "GCrootsm Hpto") as "%Helem".
 
   iModIntro. iRight. iRight. iSplitR.
@@ -236,10 +227,7 @@ Proof.
   intros E T s vv K Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%Hnone Hnb HT IH %σ Hσ".
-  destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
-  iNamed "Hσ"; iNamed "SIC".
-  cbn. unfold WP_modify_spec. iNamed "HT". iNamed "HGC". SI_GC_agree.
+  SI_not_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
   iPoseProof (lstore_own_mut_of with "GCζvirt Hpto") as "%Helem". destruct Helem as [Helem _].
   iAssert ⌜ζC ρc !! γ = Some (Mut, (tg, vs))⌝%I as "%Helem2".
   1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
@@ -261,9 +249,8 @@ Proof.
 
     do 3 iModIntro.
     do 2 iExists _. change (Wrap.fill () ?x) with (x) in *.
-    inversion Hreprw; subst. inversion H5; subst. (* FIXME *)
-    destruct HGCOK as [HGCL HGCR]. assert (γ = γ0) as <- by by eapply HGCL.
-    assert (lv = v') as -> by by eapply repr_lval_inj_1.
+    inv_repr_lval.
+    destruct HGCOK as [HGCL HGCR]. exploit_gmap_inj. repr_lval_inj.
     iSplit; first by eauto.
     iSplitL "SIζ SIχ SIθ SIroots SIbound HnC HσC".
     { iFrame; eauto. }
@@ -296,12 +283,12 @@ Proof.
            1: eapply map_disjoint_Some_l; done. done.
       - split; first apply HGCL.
         intros γ0 m1 tg1 vs1 γ1 Hγ0 [[??]|[Hne1 Hlu]]%lookup_insert_Some Hlloc.
-        2: by eapply HGCR. simplify_eq. inversion H8 (* FIXME *); simplify_eq.
+        2: by eapply HGCR. simplify_eq. inv_modify_block.
         apply list_insert_lookup_inv in Hlloc as [HLL|HRR]; simplify_map_eq.
-        { inversion H7; subst. (* FIXME *) by eapply elem_of_dom_2. }
+        { inv_repr_lval. by eapply elem_of_dom_2. }
         { eapply HGCR; eauto. rewrite lookup_union_r //.
           eapply map_disjoint_Some_l; eauto. } }
-    { iSplit. inversion H8; simplify_map_eq. (* FIXME *) iFrame. eauto. }
+    { iSplit. inv_modify_block; simplify_map_eq. iFrame. eauto. }
 Qed.
 
 Lemma wp_ext_call_readfield : ext_call_is_sound WP_readfield_spec.
@@ -309,11 +296,7 @@ Proof.
   intros E T s vv K Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%Hnone Hnb HT IH %σ Hσ".
-  destruct σ as [ρml σ | ρc mem].
-  1: iExFalso; iNamed "Hσ"; iNamed "SIML"; iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
-  iNamed "Hσ"; iNamed "SIC".
-  cbn. unfold WP_readfield_spec. iNamed "HT". iNamed "HGC".
-  SI_GC_agree.
+  SI_not_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
   iPoseProof (lstore_own_elem_of with "GCζvirt Hpto") as "%Helem".
   iAssert ⌜∃ m', ζC ρc !! γ = Some (m', (tg, vs))⌝%I as "%Helem2".
   1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
@@ -323,8 +306,7 @@ Proof.
   destruct Helem2 as [m' Helem2].
   assert (exists (vv:lval), vs !! (Z.to_nat i) = Some vv) as [vv Hvv].
   1: apply lookup_lt_is_Some; lia.
-  destruct HGCOK as [HGCL HGCR].
-  inversion Hreprw; subst.
+  destruct HGCOK as [HGCL HGCR]. inv_repr_lval.
 
   assert (exists w', repr_lval (θC ρc) vv w') as [w' Hw'].
   1: { destruct vv as [vvz|vvl]; first (eexists; econstructor).
@@ -336,16 +318,12 @@ Proof.
 
   iModIntro. iRight. iRight. iSplitR.
   + iPureIntro. econstructor. eapply head_prim_step.
-    eapply (PrimReadfieldS _ _ _ _ _ _ _ _ _ _ _ _ _ (fun k => True)); done.
+    eapply (PrimReadfieldS _ _ _ _ _ _ _ _ _ _ _ _ _ (fun k => True)); eauto.
   + iIntros (X Hstep).
     destruct Hstep as ([] & x & Hre & Hstep). change (fill () x) with x in Hre. subst x.
     cbn in Hstep; unfold step,mrel in Hstep; cbn in Hstep.
     inversion_call_step Hstep ([ #a ; #i ]). subst.
-
-    inversion H6; subst. (* FIXME *) assert (γ = γ0) as <- by by eapply HGCL.
-    rewrite Helem2 in H7; injection H7; intros <- <- <-.
-    rewrite Hvv in H8; injection H8; intros <-.
-    assert (w'0 = w') as -> by by eapply repr_lval_inj.
+    inv_repr_lval. exploit_gmap_inj. simplify_map_eq.
 
     do 3 iModIntro.
     do 2 iExists _. change (Wrap.fill () ?x) with (x) in *.

@@ -44,7 +44,7 @@ Proof.
   iIntros "(%θ & %l & %v & HGC & Hv & %Hrepr & #Hblock) Hnb".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ".
-  iDestruct (GC_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
+  iDestruct (SI_GC_is_in_C with "Hσ HGC") as "%H"; destruct H as (ρc & mem & ->).
   iModIntro. iRight. iRight. iSplit.
   { iPureIntro. cbn. exists (λ _, True); eexists (), _; repeat split.
     eapply RetS; eauto using c_to_ml_True. }

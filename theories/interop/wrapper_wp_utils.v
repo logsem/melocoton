@@ -38,38 +38,67 @@ Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T 
 Notation spec := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
 
 Definition WP_int2val_spec : spec := (λ n vl wp,
-   "(%θ & %z & HGC & -> & -> & HWP)"
-    ∷ (∃ θ z, GC θ ∗ ⌜n = "int2val"⌝ ∗ ⌜vl = [C_lang.LitV $ C_lang.LitInt $ z]⌝ ∗ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ wp w )))%I.
+   ∃ θ z,
+     "HGC" ∷ GC θ ∗
+     "->" ∷ ⌜n = "int2val"⌝ ∗
+     "->" ∷ ⌜vl = [C_lang.LitV $ C_lang.LitInt $ z]⌝ ∗
+     "HWP" ∷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ wp w))%I.
 
 Definition WP_val2int_spec : spec := (λ n vl wp,
-   "(%θ & %w & %z & HGC & -> & %Hrepr & -> & HWP)"
-    ∷ (∃ θ w z, GC θ ∗ ⌜n = "val2int"⌝ ∗ ⌜repr_lval θ (Lint z) w⌝ ∗ ⌜vl = [ w ]⌝ ∗ (GC θ -∗ wp (C_lang.LitV $ C_lang.LitInt $ z) )))%I.
+   ∃ θ w z,
+     "HGC" ∷ GC θ ∗
+     "->" ∷ ⌜n = "val2int"⌝ ∗
+     "->" ∷ ⌜vl = [ w ]⌝ ∗
+     "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ ∗
+     "HWP" ∷ (GC θ -∗ wp (C_lang.LitV $ C_lang.LitInt $ z)))%I.
 
 Definition WP_registerroot_spec : spec := (λ n vl wp,
-   "(%θ & %l & %v & %w & HGC & -> & -> & Hpto & %Hrepr & HWP)"
-    ∷ (∃ θ l v w, GC θ ∗ ⌜n = "registerroot"⌝ ∗ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗ l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
-      (GC θ -∗ l ↦roots v -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
+   ∃ θ l v w,
+     "HGC" ∷ GC θ ∗
+     "->" ∷ ⌜n = "registerroot"⌝ ∗
+     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
+     "Hpto" ∷ l ↦C w ∗
+     "%Hrepr" ∷ ⌜repr_lval θ v w⌝ ∗
+     "HWP" ∷ (GC θ -∗ l ↦roots v -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
 Definition WP_unregisterroot_spec : spec := (λ n vl wp,
-   "(%θ & %l & %v & HGC & -> & -> & Hpto & HWP)"
-    ∷ (∃ θ l v, GC θ ∗ ⌜n = "unregisterroot"⌝ ∗ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗ l ↦roots v ∗
-      (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
+   ∃ θ l v,
+     "HGC" ∷ GC θ ∗
+     "->" ∷ ⌜n = "unregisterroot"⌝ ∗
+     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
+     "Hpto" ∷ l ↦roots v ∗
+     "HWP" ∷ (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
 Definition WP_modify_spec : spec := (λ n vl wp,
-   "(%θ & %w & %i & %v' & %w' & %γ & %tg & %vs & HGC & -> & -> & %Hreprw & Hpto & %Hreprw' & %Hi1 & %Hi2 & HWP)"
-    ∷ (∃ θ w i v' w' γ tg vs, GC θ ∗ ⌜n = "modify"⌝ ∗ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i; w' ]⌝ 
-                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, vs)) ∗ ⌜repr_lval θ v' w'⌝
-                   ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
-      (GC θ -∗ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, <[Z.to_nat i:=v']> vs)) -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0) )))%I.
+  ∃ θ w i v' w' γ tg vs,
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜n = "modify"⌝ ∗
+    "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i; w' ]⌝ ∗
+    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+    "Hpto" ∷ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, vs)) ∗
+    "%Hreprw'" ∷ ⌜repr_lval θ v' w'⌝ ∗
+    "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
+    "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
+    "HWP" ∷ (GC θ -∗
+             lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, <[Z.to_nat i:=v']> vs)) -∗
+             wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
 Definition WP_readfield_spec : spec := (λ n vl wp,
-   "(%θ & %w & %i & %γ & %dq & %m & %tg & %vs & HGC & -> & -> & %Hreprw & Hpto & %Hi1 & %Hi2 & HWP)"
-    ∷ (∃ θ w i γ dq m tg vs, GC θ ∗ ⌜n = "readfield"⌝ ∗ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ 
-                   ∗ ⌜repr_lval θ (Lloc γ) w⌝ ∗ lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs))
-                   ∗ ⌜0 ≤ i⌝%Z ∗ ⌜i < length vs⌝%Z ∗
-      (∀ v' w', GC θ -∗ lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs)) -∗ ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗ ⌜repr_lval θ v' w'⌝ -∗ wp w' )))%I.
+   ∃ θ w i γ dq m tg vs,
+     "HGC" ∷ GC θ ∗
+     "->" ∷ ⌜n = "readfield"⌝ ∗
+     "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ ∗
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "Hpto" ∷ lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs)) ∗
+     "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
+     "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
+     "HWP" ∷ (∀ v' w', GC θ -∗
+                       lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs)) -∗
+                       ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗
+                       ⌜repr_lval θ v' w'⌝ -∗
+                       wp w'))%I.
 
 
 Definition WP_ext_call_spec : spec := (λ n vl wp,
@@ -139,7 +168,7 @@ Proof.
   + eapply not_elem_of_dom in H0,H1. iIntros "Hheap Hmap".
     iPoseProof (big_sepM_insert) as "(Hb1 & _)"; first apply H0.
     iPoseProof ("Hb1" with "Hmap") as "((%w' & Hw & %Hrepr4) & Hmap)".
-    pose proof (repr_lval_inj _ _ _ _ Hrepr4 H) as Heq; subst w'.
+    repr_lval_inj.
     iMod (gen_heap_update with "Hheap Hw") as "(Hheap & Hw)".
     specialize (IHHrepr1 (<[a:=None]> mem) (<[a:=None]> privmem)).
     iMod (IHHrepr1 with "Hheap Hmap") as "(Hheap & Hmap)".

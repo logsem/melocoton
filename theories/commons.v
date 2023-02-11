@@ -25,6 +25,14 @@ Proof.
     eapply Hinj; eauto. }
 Qed.
 
+Ltac exploit_gmap_inj :=
+  repeat match goal with
+  | Hinj : gmap_inj ?m,
+    H1 : ?m !! _ = Some ?v,
+    H2 : ?m !! _ = Some ?v |- _ =>
+    pose proof (Hinj _ _ _ H1 H2); subst; clear H2
+  end.
+
 Definition codom {A B : Type} `{Countable A} `{Countable B}: gmap A B → gset B := map_to_set (fun a b => b).
 
 Lemma codom_spec {A B : Type} `{Countable A} `{Countable B} (m : gmap A B) v : v ∈ codom m <-> exists k, m !! k = Some v.

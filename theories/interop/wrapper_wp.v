@@ -154,14 +154,6 @@ Qed.
 Context (σ : Wrap.state).
 Notation SI := (weakestpre.state_interp σ).
 
-Lemma GC_in_C {θ}: ⊢ (SI -∗ GC θ -∗ ⌜∃ ρc mem, σ = CState ρc mem⌝)%I.
-Proof.
-  destruct σ. 2: iIntros "_ _"; iPureIntro; do 2 eexists; done.
-  iNamed 1. iNamed 1. iNamed "SIML".
-  iPoseProof (ghost_var_agree with "SIbound GCbound") as "%Hc".
-  congruence.
-Qed.
-
 Notation "l ↦fresh{ dq } b" := (lstore_own_mut wrapperGS_γζvirt l dq (Mut, b) ∗ lloc_own_priv wrapperGS_γχvirt l)%I
   (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
 Notation "l ↦fresh b" := (l ↦fresh{DfracOwn 1} b)%I
@@ -193,6 +185,25 @@ Proof.
 Qed.
 
 Definition block_sim_arr (vs:list MLval) (ls : list lval) : iProp Σ := [∗ list] v;l ∈ vs;ls, block_sim v l.
+
+Lemma SI_GC_is_in_C {θ} :
+  SI -∗ GC θ -∗
+  ⌜∃ ρc mem, σ = CState ρc mem⌝.
+Proof.
+  destruct σ. 2: iIntros "_ _"; iPureIntro; do 2 eexists; done.
+  iNamed 1. iNamed 1. iNamed "SIML".
+  iPoseProof (ghost_var_agree with "SIbound GCbound") as "%Hc".
+  congruence.
+Qed.
+
+Lemma SI_not_at_boundary_is_in_ML :
+  SI -∗ not_at_boundary -∗
+  ⌜∃ ρc mem, σ = CState ρc mem⌝.
+Proof.
+  iIntros "Hσ Hnb". destruct σ as [ρml σ' | ρc mem]; eauto.
+  iExFalso; iNamed "Hσ"; iNamed "SIML";
+  iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
+Qed.
 
 End Embed_logic.
 
