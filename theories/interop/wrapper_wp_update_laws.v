@@ -45,7 +45,7 @@ Proof.
   1: by iApply (block_sim_arr_of_ghost_state with "GCχvirt GCζvirt").
   iAssert (block_sim_raw l ll) as "#Hraw".
   1: by iApply (lloc_own_auth_get_pub with "GCχvirt").
-  iMod (lstore_own_insert _ _ ll (Mut, _) with "GCζvirt") as "(GCζvirt & Hzz)".
+  iMod (lstore_own_insert _ _ ll (Bvblock (Mut, _)) with "GCζvirt") as "(GCζvirt & Hzz)".
   1: { eapply map_disjoint_Some_l; done. }
   iDestruct (lstore_own_elem_to_mut with "Hzz") as "Hzz"; first done.
   iModIntro.
@@ -53,7 +53,7 @@ Proof.
   1: eapply map_disjoint_Some_l; done.
   iSplitR "Hzz".
   { rewrite /GC /named.
-    iExists ζ, ζfreeze, (delete ll ζσ), (<[ll:=(Mut, (TagDefault, lvs))]> ζvirt).
+    iExists ζ, ζfreeze, (delete ll ζσ), (<[ll:=(Bvblock (Mut, (TagDefault, lvs)))]> ζvirt).
     iExists χ, χvirt, (<[l:=None]> σMLvirt), roots_s, roots_m, _. iFrame.
     iSplitL "GCσdom".
     { iApply (dom_auth_dom with "GCσdom").
@@ -89,7 +89,7 @@ Proof.
   iMod (lstore_own_delete with "GCζvirt Hl") as "GCζvirt".
   iModIntro. iSplitR "Hℓ".
   { rewrite /GC /named.
-    iExists ζ, ζfreeze, (<[γ:=(Mut, (TagDefault, b))]> ζσ), (delete γ ζvirt).
+    iExists ζ, ζfreeze, (<[γ:=(Bvblock (Mut, (TagDefault, b)))]> ζσ), (delete γ ζvirt).
     iExists χ, χvirt, (<[ℓ := Some vs]> σMLvirt), roots_s, roots_m, _. iFrame.
     iSplitL "GCσdom".
     { iApply (dom_auth_dom with "GCσdom").
@@ -147,12 +147,12 @@ Proof.
   iIntros "(HGC & (Hmtζ & Hmtfresh))". iNamed "HGC".
   iDestruct (lstore_own_mut_of with "GCζvirt Hmtζ") as %[Hζγ _].
   iDestruct (lloc_own_priv_of with "GCχvirt Hmtfresh") as %Hχvirtγ.
-  iMod (lstore_own_update _ _ _ _ (Immut,bb) with "GCζvirt Hmtζ") as "(GCζvirt & Hmtζ)".
+  iMod (lstore_own_update _ _ _ _ (Bvblock (Immut,bb)) with "GCζvirt Hmtζ") as "(GCζvirt & Hmtζ)".
   iDestruct (lstore_own_elem_to_immut with "Hmtζ") as "Hmtζ"; first done.
   iModIntro. iFrame "Hmtζ". rewrite /GC /named.
-  iExists ζ, (<[γ:=(Immut, bb)]> ζfreeze), ζσ, (<[γ:=(Immut, bb)]> ζvirt).
+  iExists ζ, (<[γ:=(Bvblock (Immut, bb))]> ζfreeze), ζσ, (<[γ:=(Bvblock (Immut, bb))]> ζvirt).
   iExists χ, χvirt, σMLvirt, roots_s, roots_m, _. iFrame.
-  assert (Hζγ': ζfreeze !! γ = Some (Mut, bb)).
+  assert (Hζγ': ζfreeze !! γ = Some (Bvblock (Mut, bb))).
   { subst. rewrite lookup_union_r; eauto. by eapply map_disjoint_Some_l. }
   iSplit.
   { rewrite pub_locs_in_lstore_insert_existing; eauto. by eapply elem_of_dom_2. }
