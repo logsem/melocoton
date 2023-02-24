@@ -216,10 +216,15 @@ Inductive repr_roots : addr_map → roots_map → memory → Prop :=
     repr_roots θ (<[ a := v ]> roots)
                  (<[ a := Storing w ]> mem).
 
-Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
-  ∃ memr, repr_roots θ roots memr ∧
+
+Definition repr_raw (θ : addr_map) (roots : roots_map) (privmem mem memr : memory) : Prop :=
+  repr_roots θ roots memr ∧
   privmem ##ₘ memr ∧
   mem = memr ∪ privmem.
+
+Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
+  ∃ memr, repr_raw θ roots privmem mem memr.
+
 
 (* Block-level representation of ML values and store *)
 Inductive is_val : lloc_map → lstore → val → lval → Prop :=
@@ -397,6 +402,17 @@ Proof.
   erewrite dom_insert_L in H1; eapply elem_of_union in H1; destruct H1 as [H1%elem_of_singleton|H1].
   2: done.
   apply lloc_map_pubs_lookup_Some_1 in H2. congruence.
+Qed.
+
+Lemma pub_locs_in_lstore_alloc_priv χ ζ γ b:
+  χ !! γ = None →
+  pub_locs_in_lstore (<[γ:=LlocPrivate]> χ) (<[γ:=b]>ζ) = pub_locs_in_lstore χ ζ.
+Proof.
+  intros Hγ. rewrite pub_locs_in_lstore_insert_priv.
+  2: apply lookup_insert.
+  rewrite /pub_locs_in_lstore lloc_map_pubs_insert_priv delete_notin.
+  2: apply lloc_map_pubs_lookup_None; by left.
+  done.
 Qed.
 
 Lemma pub_locs_in_lstore_insert_priv_store χ ζ ζ2 :
@@ -755,6 +771,16 @@ Proof.
     simplify_map_eq; eauto.
 Qed.
 
+Lemma GC_correct_transport ζ1 ζ2 θ : freeze_lstore ζ1 ζ2 → GC_correct ζ1 θ → GC_correct ζ2 θ.
+Proof.
+  intros (H1L&H1R) (H2&H3). split; first done.
+  intros γ m tg vs γ' HH1 HH2 HH3.
+  destruct (ζ1 !! γ) as [(m'&tg'&vs')|] eqn:Heq.
+  2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite H1L in Heq; tauto. }
+  specialize (H1R _ _ _ Heq HH2). inversion H1R; subst.
+  all: by eapply H3.
+Qed.
+
 Global Instance freeze_lstore_refl : Reflexive (freeze_lstore).
 Proof.
   intros ζ; split; first done.
@@ -796,6 +822,23 @@ Proof.
   intros H; induction 1; inversion 1.
   + done.
   + subst. f_equal. by eapply H.
+Qed.
+
+
+Lemma repr_lval_mono θ θ' v w: θ ⊆ θ' -> repr_lval θ v w -> repr_lval θ' v w.
+Proof.
+  intros H; induction 1; econstructor.
+  eapply lookup_weaken; done.
+Qed.
+
+Lemma repr_mono θ θ' roots_m privmem mem : θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
+Proof.
+  intros Helem (memr&(H1&H2)). exists memr. split; last done.
+  clear H2.
+  induction H1.
+  - econstructor.
+  - econstructor. 1: by eapply IHrepr_roots. 2-3: done.
+    by eapply repr_lval_mono.
 Qed.
 
 (******************************************************************************)

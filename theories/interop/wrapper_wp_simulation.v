@@ -31,11 +31,6 @@ Implicit Types P : iProp Σ.
 Import mlanguage.
 
 
-Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ _ Σ).
-Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang Σ).
-
-Notation wrap_return := (fun Φ (a:Cval) => (∃ θ' l v, GC θ' ∗ Φ v ∗ ⌜repr_lval θ' l a⌝ ∗ block_sim v l)%I).
-
 Lemma wp_to_val E T a Φ: 
     wrap_return Φ a (* Basically, a WP (Val a) {{a, wrap_return a}} *)
  -∗ not_at_boundary
@@ -127,11 +122,8 @@ Qed.
 Lemma run_function_correct F (vv : list ML_lang.val) T E Φ:
     ⌜arity F = length vv⌝
  -∗ at_boundary _
- -∗ (∀ θ ll aa ec,
-       GC θ
-    -∗ ⌜C_lang.apply_function F aa = Some ec⌝
-    -∗ ⌜Forall2 (repr_lval θ) ll aa⌝
-    -∗ block_sim_arr vv ll
+ -∗ (∀ ec,
+       wrap_args vv F ec
     -∗ WP ec @ (mkPeC p WP_ext_call_spec); E {{a, wrap_return Φ a }})
  -∗ WP RunFunction F vv @ (mkPeW (p : prog wrap_lang) T); E {{ v, Φ v ∗ at_boundary _}}.
 Proof.
@@ -158,7 +150,7 @@ Proof.
       first done.
     do 3 iModIntro. do 2 iExists _. iSplit; first by iPureIntro. iFrame "Hσ".
     iApply (wp_simulates with "Hnb").
-    iApply ("Hwp" with "HGC [%] [%] [$]"); eauto.
+    iApply ("Hwp"). iExists _, _, _; iFrame "HGC Hblk". eauto.
 Qed.
 
 End Simulation.

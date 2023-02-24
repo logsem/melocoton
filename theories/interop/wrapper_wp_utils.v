@@ -21,6 +21,9 @@ Definition forbidden_function_names : list string :=
   ["alloc"; "registerroot"; "unregisterroot"; "modify"; "readfield"; "int2val"; "val2int"].
 
 
+Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ C_lang (_ : gFunctors)).
+Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang (_ : gFunctors)).
+
 Section Utils.
 
 Context {hlc : has_lc}.
@@ -31,10 +34,14 @@ Context `{!wrapperGS Σ}.
 
 Implicit Types P : iProp Σ.
 Import mlanguage.
-Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ _ Σ).
-Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang Σ).
 
-Notation spec := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+
+Definition spec {Σ} := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+
+Definition wrap_return := (fun Φ (a:Cval) => (∃ θ' l v, GC θ' ∗ Φ v ∗ ⌜repr_lval θ' l a⌝ ∗ block_sim v l)%I).
+Definition wrap_args := (fun (vv:list MLval) (F:function) (ec:C_lang.expr) => 
+     ((∃ θ ll aa, GC θ ∗ ⌜C_lang.apply_function F aa = Some ec⌝ 
+               ∗ ⌜Forall2 (repr_lval θ) ll aa⌝ ∗ block_sim_arr vv ll))%I).
 
 Definition WP_int2val_spec : spec := (λ n vl wp,
    ∃ θ z,
@@ -99,21 +106,32 @@ Definition WP_readfield_spec : spec := (λ n vl wp,
                        ⌜repr_lval θ v' w'⌝ -∗
                        wp w'))%I.
 
+(* The most general spec, prove stuff for specific block-level pointstos later *)
+Definition WP_alloc_spec : spec := (λ n vl wp,
+   ∃ θ tg sz,
+     "HGC" ∷ GC θ ∗
+     "->" ∷ ⌜n = "alloc"⌝ ∗
+     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitInt $ tag_as_int $ tg; C_lang.LitV $ C_lang.LitInt $ sz ]⌝ ∗
+     "%Hsz" ∷ ⌜0 ≤ sz⌝%Z ∗
+     "HWP" ∷ (∀ θ' γ w, GC θ' -∗
+                       γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) -∗
+                       ⌜repr_lval θ' (Lloc γ) w⌝ -∗
+                       wp w))%I.
+
 
 Definition WP_ext_call_spec : spec := (λ n vl wp,
     WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp ∨ WP_registerroot_spec n vl wp ∨ WP_unregisterroot_spec n vl wp
-  ∨ WP_modify_spec n vl wp ∨ WP_readfield_spec n vl wp)%I.
+  ∨ WP_modify_spec n vl wp ∨ WP_readfield_spec n vl wp ∨ WP_alloc_spec n vl wp)%I.
 
 Lemma WP_ext_call_sound s v2 T : WP_ext_call_spec s v2 T -∗ ⌜s ∈ forbidden_function_names⌝.
 Proof.
-  iIntros "[H|[H|[H|[H|[H|H]]]]]";
+  iIntros "[H|[H|[H|[H|[H|[H|H]]]]]]";
   unfold WP_int2val_spec; unfold WP_val2int_spec; unfold WP_registerroot_spec; unfold WP_unregisterroot_spec;
-  unfold WP_modify_spec; unfold WP_readfield_spec;
+  unfold WP_modify_spec; unfold WP_readfield_spec; unfold WP_alloc_spec;
   iNamed "H"; iPureIntro; unfold forbidden_function_names;
   repeat (try done; try left; right).
 Qed.
 
-Notation wrap_return := (fun Φ (a:Cval) => (∃ θ' l v, GC θ' ∗ Φ v ∗ ⌜repr_lval θ' l a⌝ ∗ block_sim v l)%I).
 
 Section RootsRepr.
 
@@ -182,6 +200,139 @@ Proof.
         rewrite fmap_insert. iFrame.
       - rewrite dom_insert_L. iApply big_sepS_insert; first by eapply not_elem_of_dom. iFrame.
 Qed.
+
+Lemma repr_roots_repr_lval θ roots m : repr_roots θ roots m -> forall k v, roots !! k = Some v -> exists w, m !! k = Some (Storing w) /\ repr_lval θ v w.
+Proof.
+  induction 1; intros ??.
+  - intros H. rewrite lookup_empty in H. done.
+  - intros [[<- <-]|[Hn1 Hn2]]%lookup_insert_Some.
+    + rewrite lookup_insert. econstructor. done.
+    + rewrite lookup_insert_ne. 2: done. apply IHrepr_roots. done.
+Qed.
+
+Lemma repr_dom_eq θ mem roots_1 roots_2 p1 p2 m1 m2 : 
+   dom roots_1 = dom roots_2
+ → gmap_inj θ
+ → repr_raw θ roots_1 p1 mem m1
+ → repr_raw θ roots_2 p2 mem m2
+ → p1 = p2 ∧ m1 = m2 ∧ roots_1 = roots_2.
+Proof.
+  intros H1 Hinj (Hr1&Hd1&Hu1) (Hr2&Hd2&Hu2).
+  assert (m1 = m2) as ->.
+  { apply repr_roots_dom in Hr1,Hr2. rewrite H1 in Hr1. rewrite Hr1 in Hr2.
+    eapply map_eq_iff. intros i. destruct (m1 !! i) as [v|] eqn:Heq.
+    + eapply elem_of_dom_2 in Heq as Hdom. eapply lookup_union_Some_l in Heq.
+      erewrite <- Hu1 in Heq. erewrite <- Heq. erewrite Hu2.
+      rewrite Hr2 in Hdom.
+      eapply lookup_union_l. apply elem_of_dom in Hdom as [vv Hvv]. 
+      eapply map_disjoint_Some_l. 1: done. apply Hvv.
+    + symmetry. eapply not_elem_of_dom. rewrite <- Hr2. by eapply not_elem_of_dom. }
+  assert (p1 = p2) as ->.
+  { eapply map_eq_iff. intros i. destruct (p1 !! i) as [v|] eqn:Heq.
+    + eapply elem_of_dom_2 in Heq as Hdom. eapply lookup_union_Some_r in Heq.
+      erewrite <- Hu1 in Heq. erewrite <- Heq. erewrite Hu2.
+      eapply lookup_union_r. 2: done.
+      eapply not_elem_of_dom. eapply map_disjoint_dom in Hd1. set_solver.
+    + destruct (mem !! i) as [v'|] eqn:Heqmem.
+      * pose proof Heqmem as Heq2. rewrite Hu1 in Heqmem.
+        apply lookup_union_Some_inv_l in Heqmem. 2: done. symmetry.
+        eapply map_disjoint_Some_r. 1: done. done.
+      * rewrite Hu2 in Heqmem. apply lookup_union_None_1 in Heqmem. symmetry. apply Heqmem. }
+  split_and!; try done.
+  pose proof (repr_roots_repr_lval _ _ _ Hr2) as Hr2'.
+  clear Hd1 Hu1 Hd2 Hu2 Hr2.
+  induction Hr1 in Hinj, roots_2, H1, Hr2'|-*.
+  { rewrite dom_empty_L in H1. symmetry in H1. apply dom_empty_inv_L in H1. done. }
+  destruct (roots_2 !! a) as [v2|] eqn:Heq.
+  2: { eapply not_elem_of_dom in Heq. rewrite <- H1 in Heq. erewrite dom_insert_L in Heq. set_solver. }
+  erewrite <- (insert_delete roots_2 a v2); last done. f_equiv.
+  - destruct (Hr2' a v2 Heq) as (ww & Heqw & Hrepr).
+    rewrite lookup_insert in Heqw. injection Heqw; intros ->.
+    inversion H; subst; inversion Hrepr; subst; try congruence.
+    f_equiv. eapply Hinj; done.
+  - eapply IHHr1.
+    + rewrite dom_delete_L. rewrite <- H1. set_solver.
+    + done.
+    + intros k1 v1 [H3 H4]%lookup_delete_Some.
+      destruct (Hr2' _ _ H4) as (ww&[[??]|[? ?]]%lookup_insert_Some&Hww2).
+      1: done.
+      by exists ww.
+Qed.
+(*
+
+(* TODO: ugly workaround around wrong kind of non-det in PrimAllocS *)
+Lemma swap_roots_m_compatible θ mem roots_1 roots_2:
+    ⌜dom roots_1 = dom roots_2⌝
+ -∗ ⌜∃ privmem, repr θ roots_1 privmem mem⌝
+ -∗ ⌜∃ privmem, repr θ roots_2 privmem mem⌝
+ -∗ (gen_heap_interp mem)
+ -∗ ([∗ map] a ↦ v ∈ roots_1, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
+ -∗ ([∗ map] a ↦ v ∈ roots_2, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝) ∗ gen_heap_interp mem.
+Proof.
+  iIntros "%H1 (%p1&%m1&%Hr1&%Hd1&%Hu1) (%p2&%m2&%Hr2&%Hd2&%Hu2)". iStopProof.
+  destruct (repr_dom_eq θ mem roots_1 roots_2 p1 p2 m1 m2) as [-> ->].
+  1: done.
+  1-2: repeat split; done.
+  clear Hd2 Hu2.
+  pose proof (repr_roots_repr_lval _ _ _ Hr2) as Hr2'. clear Hr2.
+  pose proof (repr_roots_repr_lval _ _ _ Hr1) as Hr1'. clear Hr1.
+  revert roots_2 H1 Hr2'.
+  induction roots_1 as [|k v roots_1 Hne IH] using map_ind; intros roots_2 H1 Hr2'.
+  { rewrite dom_empty_L in H1. symmetry in H1. apply dom_empty_inv_L in H1. subst roots_2.
+    iIntros "_ H1 H2". iFrame. }
+  iIntros "e H1 H2".
+  iPoseProof (big_sepM_insert) as "(Hi&_)". 1: exact Hne.
+  iDestruct ("Hi" with "H2") as "(Hkv & H2)". iClear "Hi".
+  unshelve iDestruct (IH _ (delete k roots_2) with "e H1 H2") as "(H1&H2)".
+  - intros k0 v0 Hin. apply Hr1'. rewrite <- Hin. eapply lookup_insert_ne. intros <-. congruence.
+  - rewrite dom_delete_L. rewrite <- H1. rewrite dom_insert_L.
+    eapply not_elem_of_dom in Hne. set_solver.
+  - intros k0 v0 Hin. apply Hr2'. rewrite <- Hin. symmetry. apply lookup_delete_ne. intros <-. rewrite lookup_delete in Hin. done.
+  - iDestruct "Hkv" as "(%w & Hpto & %Hrepr)".
+    iPoseProof (gen_heap_valid with "H2 Hpto") as "%Helem".
+    iFrame. destruct (roots_2 !! k) as [vv|] eqn:Heq2.
+    2: { eapply not_elem_of_dom in Heq2. rewrite <- H1 in Heq2. erewrite dom_insert_L in Heq2. set_solver. }
+    erewrite <- (insert_delete roots_2 k vv) at 2.
+    iApply big_sepM_insert. 1: by rewrite lookup_delete. 2: done.
+    iFrame.
+    iExists w. iFrame. iPureIntro.
+    destruct (Hr2' _ _ Heq2) as (ww & Hm2ww & Hrepww).
+    enough (w = ww) as -> by done.
+    eapply lookup_union_Some_l in Hm2ww. erewrite <- Hu1 in Hm2ww. rewrite Helem in Hm2ww.
+    injection Hm2ww; done.
+Qed.
+
+Lemma repr_simulates θ θ' mem mem' pm1 pm2 roots_1 roots_2:
+    dom roots_1 = dom roots_2
+ -> repr θ roots_1 pm1 mem
+ -> repr θ roots_2 pm2 mem
+ -> repr θ' roots_2 pm2 mem'
+ -> repr θ' roots_1 pm1 mem'.
+Proof.
+  intros H1 (m1&Hr1&Hd1&Hu1) (m2&Hr2&Hd2&Hu2) (m3&Hr3&Hd3&Hu3).
+  destruct (repr_dom_eq θ mem roots_1 roots_2 pm1 pm2 m1 m2) as [-> ->].
+  1: done.
+  1-2: repeat split; done.
+  exists m3. repeat split; try done.
+  pose proof (repr_roots_repr_lval _ _ _ Hr1) as Hr1'.
+  pose proof (repr_roots_repr_lval _ _ _ Hr2) as Hr2'.
+  clear Hd1 Hu1 Hr1 Hr2.
+  revert roots_1 H1 Hr1' mem' Hr2' Hd3 Hu3.
+  induction Hr3 as [θ'|θ' a v w roots_2 mem2 Hrepr1 Hrepr2 Hne1 Hne2]; intros roots_1 H1 Hr1' mem' Hr2' Hd3 Hu3.
+  { rewrite dom_empty_L in H1. apply dom_empty_inv_L in H1. subst roots_1. econstructor. }
+  rewrite dom_insert_L in H1.
+  destruct (roots_1 !! a) as [v1|] eqn:Heq.
+  2: { exfalso; eapply not_elem_of_dom in Heq. set_solver. }
+  rewrite <- (insert_delete roots_1 a v1). 2: done. econstructor.
+  1: eapply Hrepr2.
+  - rewrite dom_delete_L. rewrite H1. set_solver.
+  - intros k1 v' [??]%lookup_delete_Some. apply Hr1'; done.
+  - intros k1 v' Hin. eapply Hr2'. rewrite lookup_insert_ne; first done.
+    eapply elem_of_dom_2 in Hin. intros ->. tauto.
+  - apply map_disjoint_insert_r in Hd3. apply Hd3.
+  - done.
+  -  Search map_disjoint insert. 
+*)
 
 Lemma find_repr_lval_vv θ v : 
    (forall γ, Lloc γ = v → γ ∈ dom θ)
@@ -325,17 +476,26 @@ Proof.
   eapply elem_of_subseteq. intros γ Hx; eapply elem_of_dom_2. by apply H3.
 Qed.
 
-Definition allocate_in_χ_priv (χold : lloc_map) v : lloc_map_inj χold → exists χnew γ, extended_to χold {[γ := v]} χnew.
+Definition allocate_in_χ_priv_strong (exclusion : gset lloc) (χold : lloc_map) v : lloc_map_inj χold → exists χnew γ, extended_to χold {[γ := v]} χnew ∧ γ ∉ exclusion.
 Proof.
   intros Hinj.
-  eexists (<[fresh (dom χold) := LlocPrivate]> χold), (fresh (dom χold)).
+  pose (fresh (dom χold ∪ exclusion)) as γ.
+  pose (is_fresh (dom χold ∪ exclusion)) as Hγ.
+  eexists (<[γ := LlocPrivate]> χold), γ.
   unfold extended_to; split_and!; first split.
-  - eapply insert_subseteq, not_elem_of_dom, is_fresh.
+  - eapply insert_subseteq, not_elem_of_dom. intros HH; eapply Hγ, elem_of_union_l, HH.
   - intros γ1 γ2 ℓ' [[? ?]|[? ?]]%lookup_insert_Some [[? ?]|[? ?]]%lookup_insert_Some; subst; try congruence.
     by eapply Hinj.
-  - rewrite dom_singleton_L. eapply disjoint_singleton_r. by apply is_fresh.
+  - rewrite dom_singleton_L. eapply disjoint_singleton_r. intros HH; eapply Hγ, elem_of_union_l, HH.
   - intros x. rewrite dom_singleton_L. intros ->%elem_of_singleton.
     eapply lookup_insert.
+  - intros HH; eapply Hγ, elem_of_union_r, HH.
+Qed.
+
+Definition allocate_in_χ_priv (χold : lloc_map) v : lloc_map_inj χold → exists χnew γ, extended_to χold {[γ := v]} χnew.
+Proof.
+  intros Hinj. destruct (allocate_in_χ_priv_strong ∅ χold v Hinj) as (χnew&γ&H&_).
+  by do 2 eexists.
 Qed.
 
 Lemma disjoint_weaken T `{Countable T} (A1 A2 B1 B2 : gset T) : A1 ## B1 → A2 ⊆ A1 → B2 ⊆ B1 → A2 ## B2.
