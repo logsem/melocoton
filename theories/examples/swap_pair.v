@@ -1,16 +1,16 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
-From melocoton.language Require Import wp_link.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.interop Require Import lang_to_mlang lang_to_mlang_wp.
 From melocoton.interop Require Import linking linking_wp.
-From melocoton.interop Require Import wrapper_wp wrapper_wp_utils wrapper_wp_update_laws wrapper_wp_ext_call_laws.
+From melocoton.interop Require Import wrappersem wrapper_wp wrapper_wp_utils wrapper_wp_update_laws wrapper_wp_ext_call_laws wrapper_wp_simulation.
 From melocoton.ml_toy_lang Require Import lang melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require notation melocoton.proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.primitive_laws.
 From melocoton.c_toy_lang Require notation melocoton.proofmode.
+From melocoton.mlanguage Require weakestpre.
 Import uPred.
 
 Section C_prog.
@@ -39,7 +39,9 @@ Definition swap_pair_code (x : expr) : expr := (
 
 Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 
-Definition swap_pair_env := (mkPeC {[ "swap_pair" := swap_pair_func]} WP_ext_call_spec).
+Definition swap_pair_mod : gmap string function := {[ "swap_pair" := swap_pair_func]}.
+
+Definition swap_pair_env := (mkPeC swap_pair_mod WP_ext_call_spec).
 
 Lemma swap_pair_correct v1 v2 ec E : 
     wrap_args [(v1,v2)%V] swap_pair_func ec
@@ -154,22 +156,90 @@ Proof.
   cbn. iExists _, _, _. iSplitR; first done. iFrame "Hnew Hlv1 Hlv2".
 Qed.
 
+Definition swap_pair_env_lifted : weakestpre.prog_environ _ Σ := (mkPeW swap_pair_mod (λ _ _ _, ⌜False⌝)%I).
+
+Import mlanguage.weakestpre.
+
+Lemma swap_pair_wrapped T E v1 v2:  
+    at_boundary wrap_lang
+ -∗ WP (Wrap.RunFunction swap_pair_func [ (v1,v2)%V ]) @ mkPeW swap_pair_mod T; E {{ v, ⌜v = (v2,v1)%V⌝ ∗ at_boundary wrap_lang }}.
+Proof.
+  iIntros "H".
+  iApply (run_function_correct with "[] H").
+  - repeat (econstructor; first (rewrite lookup_singleton_ne; done)). econstructor.
+  - done.
+  - iIntros (ec). iApply swap_pair_correct.
+Qed. 
+
+
+Definition swap_pair_ml_spec : program_specification := (
+  λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%V ]⌝ ∗ wp ((v2,v1)%V)
+)%I.
+
 End C_prog.
 
 Section ML_prog.
 
 Import melocoton.ml_toy_lang.lang melocoton.ml_toy_lang.notation melocoton.ml_toy_lang.melocoton.proofmode.
 
-Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
+Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !heapGS_ML Σ, !wrapperGS Σ, !linkGS Σ}.
 
-Definition swap_pair_client : expr := 
-  (Extern "swap_pair" [ (((#2, #3), #1))%E ]).
+Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) := 
+  (Extern "swap_pair" [ ((#3, (#1, #2)))%E ]).
 
-Definition swap_pair_ml_spec : program_specification := (
-  λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%V ]⌝ ∗ wp ((v2,v2)%V)
-)%I.
+Definition client_env := {| penv_prog := ∅; penv_proto := swap_pair_ml_spec |} : prog_environ ML_lang Σ.
+Notation client_env_lifted := (penv_to_mlang client_env).
 
-(* TODO: instantiate linking *)
+Lemma ML_prog_correct_axiomatic E : ⊢ WP swap_pair_client @ client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%V}}.
+Proof.
+  iStartProof. unfold swap_pair_client. wp_pures.
+  wp_extern.
+  iModIntro. cbn. do 2 iExists _.
+  do 2 (iSplitR; first done).
+  wp_pures. done.
+Qed.
+
+Lemma ML_prog_correct_lifted E : ⊢ WP swap_pair_client @ penv_to_mlang client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%V}}.
+Proof.
+  iApply wp_lang_to_mlang. iApply ML_prog_correct_axiomatic.
+Qed.
+
+Import melocoton.mlanguage.weakestpre.
+
+Notation combined_lang := (link_lang wrap_lang (lang_to_mlang ML_lang)).
+Definition linked_env : prog_environ combined_lang Σ:= {| penv_prog := fmap inl swap_pair_mod; penv_proto := λ _ _ _, ⌜False⌝%I |}.
+
+Lemma is_linkable_swap_pair : is_link_environ swap_pair_env_lifted client_env_lifted linked_env.
+Proof.
+  split.
+  - cbn. rewrite dom_empty_L. set_solver.
+  - cbn. rewrite fmap_empty  map_union_empty. done.
+  - cbn. iIntros (fn F vs Φ E H1) "%H2". done.
+  - cbn. unfold swap_pair_mod.
+    iIntros (fn F vs Φ E [<- <-]%lookup_singleton_Some).
+    iIntros "(%v1&%v2&_&->&HΦ)".
+    unfold Wrap.apply_func. iExists _. iSplitR; first done.
+    iNext. iIntros "Hbound". iApply (@wp_wand with "[Hbound]").
+    1: by iApply swap_pair_wrapped.
+    iIntros (v) "(->&Hbound)". iFrame.
+  - cbn. done.
+  - cbn. unfold swap_pair_ml_spec.
+    iIntros (fname vs Φ H1 H2) "(%&%&->&->&_)". unfold swap_pair_mod in H1.
+    rewrite lookup_singleton in H1. congruence.
+Qed.
+Import linking_wp.
+Notation link_in_state := (link_in_state wrap_lang (lang_to_mlang ML_lang)).
+
+Lemma linked_prog_correct_overall E : 
+    link_in_state In2
+ -∗ WP LkSE (Link.Expr2 swap_pair_client) @ linked_env; E {{ λ v, ⌜v = (#1,#2,#3)⌝%V ∗ link_in_state Boundary }}.
+Proof.
+  iIntros "H". iApply (wp_link_run2 with "H []").
+  1: apply is_linkable_swap_pair.
+  wp_apply wp_wand.
+  1: iApply ML_prog_correct_lifted.
+  iIntros (v) "->". cbn. done.
+Qed.
 
 End ML_prog.
 
