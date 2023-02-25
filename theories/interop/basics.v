@@ -846,6 +846,10 @@ Proof.
   + subst. f_equal. by eapply H.
 Qed.
 
+Lemma lval_in_vblock v m tg vs :
+  lval_in_block (Bvblock (m, (tg, vs))) v ↔ v ∈ vs.
+Proof. split. by inversion 1. intros; by constructor. Qed.
+
 (******************************************************************************)
 (* auxiliary hints & tactics *)
 

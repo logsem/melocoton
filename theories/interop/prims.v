@@ -23,6 +23,9 @@ Ltac inv_is_prim :=
   | H : is_prim (String _ _) _ |- _ => inversion H; subst; clear H
   end.
 
+Definition is_prim_name (s : string) : Prop :=
+  ∃ p, is_prim s p.
+
 Lemma is_prim_inj s p1 p2 :
   is_prim s p1 →
   is_prim s p2 →
@@ -35,7 +38,7 @@ Ltac is_prim_inj :=
       pose proof (is_prim_inj _ _ _ H1 H2); subst p2; clear H2
   end.
 
-Global Instance is_prim_dec s : Decision (∃ p, is_prim s p).
+Global Instance is_prim_name_dec s : Decision (is_prim_name s).
 Proof.
   destruct (decide (s = "alloc")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "registerroot")) as [->|]. left; eexists; constructor.

@@ -279,6 +279,12 @@ Proof.
   iIntros (HΦ) "H"; iApply (wp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
+Lemma wp_strong_mono_post pe E e Φ Ψ :
+  (∀ v, Φ v -∗ Ψ v) -∗ WP e @ pe; E {{ Φ }} -∗ WP e @ pe; E {{ Ψ }}.
+Proof.
+  iIntros "HΦ H"; iApply (wp_strong_mono with "H"); auto.
+  iIntros (v) "?". by iApply "HΦ".
+Qed.
 Lemma wp_pe_mono pe1 pe2 E e Φ :
   prog_environ_mono pe1 pe2 → WP e @ pe1; E {{ Φ }} ⊢ WP e @ pe2; E {{ Φ }}.
 Proof. iIntros (?) "H". iApply (wp_strong_mono with "H"); auto. Qed.

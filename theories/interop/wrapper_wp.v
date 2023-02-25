@@ -200,6 +200,15 @@ Proof.
   congruence.
 Qed.
 
+Lemma SI_at_boundary_is_in_C :
+  SI -∗ at_boundary wrap_lang -∗
+  ⌜∃ ρc mem, σ = CState ρc mem⌝.
+Proof.
+  iIntros "Hσ Hnb". destruct σ as [ρml σ' | ρc mem]; eauto.
+  iExFalso. iNamed "Hσ"; iNamed "SIML".
+  iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
+Qed.
+
 Lemma SI_not_at_boundary_is_in_ML :
   SI -∗ not_at_boundary -∗
   ⌜∃ ρml s, σ = MLState ρml s⌝.
@@ -226,6 +235,8 @@ Notation "l ↦roots{ dq } w" := (l ↪[wrapperGS_γroots_map]{dq} w)%I
   (at level 20, format "l  ↦roots{ dq }  w") : bi_scope.
 Notation "l ↦roots w" := (l ↪[wrapperGS_γroots_map] w)%I
   (at level 20, format "l  ↦roots  w") : bi_scope.
+Notation "l ↦clos ( f , x , e )" := (lstore_own_immut wrapperGS_γζvirt l (Bclosure f x e))%I
+  (at level 20, format "l  ↦clos  ( f ,  x ,  e )").
 
 Ltac SI_GC_agree :=
   iDestruct (ghost_var_agree with "GCζ SIζ") as %?;
