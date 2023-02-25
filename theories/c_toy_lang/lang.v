@@ -554,8 +554,8 @@ Inductive head_step (p : program) : expr → state → expr → state → Prop :
      (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ !! (l +ₗ i) = None) →
      head_step p (Malloc (Val $ LitV $ LitInt n)) σ
                (Val $ LitV $ LitLoc l) (state_init_heap l n Uninitialized σ)
-  | FreeS l n v σ :
-     σ !! l = Some $ (Some v) →
+  | FreeS l n σ :
+     (∀ i, (0 ≤ i)%Z → (i < n)%Z → ∃ v, σ !! (l +ₗ i) = Some $ Some v) →
      head_step p (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt n)) σ
                (Val $ LitV LitUnit) (state_init_heap l n Deallocated σ)
   | UnOpS op v v' σ :

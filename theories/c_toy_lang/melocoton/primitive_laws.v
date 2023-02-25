@@ -352,7 +352,10 @@ Lemma wp_free s E l (v:option val) :
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1 ns) "(Hσ & Hsteps) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
-  iSplit; first by eauto with head_step.
+  iSplit.
+  1: { iPureIntro. econstructor. do 2 eexists. econstructor.
+       intros i H1 H2. exists v. rewrite <- H. f_equal.
+       destruct l; cbn. unfold loc_add. f_equal. cbn. lia. }
   iIntros (e2 σ2 Hstep); inv_head_step.
   rewrite state_init_heap_singleton. iModIntro.
   iMod (gen_heap_update (σ1) l (Some v) Deallocated with "Hσ Hl") as "[$ Hl]".

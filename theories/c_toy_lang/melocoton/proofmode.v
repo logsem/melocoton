@@ -229,6 +229,23 @@ Proof.
   apply later_mono, sep_mono_r, wand_intro_r. rewrite right_id //.
 Qed.
 
+
+Lemma tac_wp_freeN Δ Δ' s E i K l (v:list $ option val) z Φ :
+  z = Z.of_nat (length v) →
+  MaybeIntoLaterNEnvs 1 Δ Δ' →
+  envs_lookup i Δ' = Some (false, l ↦∗ v)%I →
+  (let Δ'' := envs_delete false i false Δ' in
+   envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})) →
+  envs_entails Δ (WP fill K (Free (LitV l) (Val (LitV (LitInt z)))) @ s; E {{ Φ }}).
+Proof.
+  intros ->.
+  rewrite envs_entails_unseal=> ? Hlk Hfin.
+  rewrite -wp_bind. eapply wand_apply; first apply wp_free_array.
+  rewrite into_laterN_env_sound -later_sep envs_lookup_split //; simpl.
+  rewrite -Hfin wand_elim_r (envs_lookup_sound' _ _ _ _ _ Hlk).
+  apply later_mono, sep_mono_r, wand_intro_r. rewrite right_id //.
+Qed.
+
 Lemma tac_wp_load Δ Δ' s E i K b l q v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (b, l ↦C{q} v)%I →
@@ -499,14 +516,7 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
     | _ => iDestructHyp Htmp as H; wp_finish
     end in
   wp_pures;
-  (** The code first tries to use allocation lemma for a single reference,
-     ie, [tac_wp_alloc] (respectively, [tac_twp_alloc]).
-     If that fails, it tries to use the lemma [tac_wp_allocN]
-     (respectively, [tac_twp_allocN]) for allocating an array.
-     Notice that we could have used the array allocation lemma also for single
-     references. However, that would produce the resource l ↦∗ [v] instead of
-     l ↦ v for single references. These are logically equivalent assertions
-     but are not equal. *)
+  (** The code always allocates arrays *)
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let process_array _ :=
@@ -526,15 +536,23 @@ Tactic Notation "wp_free" :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l I↦{_} _)%I) => l end in
     iAssumptionCore || fail "wp_free: cannot find" l "I↦ ?" in
+  let solve_array_mapsto _ :=
+    let l := match goal with |- _ = Some (_, (?l ↦∗{_} _)%I) => l end in
+    iAssumptionCore || fail "wp_free: cannot find" l "↦∗ ?" in
   wp_pures;
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     first
-      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ _ K))
-      |fail 1 "wp_free: cannot find 'Free' in" e];
-    [iSolveTC
-    |solve_mapsto ()
-    |pm_reduce; wp_finish]
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ _ K));
+        [iSolveTC
+        |solve_mapsto ()
+        |pm_reduce; wp_finish]
+      |reshape_expr e ltac:(fun K e' => eapply (tac_wp_freeN _ _ _ _ _ K));
+        [idtac
+        |iSolveTC
+        |solve_array_mapsto ()
+        |pm_reduce; wp_finish]; [try done|idtac]
+      |fail 1 "wp_free: cannot find 'Free' in" e]
   | _ => fail "wp_free: not a 'wp'"
   end.
 

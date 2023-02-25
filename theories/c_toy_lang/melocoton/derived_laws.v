@@ -8,7 +8,7 @@ From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Export melocoton.primitive_laws.
-From melocoton.c_toy_lang Require Import tactics melocoton.tactics notation.
+From melocoton.c_toy_lang Require Import tactics melocoton.tactics notation melocoton.primitive_laws.
 From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [mapsto] that works
@@ -167,6 +167,46 @@ Proof.
   setoid_rewrite vec_to_list_insert. apply wp_store_offset.
   eexists. by apply vlookup_lookup.
 Qed.
+
+
+Lemma wp_free_array s E l vs :
+  {{{ ▷ l ↦∗ vs }}} free (#l, #(Z.of_nat (length vs))) @ s; E {{{ RET LitV LitUnit; True }}}.
+Proof.
+  iIntros (Φ) ">Hl HΦ".
+  iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
+  iIntros (σ1 ns) "(Hσ & Hsteps) !>".
+  iAssert (⌜∀ i : Z, (0 ≤ i)%Z → (i < length vs)%Z → ∃ v0, σ1 !! (l +ₗ i) = Some (Some v0)⌝)%I as "%Halloc".
+  1: { iIntros (i H1 H2). destruct (vs !! (Z.to_nat i)) as [vv|] eqn:Heq.
+       2: { apply lookup_ge_None_1 in Heq. lia. }
+       iPoseProof (big_sepL_lookup_acc with "Hl") as "(Hpto&Hl)". 1: apply Heq.
+       iDestruct (gen_heap_valid with "Hσ Hpto") as %?.
+       iPureIntro. exists vv. rewrite <- H. do 2 f_equal. lia. }
+  iSplit.
+  1: { iPureIntro. econstructor. do 2 eexists. econstructor. done. }
+  iIntros (e2 σ2 Hstep); inv_head_step. iModIntro.
+  iMod (primitive_laws.steps_auth_update_S with "Hsteps") as "Hsteps".
+  iFrame.
+  iSplitL.
+  2: { iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ". }
+  clear H5 Halloc.
+  iInduction vs as [|vh vr] "IH" forall (l σ1).
+  - iModIntro. cbn. unfold state_init_heap, state_upd_heap.
+    change (Z.to_nat 0%nat) with 0. cbn. rewrite map_empty_union. iFrame.
+  - cbn. iDestruct "Hl" as "(Hpto&Hl)". destruct l as [l].
+    unfold loc_add. cbn.
+    iMod ("IH" $! (Loc (l + 1)) with "[Hl] Hσ") as "Hσ".
+    1: { iApply (big_sepL_impl with "Hl").
+         iIntros "!> %k %x %H1 H2". unfold loc_add. cbn.
+         replace (l + 1 + k)%Z with (l + S k)%Z by lia. done. }
+    replace (l + 0%nat)%Z with l by lia.
+    iMod (gen_heap_update _ (Loc l) _ Deallocated with "Hσ Hpto") as "[Hσ Hpto]".
+    iModIntro. unfold state_init_heap, state_upd_heap.
+    rewrite insert_union_l !Nat2Z.id.
+    cbn. rewrite insert_union_singleton_l.
+    unfold loc_add. cbn. done.
+Qed.
+
+
 (*
 Lemma twp_xchg_offset s E l off vs v v' :
   vs !! off = Some v →
