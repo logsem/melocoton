@@ -103,30 +103,39 @@ Section Linking.
 
   Implicit Types X : expr * state → Prop.
 
+  (* TODO: Double-check that angelic and demonic nondeterminism and NB and UB are appropiate *)
   Inductive head_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (* Internal step of an underlying module. *)
   | Step1S e1 σ1 privσ2 (X1 : _ → Prop) X :
     prim_step (proj1_prog p) (e1, σ1) X1 →
+    (* Unresolved external calls are UB. Instead, we block reduction on such calls here *)
+    (∀ K fn_name arg, e1 = mlanguage.fill K (mlanguage.of_class _ (commons.ExprCall fn_name arg)) →
+                      proj1_prog p !! fn_name = None → False) →
     (∀ e1' σ1', X1 (e1', σ1') → X (LkSE (Expr1 e1'), St1 σ1' privσ2)) →
     head_step_mrel p (LkSE (Expr1 e1), St1 σ1 privσ2) X
   | Step2S e2 σ2 privσ1 (X2 : _ → Prop) X :
     prim_step (proj2_prog p) (e2, σ2) X2 →
+    (∀ K fn_name arg, e2 = mlanguage.fill K (mlanguage.of_class _ (commons.ExprCall fn_name arg)) →
+                    proj2_prog p !! fn_name = None → False) →
     (∀ e2' σ2', X2 (e2', σ2') → X (LkSE (Expr2 e2'), St2 privσ1 σ2')) →
     head_step_mrel p (LkSE (Expr2 e2), St2 privσ1 σ2) X
   (* Entering a function. Change the view of the heap in the process. *)
-  | RunFunction1S σ1 pubσ privσ1 privσ2 fn1 args e1 X :
-    mlanguage.apply_func fn1 args = Some e1 →
-    linking.split_state σ1 pubσ privσ1 →
-    X (LkSE (Expr1 e1), St1 σ1 privσ2) →
+  | RunFunction1S pubσ privσ1 privσ2 fn1 args X :
+    (* Angelically merged state and assert that fn1 is applicable to the arguments *)
+    (* If state can not be merged or fn1 not be applied, we have UB *)
+    (∀ e1 σ1, mlanguage.apply_func fn1 args = Some e1 →
+              linking.split_state σ1 pubσ privσ1 →
+              X (LkSE (Expr1 e1), St1 σ1 privσ2)) →
     head_step_mrel p (LkSE (RunFunction (inl fn1) args), St pubσ privσ1 privσ2) X
-  | RunFunction2S σ2 pubσ privσ1 privσ2 fn2 arg e2 X :
-    mlanguage.apply_func fn2 arg = Some e2 →
-    linking.split_state σ2 pubσ privσ2 →
-    X (LkSE (Expr2 e2), St2 privσ1 σ2) →
+  | RunFunction2S pubσ privσ1 privσ2 fn2 arg X :
+    (∀ e2 σ2, mlanguage.apply_func fn2 arg = Some e2 →
+              linking.split_state σ2 pubσ privσ2 →
+              X (LkSE (Expr2 e2), St2 privσ1 σ2)) →
     head_step_mrel p (LkSE (RunFunction (inr fn2) arg), St pubσ privσ1 privσ2) X
   (* Producing a value when execution is finished *)
   | Val1S e1 v σ1 pubσ privσ1 privσ2 X :
     to_val e1 = Some v →
+    (* State is split demonically. If state can not be split, this is NB *)
     linking.split_state σ1 pubσ privσ1 →
     X (LkSE (ExprV v), St pubσ privσ1 privσ2) →
     head_step_mrel p (LkSE (Expr1 e1), St1 σ1 privσ2) X
@@ -136,13 +145,14 @@ Section Linking.
     X (LkSE (ExprV v), St pubσ privσ1 privσ2) →
     head_step_mrel p (LkSE (Expr2 e2), St2 privσ1 σ2) X
   (* Continuing execution by returning a value to its caller *)
-  | Ret1S v k1 σ1 pubσ privσ1 privσ2 X :
-    linking.split_state σ1 pubσ privσ1 →
-    X (LkSE (Expr1 (mlanguage.fill k1 (of_val Λ1 v))), St1 σ1 privσ2) →
+  | Ret1S v k1 pubσ privσ1 privσ2 X :
+    (* Merging states is angelic (see above) *)
+    (∀ σ1, linking.split_state σ1 pubσ privσ1 →
+           X (LkSE (Expr1 (mlanguage.fill k1 (of_val Λ1 v))), St1 σ1 privσ2)) →
     head_step_mrel p (LkE (ExprV v) [inl k1], St pubσ privσ1 privσ2) X
-  | Ret2S v k2 σ2 pubσ privσ1 privσ2 X :
-    linking.split_state σ2 pubσ privσ2 →
-    X (LkSE (Expr2 (mlanguage.fill k2 (of_val Λ2 v))), St2 privσ1 σ2) →
+  | Ret2S v k2 pubσ privσ1 privσ2 X :
+    (∀ σ2, linking.split_state σ2 pubσ privσ2 →
+           X (LkSE (Expr2 (mlanguage.fill k2 (of_val Λ2 v))), St2 privσ1 σ2)) →
     head_step_mrel p (LkE (ExprV v) [inr k2], St pubσ privσ1 privσ2) X
   (* Stuck module calls bubble up as calls at the level of the linking module.
      (They may get unstuck then, if they match a function implemented by the
@@ -160,9 +170,10 @@ Section Linking.
     X (LkE (ExprCall fn_name arg) [inr k2], St pubσ privσ1 privσ2) →
     head_step_mrel p (LkSE (Expr2 (mlanguage.fill k2 e2)), St2 privσ1 σ2) X
   (* Resolve an internal call to a module function *)
-  | CallS fn_name fn arg σ X :
-    p !! fn_name = Some fn →
-    X (LkSE (RunFunction fn arg), σ) →
+  | CallS fn_name arg σ X :
+    (* Again, stuck calls cause UB *)
+    (∀ fn, p !! fn_name = Some fn →
+           X (LkSE (RunFunction fn arg), σ)) →
     head_step_mrel p (LkSE (ExprCall fn_name arg), σ) X.
 
   Program Definition head_step (p : prog) : umrel (expr * state) :=
@@ -184,9 +195,10 @@ Section Linking.
       1,2: destruct k. all: inversion 1; cbn; auto.
     - intros p v σ X. cbn. inversion 1.
     - intros p fn_name v σ X. split.
-      + cbn. inversion 1; subst; naive_solver.
-      + intros (fn & e2 & (? & Hfn & HX)). cbn.
-        unfold apply_func in Hfn; simplify_eq. econstructor; eauto.
+      + cbn. inversion 1; subst. intros fn' e H4' H5'.
+        unfold apply_func in H5'. simplify_eq. apply H4. done.
+      + intros H. cbn. unfold apply_func in H. econstructor. intros fn Heq.
+        eapply H; done.
     - intros ? ? [? ?] ? ?. rewrite /fill /=. intros. simplify_eq/=; eauto.
     - intros [e k]. rewrite /fill /empty_ectx app_nil_r //.
     - intros K1 K2 [e k]. rewrite /fill /comp_ectx app_assoc //.

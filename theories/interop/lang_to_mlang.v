@@ -10,16 +10,27 @@ Section ToMlang.
 
   Local Notation prog := (gmap string Λ.(func)).
   Local Notation expr_state := ((Λ.(expr) * Λ.(state)))%type.
+
+  Inductive may_block : Λ.(expr) → Prop := 
+    BlockOnVal v : may_block (Λ.(of_class) (ExprVal v)).
+
   Inductive head_step_mrel : prog -> expr_state -> (expr_state->Prop) -> Prop := 
-    wrap p e1 σ1 e2 σ2 (Y : _ → Prop) : Λ.(head_step) p e1 σ1 e2 σ2 [] → 
-    (forall e2' σ2', e2 = e2' ∧ σ2 = σ2' → Y (e2', σ2')) → head_step_mrel p (e1,σ1) Y.
+    WrapLiftS p e1 σ1 e2 σ2 (Y : _ → Prop) : 
+        Λ.(head_step) p e1 σ1 e2 σ2 [] → 
+        (Y (e2, σ2)) →
+        head_step_mrel p (e1,σ1) Y
+    (* Not reducing when not a value is UB *)
+  | WrapStuckS p e σ Y :
+        (¬ reducible_no_threads p e σ) →
+        (¬ may_block e) →
+        head_step_mrel p (e,σ) Y.
 
   Program Definition head_step (p : prog) : umrel (expr_state) :=
     {| mrel := head_step_mrel p |}.
   Next Obligation.
     intros p. intros [e1 σ1] X Y Hstep HXY. inversion Hstep; subst.
-    eapply (wrap p e1 σ1 e2 σ2); first done. intros ? ? (<- & <-).
-    apply HXY, H4. done.
+    + eapply (WrapLiftS p e1 σ1 e2 σ2 Y); first done. by apply HXY. 
+    + eapply WrapStuckS; done.
   Qed.
 
   Lemma language_mlanguage_mixin :
