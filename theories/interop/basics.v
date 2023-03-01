@@ -825,6 +825,17 @@ Proof.
     * rewrite lookup_insert_ne in H2; last done. by eapply HR.
 Qed.
 
+Lemma freeze_lstore_lookup_bclosure ζ ζ' γ f x e :
+  freeze_lstore ζ ζ' →
+  ζ' !! γ = Some (Bclosure f x e) →
+  ζ !! γ = Some (Bclosure f x e).
+Proof.
+  intros [HL HR] Hγ.
+  destruct (ζ !! γ) eqn:Hγ'.
+  2: { apply elem_of_dom_2 in Hγ. apply not_elem_of_dom in Hγ'. congruence. }
+  specialize (HR _ _ _ Hγ' Hγ). by inversion HR.
+Qed.
+
 Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.
 Proof.
   induction 1.

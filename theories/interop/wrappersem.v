@@ -24,7 +24,7 @@ Inductive simple_expr : Type :=
   (* Execution of wrapped ML code *)
   | ExprML (eml : ML_lang.expr).
 
-Definition ectx := language.ectx ML_lang.
+Definition ectx := list (language.ectx ML_lang).
 
 Inductive expr : Type :=
   WrE (se: simple_expr) (k: ectx).
@@ -265,12 +265,12 @@ Inductive head_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     language.to_class eml = Some (commons.ExprCall fn_name vs) →
     p !! fn_name = None →
     ml_to_c vs ρml σ ws ρc mem →
-    X (WrE (ExprCall fn_name ws) k, CState ρc mem) →
+    X (WrE (ExprCall fn_name ws) [k], CState ρc mem) →
     head_step_mrel p (WrSE (ExprML (language.fill k eml)), MLState ρml σ) X
   (* Given a C value (result of a C extcall), resume execution into ML code. *)
   | RetS w ki ρc mem X :
     c_to_ml w ρc mem (λ v ρml σ,
-      X (WrSE (ExprML (language.fill [ki] (of_val v))), MLState ρml σ)) →
+      X (WrSE (ExprML (language.fill ki (of_val v))), MLState ρml σ)) →
     head_step_mrel p (WrE (ExprV w) [ki], CState ρc mem) X
   (* Execution finishes with an ML value, translate it into a C value *)
   | ValS eml ρml σ v w ρc mem X :
@@ -328,8 +328,9 @@ Proof using.
   - intros K [e k]. unfold fill. intros Hsome.
     destruct (decide (K = [])). by left. exfalso.
     assert (k ++ K ≠ []). { intros [? ?]%app_eq_nil. done. }
-    cbn in Hsome. destruct (k ++ K) eqn:?.
-    2: destruct e; by inversion Hsome. by destruct e.
+    cbn in Hsome. destruct (k ++ K) eqn:Heqk; first done.
+    destruct e; simplify_eq; rewrite ?Heqk in Hsome;
+      by eapply is_Some_None.
   - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ X.
     rewrite /fill. inversion 1; subst.
     destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.

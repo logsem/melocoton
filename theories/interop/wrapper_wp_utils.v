@@ -11,15 +11,12 @@ From melocoton Require Import big_sepM_limited.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import linking_wp basics wrapper_wp wrapper_wp_block_sim.
+From melocoton.interop Require Import linking_wp basics prims wrapper_wp wrapper_wp_block_sim.
 Import Wrap.
 
 
 Global Notation MLval := ML_lang.val.
 Global Notation Cval := C_lang.val.
-
-Definition forbidden_function_names : list string :=
-  ["alloc"; "registerroot"; "unregisterroot"; "modify"; "readfield"; "int2val"; "val2int"].
 
 
 Section Utils.
@@ -35,76 +32,121 @@ Import mlanguage.
 Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ _ Σ).
 Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang Σ).
 
-Notation spec := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+(* TODO: auxiliary definition? *)
+Notation prim_proto := (prim -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+Notation C_proto := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+Notation ML_proto := (string -d> list MLval -d> (MLval -d> iPropO Σ) -d> iPropO Σ).
 
-Definition WP_int2val_spec : spec := (λ n vl wp,
+(* TODO: move *)
+Definition wrap_proto (T : ML_proto) : C_proto := (λ f ws Φ,
+  ∃ θ vs lvs ψ,
+    "HGC" ∷ GC θ ∗
+    "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
+    "Hsim" ∷ block_sim_arr vs lvs ∗
+    "Hproto" ∷ T f vs ψ ∗
+    "Cont" ∷ (∀ θ' vret lvret wret,
+      GC θ' -∗
+      ψ vret -∗
+      block_sim vret lvret -∗
+      ⌜repr_lval θ' lvret wret⌝ -∗
+      Φ wret)
+)%I.
+
+Definition wrap_penv (pe : prog_environ ML_lang Σ) :
+  mlanguage.weakestpre.prog_environ wrap_lang Σ
+:=
+  {| weakestpre.penv_prog := prims_prog;
+     weakestpre.penv_proto := wrap_proto (penv_proto pe) |}.
+
+Definition proto_int2val : prim_proto := (λ p vl Φ,
    ∃ θ z,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "int2val"⌝ ∗
+     "->" ∷ ⌜p = Pint2val⌝ ∗
      "->" ∷ ⌜vl = [C_lang.LitV $ C_lang.LitInt $ z]⌝ ∗
-     "HWP" ∷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ wp w))%I.
+     "Cont" ∷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ Φ w))%I.
 
-Definition WP_val2int_spec : spec := (λ n vl wp,
+Definition proto_val2int : prim_proto := (λ p vl Φ,
    ∃ θ w z,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "val2int"⌝ ∗
+     "->" ∷ ⌜p = Pval2int⌝ ∗
      "->" ∷ ⌜vl = [ w ]⌝ ∗
      "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ ∗
-     "HWP" ∷ (GC θ -∗ wp (C_lang.LitV $ C_lang.LitInt $ z)))%I.
+     "Cont" ∷ (GC θ -∗ Φ (C_lang.LitV $ C_lang.LitInt $ z)))%I.
 
-Definition WP_registerroot_spec : spec := (λ n vl wp,
+Definition proto_registerroot : prim_proto := (λ p vl Φ,
    ∃ θ l v w,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "registerroot"⌝ ∗
+     "->" ∷ ⌜p = Pregisterroot⌝ ∗
      "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦C w ∗
      "%Hrepr" ∷ ⌜repr_lval θ v w⌝ ∗
-     "HWP" ∷ (GC θ -∗ l ↦roots v -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+     "Cont" ∷ (GC θ -∗ l ↦roots v -∗ Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
-Definition WP_unregisterroot_spec : spec := (λ n vl wp,
+Definition proto_unregisterroot : prim_proto := (λ p vl Φ,
    ∃ θ l v,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "unregisterroot"⌝ ∗
+     "->" ∷ ⌜p = Punregisterroot⌝ ∗
      "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦roots v ∗
-     "HWP" ∷ (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+     "Cont" ∷ (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
-Definition WP_modify_spec : spec := (λ n vl wp,
+Definition proto_modify : prim_proto := (λ p vl Φ,
   ∃ θ w i v' w' γ tg vs,
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜n = "modify"⌝ ∗
+    "->" ∷ ⌜p = Pmodify⌝ ∗
     "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i; w' ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
     "Hpto" ∷ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Bvblock (Mut, (tg, vs))) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ v' w'⌝ ∗
     "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
     "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
-    "HWP" ∷ (GC θ -∗
-             lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Bvblock (Mut, (tg, <[Z.to_nat i:=v']> vs))) -∗
-             wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+    "Cont" ∷ (GC θ -∗
+              lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Bvblock (Mut, (tg, <[Z.to_nat i:=v']> vs))) -∗
+              Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
-Definition WP_readfield_spec : spec := (λ n vl wp,
+Definition proto_readfield : prim_proto := (λ p vl Φ,
    ∃ θ w i γ dq m tg vs,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "readfield"⌝ ∗
+     "->" ∷ ⌜p = Preadfield⌝ ∗
      "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
      "Hpto" ∷ lstore_own_elem wrapperGS_γζvirt γ dq (Bvblock (m, (tg, vs))) ∗
      "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
      "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
-     "HWP" ∷ (∀ v' w', GC θ -∗
-                       lstore_own_elem wrapperGS_γζvirt γ dq (Bvblock (m, (tg, vs))) -∗
-                       ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗
-                       ⌜repr_lval θ v' w'⌝ -∗
-                       wp w'))%I.
+     "Cont" ∷ (∀ v' w', GC θ -∗
+                        lstore_own_elem wrapperGS_γζvirt γ dq (Bvblock (m, (tg, vs))) -∗
+                        ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗
+                        ⌜repr_lval θ v' w'⌝ -∗
+                        Φ w'))%I.
 
+Definition proto_callback (pe : prog_environ ML_lang Σ) (E : coPset) : prim_proto := (λ p vl Φ,
+  ∃ θ w γ w' lv' v' f x e ψ,
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜p = Pcallback⌝ ∗
+    "->" ∷ ⌜vl = [ w; w' ]⌝ ∗
+    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+    "Hclos" ∷ γ ↦clos (f, x, e) ∗
+    "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
+    "Hsim'" ∷ block_sim v' lv' ∗
+    "WPcallback" ∷ WP (App (Val (RecV f x e)) (Val v')) @ pe; E {{ ψ }} ∗
+    "Cont" ∷ (∀ θ' vret lvret wret,
+                GC θ' -∗
+                ψ vret -∗
+                block_sim vret lvret -∗
+                ⌜repr_lval θ' lvret wret⌝ -∗
+                Φ wret))%I.
 
-Definition WP_ext_call_spec : spec := (λ n vl wp,
-    WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp ∨ WP_registerroot_spec n vl wp ∨ WP_unregisterroot_spec n vl wp
-  ∨ WP_modify_spec n vl wp ∨ WP_readfield_spec n vl wp)%I.
+(* non-callbacks primitives *)
+Definition proto_base_prims : prim_proto := (λ p vl Φ,
+    proto_int2val p vl Φ ∨ proto_val2int p vl Φ ∨ proto_registerroot p vl Φ ∨ proto_unregisterroot p vl Φ
+  ∨ proto_modify p vl Φ ∨ proto_readfield p vl Φ)%I.
 
+Definition proto_prims pe E : prim_proto := (λ p vl Φ,
+  proto_base_prims p vl Φ ∨ proto_callback pe E p vl Φ)%I.
+
+(*
 Lemma WP_ext_call_sound s v2 T : WP_ext_call_spec s v2 T -∗ ⌜s ∈ forbidden_function_names⌝.
 Proof.
   iIntros "[H|[H|[H|[H|[H|H]]]]]";
@@ -113,8 +155,9 @@ Proof.
   iNamed "H"; iPureIntro; unfold forbidden_function_names;
   repeat (try done; try left; right).
 Qed.
+*)
 
-Notation wrap_return := (fun Φ (a:Cval) => (∃ θ' l v, GC θ' ∗ Φ v ∗ ⌜repr_lval θ' l a⌝ ∗ block_sim v l)%I).
+(* Notation wrap_return := (fun Φ (a:Cval) => (∃ θ' l v, GC θ' ∗ Φ v ∗ ⌜repr_lval θ' l a⌝ ∗ block_sim v l)%I). *)
 
 Section RootsRepr.
 
@@ -781,53 +824,53 @@ Implicit Type (p : language.prog C_lang).
 
 Notation fillCCall K s vv := (language.fill K (language.of_class C_lang (ExprCall s vv))).
 
-Lemma call_no_StepCS vv p s K mem ec' mem' T :
-  p !! s = None →
-  ~ (language.language.prim_step p (fillCCall K s vv) mem ec' mem' T).
-Proof.
-  intros Hno H4.
-  eapply prim_step_inv in H4.
-  destruct H4 as (K' & e1' & e2' & Heq1 & Heq2 & Hhead).
-  subst ec'. symmetry in Heq1. epose proof Heq1 as Heq2.
-  eapply (language.call_in_ctx K' K e1' s vv) in Heq1 as [(K'' & ->)|(v & <-)].
-  2: eapply language.val_head_step, Hhead.
-  rewrite <- language.fill_comp in Heq2.
-  eapply language.fill_inj in Heq2. subst e1'. epose proof Hhead as Hhead2.
-  eapply language.head_ctx_step_val in Hhead as [H|[x H]]. 2: apply language.language.of_to_val in H; cbn in H; done.
-  subst K''. rewrite language.fill_empty in Hhead2.
-  eapply (language.call_head_step p s vv) in Hhead2 as (fn & Hne & _).
-  cbn in Hno. rewrite Hno in Hne. congruence.
-Qed.
+(* Lemma call_no_StepCS vv p s K mem ec' mem' T : *)
+(*   p !! s = None → *)
+(*   ~ (language.language.prim_step p (fillCCall K s vv) mem ec' mem' T). *)
+(* Proof. *)
+(*   intros Hno H4. *)
+(*   eapply prim_step_inv in H4. *)
+(*   destruct H4 as (K' & e1' & e2' & Heq1 & Heq2 & Hhead). *)
+(*   subst ec'. symmetry in Heq1. epose proof Heq1 as Heq2. *)
+(*   eapply (language.call_in_ctx K' K e1' s vv) in Heq1 as [(K'' & ->)|(v & <-)]. *)
+(*   2: eapply language.val_head_step, Hhead. *)
+(*   rewrite <- language.fill_comp in Heq2. *)
+(*   eapply language.fill_inj in Heq2. subst e1'. epose proof Hhead as Hhead2. *)
+(*   eapply language.head_ctx_step_val in Hhead as [H|[x H]]. 2: apply language.language.of_to_val in H; cbn in H; done. *)
+(*   subst K''. rewrite language.fill_empty in Hhead2. *)
+(*   eapply (language.call_head_step p s vv) in Hhead2 as (fn & Hne & _). *)
+(*   cbn in Hno. rewrite Hno in Hne. congruence. *)
+(* Qed. *)
 
 
-Lemma call_no_RetS vv p s K r :
-  p !! s = None →
-  ~ (C_lang.to_val (fillCCall K s vv) = Some r).
-Proof.
-  intros Hno H4%C_lang.of_to_val.
-  edestruct (language.fill_class K) as [-> | [v Hv]].
-  - exists (ExprVal r); erewrite <- H4; done.
-  - cbn in H4. congruence.
-  - unfold language.language.to_val in Hv. by rewrite language.to_of_class in Hv.
-Qed.
+(* Lemma call_no_RetS vv p s K r : *)
+(*   p !! s = None → *)
+(*   ~ (C_lang.to_val (fillCCall K s vv) = Some r). *)
+(* Proof. *)
+(*   intros Hno H4%C_lang.of_to_val. *)
+(*   edestruct (language.fill_class K) as [-> | [v Hv]]. *)
+(*   - exists (ExprVal r); erewrite <- H4; done. *)
+(*   - cbn in H4. congruence. *)
+(*   - unfold language.language.to_val in Hv. by rewrite language.to_of_class in Hv. *)
+(* Qed. *)
 
-Lemma call_inversion vv p s K K' ec s' vv' :
-  p !! s = None →
-  language.fill K' ec = fillCCall K s vv →
-  language.to_call ec = Some (s', vv')
-  → s' = s ∧ vv' = vv ∧ K' = K.
-Proof.
-  intros H1 H2 H3. epose proof H2 as H2'.
-  eapply language.call_in_ctx in H2' as [(K'' & ->)|(v & Hv)].
-  - rewrite <- language.fill_comp in H2. apply language.fill_inj in H2.
-    subst ec. unfold language.to_call in H3.
-    edestruct (language.to_class) as [[|]|] eqn:Heq; try congruence.
-    edestruct (language.fill_class' K'') as [->|[v Hv]]; first by eexists.
-    2: rewrite language.to_of_class in Hv; done.
-    cbn in Heq. rewrite c_toy_lang.melocoton.lang_instantiation.map_unmap_val in Heq.
-    split_and!; cbn; congruence.
-  - subst ec. cbn in H3. done.
-Qed.
+(* Lemma call_inversion vv p s K K' ec s' vv' : *)
+(*   p !! s = None → *)
+(*   language.fill K' ec = fillCCall K s vv → *)
+(*   language.to_call ec = Some (s', vv') *)
+(*   → s' = s ∧ vv' = vv ∧ K' = K. *)
+(* Proof. *)
+(*   intros H1 H2 H3. epose proof H2 as H2'. *)
+(*   eapply language.call_in_ctx in H2' as [(K'' & ->)|(v & Hv)]. *)
+(*   - rewrite <- language.fill_comp in H2. apply language.fill_inj in H2. *)
+(*     subst ec. unfold language.to_call in H3. *)
+(*     edestruct (language.to_class) as [[|]|] eqn:Heq; try congruence. *)
+(*     edestruct (language.fill_class' K'') as [->|[v Hv]]; first by eexists. *)
+(*     2: rewrite language.to_of_class in Hv; done. *)
+(*     cbn in Heq. rewrite c_toy_lang.melocoton.lang_instantiation.map_unmap_val in Heq. *)
+(*     split_and!; cbn; congruence. *)
+(*   - subst ec. cbn in H3. done. *)
+(* Qed. *)
 
 End CallFacts.
 

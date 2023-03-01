@@ -63,7 +63,7 @@ Definition prims_prog : gmap string prim :=
       ("callback", Pcallback)
   ].
 
-Lemma lookup_prims_prog s p :
+Lemma lookup_prims_prog_Some s p :
   prims_prog !! s = Some p ↔ is_prim s p.
 Proof.
   rewrite /prims_prog /=. split.
@@ -78,4 +78,15 @@ Proof.
     destruct (decide (s = "callback")) as [->|]; simplify_map_eq; first constructor.
   }
   { inversion 1; by simplify_map_eq. }
+Qed.
+
+Lemma lookup_prims_prog_None s :
+  prims_prog !! s = None ↔ ¬ is_prim_name s.
+Proof.
+  destruct (decide (is_prim_name s)) as [[p Hp]|].
+  { destruct (prims_prog !! s) eqn:HH; split; intros; try done.
+    { exfalso; firstorder. }
+    { apply lookup_prims_prog_Some in Hp. congruence. } }
+  { destruct (prims_prog !! s) eqn:HH; split; intros; try done.
+    { apply lookup_prims_prog_Some in HH. firstorder. } }
 Qed.
