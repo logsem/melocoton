@@ -275,43 +275,4 @@ Proof.
     iApply ("Cont" with "[$] [$] [$]"); eauto. }
 Qed.
 
-(*
-Lemma run_function_correct F (vv : list ML_lang.val) T E Φ:
-    ⌜arity F = length vv⌝
- -∗ at_boundary _
- -∗ (∀ θ ll aa ec,
-       GC θ
-    -∗ ⌜C_lang.apply_function F aa = Some ec⌝
-    -∗ ⌜Forall2 (repr_lval θ) ll aa⌝
-    -∗ block_sim_arr vv ll
-    -∗ WP ec @ (mkPeC p WP_ext_call_spec); E {{a, wrap_return Φ a }})
- -∗ WP RunFunction F vv @ (mkPeW (p : prog wrap_lang) T); E {{ v, Φ v ∗ at_boundary _}}.
-Proof.
-  iIntros "%Harity Hb Hwp".
-  rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros (σ) "Hσ".
-  unfold at_boundary; cbn. destruct σ as [ρml σ | ? ?].
-  2: {iExFalso. iNamed "Hσ"; iNamed "SIC". iPoseProof (ghost_var_agree with "Hb SIbound") as "%Heq". congruence. }
-  iModIntro. iRight. iRight.
-  iSplit.
-  + iNamed "Hσ". iNamed "SIML".
-    iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as %Hpublocs.
-    iPureIntro. exists (fun _ => True). eapply mlanguage.head_prim_step. cbn.
-    destruct (ml_to_c_exists vv ρml σ) as (ws & ρc & mem & Hml_to_c); eauto.
-    destruct (apply_function_arity F ws) as (HL&_); destruct HL as (ec&Hec).
-    { rewrite Harity. eapply ml_to_c_words_length; eauto. }
-    eapply RunFunctionS; eauto.
-  + iIntros (X Hstep).
-    destruct Hstep as ([] & e1 & Heq & Hstep).
-    cbv in Heq; subst e1.
-    inversion Hstep.
-    cbv [fill Wrap.fill wrap_lang] in *. simplify_eq.
-    iMod (wrap_interp_ml_to_c with "Hσ [$]") as "(Hσ & Hnb & HGC & (%lvs & #Hblk & %))";
-      first done.
-    do 3 iModIntro. do 2 iExists _. iSplit; first by iPureIntro. iFrame "Hσ".
-    iApply (wp_simulates with "Hnb").
-    iApply ("Hwp" with "HGC [%] [%] [$]"); eauto.
-Qed.
-*)
-
 End Simulation.

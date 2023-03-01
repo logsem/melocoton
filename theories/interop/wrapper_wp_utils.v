@@ -960,63 +960,6 @@ Qed.
 
 End ThetaConstruction.
 
-Section CallFacts.
-
-
-Implicit Type (p : language.prog C_lang).
-
-Notation fillCCall K s vv := (language.fill K (language.of_class C_lang (ExprCall s vv))).
-
-(* Lemma call_no_StepCS vv p s K mem ec' mem' T : *)
-(*   p !! s = None → *)
-(*   ~ (language.language.prim_step p (fillCCall K s vv) mem ec' mem' T). *)
-(* Proof. *)
-(*   intros Hno H4. *)
-(*   eapply prim_step_inv in H4. *)
-(*   destruct H4 as (K' & e1' & e2' & Heq1 & Heq2 & Hhead). *)
-(*   subst ec'. symmetry in Heq1. epose proof Heq1 as Heq2. *)
-(*   eapply (language.call_in_ctx K' K e1' s vv) in Heq1 as [(K'' & ->)|(v & <-)]. *)
-(*   2: eapply language.val_head_step, Hhead. *)
-(*   rewrite <- language.fill_comp in Heq2. *)
-(*   eapply language.fill_inj in Heq2. subst e1'. epose proof Hhead as Hhead2. *)
-(*   eapply language.head_ctx_step_val in Hhead as [H|[x H]]. 2: apply language.language.of_to_val in H; cbn in H; done. *)
-(*   subst K''. rewrite language.fill_empty in Hhead2. *)
-(*   eapply (language.call_head_step p s vv) in Hhead2 as (fn & Hne & _). *)
-(*   cbn in Hno. rewrite Hno in Hne. congruence. *)
-(* Qed. *)
-
-
-(* Lemma call_no_RetS vv p s K r : *)
-(*   p !! s = None → *)
-(*   ~ (C_lang.to_val (fillCCall K s vv) = Some r). *)
-(* Proof. *)
-(*   intros Hno H4%C_lang.of_to_val. *)
-(*   edestruct (language.fill_class K) as [-> | [v Hv]]. *)
-(*   - exists (ExprVal r); erewrite <- H4; done. *)
-(*   - cbn in H4. congruence. *)
-(*   - unfold language.language.to_val in Hv. by rewrite language.to_of_class in Hv. *)
-(* Qed. *)
-
-(* Lemma call_inversion vv p s K K' ec s' vv' : *)
-(*   p !! s = None → *)
-(*   language.fill K' ec = fillCCall K s vv → *)
-(*   language.to_call ec = Some (s', vv') *)
-(*   → s' = s ∧ vv' = vv ∧ K' = K. *)
-(* Proof. *)
-(*   intros H1 H2 H3. epose proof H2 as H2'. *)
-(*   eapply language.call_in_ctx in H2' as [(K'' & ->)|(v & Hv)]. *)
-(*   - rewrite <- language.fill_comp in H2. apply language.fill_inj in H2. *)
-(*     subst ec. unfold language.to_call in H3. *)
-(*     edestruct (language.to_class) as [[|]|] eqn:Heq; try congruence. *)
-(*     edestruct (language.fill_class' K'') as [->|[v Hv]]; first by eexists. *)
-(*     2: rewrite language.to_of_class in Hv; done. *)
-(*     cbn in Heq. rewrite c_toy_lang.melocoton.lang_instantiation.map_unmap_val in Heq. *)
-(*     split_and!; cbn; congruence. *)
-(*   - subst ec. cbn in H3. done. *)
-(* Qed. *)
-
-End CallFacts.
-
 (* XXX this should perhaps be moved someplace else? *)
 Lemma ml_to_c_exists vs ρml σ :
   lloc_map_inj (χML ρml) →
