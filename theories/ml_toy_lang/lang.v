@@ -141,25 +141,11 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
-(** We assume the following encoding of values to 64-bit words: The least 3
-significant bits of every word are a "tag", and we have 61 bits of payload,
-which is enough if all pointers are 8-byte-aligned (common on 64bit
-architectures). The tags have the following meaning:
-
-0: Payload is the data for a LitV (LitInt _).
-1: Payload is the data for a InjLV (LitV (LitInt _)).
-2: Payload is the data for a InjRV (LitV (LitInt _)).
-3: Payload is the data for a LitV (LitLoc _).
-4: Payload is the data for a InjLV (LitV (LitLoc _)).
-4: Payload is the data for a InjRV (LitV (LitLoc _)).
-6: Payload is one of the following finitely many values, which 61 bits are more
-   than enough to encode:
-   LitV LitUnit, InjLV (LitV LitUnit), InjRV (LitV LitUnit),
-   LitV (LitBool _), InjLV (LitV (LitBool _)), InjRV (LitV (LitBool _)).
-7: Value is boxed, i.e., payload is a pointer to some read-only memory area on
-   the heap which stores whether this is a RecV, PairV, InjLV or InjRV and the
-   relevant data for those cases. However, the boxed representation is never
-   used if any of the above representations could be used.
+(** Unboxed values are
+  * locations
+  * integers
+  * booleans
+  * unit
 
 Ignoring (as usual) the fact that we have to fit the infinite Z/loc into 61
 bits, this means every value is machine-word-sized and can hence be atomically
@@ -167,7 +153,7 @@ read and written.  Also notice that the sets of boxed and unboxed values are
 disjoint. *)
 Definition val_is_unboxed (v : val) : Prop :=
   match v with
-  | LitV _ | InjLV (LitV _) | InjRV (LitV _) => True
+  | LitV _ => True
   | _ => False
   end.
 

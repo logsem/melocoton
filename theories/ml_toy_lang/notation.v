@@ -152,3 +152,31 @@ Notation "'match:' e0 'with' 'NONE' => e1 | 'SOME' x => e2 'end'" :=
 Notation "'match:' e0 'with' 'SOME' x => e2 | 'NONE' => e1 'end'" :=
   (Match e0 BAnon e1 x%binder e2)
   (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
+
+
+Definition TLam e := ((λ: <>, e%E)%E).
+Definition TLamV v := ((λ: <>, v%V)%V).
+Definition TApp e1 := (App e1%E (#())%V).
+Definition IdFunc e := (((λ: "x", "x"%E) e%E)%E).
+Definition Roll e := (IdFunc e%E).
+Definition RollV (v:val) := (v%V).
+Definition Unroll e := (IdFunc e%E).
+Definition Pack e := (IdFunc e%E).
+Definition PackV (v:val) := (v%V).
+Definition UnpackIn x e1 e2 := (Let x e1 e2).
+
+Notation "Λ: <> , e" := (TLam e%E)
+  (at level 200, e at level 200,
+   format "'[' 'Λ:'  '<>' ,  '/  ' e ']'") : expr_scope.
+Notation "roll: e" := (Roll e%E)
+  (at level 200, e at level 200,
+   format "'[' 'roll:' '/  ' e ']'") : expr_scope.
+Notation "unroll: e" := (Unroll e%E)
+  (at level 200, e at level 200,
+   format "'[' 'unroll:' '/  ' e ']'") : expr_scope.
+Notation "pack: e" := (Pack e%E)
+  (at level 200, e at level 200,
+   format "'[' 'pack:' '/  ' e ']'") : expr_scope.
+Notation "'unpack:' x := e1 'in' e2" := (UnpackIn x%binder e2%E e1%E)
+  (at level 200, x at level 1, e1, e2 at level 200,
+   format "'[' 'unpack:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : expr_scope.

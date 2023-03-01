@@ -12,6 +12,13 @@ Local Definition set_binder_insert (x : binder) (X : stringset) : stringset :=
   | BAnon => X
   | BNamed f => {[f]} ∪ X
   end.
+
+Lemma dom_binder_insert {T} (m : gmap string T) b v : dom (binder_insert b v m) = set_binder_insert b (dom m).
+Proof.
+  destruct b; try done.
+  unfold binder_insert, set_binder_insert. rewrite dom_insert_L. done.
+Qed.
+
 (* Check if expression [e] is closed w.r.t. the set [X] of variable names,
    and that all the values in [e] are closed *)
 Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
@@ -261,7 +268,7 @@ Proof.
     apply (Clσ1 (Locoff l' i)).
     rewrite store_lookup_eq; by case_bool_decide; simplify_map_eq/=.
   - intros ℓi v'.
-    destruct (decide (ℓi = l.[i])) as [->|?].
+    destruct (decide (ℓi = (l.[i])%L)) as [->|?].
     { rewrite (store_lookup_insert _ l.[i] v) //. congruence. }
     rewrite store_lookup_insert_ne //. intro. by eapply Clσ1.
   - edestruct (zip_args args va) as [σ'|] eqn:Heq. 2: congruence.

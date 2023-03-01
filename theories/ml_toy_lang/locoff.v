@@ -15,6 +15,10 @@ Record locoff : Type := Locoff {
   locoff_off : offset;
 }.
 
+(* TODO remove *)
+Declare Scope loc_scope.
+Delimit Scope loc_scope with L.
+
 Definition locoff_to_pair '(Locoff ℓ i) := (ℓ, i).
 Definition pair_to_locoff '(ℓ, i) := Locoff ℓ i.
 Global Instance pair_to_locoff_inj : Inj eq eq pair_to_locoff.
@@ -28,7 +32,10 @@ Proof. apply (inj_countable' locoff_to_pair pair_to_locoff). by intros []. Qed.
 Definition loc_to_locoff ℓ := Locoff ℓ 0.
 
 Coercion loc_to_locoff : loc >-> locoff.
-Notation "ℓ .[ i ]" := (Locoff ℓ i) (at level 9, format "ℓ .[ i ]").
+Notation "ℓ .[ i ]" := (Locoff ℓ i) (at level 2, i at level 200, left associativity, format "ℓ .[ i ]").
+
+
+Bind Scope loc_scope with locoff.
 
 Section store.
 Context {val : Type}.
@@ -52,7 +59,7 @@ Global Instance store_insert : Insert locoff val store :=
     else σ.
 
 Lemma store_lookup_eq (σ : store) (ℓ : loc) (i : offset) :
-  σ !! ℓ.[i] =
+  σ !! (ℓ.[i])%L =
     if bool_decide (0 ≤ i)%Z then
       σ !! ℓ ≫= λ oblk, oblk ≫= λ (blk : list _), blk !! Z.to_nat i
     else None.
@@ -86,7 +93,7 @@ Qed.
 Lemma store_insert_offset (σ : store) (ℓ : loc) (i : offset) (vs : list val) (w : val):
   σ !! ℓ = Some (Some vs) →
   (0 ≤ i < length vs)%Z →
-  <[ℓ.[i] := w]> σ = <[ℓ := Some (<[Z.to_nat i := w]> vs)]> σ.
+  <[(ℓ.[i])%L := w]> σ = <[ℓ := Some (<[Z.to_nat i := w]> vs)]> σ.
 Proof.
   intros Hvs Hi. rewrite /insert /store_insert -/(insert _ _ _).
   case_bool_decide; [|lia]. by simplify_map_eq.
