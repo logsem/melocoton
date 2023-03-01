@@ -31,13 +31,13 @@ Lemma wrap_interp_c_to_ml w ρc mem θ v lv (X : val → wrapstateML → store �
   c_to_ml w ρc mem X →
   wrap_state_interp (Wrap.CState ρc mem) -∗
   GC θ -∗
-  not_at_boundary -∗
+  at_boundary wrap_lang -∗
   block_sim v lv
   ==∗
   ∃ ρml σ,
   ⌜X v ρml σ⌝ ∗
   wrap_state_interp (Wrap.MLState ρml σ) ∗
-  at_boundary _.
+  not_at_boundary.
 Proof.
   iIntros (Hlv Hc_to_ml) "Hσ HGC Hnb #Hblk".
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
@@ -79,10 +79,10 @@ Qed.
 Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
   ml_to_c vs ρml σ ws ρc mem →
   wrap_state_interp (Wrap.MLState ρml σ) -∗
-  at_boundary wrap_lang
+  not_at_boundary
   ==∗
   wrap_state_interp (Wrap.CState ρc mem) ∗
-  not_at_boundary ∗
+  at_boundary wrap_lang ∗
   GC (θC ρc) ∗
   (∃ lvs, block_sim_arr vs lvs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
 Proof.

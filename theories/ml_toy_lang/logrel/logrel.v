@@ -123,18 +123,18 @@ Section logrel.
   Definition interp_prog_type (Δ : listO D) s (t : program_type) : program_specification := match t with FunType tl tr =>
     (λ s' vv Φ, ⌜s = s'⌝ ∗ ([∗ list] k↦τ;v ∈ tl;vv, ⟦ τ ⟧ Δ v) ∗ (∀ vr, ⟦ tr ⟧ Δ vr -∗ Φ vr))%I end.
 
-  (* Compare with languag/wp_link.v
+  (* Compare with language/wp_link.v
      The difference between this and program_fulfills is that we allow axiomatically specified
      functions to be well-typed. *)
   Definition program_spec_satisfied
     (Tshould : program_specification) : iProp Σ := 
     □ ∀ s vv Φ, Tshould s vv Φ -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v}}.
 
-  Global Instance prog_spec_sat_pers Tshould : Persistent (program_spec_satisfied Tshould).
-  Proof. apply intuitionistically_persistent. Qed.
-
   Definition interp_prog_env (p_types : gmap string program_type) (Δ : listO D) : iProp Σ :=
     ([∗ map] s↦τ ∈ p_types, program_spec_satisfied (interp_prog_type Δ s τ))%I.
+
+  Global Instance prog_spec_sat_pers Tshould : Persistent (program_spec_satisfied Tshould).
+  Proof. apply intuitionistically_persistent. Qed.
 
   Global Instance interp_prog_env_pers p_types Δ : Persistent (interp_prog_env p_types Δ).
   Proof. eapply big_sepM_persistent. intros k x; apply prog_spec_sat_pers. Qed.

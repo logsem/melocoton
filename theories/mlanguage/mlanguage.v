@@ -41,7 +41,7 @@ Section mlanguage_mixin.
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_fill_inj K : Inj (=) (=) (fill K);
-    (* The the things in a class contain only values in redex positions (or the
+    (* The things in a class contain only values in redex positions (or the
        redex is the topmost one). *)
     mixin_fill_class K e :
       is_Some (to_class (fill K e)) → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v);

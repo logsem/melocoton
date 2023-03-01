@@ -43,10 +43,11 @@ Proof.
   1: by iApply (lloc_own_auth_get_pub with "Hχ").
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
   3-4: iExists γ, lv; iSplit; first done; iSplit.
-  1,3,5: iApply (big_sepM_lookup with "Hζimm"); try done.
-  4: iSplit.
-  4,6,7: by iApply ("IH" with "[] [] [] Hζ Hχ").
-  4: by iApply ("IH1" with "[] [] [] Hζ Hχ").
+  7: iExists γ; iSplit; first done.
+  1,3,5,7: iApply (big_sepM_lookup with "Hζimm"); try done.
+  5: iSplit.
+  5,7,8: by iApply ("IH" with "[] [] [] Hζ Hχ").
+  5: by iApply ("IH1" with "[] [] [] Hζ Hχ").
   all: simplify_eq.
   all: apply lstore_immut_blocks_lookup_immut.
   all: match goal with H: (_ ∪ _) !! _ = Some _ |- _ =>
@@ -93,12 +94,13 @@ Proof.
   1: {iDestruct "Hsim" as "(%γ & -> & Hsim)". unfold block_sim_raw.
       iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH".
       iPureIntro. econstructor. done. }
-  1: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)";
+  1: iDestruct "Hsim" as "(%γ & -> & Hsim)".
+  2: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)";
      iPoseProof ("IH" with "Hχ Hζ Hlv1") as "%Hr1";
      iPoseProof ("IH1" with "Hχ Hζ Hlv2") as "%Hr2".
-  2-3: iDestruct "Hsim" as "(%γ & %lv & -> & Hsim & Hlv)";
+  3-4: iDestruct "Hsim" as "(%γ & %lv & -> & Hsim & Hlv)";
        iPoseProof ("IH" with "Hχ Hζ Hlv") as "%Hr".
-  1-3: unshelve iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%HH _]".
+  1-4: unshelve iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%HH _]".
   all: iPureIntro; econstructor; eauto; by simplify_map_eq.
 Qed.
 

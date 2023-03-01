@@ -131,7 +131,7 @@ Lemma typed_ind (P0 : gmap string type → expr → type → Prop) :
 → (∀ (Γ : gmap string type) (e : expr) (τ τ' : {bind type}), Γ ⊢ₜ e : TForall τ → P0 Γ e (TForall τ) → P0 Γ (TApp e) τ.[τ'/])
 → (∀ (Γ : gmap string type) (e : expr) (τ τ' : type), Γ ⊢ₜ e : τ.[τ'/] → P0 Γ e τ.[τ'/] → P0 Γ (pack:e)%E (TExist τ))
 → (∀ (Γ : gmap string type) (x : binder) (e1 e2 : expr) (τ : {bind type}) (τ' : type),
-Γ ⊢ₜ e1 : TExist τ → P0 Γ e1 (TExist τ) → binder_insert x τ (subst (ren (+1)) <$> Γ) ⊢ₜ e2 : τ'.[ren (+1)] → P0 (binder_insert x τ (subst (ren (+1)) <$> Γ)) e2 τ'.[ren (+1)] → P0 Γ (unpack: x := e2 in e1)%E τ')
+       Γ ⊢ₜ e1 : TExist τ → P0 Γ e1 (TExist τ) → binder_insert x τ (subst (ren (+1)) <$> Γ) ⊢ₜ e2 : τ'.[ren (+1)] → P0 (binder_insert x τ (subst (ren (+1)) <$> Γ)) e2 τ'.[ren (+1)] → P0 Γ (unpack: x := e2 in e1)%E τ')
 → (∀ (Γ : gmap string type) (e : expr) (τ : {bind type}), Γ ⊢ₜ e : τ.[TRec τ/] → P0 Γ e τ.[TRec τ/] → P0 Γ (roll:e)%E (TRec τ))
 → (∀ (Γ : gmap string type) (e : expr) (τ : {bind type}), Γ ⊢ₜ e : TRec τ → P0 Γ e (TRec τ) → P0 Γ (unroll:e)%E τ.[TRec τ/])
 → (∀ (Γ : gmap string type) (e : expr) (τ : type), Γ ⊢ₜ e : τ → P0 Γ e τ → P0 Γ ((ref e)%E #1) (Tref τ))

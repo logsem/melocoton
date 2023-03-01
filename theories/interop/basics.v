@@ -51,30 +51,70 @@ Inductive lval :=
   | Lint : Z → lval
   | Lloc : lloc → lval.
 
+(* Currently the mutability tag applies to a whole block; but ultimately we want
+   each field of the block to have its [ismut] tag (to handle record types of
+   the form { foo : int; mutable bar : int }) *)
 Inductive ismut := Mut | Immut.
 
+(* Possible tags for "value blocks", i.e. blocks that contain ML values. *)
 (* Right now the tag is only used to distinguish between InjLV and InjRV (the
    constructors of the basic sum-type). In the future we might want to expand
-   this to handle richer kinds of values. *)
-Inductive tag : Type :=
+   this to handle richer kinds of values (e.g. richer sum types). *)
+Inductive vblock_tag :=
   | TagDefault (* the default tag, used for InjLV and other blocks (pairs, refs, arrays) *)
-  | TagInjRV (* the tag for InjRV *)
-  .
+  | TagInjRV. (* the tag for InjRV *)
 
-Definition tag_as_int (tg : tag) : Z :=
-  match tg with
+(* Possible tags for blocks in the general case. *)
+Inductive tag : Type :=
+  | TagVblock (vtg : vblock_tag)
+  | TagClosure.
+
+Definition vblock_tag_as_int (vtg : vblock_tag) : Z :=
+  match vtg with
   | TagDefault => 0
   | TagInjRV => 1
   end.
 
+Definition tag_as_int (tg : tag) : Z :=
+  match tg with
+  | TagVblock vtg => vblock_tag_as_int vtg
+  | TagClosure => 247
+  end.
+
+Global Instance vblock_tag_as_int_inj : Inj (=) (=) vblock_tag_as_int.
+Proof using.
+  intros t t'. destruct t; destruct t'; by inversion 1.
+Qed.
+
 Global Instance tag_as_int_inj : Inj (=) (=) tag_as_int.
-Proof using. intros t t'. destruct t; destruct t'; by inversion 1. Qed.
+Proof using.
+  intros t t'.
+  destruct t as [vt|]; destruct t' as [vt'|];
+    try destruct vt; try destruct vt';
+    by inversion 1.
+Qed.
+
+(* a "value block" (the most common type of block) *)
+Notation vblock :=
+  (ismut * (vblock_tag * list lval))%type.
 
 (* a block in the block-level store *)
-Definition block :=
-  (ismut * (tag * list lval))%type.
+Inductive block :=
+  | Bvblock (vblk : vblock)
+  | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr).
 
-Definition mutability (b:block) : ismut := let '(i,_) := b in i.
+Definition vblock_mutability (vb: vblock) : ismut :=
+  let '(i,_) := vb in i.
+
+Definition mutability (b: block) : ismut :=
+  match b with
+  | Bvblock vblk => vblock_mutability vblk
+  | Bclosure _ _ _ => Immut
+  end.
+
+Inductive lval_in_block : block → lval → Prop :=
+  | ValInVblock v m tg vs :
+    v ∈ vs → lval_in_block (Bvblock (m, (tg, vs))) v.
 
 (* a block-level store *)
 Notation lstore := (gmap lloc block).
@@ -83,8 +123,8 @@ Implicit Type ζ : lstore.
 
 (************
    In order to tie the logical block-level store to the ML and C stores, the
-   wrapper maintains a map that relates ML locations to block-level
-   locations, and a map that relates block-level locations with C values. *)
+   wrapper maintains a map that relates block-level locations to ML locations,
+   and a map that relates block-level locations with C values. *)
 
 (* For each block-level location, we track whether it correspond to a ML-level
    location ℓ (case [LlocPublic ℓ]), or whether it only exists in the
@@ -132,7 +172,7 @@ Definition lloc_map_inj χ :=
    code than the wrapper..) *)
 Inductive freeze_block : block → block → Prop :=
   | freeze_block_mut tgvs m' :
-    freeze_block (Mut, tgvs) (m', tgvs)
+    freeze_block (Bvblock (Mut, tgvs)) (Bvblock (m', tgvs))
   | freeze_block_refl b :
     freeze_block b b.
 
@@ -173,7 +213,7 @@ Definition lloc_map_mono (χ1 χ2 : lloc_map) : Prop :=
 Inductive modify_block : block → nat → lval → block → Prop :=
   | mk_modify_block tg vs i v :
     i < length vs →
-    modify_block (Mut, (tg, vs)) i v (Mut, (tg, (<[ i := v ]> vs))).
+    modify_block (Bvblock (Mut, (tg, vs))) i v (Bvblock (Mut, (tg, (<[ i := v ]> vs)))).
 
 (* "GC correctness": a sanity condition when picking a fresh addr_map that
    assigns C-level identifiers to the subset of "currently live" block-level
@@ -187,10 +227,10 @@ Inductive modify_block : block → nat → lval → block → Prop :=
    exist in ζ) *)
 Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
   gmap_inj θ ∧
-  ∀ γ m tg vs γ',
+  ∀ γ blk γ',
     γ ∈ dom θ →
-    ζ !! γ = Some (m, (tg, vs)) →
-    Lloc γ' ∈ vs →
+    ζ !! γ = Some blk →
+    lval_in_block blk (Lloc γ') →
     γ' ∈ dom θ.
 
 Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
@@ -241,34 +281,39 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ (ML_lang.LitV (ML_lang.LitLoc ℓ)) (Lloc γ)
   (* pairs *)
   | is_val_pair χ ζ v1 v2 γ lv1 lv2 :
-    ζ !! γ = Some (Immut, (TagDefault, [lv1; lv2])) →
+    ζ !! γ = Some (Bvblock (Immut, (TagDefault, [lv1; lv2]))) →
     is_val χ ζ v1 lv1 →
     is_val χ ζ v2 lv2 →
     is_val χ ζ (ML_lang.PairV v1 v2) (Lloc γ)
   (* sum-type constructors *)
   | is_val_injl χ ζ v lv γ :
-    ζ !! γ = Some (Immut, (TagDefault, [lv])) →
+    ζ !! γ = Some (Bvblock (Immut, (TagDefault, [lv]))) →
     is_val χ ζ v lv →
     is_val χ ζ (ML_lang.InjLV v) (Lloc γ)
   | is_val_injr χ ζ v lv γ :
-    ζ !! γ = Some (Immut, (TagInjRV, [lv])) →
+    ζ !! γ = Some (Bvblock (Immut, (TagInjRV, [lv]))) →
     is_val χ ζ v lv →
     is_val χ ζ (ML_lang.InjRV v) (Lloc γ)
-  | is_val_funcall χ ζ b1 b2 e lv:
-    is_val χ ζ (RecV b1 b2 e) lv.
+  (* closures *)
+  | is_val_closure χ ζ γ f x e :
+    ζ !! γ = Some (Bclosure f x e) →
+    is_val χ ζ (ML_lang.RecV f x e) (Lloc γ).
 
 (* Elements of the ML store are lists of values representing refs and arrays;
    they correspond to a mutable block with the default tag. *)
 Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Prop :=
 | is_heap_elt_block vs lvs :
   Forall2 (is_val χ ζ) vs lvs →
-  is_heap_elt χ ζ vs (Mut, (TagDefault, lvs)).
+  is_heap_elt χ ζ vs (Bvblock (Mut, (TagDefault, lvs))).
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
   ∀ ℓ vs γ blk,
     σ !! ℓ = Some (Some vs) → χ !! γ = Some (LlocPublic ℓ) → ζ !! γ = Some blk →
     is_heap_elt χ ζ vs blk.
 
+
+(******************************************************************************)
+(* auxiliary definitions and lemmas *)
 
 (******************************************************************************)
 (* auxiliary definitions and lemmas *)
@@ -461,12 +506,13 @@ Qed.
 Lemma lstore_immut_blocks_lookup_Some ζ γ b :
   lstore_immut_blocks ζ !! γ = Some b ↔ ζ !! γ = Some b ∧ mutability b = Immut.
 Proof.
-  rewrite /lstore_immut_blocks map_filter_lookup /=. destruct b as [? ?].
-  set X := (ζ !! γ). destruct (ζ !! γ) as [[i' ?]|]; subst X; cbn;
-    try naive_solver.
-  destruct (decide (i' = Immut)); subst.
+  rewrite /lstore_immut_blocks map_filter_lookup /=.
+  set X := (ζ !! γ). destruct (ζ !! γ) as [[[i' ?]|]|] eqn:HH; subst X; cbn;
+      try naive_solver.
+  { destruct (decide (i' = Immut)); subst.
+    { rewrite option_guard_True //. naive_solver. }
+    { rewrite option_guard_False //. naive_solver. } }
   { rewrite option_guard_True //. naive_solver. }
-  { rewrite option_guard_False //. naive_solver. }
 Qed.
 
 Lemma lstore_immut_blocks_lookup_notin ζ γ :
@@ -602,8 +648,8 @@ Lemma is_val_insert_immut χ ζ γ bb bb2 x y :
 Proof.
   intros H1 H2; induction 1; econstructor; eauto.
   all: rewrite lookup_insert_ne; first done.
-  all: intros ->; destruct bb2 as [mut [? ?]]; cbn in *.
-  all: subst mut; rewrite H1 in H; congruence.
+  all: intros ->; destruct bb2 as [[mut [? ?]]|]; cbn in *.
+  all: congruence.
 Qed.
 
 Lemma is_store_blocks_is_private_blocks_disjoint χ σ ζs ζp :
@@ -748,8 +794,8 @@ Qed.
 Lemma is_store_freeze_lloc χ ζ σ γ b:
   is_store χ ζ σ →
   χ !! γ = Some LlocPrivate →
-  ζ !! γ = Some (Mut, b) →
-  is_store χ (<[γ:=(Immut, b)]> ζ) σ.
+  ζ !! γ = Some (Bvblock (Mut, b)) →
+  is_store χ (<[γ:=Bvblock (Immut, b)]> ζ) σ.
 Proof.
   intros Hstore Hpriv Hζγ l vs' γ1 bb H1 H2 H3.
   destruct (decide (γ = γ1)) as [<- | H4].
@@ -763,22 +809,14 @@ Qed.
 
 Lemma GC_correct_freeze_lloc ζ θ γ b :
   GC_correct ζ θ →
-  ζ !! γ = Some (Mut, b) →
-  GC_correct (<[γ := (Immut, b)]> ζ) θ.
+  ζ !! γ = Some (Bvblock (Mut, b)) →
+  GC_correct (<[γ := Bvblock (Immut, b)]> ζ) θ.
 Proof.
-  intros [H1 H2] Hζγ; split; first done. intros γ1 **.
+  intros [H1 H2] Hζγ; split; first done. intros γ1 * ? ?.
+  inversion 1; subst.
   destruct (decide (γ1 = γ)) as [-> |];
     simplify_map_eq; eauto.
-Qed.
-
-Lemma GC_correct_transport ζ1 ζ2 θ : freeze_lstore ζ1 ζ2 → GC_correct ζ1 θ → GC_correct ζ2 θ.
-Proof.
-  intros (H1L&H1R) (H2&H3). split; first done.
-  intros γ m tg vs γ' HH1 HH2 HH3.
-  destruct (ζ1 !! γ) as [(m'&tg'&vs')|] eqn:Heq.
-  2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite H1L in Heq; tauto. }
-  specialize (H1R _ _ _ Heq HH2). inversion H1R; subst.
-  all: by eapply H3.
+  eapply H2; eauto. by constructor.
 Qed.
 
 Global Instance freeze_lstore_refl : Reflexive (freeze_lstore).
@@ -790,17 +828,28 @@ Qed.
 
 Lemma freeze_lstore_freeze_lloc ζ ζ' γ b :
   freeze_lstore ζ ζ' →
-  ζ' !! γ = Some (Mut, b) →
-  freeze_lstore ζ (<[γ:=(Immut, b)]> ζ').
+  ζ' !! γ = Some (Bvblock (Mut, b)) →
+  freeze_lstore ζ (<[γ:=Bvblock (Immut, b)]> ζ').
 Proof.
   intros [HL HR] Hζ'γ. split.
   - rewrite HL. rewrite dom_insert_L. rewrite subseteq_union_1_L. 1:done.
     intros ? ->%elem_of_singleton. by eapply elem_of_dom.
   - intros γ1 b1 b2 H1 H2. destruct (decide (γ = γ1)) as [<- |H3].
     * rewrite lookup_insert in H2. injection H2; intros <-.
-      specialize (HR γ b1 (Mut, b) H1 Hζ'γ).
+      specialize (HR γ b1 (Bvblock (Mut, b)) H1 Hζ'γ).
       inversion HR; subst; econstructor.
     * rewrite lookup_insert_ne in H2; last done. by eapply HR.
+Qed.
+
+Lemma freeze_lstore_lookup_bclosure ζ ζ' γ f x e :
+  freeze_lstore ζ ζ' →
+  ζ' !! γ = Some (Bclosure f x e) →
+  ζ !! γ = Some (Bclosure f x e).
+Proof.
+  intros [HL HR] Hγ.
+  destruct (ζ !! γ) eqn:Hγ'.
+  2: { apply elem_of_dom_2 in Hγ. apply not_elem_of_dom in Hγ'. congruence. }
+  specialize (HR _ _ _ Hγ' Hγ). by inversion HR.
 Qed.
 
 Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.
@@ -824,7 +873,6 @@ Proof.
   + subst. f_equal. by eapply H.
 Qed.
 
-
 Lemma repr_lval_mono θ θ' v w: θ ⊆ θ' -> repr_lval θ v w -> repr_lval θ' v w.
 Proof.
   intros H; induction 1; econstructor.
@@ -839,6 +887,23 @@ Proof.
   - econstructor.
   - econstructor. 1: by eapply IHrepr_roots. 2-3: done.
     by eapply repr_lval_mono.
+Qed.
+
+Lemma lval_in_vblock v m tg vs :
+  lval_in_block (Bvblock (m, (tg, vs))) v ↔ v ∈ vs.
+Proof. split. by inversion 1. intros; by constructor. Qed.
+
+
+Lemma GC_correct_transport ζ1 ζ2 θ : freeze_lstore ζ1 ζ2 → GC_correct ζ1 θ → GC_correct ζ2 θ.
+Proof.
+  intros (H1L&H1R) (H2&H3). split; first done.
+  intros γ blk γ' HH1 HH2 HH3.
+  destruct (ζ1 !! γ) as [b|] eqn:Heq.
+  2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite H1L in Heq; tauto. }
+  specialize (H1R _ _ _ Heq HH2). inversion H1R; subst.
+  2: { eapply H3; done. }
+  destruct tgvs. eapply lval_in_vblock in HH3.
+  eapply H3. 1: exact HH1. 1: done. eapply lval_in_vblock. done.
 Qed.
 
 (******************************************************************************)

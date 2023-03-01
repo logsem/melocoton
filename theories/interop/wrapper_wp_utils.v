@@ -1,5 +1,5 @@
 From Coq Require Import ssreflect.
-From stdpp Require Import strings gmap.
+From stdpp Require Import strings gmap list.
 From melocoton Require Import named_props.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
@@ -10,15 +10,12 @@ From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import linking_wp basics wrapper_wp wrapper_wp_block_sim.
+From melocoton.interop Require Import linking_wp basics prims wrapper_wp wrapper_wp_block_sim.
 Import Wrap.
 
 
 Global Notation MLval := ML_lang.val.
 Global Notation Cval := C_lang.val.
-
-Definition forbidden_function_names : list string :=
-  ["alloc"; "registerroot"; "unregisterroot"; "modify"; "readfield"; "int2val"; "val2int"].
 
 
 Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ C_lang (_ : gFunctors)).
@@ -35,102 +32,132 @@ Context `{!wrapperGS Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
+(* TODO: auxiliary definition? *)
+Notation prim_proto := (prim -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+Notation C_proto := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+Notation ML_proto := (string -d> list MLval -d> (MLval -d> iPropO Σ) -d> iPropO Σ).
 
-Definition spec {Σ} := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
+(* TODO: move *)
+Definition wrap_proto (T : ML_proto) : C_proto := (λ f ws Φ,
+  ∃ θ vs lvs ψ,
+    "HGC" ∷ GC θ ∗
+    "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
+    "Hsim" ∷ block_sim_arr vs lvs ∗
+    "Hproto" ∷ T f vs ψ ∗
+    "Cont" ∷ (∀ θ' vret lvret wret,
+      GC θ' -∗
+      ψ vret -∗
+      block_sim vret lvret -∗
+      ⌜repr_lval θ' lvret wret⌝ -∗
+      Φ wret)
+)%I.
 
-Definition wrap_return := (fun Φ (a:Cval) => (∃ θ' l v, GC θ' ∗ Φ v ∗ ⌜repr_lval θ' l a⌝ ∗ block_sim v l)%I).
-Definition wrap_args := (fun (vv:list MLval) (F:function) (ec:C_lang.expr) => 
-     ((∃ θ ll aa, GC θ ∗ ⌜C_lang.apply_function F aa = Some ec⌝ 
-               ∗ ⌜Forall2 (repr_lval θ) ll aa⌝ ∗ block_sim_arr vv ll))%I).
+Definition wrap_penv (pe : prog_environ ML_lang Σ) :
+  mlanguage.weakestpre.prog_environ wrap_lang Σ
+:=
+  {| weakestpre.penv_prog := prims_prog;
+     weakestpre.penv_proto := wrap_proto (penv_proto pe) |}.
 
-Definition WP_int2val_spec : spec := (λ n vl wp,
+Definition proto_int2val : prim_proto := (λ p vl Φ,
    ∃ θ z,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "int2val"⌝ ∗
+     "->" ∷ ⌜p = Pint2val⌝ ∗
      "->" ∷ ⌜vl = [C_lang.LitV $ C_lang.LitInt $ z]⌝ ∗
-     "HWP" ∷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ wp w))%I.
+     "Cont" ∷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ Φ w))%I.
 
-Definition WP_val2int_spec : spec := (λ n vl wp,
+Definition proto_val2int : prim_proto := (λ p vl Φ,
    ∃ θ w z,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "val2int"⌝ ∗
+     "->" ∷ ⌜p = Pval2int⌝ ∗
      "->" ∷ ⌜vl = [ w ]⌝ ∗
      "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ ∗
-     "HWP" ∷ (GC θ -∗ wp (C_lang.LitV $ C_lang.LitInt $ z)))%I.
+     "Cont" ∷ (GC θ -∗ Φ (C_lang.LitV $ C_lang.LitInt $ z)))%I.
 
-Definition WP_registerroot_spec : spec := (λ n vl wp,
+Definition proto_registerroot : prim_proto := (λ p vl Φ,
    ∃ θ l v w,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "registerroot"⌝ ∗
+     "->" ∷ ⌜p = Pregisterroot⌝ ∗
      "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦C w ∗
      "%Hrepr" ∷ ⌜repr_lval θ v w⌝ ∗
-     "HWP" ∷ (GC θ -∗ l ↦roots v -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+     "Cont" ∷ (GC θ -∗ l ↦roots v -∗ Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
-Definition WP_unregisterroot_spec : spec := (λ n vl wp,
+Definition proto_unregisterroot : prim_proto := (λ p vl Φ,
    ∃ θ l v,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "unregisterroot"⌝ ∗
+     "->" ∷ ⌜p = Punregisterroot⌝ ∗
      "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦roots v ∗
-     "HWP" ∷ (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+     "Cont" ∷ (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
-Definition WP_modify_spec : spec := (λ n vl wp,
+Definition proto_modify : prim_proto := (λ p vl Φ,
   ∃ θ w i v' w' γ tg vs,
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜n = "modify"⌝ ∗
+    "->" ∷ ⌜p = Pmodify⌝ ∗
     "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i; w' ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, vs)) ∗
+    "Hpto" ∷ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Bvblock (Mut, (tg, vs))) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ v' w'⌝ ∗
     "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
     "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
-    "HWP" ∷ (GC θ -∗
-             lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Mut, (tg, <[Z.to_nat i:=v']> vs)) -∗
-             wp (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+    "Cont" ∷ (GC θ -∗
+              lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Bvblock (Mut, (tg, <[Z.to_nat i:=v']> vs))) -∗
+              Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
-Definition WP_readfield_spec : spec := (λ n vl wp,
+Definition proto_readfield : prim_proto := (λ p vl Φ,
    ∃ θ w i γ dq m tg vs,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "readfield"⌝ ∗
+     "->" ∷ ⌜p = Preadfield⌝ ∗
      "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-     "Hpto" ∷ lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs)) ∗
+     "Hpto" ∷ lstore_own_elem wrapperGS_γζvirt γ dq (Bvblock (m, (tg, vs))) ∗
      "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
      "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
-     "HWP" ∷ (∀ v' w', GC θ -∗
-                       lstore_own_elem wrapperGS_γζvirt γ dq (m, (tg, vs)) -∗
-                       ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗
-                       ⌜repr_lval θ v' w'⌝ -∗
-                       wp w'))%I.
+     "Cont" ∷ (∀ v' w', GC θ -∗
+                        lstore_own_elem wrapperGS_γζvirt γ dq (Bvblock (m, (tg, vs))) -∗
+                        ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗
+                        ⌜repr_lval θ v' w'⌝ -∗
+                        Φ w'))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
-Definition WP_alloc_spec : spec := (λ n vl wp,
+Definition proto_alloc : prim_proto := (λ p vl Φ,
    ∃ θ tg sz,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜n = "alloc"⌝ ∗
-     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitInt $ tag_as_int $ tg; C_lang.LitV $ C_lang.LitInt $ sz ]⌝ ∗
+     "->" ∷ ⌜p = Palloc⌝ ∗
+     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitInt $ vblock_tag_as_int $ tg; C_lang.LitV $ C_lang.LitInt $ sz ]⌝ ∗
      "%Hsz" ∷ ⌜0 ≤ sz⌝%Z ∗
-     "HWP" ∷ (∀ θ' γ w, GC θ' -∗
-                       γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) -∗
-                       ⌜repr_lval θ' (Lloc γ) w⌝ -∗
-                       wp w))%I.
+     "Cont" ∷ (∀ θ' γ w, GC θ' -∗
+                         γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) -∗
+                         ⌜repr_lval θ' (Lloc γ) w⌝ -∗
+                         Φ w))%I.
 
 
-Definition WP_ext_call_spec : spec := (λ n vl wp,
-    WP_int2val_spec n vl wp ∨ WP_val2int_spec n vl wp ∨ WP_registerroot_spec n vl wp ∨ WP_unregisterroot_spec n vl wp
-  ∨ WP_modify_spec n vl wp ∨ WP_readfield_spec n vl wp ∨ WP_alloc_spec n vl wp)%I.
+Definition proto_callback (pe : prog_environ ML_lang Σ) (E : coPset) : prim_proto := (λ p vl Φ,
+  ∃ θ w γ w' lv' v' f x e ψ,
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜p = Pcallback⌝ ∗
+    "->" ∷ ⌜vl = [ w; w' ]⌝ ∗
+    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+    "Hclos" ∷ γ ↦clos (f, x, e) ∗
+    "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
+    "Hsim'" ∷ block_sim v' lv' ∗
+    "WPcallback" ∷ WP (App (Val (RecV f x e)) (Val v')) @ pe; E {{ ψ }} ∗
+    "Cont" ∷ (∀ θ' vret lvret wret,
+                GC θ' -∗
+                ψ vret -∗
+                block_sim vret lvret -∗
+                ⌜repr_lval θ' lvret wret⌝ -∗
+                Φ wret))%I.
 
-Lemma WP_ext_call_sound s v2 T : WP_ext_call_spec s v2 T -∗ ⌜s ∈ forbidden_function_names⌝.
-Proof.
-  iIntros "[H|[H|[H|[H|[H|[H|H]]]]]]";
-  unfold WP_int2val_spec; unfold WP_val2int_spec; unfold WP_registerroot_spec; unfold WP_unregisterroot_spec;
-  unfold WP_modify_spec; unfold WP_readfield_spec; unfold WP_alloc_spec;
-  iNamed "H"; iPureIntro; unfold forbidden_function_names;
-  repeat (try done; try left; right).
-Qed.
+(* non-callbacks primitives *)
+Definition proto_base_prims : prim_proto := (λ p vl Φ,
+    proto_int2val p vl Φ ∨ proto_val2int p vl Φ ∨ proto_registerroot p vl Φ ∨ proto_unregisterroot p vl Φ
+  ∨ proto_modify p vl Φ ∨ proto_readfield p vl Φ ∨ proto_alloc p vl Φ)%I.
+
+Definition proto_prims pe E : prim_proto := (λ p vl Φ,
+  proto_base_prims p vl Φ ∨ proto_callback pe E p vl Φ)%I.
 
 
 Section RootsRepr.
@@ -567,14 +594,15 @@ Lemma deserialize_ML_value χMLold v :
   ∧ is_val χC ζimm v lv.
 Proof.
   induction v as [[x|bo| |ℓ]| |v1 IHv1 v2 IHv2|v IHv|v IHv] in χMLold|-*; intros Hinj.
-  1-3,5: eexists χMLold, ∅, _; split_and!; [by eapply extended_to_refl | econstructor ].
-  Unshelve. 5: exact (Lloc 0). (* what happens for functions *)
+  1-3: eexists χMLold, ∅, _; split_and!; [by eapply extended_to_refl | econstructor ].
   - destruct (ensure_in_χ_pub χMLold ℓ) as (χ' & γ & Hχ' & Hγ & _); first done.
     exists χ', ∅, (Lloc γ); (split_and!; last by econstructor).
     by eapply extended_to_mono.
+  - destruct (allocate_in_χ_priv χMLold (Bclosure f x e)) as (χ & γ & Hextend); first done.
+    eexists _, _, (Lloc γ). split; eauto. econstructor. by simplify_map_eq.
   - destruct (IHv1 χMLold) as (χ1 & ζ1 & lv1 & Hext1 & Hlv1); first done.
     destruct (IHv2 χ1) as (χ2 & ζ2 & lv2 & Hext2 & Hlv2); first by eapply extended_to_inj.
-    pose (Immut,(TagDefault,[lv1;lv2])) as blk.
+    pose (Bvblock (Immut,(TagDefault,[lv1;lv2]))) as blk.
     edestruct (allocate_in_χ_priv χ2 blk) as (χ3 & γ & Hext3); first by eapply extended_to_inj.
     eassert (extended_to χMLold _ χ3).
     1: do 2 (eapply extended_to_trans; last done); done.
@@ -589,7 +617,7 @@ Proof.
       eapply is_val_mono; last done; try done.
       eapply map_union_subseteq_r. eapply extended_to_trans; done.
   - destruct (IHv χMLold) as (χ1 & ζ1 & lv1 & Hext1 & Hlv1); first done.
-    epose (Immut,(_,[lv1])) as blk.
+    epose (Bvblock (Immut,(_,[lv1]))) as blk.
     edestruct (allocate_in_χ_priv χ1 blk) as (χ3 & γ & Hext3); first by eapply extended_to_inj.
     eassert (extended_to χMLold _ χ3).
     1: (eapply extended_to_trans; last done); done.
@@ -600,7 +628,7 @@ Proof.
       apply lookup_singleton.
     + eapply is_val_extended_to_weaken; done.
   - destruct (IHv χMLold) as (χ1 & ζ1 & lv1 & Hext1 & Hlv1); first done.
-    epose (Immut,(_,[lv1])) as blk.
+    epose (Bvblock (Immut,(_,[lv1]))) as blk.
     edestruct (allocate_in_χ_priv χ1 blk) as (χ3 & γ & Hext3); first by eapply extended_to_inj.
     eassert (extended_to χMLold _ χ3).
     1: (eapply extended_to_trans; last done); done.
@@ -639,7 +667,7 @@ Lemma deserialize_ML_block χMLold vs :
 Proof.
   intros H.
   destruct (deserialize_ML_values χMLold vs H) as (χC & ζimm & lvs & H1 & H2).
-  by exists χC, ζimm, (Mut,(TagDefault,lvs)).
+  by exists χC, ζimm, (Bvblock (Mut,(TagDefault,lvs))).
 Qed.
 
 
@@ -836,43 +864,67 @@ End ChiZetaConstruction.
 
 Section ThetaConstruction.
 
-Lemma collect_dom_θ_vs (θdom : gset lloc) (vs : list lval) : exists θdom' : gset lloc, forall γ, (Lloc γ ∈ vs ∨ γ ∈ θdom) ↔ γ ∈ θdom'.
+Lemma collect_dom_θ_vs (θdom : gset lloc) (vs : list lval) :
+  exists θdom' : gset lloc,
+    ∀ γ, Lloc γ ∈ vs ∨ γ ∈ θdom ↔ γ ∈ θdom'.
 Proof.
   induction vs as [|[|ℓ] vs (θdom1 & IH)].
-  - exists θdom. intros γ. split; last eauto. intros [[]%not_elem_of_nil|?]; done.
-  - exists θdom1. intros γ. split.
-    + intros [[Hc|H]%elem_of_cons|?]; try congruence; apply IH. 1: by left. by right.
-    + intros [H|H]%IH; last by right. left. right. done.
+  - exists θdom. intros γ. split; last eauto. by intros [H%elem_of_nil|].
+  - exists θdom1. intros γ. etransitivity; last by eapply IH.
+    split; (intros [H|]; last by eauto); left.
+    + apply elem_of_cons in H as [|]; done.
+    + apply elem_of_cons; eauto.
   - exists (θdom1 ∪ {[ ℓ ]}). intros γ. split.
-    + intros [[Hc|H]%elem_of_cons|?]; eapply elem_of_union. 1: right; eapply elem_of_singleton; congruence.
+    + intros [[Hc|H]%elem_of_cons|?]; eapply elem_of_union.
+      1: right; eapply elem_of_singleton; congruence.
       all: left; apply IH. 1: by left. by right.
-    + intros [[H|H]%IH| ->%elem_of_singleton]%elem_of_union. 1: left; right; done. 1: right; done.    
-      left; left; done.
+    + intros [[H|H]%IH| ->%elem_of_singleton]%elem_of_union.
+      1: left; by right. 1: by right.
+      left; by left.
 Qed.
 
-Lemma collect_dom_θ_ζ_blocks (θdom : gset lloc) (ζ : lstore) : exists θdom' : gset lloc,
-    forall γ, ((exists γ1 m t vs, ζ !! γ1 = Some (m, (t, vs)) ∧ Lloc γ ∈ vs) ∨ γ ∈ θdom) ↔ γ ∈ θdom'.
+Lemma collect_dom_θ_block (θdom : gset lloc) (blk : block) :
+  exists θdom' : gset lloc,
+    ∀ γ, lval_in_block blk (Lloc γ) ∨ γ ∈ θdom ↔ γ ∈ θdom'.
 Proof.
-  induction ζ as [|k [m [t vs]] ζ Hne (θdom1 & Hdom1)] using map_ind.
-  - exists θdom; split.
-    + intros [(γ1&m&t&vs&H1&H2)|Hold]; last done.
-      rewrite lookup_empty in H1; done.
-    + intros H; by right.
-  - destruct (collect_dom_θ_vs θdom1 vs) as (θdom2 & Hdom2).
+  destruct blk as [[m [tg vs]]|]; last first.
+  { (* Bclosure *)
+    exists θdom. intros γ. split; eauto. intros [H|]; auto.
+    by inversion H. }
+  { (* Bvblock *)
+    destruct (collect_dom_θ_vs θdom vs) as (θdom' & H).
+    exists θdom'. intros γ. split.
+    - intros [HH|]; first inversion HH; subst; apply H; eauto.
+    - intros [?|?]%H; eauto. left; by constructor. }
+Qed.
+
+Lemma collect_dom_θ_ζ_blocks (θdom : gset lloc) (ζ : lstore) :
+  exists θdom' : gset lloc,
+    forall γ, ((exists γ1 blk, ζ !! γ1 = Some blk ∧ lval_in_block blk (Lloc γ))
+               ∨ γ ∈ θdom)
+              ↔ γ ∈ θdom'.
+Proof.
+  induction ζ as [|k blk ζ Hne (θdom1 & Hdom1)] using map_ind.
+  - exists θdom; split; auto. intros [(γ1&blk&H1&_)|]; auto.
+    simplify_map_eq.
+  - destruct (collect_dom_θ_block θdom1 blk) as (θdom2 & Hdom2).
     exists θdom2. intros γ; split.
-    + intros [(γ1&m'&t'&vs'&[[-> Hinj]|[Hne2 Hin]]%lookup_insert_Some&H2)|Hold].
-      1: apply Hdom2; left; congruence.
-      1: apply Hdom2; right; apply Hdom1; left; by repeat eexists.
-      1: apply Hdom2; right; apply Hdom1; right; done.
-    + intros [H|[(γ1&m'&t'&vs'&H1&H2)|H]%Hdom1]%Hdom2.
-      1: left; do 4 eexists; split; first eapply lookup_insert; done.
+    + intros [(γ1&blk'&[[-> ->]|[Hne2 Hin]]%lookup_insert_Some&H2)|Hold].
+      { apply Hdom2; left; congruence. }
+      { apply Hdom2. right. apply Hdom1. left. by do 2 eexists. }
+      { apply Hdom2; right; apply Hdom1; right; done. }
+    + intros [H|[(γ1&blk'&H1&H2)|H]%Hdom1]%Hdom2.
+      1: left; do 2 eexists; split; first eapply lookup_insert; done.
       2: by right.
-      left; do 4 eexists; split; last done; first rewrite lookup_insert_ne; first done.
+      left; do 2 eexists; split; last done; first rewrite lookup_insert_ne; first done.
       intros ->; rewrite Hne in H1; congruence.
 Qed.
 
-Lemma collect_dom_θ_ζ (θdom : gset lloc) (ζ : lstore) : exists θdom' : gset lloc,
-    forall γ, (γ ∈ dom ζ ∨ (exists γ1 m t vs, ζ !! γ1 = Some (m, (t, vs)) ∧ Lloc γ ∈ vs) ∨ γ ∈ θdom) ↔ γ ∈ θdom'.
+Lemma collect_dom_θ_ζ (θdom : gset lloc) (ζ : lstore) :
+  exists θdom' : gset lloc,
+    forall γ, (γ ∈ dom ζ ∨ (exists γ1 blk, ζ !! γ1 = Some blk ∧ lval_in_block blk (Lloc γ))
+               ∨ γ ∈ θdom)
+              ↔ γ ∈ θdom'.
 Proof.
   destruct (collect_dom_θ_ζ_blocks θdom ζ) as (θdom1 & Hdom1).
   exists (dom ζ ∪ θdom1). intros γ; split.
@@ -915,53 +967,53 @@ Implicit Type (p : language.prog C_lang).
 
 Notation fillCCall K s vv := (language.fill K (language.of_class C_lang (ExprCall s vv))).
 
-Lemma call_no_StepCS vv p s K mem ec' mem' T :
-  p !! s = None →
-  ~ (language.language.prim_step p (fillCCall K s vv) mem ec' mem' T).
-Proof.
-  intros Hno H4.
-  eapply prim_step_inv in H4.
-  destruct H4 as (K' & e1' & e2' & Heq1 & Heq2 & Hhead).
-  subst ec'. symmetry in Heq1. epose proof Heq1 as Heq2.
-  eapply (language.call_in_ctx K' K e1' s vv) in Heq1 as [(K'' & ->)|(v & <-)].
-  2: eapply language.val_head_step, Hhead.
-  rewrite <- language.fill_comp in Heq2.
-  eapply language.fill_inj in Heq2. subst e1'. epose proof Hhead as Hhead2.
-  eapply language.head_ctx_step_val in Hhead as [H|[x H]]. 2: apply language.language.of_to_val in H; cbn in H; done.
-  subst K''. rewrite language.fill_empty in Hhead2.
-  eapply (language.call_head_step p s vv) in Hhead2 as (fn & Hne & _).
-  cbn in Hno. rewrite Hno in Hne. congruence.
-Qed.
+(* Lemma call_no_StepCS vv p s K mem ec' mem' T : *)
+(*   p !! s = None → *)
+(*   ~ (language.language.prim_step p (fillCCall K s vv) mem ec' mem' T). *)
+(* Proof. *)
+(*   intros Hno H4. *)
+(*   eapply prim_step_inv in H4. *)
+(*   destruct H4 as (K' & e1' & e2' & Heq1 & Heq2 & Hhead). *)
+(*   subst ec'. symmetry in Heq1. epose proof Heq1 as Heq2. *)
+(*   eapply (language.call_in_ctx K' K e1' s vv) in Heq1 as [(K'' & ->)|(v & <-)]. *)
+(*   2: eapply language.val_head_step, Hhead. *)
+(*   rewrite <- language.fill_comp in Heq2. *)
+(*   eapply language.fill_inj in Heq2. subst e1'. epose proof Hhead as Hhead2. *)
+(*   eapply language.head_ctx_step_val in Hhead as [H|[x H]]. 2: apply language.language.of_to_val in H; cbn in H; done. *)
+(*   subst K''. rewrite language.fill_empty in Hhead2. *)
+(*   eapply (language.call_head_step p s vv) in Hhead2 as (fn & Hne & _). *)
+(*   cbn in Hno. rewrite Hno in Hne. congruence. *)
+(* Qed. *)
 
 
-Lemma call_no_RetS vv p s K r :
-  p !! s = None →
-  ~ (C_lang.to_val (fillCCall K s vv) = Some r).
-Proof.
-  intros Hno H4%C_lang.of_to_val.
-  edestruct (language.fill_class K) as [-> | [v Hv]].
-  - exists (ExprVal r); erewrite <- H4; done.
-  - cbn in H4. congruence.
-  - unfold language.language.to_val in Hv. by rewrite language.to_of_class in Hv.
-Qed.
+(* Lemma call_no_RetS vv p s K r : *)
+(*   p !! s = None → *)
+(*   ~ (C_lang.to_val (fillCCall K s vv) = Some r). *)
+(* Proof. *)
+(*   intros Hno H4%C_lang.of_to_val. *)
+(*   edestruct (language.fill_class K) as [-> | [v Hv]]. *)
+(*   - exists (ExprVal r); erewrite <- H4; done. *)
+(*   - cbn in H4. congruence. *)
+(*   - unfold language.language.to_val in Hv. by rewrite language.to_of_class in Hv. *)
+(* Qed. *)
 
-Lemma call_inversion vv p s K K' ec s' vv' :
-  p !! s = None →
-  language.fill K' ec = fillCCall K s vv →
-  language.to_call ec = Some (s', vv')
-  → s' = s ∧ vv' = vv ∧ K' = K.
-Proof.
-  intros H1 H2 H3. epose proof H2 as H2'.
-  eapply language.call_in_ctx in H2' as [(K'' & ->)|(v & Hv)].
-  - rewrite <- language.fill_comp in H2. apply language.fill_inj in H2.
-    subst ec. unfold language.to_call in H3.
-    edestruct (language.to_class) as [[|]|] eqn:Heq; try congruence.
-    edestruct (language.fill_class' K'') as [->|[v Hv]]; first by eexists.
-    2: rewrite language.to_of_class in Hv; done.
-    cbn in Heq. rewrite c_toy_lang.melocoton.lang_instantiation.map_unmap_val in Heq.
-    split_and!; cbn; congruence.
-  - subst ec. cbn in H3. done.
-Qed.
+(* Lemma call_inversion vv p s K K' ec s' vv' : *)
+(*   p !! s = None → *)
+(*   language.fill K' ec = fillCCall K s vv → *)
+(*   language.to_call ec = Some (s', vv') *)
+(*   → s' = s ∧ vv' = vv ∧ K' = K. *)
+(* Proof. *)
+(*   intros H1 H2 H3. epose proof H2 as H2'. *)
+(*   eapply language.call_in_ctx in H2' as [(K'' & ->)|(v & Hv)]. *)
+(*   - rewrite <- language.fill_comp in H2. apply language.fill_inj in H2. *)
+(*     subst ec. unfold language.to_call in H3. *)
+(*     edestruct (language.to_class) as [[|]|] eqn:Heq; try congruence. *)
+(*     edestruct (language.fill_class' K'') as [->|[v Hv]]; first by eexists. *)
+(*     2: rewrite language.to_of_class in Hv; done. *)
+(*     cbn in Heq. rewrite c_toy_lang.melocoton.lang_instantiation.map_unmap_val in Heq. *)
+(*     split_and!; cbn; congruence. *)
+(*   - subst ec. cbn in H3. done. *)
+(* Qed. *)
 
 End CallFacts.
 
@@ -1001,7 +1053,7 @@ Proof.
   destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
 
   eexists ws, (WrapstateC χ2 ζC θC _), mem. unfold ml_to_c; cbn.
-  exists ζσ, (ζσimm ∪ ζimm), lvs. split_and!.
+  exists ζσ, (ζσimm ∪ ζimm), lvs. split_and!; try done.
   { eapply extended_to_trans; done. }
   { destruct Hstorebl as [HL HR]; split.
     { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. }
@@ -1011,7 +1063,6 @@ Proof.
        enough (γ2 = γ) as -> by done. eapply Hext2. 2: done. eapply lookup_weaken; first done; eapply Hext2. } }
   { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken.
     1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. }
-  { reflexivity. }
   { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.
     eapply map_disjoint_dom, disjoint_weaken; first eapply map_disjoint_dom, Hdis1; try done.
     erewrite ! dom_union_L; set_solver. }
@@ -1025,12 +1076,8 @@ Proof.
     + eapply map_union_subseteq_l. }
   { eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono; last done; first done.
     unfold ζC. rewrite ! map_union_assoc. eapply map_union_subseteq_r. done. }
-  { split; first done. subst θdom3. intros γ m tg vs' γ' _ H2 H3.
-    apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 4 eexists; done. }
-  { done. }
-  { done. }
-  { done. }
-  { done. }
+  { split; first done. subst θdom3. intros γ blk γ' _ H2 H3.
+    apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 2 eexists; done. }
 Qed.
 
 End Utils.
