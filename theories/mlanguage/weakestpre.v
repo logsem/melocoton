@@ -33,7 +33,7 @@ Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
     ∨ (∃ f vs K, ⌜e = fill K (of_class Λ (ExprCall f vs))⌝ ∗ ⌜p !! f = None⌝ ∗
        at_boundary Λ ∗ state_interp σ ∗
        ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r ∗ at_boundary Λ -∗ wp E (fill K (of_class Λ (ExprVal r))) Φ)
-    ∨ (⌜reducible p e σ⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
+    ∨ (⌜to_val e = None⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
        ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ)
   )%I.
 
@@ -245,9 +245,8 @@ Proof.
     iIntros "%r HΞ".
     rewrite <- fill_comp.
     iApply "IH". iApply ("Hr" with "HΞ").
-  - iRight. iRight. iModIntro. iSplitR; first eauto using reducible_fill.
+  - iRight. iRight. iModIntro. iSplit; first eauto using fill_not_val.
     iIntros (X Hstep).
-    pose proof (reducible_not_val _ _ _ Hred) as Hnone.
     apply fill_step_inv in Hstep; [| done].
     iSpecialize ("H3" $! _ Hstep). iMod "H3". iModIntro. iModIntro.
     iMod "H3" as (e' σ' HX) "(Hσ & H3)". iModIntro. iExists (fill K e'), σ'.
@@ -337,11 +336,10 @@ Proof.
   iIntros (Hfn Hfunc) "H". iApply wp_unfold. rewrite /wp_pre /=.
   iIntros (σ) "Hσ !>". iRight. iRight.
   iSplitR.
-  { iPureIntro. apply head_prim_reducible. exists (λ _, True).
-    apply call_head_step. naive_solver. }
-  iIntros (X Hstep) "!>!>!>". apply head_reducible_prim_step in Hstep.
-  2: { exists (λ _, True). apply call_head_step; naive_solver. }
-  apply call_head_step in Hstep as (? & ? & ? & ?%eq_sym & ?); simplify_eq/=.
+  { iPureIntro. unfold to_val. rewrite to_of_class. done. }
+  iIntros (X Hstep) "!>!>!>". eapply (head_reducible_prim_step) in Hstep.
+  2: { eapply call_head_step. intros ????. exact (I : ((λ _ , True) (e2,σ))). }
+  eapply call_head_step in Hstep. 2-3:done.
   iExists _, _. by iFrame.
 Qed.
 
