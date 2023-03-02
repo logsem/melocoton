@@ -214,6 +214,7 @@ Proof. split.
     intros [v' ?]%head_ctx_step_val%fill_val. right. exists v'.
     by repeat (case_match; simplify_eq).
   + intros ? ? ?. eapply head_step_cases.
+  + econstructor. exact (∅ : gmap _ _).
 Qed.
 
 Canonical Structure C_lang := Mlanguage melocoton_lang_mixin_C.

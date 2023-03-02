@@ -1,19 +1,29 @@
-From melocoton.language Require Export weakestpre lifting.
+From melocoton.mlanguage Require Export weakestpre lifting.
 From melocoton.c_toy_lang Require Export lang.
 From melocoton.c_toy_lang Require Import tactics melocoton.tactics notation.
 From iris.prelude Require Import options.
 
 Section pure_exec.
-  Variable (p:language.prog C_lang).
-  Local Ltac solve_exec_safe := intros; subst; do 3 eexists; try (repeat (econstructor; eauto); done).
-  Local Ltac solve_exec_puredet := simpl; intros; inv_head_step; try done.
-  Local Ltac solve_pure_exec :=
-    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
-      constructor; [solve_exec_safe | solve_exec_puredet].
+  Variable (p:mlanguage.prog C_lang).
 
   Local Ltac destruct_bool_decide := repeat (let H := fresh "Heq" in 
     try destruct bool_decide eqn:H; 
     [apply bool_decide_eq_true_1 in H| apply bool_decide_eq_false_1 in H]).
+
+  Ltac inv_head_step :=
+    repeat match goal with
+    | _ => progress simplify_map_eq/= (* simplify memory stuff *)
+    | H : to_val _ = Some _ |- _ => apply of_to_val in H
+    | H : @mrel _ (@mlanguage.head_step _ _ _) _ _ |- _ => unfold mrel, mlanguage.head_step in H; cbn in H
+    | H : @mrel _ (@head_step _) _ _ |- _ => unfold mrel, head_step in H; cbn in H
+    | H : @head_step_mrel _ (?e, _) _ |- _ =>
+       try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable
+       and should thus better be avoided. *)
+       inversion H; simplify_eq; clear H
+    end.
+
+  Local Ltac solve_pure_exec := subst; intros ?; apply nsteps_once, pure_step_from_head_step;
+         [ intros ?; econstructor; naive_solver | intros; inv_head_step; try naive_solver ].
 
   Global Instance pure_unop op v v' :
     PureExec (un_op_eval op v = Some v') 1 p (UnOp op (Val v)) (Val v').
@@ -40,7 +50,7 @@ Section pure_exec.
 
   Global Instance pure_if_true v e1 e2 : asTruth v = true ->
     PureExec True 1 p (If (Val $ v) e1 e2) e1.
-  Proof. intros H. solve_pure_exec. congruence. Qed.
+  Proof. intros H. solve_pure_exec. Qed.
   Global Instance pure_if_non_zero (v0:Z) e1 e2 : v0 ≠ 0%Z ->
     PureExec True 1 p (If (Val $ LitV $ LitInt v0) e1 e2) e1.
   Proof. intros H. apply pure_if_true. destruct v0; cbn; congruence. Qed.
@@ -49,7 +59,7 @@ Section pure_exec.
   Proof. apply pure_if_true. easy. Qed.
   Global Instance pure_if_false v e1 e2 : asTruth v = false ->
     PureExec True 1 p (If (Val $ v) e1 e2) e2.
-  Proof. intros H. solve_pure_exec. congruence. Qed.
+  Proof. intros H. solve_pure_exec. Qed.
   Global Instance pure_if_zero e1 e2 : 
     PureExec True 1 p (If (Val $ LitV $ LitInt (0%Z)) e1 e2) e2.
   Proof. apply pure_if_false. easy. Qed.
@@ -68,9 +78,6 @@ Section pure_exec.
   Global Instance pure_funcall s va args res e : 
     PureExec ((p : gmap.gmap string function) !! s = Some (Fun args e) ∧ zip_args args va = Some res) 1 p (FunCall (Val $ LitV $ LitFunPtr s) (map Val va)) (subst_all res e).
   Proof. solve_pure_exec; destruct H as [H1 H2].
-    1: do 2 econstructor. 1:apply H1.
-    + unfold apply_function. rewrite H2. reflexivity.
-    + repeat split; try congruence. destruct (zip_args args0 va) eqn:Heq; last congruence.
-      congruence.
+         eapply (H5 s args _ e eq_refl H1). by rewrite H2.
   Qed.
 End pure_exec.

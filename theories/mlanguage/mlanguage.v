@@ -78,7 +78,9 @@ Section mlanguage_mixin.
       is_Some (to_val e)
     ∨ is_head_redex p (e, σ)
     ∨ (¬ is_head_redex p (e, σ) ∧
-        (∃ K e', e = fill K e' ∧ to_val e' = None ∧ K ≠ empty_ectx))
+        (∃ K e', e = fill K e' ∧ to_val e' = None ∧ K ≠ empty_ectx));
+
+    state_inhabited : Inhabited state
   }.
 End mlanguage_mixin.
 
@@ -529,7 +531,7 @@ Section mlanguage.
 
   Class PureExec (φ : Prop) (n : nat) p (e1 : expr Λ) (e2 : expr Λ) :=
     pure_exec : φ → relations.nsteps (pure_step p) n e1 e2.
-
+  
   Lemma pure_exec_fill φ n p e1 e2 K :
     PureExec φ n p e1 e2 →
     PureExec φ n p (fill K e1) (fill K e2).
@@ -561,6 +563,17 @@ Section mlanguage.
     PureExec P n p e1 e2 →
     PureExec P n p (fill K e1) (fill K e2).
   Proof. rewrite /PureExec; eauto using pure_step_nsteps_ctx. Qed.
+
+  Lemma pure_step_from_head_step p e1 e2 : 
+    (∀ σ, is_head_redex p (e1, σ)) →
+    (∀ σ X, head_step p (e1, σ) X → X (e2, σ)) →
+    pure_step p e1 e2.
+  Proof.
+    intros H1 H3; split.
+    + unshelve eapply val_head_stuck, H1. eapply mlanguage_mixin.
+    + intros σ X H. specialize (H1 σ). eapply H3.
+      eapply head_reducible_prim_step; try done.
+  Qed.
 
 End mlanguage.
 

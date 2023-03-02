@@ -1,9 +1,9 @@
 From stdpp Require Import fin_maps.
 From melocoton.c_toy_lang Require Export tactics melocoton.lang_instantiation.
-From melocoton.language Require Export language.
+From melocoton.mlanguage Require Export mlanguage.
 From iris.prelude Require Import options.
 Import C_lang.
-
+(*
 (** The tactic [inv_head_step] performs inversion on hypotheses of the shape
 [head_step]. The tactic will discharge head-reductions starting from values, and
 simplifies hypothesis related to conversions from and to values, and finite map
@@ -26,4 +26,4 @@ Global Hint Extern 0 (head_reducible_no_threads _ _ _) => eexists _, _; simpl : 
 (* [simpl apply] is too stupid, so we need extern hints here. *)
 Global Hint Extern 1 (head_step _ _ _ _ _) => econstructor : head_step.
 Global Hint Extern 1 (bogo_head_step' _ _ _ _ _ _) => econstructor : head_step.
-Global Hint Extern 0 (head_step _ (Malloc _) _ _ _) => apply alloc_fresh : head_step.
+Global Hint Extern 0 (head_step _ (Malloc _) _ _ _) => apply alloc_fresh : head_step.*)
