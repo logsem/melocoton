@@ -2,6 +2,7 @@ From stdpp Require Export binders strings.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.program_logic Require ectxi_language.
+From melocoton Require Import commons.
 From melocoton.ml_toy_lang Require Export locoff.
 From iris.prelude Require Import options.
 
@@ -23,6 +24,8 @@ Noteworthy design choices:
   deallocate a hole out of it in the middle.
 *)
 
+Declare Scope expr_scope.
+Declare Scope val_scope.
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
@@ -135,11 +138,61 @@ Bind Scope val_scope with val.
 
 Notation of_val := Val (only parsing).
 
-Definition to_val (e : expr) : option val :=
+Definition of_class (e : mixin_expr_class) : expr :=
   match e with
-  | Val v => Some v
+  | ExprVal v => Val v
+  | ExprCall vf vl => Extern vf (map Val vl)
+  end.
+
+#[local] Notation omap f x := (match x with Some v => f v | None => None end).
+
+Fixpoint unmap_val el :=
+  match el with
+  | Val v :: er => omap (fun vr => Some (v::vr)) (unmap_val er)
+  | [] => Some nil
   | _ => None
   end.
+
+Definition to_class (e : expr) : option mixin_expr_class :=
+  match e with
+  | Val v => Some (ExprVal v)
+  | Extern vf el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
+  | _ => None
+  end.
+
+Lemma map_unmap_val l : unmap_val (map Val l) = Some l.
+Proof.
+  induction l.
+  - easy.
+  - cbn. rewrite IHl. easy.
+Qed.
+
+Lemma to_of_cancel e : to_class (of_class e) = Some e.
+Proof.
+  destruct e.
+  - easy.
+  - cbn. rewrite map_unmap_val. easy.
+Qed.
+
+Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
+Proof.
+  induction le in lv|-*.
+  - intros H. injection H. intros <-. easy.
+  - cbn. destruct a. 2-18:congruence.
+    destruct (unmap_val le) eqn:Heq. 2:congruence.
+    intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
+Qed.
+
+Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
+Proof.
+  destruct e; cbn; try congruence.
+  - intros H. injection H. intros <-. easy.
+  - destruct unmap_val eqn:Heq. 2:congruence.
+    intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
+Qed.
+
+Local Notation to_val e :=
+  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
 
 (** Unboxed values are
   * locations
@@ -171,12 +224,6 @@ Global Arguments vals_compare_safe !_ !_ /.
 Local Notation state := (gmap loc (option (list val))).
 
 (** Equality and other typeclass stuff *)
-Lemma to_of_val v : to_val (of_val v) = Some v.
-Proof. by destruct v. Qed.
-
-Lemma of_to_val e v : to_val e = Some v → of_val v = e.
-Proof. destruct e=>//=. by intros [= <-]. Qed.
-
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
@@ -399,7 +446,7 @@ Proof.
  - destruct v; by f_equal.
 Qed.
 Global Instance val_countable : Countable val.
-Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
+Proof. refine (inj_countable of_val (λ e, to_val e) _); auto using to_of_cancel. Qed.
 
 Global Instance state_inhabited : Inhabited state :=
   populate inhabitant.
@@ -472,6 +519,13 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
 Definition delete_binder (g:gmap string val) (b : binder) : gmap string val := match b with
   BAnon => g
 | BNamed n => delete n g end.
+
+Definition ectx := list ectx_item.
+Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
+Definition comp_ectx (K K' : ectx) : ectx := K' ++ K.
+
+Lemma fill_app (K1 K2 : ectx) e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
+Proof. apply foldl_app. Qed.
 
 (** Substitution *)
 Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
@@ -570,106 +624,76 @@ Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) 
 Definition apply_function (f:ml_function) (av : list val) := match f with MlFun an e =>
     match (zip_args an av) with Some σ => Some (subst_all σ e) | _ => None end end.
 
-Inductive head_step {p:ml_program} : expr → state → list unit → expr → state → list expr → Prop :=
+Inductive head_step (p : ml_program) : expr → state → expr → state → Prop :=
   | RecS f x e σ :
-     head_step (Rec f x e) σ [] (Val $ RecV f x e) σ []
+     head_step p (Rec f x e) σ (Val $ RecV f x e) σ
   | PairS v1 v2 σ :
-     head_step (Pair (Val v1) (Val v2)) σ [] (Val $ PairV v1 v2) σ []
+     head_step p (Pair (Val v1) (Val v2)) σ (Val $ PairV v1 v2) σ
   | InjLS v σ :
-     head_step (InjL $ Val v) σ [] (Val $ InjLV v) σ []
+     head_step p (InjL $ Val v) σ (Val $ InjLV v) σ
   | InjRS v σ :
-     head_step (InjR $ Val v) σ [] (Val $ InjRV v) σ []
+     head_step p (InjR $ Val v) σ (Val $ InjRV v) σ
   | BetaS f x e1 v2 e' σ :
      e' = subst' x v2 (subst' f (RecV f x e1) e1) →
-     head_step (App (Val $ RecV f x e1) (Val v2)) σ [] e' σ []
+     head_step p (App (Val $ RecV f x e1) (Val v2)) σ e' σ
   | UnOpS op v v' σ :
      un_op_eval op v = Some v' →
-     head_step (UnOp op (Val v)) σ [] (Val v') σ []
+     head_step p (UnOp op (Val v)) σ (Val v') σ
   | BinOpS op v1 v2 v' σ :
      bin_op_eval op v1 v2 = Some v' →
-     head_step (BinOp op (Val v1) (Val v2)) σ [] (Val v') σ []
+     head_step p (BinOp op (Val v1) (Val v2)) σ (Val v') σ
   | IfTrueS e1 e2 σ :
-     head_step (If (Val $ LitV $ LitBool true) e1 e2) σ [] e1 σ []
+     head_step p (If (Val $ LitV $ LitBool true) e1 e2) σ e1 σ
   | IfFalseS e1 e2 σ :
-     head_step (If (Val $ LitV $ LitBool false) e1 e2) σ [] e2 σ []
+     head_step p (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ
   | FstS v1 v2 σ :
-     head_step (Fst (Val $ PairV v1 v2)) σ [] (Val v1) σ []
+     head_step p (Fst (Val $ PairV v1 v2)) σ (Val v1) σ
   | SndS v1 v2 σ :
-     head_step (Snd (Val $ PairV v1 v2)) σ [] (Val v2) σ []
+     head_step p (Snd (Val $ PairV v1 v2)) σ (Val v2) σ
   | CaseLS v e1 e2 σ :
-     head_step (Case (Val $ InjLV v) e1 e2) σ [] (App e1 (Val v)) σ []
+     head_step p (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
   | CaseRS v e1 e2 σ :
-     head_step (Case (Val $ InjRV v) e1 e2) σ [] (App e2 (Val v)) σ []
+     head_step p (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
   | AllocNS n v σ l :
      (0 ≤ n)%Z →
      l ∉ dom σ →
-     head_step (AllocN (Val $ LitV $ LitInt n) (Val v)) σ
-               []
-               (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ)
-               []
+     head_step p (AllocN (Val $ LitV $ LitInt n) (Val v)) σ
+                 (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ)
   | LoadNS l i v σ :
      σ !! Locoff l i = Some v →
-     head_step (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i)) σ []
-               (of_val v) σ []
+     head_step p (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i)) σ
+                 (of_val v) σ
   | StoreNS l i v w σ :
      σ !! Locoff l i = Some v →
-     head_step (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
-               []
-               (Val $ LitV LitUnit) (<[Locoff l i := w]> σ)
-               []
+     head_step p (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
+                 (Val $ LitV LitUnit) (<[Locoff l i := w]> σ)
   | LengthS l vs σ :
     σ !! l = Some (Some vs) →
-    head_step (Length (Val $ LitV $ LitLoc l)) σ []
-              (Val $ LitV $ LitInt (length vs)) σ []
+    head_step p (Length (Val $ LitV $ LitLoc l)) σ
+                (Val $ LitV $ LitInt (length vs)) σ
   | ExternS s va args res e σ :
      (p : gmap string ml_function) !! s = Some (MlFun args e) →
      apply_function (MlFun args e) va = Some res →
-     head_step (Extern s (map Val va)) σ [] res σ [].
+     head_step p (Extern s (map Val va)) σ res σ.
 
 
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
 
-Lemma fill_item_val Ki e :
-  is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
-Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
-
-Lemma val_head_stuck {p:ml_program} e1 σ1 κ e2 σ2 efs : head_step e1 σ1 κ e2 σ2 efs → to_val e1 = None.
-Proof. destruct 1; naive_solver. Qed.
-
-Lemma head_ctx_step_val {p:ml_program} Ki e σ1 κ e2 σ2 efs :
-  head_step (fill_item Ki e) σ1 κ e2 σ2 efs → is_Some (to_val e).
-Proof. revert κ e2. induction Ki; try by (inversion_clear 1; simplify_option_eq; eauto).
-       intros κ e2. inversion 1; subst. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
-         apply in_map_iff. rewrite H1. apply in_or_app. right. now left. Qed.
-
-Lemma list_eq_sliced {X} (L1 L2 R1 R2 : list X) (M1 M2 : X) (P : X -> Prop) :
-  L1 ++ M1 :: R1 = L2 ++ M2 :: R2 ->
-  (forall x, In x L1 -> P x) -> (forall x, In x L2 -> P x) -> ~ P M1 -> ~P M2 ->
-  L1 = L2 /\ M1 = M2 /\ R1 = R2.
+Lemma val_head_stuck p e1 σ1 e2 σ2 :
+  head_step p e1 σ1 e2 σ2 → to_val e1 = None.
 Proof.
-  revert L2. induction L1 as [|L1L L1R IH]; intros L2 Heq HL1 HL2 HM1 HM2; destruct L2 as [|L2L L2R].
-  - cbn in Heq; repeat split; congruence.
-  - cbn in Heq. exfalso. apply HM1. apply HL2. left. congruence.
-  - cbn in Heq. exfalso. apply HM2. apply HL1. left. congruence.
-  - cbn in Heq. destruct (IH L2R) as (-> & -> & ->).
-    + congruence.
-    + intros x Hx. apply HL1. now right.
-    + intros x Hx. apply HL2. now right.
-    + easy.
-    + easy.
-    + repeat split. congruence.
+  inversion 1; simplify_eq; try done.
+  cbn. repeat (case_match; simplify_eq); done.
 Qed.
 
-Lemma map_inj {X Y} (f : X -> Y) : (forall x y, f x = f y -> x = y)
-  -> forall Lx Ly, map f Lx = map f Ly -> Lx = Ly.
+Lemma head_ctx_step_val p Ki e σ1 e2 σ2 :
+  head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_val e).
 Proof.
-  intros Hinj. intros Lx. induction Lx as [|x xr IHx].
-  - intros [|y yr]. 1:easy. cbn. congruence.
-  - intros [|y yr]. 1:cbn; congruence. cbn. intros Heq. f_equal.
-    + apply Hinj. congruence.
-    + apply IHx. congruence.
+  revert e2. induction Ki; try by (inversion_clear 1; simplify_option_eq; eauto).
+  intros e2. inversion 1; subst. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
+  apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -687,11 +711,11 @@ Proof.
 Qed.
 
 
-Lemma alloc_fresh {p:ml_program} v n σ :
+Lemma alloc_fresh p v n σ :
   let l := fresh_locs (dom σ) in
   (0 ≤ n)%Z →
-  head_step (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ []
-            (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ) [].
+  head_step p (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ
+              (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ).
 Proof.
   intros.
   apply AllocNS; first done.
@@ -699,5 +723,6 @@ Proof.
   pose proof (fresh_locs_fresh (dom σ) 0 ltac:(reflexivity)) as Hfresh.
   by rewrite loc_add_0 in Hfresh.
 Qed.
+
 End ML_lang.
 Export ML_lang.

@@ -40,7 +40,7 @@ Proof.
     intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
 Qed.
 
-Lemma fill_class (K : list ectx_item) (e:expr) :
+Local Lemma fill_class (K : list ectx_item) (e:expr) :
   is_Some (to_class (fill K e)) → K = nil ∨ ∃ v, to_class e = Some (ExprVal v).
 Proof.
   intros [v Hv]. revert v Hv. induction K as [|k1 K] using rev_ind; intros v Hv. 1:now left. right.
@@ -78,7 +78,7 @@ Qed.
 
 Local Hint Resolve to_val_funcall : core.
 
-Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
+Local Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
 Proof.
   intros [? HH]. case_match; simplify_eq.
   case_match; simplify_eq.
@@ -87,16 +87,16 @@ Proof.
   rewrite /= H //.
 Qed.
 
-Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
+Local Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
 Proof.
   intros HH. destruct (to_val (fill K e)) eqn:Heq; try done.
   destruct (fill_val K e); try done. congruence.
 Qed.
 
-Lemma fill_comp_item k K e : fill (k :: K) e = fill K (fill_item k e).
+Local Lemma fill_comp_item k K e : fill (k :: K) e = fill K (fill_item k e).
 Proof. reflexivity. Qed.
 
-Lemma fill_tail k K e e' :
+Local Lemma fill_tail k K e e' :
   to_val e = None →
   to_val e' = None →
   fill_item k e = fill K e' →
@@ -115,14 +115,14 @@ Proof.
     right. eexists. split; first done. now apply fill_item_inj in H.
 Qed.
 
-Global Instance fill_inj K : Inj (=) (=) (fill K).
+Local Lemma fill_inj K : Inj (=) (=) (fill K).
 Proof.
   intros e1 e2.
   induction K as [|Ki K IH] in e1, e2 |- *; rewrite /Inj; first done.
   rewrite !fill_comp_item. by intros ?%IH%fill_item_inj.
 Qed.
 
-Lemma fill_ctx K s vv K' e :
+Local Lemma fill_ctx K s vv K' e :
   fill K' e = fill K (of_class (ExprCall s vv)) →
   (∃ v, e = Val v) ∨ (∃ K2, K = K2 ++ K').
 Proof. cbn.

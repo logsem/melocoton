@@ -243,12 +243,12 @@ Proof.
 Qed.
 
 (* The stepping relation preserves closedness *)
-Lemma head_step_is_closed {p:ml_program} e1 σ1 obs e2 σ2 es :
+Lemma head_step_is_closed p e1 σ1 e2 σ2 :
   (forall f e, (p:gmap string ml_function) !! f = Some e → is_closed_ml_function ∅ e) →
   is_closed_expr ∅ e1 →
   map_Forall (λ _ v, is_closed_val v) σ1 →
-  head_step e1 σ1 obs e2 σ2 es →
-  is_closed_expr ∅ e2 ∧ Forall (is_closed_expr ∅) es ∧
+  head_step p e1 σ1 e2 σ2 →
+  is_closed_expr ∅ e2 ∧
   map_Forall (λ _ v, is_closed_val v) σ2.
 Proof.
   intros Clp Cl1 Clσ1 STEP.
