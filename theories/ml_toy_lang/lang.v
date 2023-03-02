@@ -1,8 +1,8 @@
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
-From iris.program_logic Require ectxi_language.
 From melocoton.ml_toy_lang Require Export locoff.
+From melocoton Require Import commons multirelations.
 From iris.prelude Require Import options.
 
 (** heap_lang.  A fairly simple language used for common Iris examples.
@@ -23,6 +23,8 @@ Noteworthy design choices:
   deallocate a hole out of it in the middle.
 *)
 
+Declare Scope expr_scope.
+Declare Scope val_scope.
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
@@ -128,18 +130,82 @@ Definition expr_ind (P : expr → Prop)
 
 Set Elimination Schemes.
 
-
-
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
+Fixpoint expr_size (e : expr) : nat :=
+  match e with
+  | Rec _ _ e => S (expr_size e)
+  | App e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | UnOp _ e => S (expr_size e)
+  | BinOp _ e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | If e0 e1 e2 => S (Nat.max (expr_size e0) (Nat.max (expr_size e1) (expr_size e2)))
+  | Pair e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | Fst e => S (expr_size e)
+  | Snd e => S (expr_size e)
+  | InjL e => S (expr_size e)
+  | InjR e => S (expr_size e)
+  | Case e0 e1 e2 => S (Nat.max (expr_size e0) (Nat.max (expr_size e1) (expr_size e2)))
+  | AllocN e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | LoadN e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | StoreN e0 e1 e2 => S (Nat.max (expr_size e0) (Nat.max (expr_size e1) (expr_size e2)))
+  | Length e => S (expr_size e)
+  | Extern _ ee =>
+     S (foldl (λ acc e, Nat.max acc (expr_size e)) 0 ee)
+  | _ => 0
+  end.
+
 Notation of_val := Val (only parsing).
 
-Definition to_val (e : expr) : option val :=
-  match e with
-  | Val v => Some v
-  | _ => None
-  end.
+Definition of_class (e : mixin_expr_class) : expr := match e with
+  ExprVal v => Val v
+| ExprCall vf vl => Extern vf (map Val vl) end.
+
+#[local] Notation omap f x := (match x with Some v => f v | None => None end).
+
+Fixpoint unmap_val el := match el with
+      Val v::er => omap (fun vr => Some (v::vr)) (unmap_val er)
+    | nil => Some nil
+    | _ => None end.
+
+Definition to_class (e : expr) : option mixin_expr_class := match e with
+  Val v => Some (ExprVal v)
+| Extern vf el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
+| _ => None end.
+
+Lemma map_unmap_val l : unmap_val (map Val l) = Some l.
+Proof.
+  induction l.
+  - easy.
+  - cbn. rewrite IHl. easy.
+Qed.
+
+Lemma to_of_cancel e : to_class (of_class e) = Some e.
+Proof.
+  destruct e.
+  - easy.
+  - cbn. rewrite map_unmap_val. easy.
+Qed.
+
+Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
+Proof.
+  induction le in lv|-*.
+  - intros H. injection H. intros <-. easy.
+  - cbn. destruct a. 2-18:congruence.
+    destruct (unmap_val le) eqn:Heq. 2:congruence.
+    intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
+Qed.
+
+Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
+Proof.
+  destruct e; cbn; try congruence.
+  - intros H. injection H. intros <-. easy.
+  - destruct unmap_val eqn:Heq. 2:congruence.
+    intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
+Qed.
+
+Local Notation to_val e :=
+  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
 
 (** Unboxed values are
   * locations
@@ -171,12 +237,6 @@ Global Arguments vals_compare_safe !_ !_ /.
 Local Notation state := (gmap loc (option (list val))).
 
 (** Equality and other typeclass stuff *)
-Lemma to_of_val v : to_val (of_val v) = Some v.
-Proof. by destruct v. Qed.
-
-Lemma of_to_val e v : to_val e = Some v → of_val v = e.
-Proof. destruct e=>//=. by intros [= <-]. Qed.
-
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
@@ -399,7 +459,9 @@ Proof.
  - destruct v; by f_equal.
 Qed.
 Global Instance val_countable : Countable val.
-Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
+Proof.
+  refine (inj_countable of_val (λ e, to_val e) _); auto using to_of_cancel.
+Qed.
 
 Global Instance state_inhabited : Inhabited state :=
   populate inhabitant.
@@ -472,6 +534,33 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
 Definition delete_binder (g:gmap string val) (b : binder) : gmap string val := match b with
   BAnon => g
 | BNamed n => delete n g end.
+
+Lemma fill_item_size Ki e :
+  expr_size e < expr_size (fill_item Ki e).
+Proof.
+  destruct Ki; cbn [fill_item]; try (cbn; lia).
+  cbn. apply le_lt_n_Sm.
+  rewrite foldl_app /=. etransitivity; [| eapply foldl_max]. lia.
+Qed.
+
+Definition ectx := list ectx_item.
+Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
+
+Definition comp_ectx (K K' : ectx) : ectx :=
+  K' ++ K.
+
+Lemma fill_app (K1 K2 : ectx) e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
+Proof. apply foldl_app. Qed.
+
+Lemma fill_size K e :
+  K ≠ [] →
+  expr_size e < expr_size (fill K e).
+Proof.
+  induction K as [|K1 [| K2 Ks]] in e |- *; first done.
+  { intros _. apply fill_item_size. }
+  { intros _.
+    etransitivity; last by eapply IHK. apply fill_item_size. }
+Qed.
 
 (** Substitution *)
 Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
@@ -570,62 +659,81 @@ Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) 
 Definition apply_function (f:ml_function) (av : list val) := match f with MlFun an e =>
     match (zip_args an av) with Some σ => Some (subst_all σ e) | _ => None end end.
 
-Inductive head_step {p:ml_program} : expr → state → list unit → expr → state → list expr → Prop :=
-  | RecS f x e σ :
-     head_step (Rec f x e) σ [] (Val $ RecV f x e) σ []
-  | PairS v1 v2 σ :
-     head_step (Pair (Val v1) (Val v2)) σ [] (Val $ PairV v1 v2) σ []
-  | InjLS v σ :
-     head_step (InjL $ Val v) σ [] (Val $ InjLV v) σ []
-  | InjRS v σ :
-     head_step (InjR $ Val v) σ [] (Val $ InjRV v) σ []
-  | BetaS f x e1 v2 e' σ :
-     e' = subst' x v2 (subst' f (RecV f x e1) e1) →
-     head_step (App (Val $ RecV f x e1) (Val v2)) σ [] e' σ []
-  | UnOpS op v v' σ :
-     un_op_eval op v = Some v' →
-     head_step (UnOp op (Val v)) σ [] (Val v') σ []
-  | BinOpS op v1 v2 v' σ :
-     bin_op_eval op v1 v2 = Some v' →
-     head_step (BinOp op (Val v1) (Val v2)) σ [] (Val v') σ []
-  | IfTrueS e1 e2 σ :
-     head_step (If (Val $ LitV $ LitBool true) e1 e2) σ [] e1 σ []
-  | IfFalseS e1 e2 σ :
-     head_step (If (Val $ LitV $ LitBool false) e1 e2) σ [] e2 σ []
-  | FstS v1 v2 σ :
-     head_step (Fst (Val $ PairV v1 v2)) σ [] (Val v1) σ []
-  | SndS v1 v2 σ :
-     head_step (Snd (Val $ PairV v1 v2)) σ [] (Val v2) σ []
-  | CaseLS v e1 e2 σ :
-     head_step (Case (Val $ InjLV v) e1 e2) σ [] (App e1 (Val v)) σ []
-  | CaseRS v e1 e2 σ :
-     head_step (Case (Val $ InjRV v) e1 e2) σ [] (App e2 (Val v)) σ []
-  | AllocNS n v σ l :
-     (0 ≤ n)%Z →
-     l ∉ dom σ →
-     head_step (AllocN (Val $ LitV $ LitInt n) (Val v)) σ
-               []
-               (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ)
-               []
-  | LoadNS l i v σ :
-     σ !! Locoff l i = Some v →
-     head_step (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i)) σ []
-               (of_val v) σ []
-  | StoreNS l i v w σ :
-     σ !! Locoff l i = Some v →
-     head_step (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
-               []
-               (Val $ LitV LitUnit) (<[Locoff l i := w]> σ)
-               []
-  | LengthS l vs σ :
-    σ !! l = Some (Some vs) →
-    head_step (Length (Val $ LitV $ LitLoc l)) σ []
-              (Val $ LitV $ LitInt (length vs)) σ []
-  | ExternS s va args res e σ :
-     (p : gmap string ml_function) !! s = Some (MlFun args e) →
-     apply_function (MlFun args e) va = Some res →
-     head_step (Extern s (map Val va)) σ [] res σ [].
+Implicit Types X : expr * state → Prop.
+Inductive head_step_mrel (p : ml_program) : (expr * state) → (expr * state → Prop) → Prop :=
+  | RecS f x e σ X :
+    X (Val $ RecV f x e, σ) →
+    head_step_mrel p (Rec f x e, σ) X
+  | PairS v1 v2 σ X :
+    X (Val $ PairV v1 v2, σ) →
+    head_step_mrel p (Pair (Val v1) (Val v2), σ) X
+  | InjLS v σ X :
+    X (Val $ InjLV v, σ) →
+    head_step_mrel p (InjL $ Val v, σ) X
+  | InjRS v σ X :
+    X (Val $ InjRV v, σ) →
+    head_step_mrel p (InjR $ Val v, σ) X
+  | BetaS f x e1 v2 σ X :
+    X (subst' x v2 (subst' f (RecV f x e1) e1), σ) →
+    head_step_mrel p (App (Val $ RecV f x e1) (Val v2), σ) X
+  | UnOpS op v σ X :
+    (∀ v', un_op_eval op v = Some v' → X (Val v', σ)) →
+    head_step_mrel p (UnOp op (Val v), σ) X
+  | BinOpS op v1 v2 σ X :
+    (∀ v', bin_op_eval op v1 v2 = Some v' → X (Val v', σ)) →
+    head_step_mrel p (BinOp op (Val v1) (Val v2), σ) X
+  | IfTrueS e1 e2 σ X :
+    X (e1, σ) →
+    head_step_mrel p (If (Val $ LitV $ LitBool true) e1 e2, σ) X
+  | IfFalseS e1 e2 σ X :
+    X (e2, σ) →
+    head_step_mrel p (If (Val $ LitV $ LitBool false) e1 e2, σ) X
+  | FstS v1 v2 σ X :
+    X (Val v1, σ) →
+    head_step_mrel p (Fst (Val $ PairV v1 v2), σ) X
+  | SndS v1 v2 σ X :
+    X (Val v2, σ) →
+    head_step_mrel p (Snd (Val $ PairV v1 v2), σ) X
+  | CaseLS v e1 e2 σ X :
+    X (App e1 (Val v), σ) →
+    head_step_mrel p (Case (Val $ InjLV v) e1 e2, σ) X
+  | CaseRS v e1 e2 σ X :
+    X (App e2 (Val v), σ) →
+    head_step_mrel p (Case (Val $ InjRV v) e1 e2, σ) X
+  | AllocNS n v σ X :
+    ((0 ≤ n)%Z →
+     ∃ l, l ∉ dom σ ∧
+       X (Val $ LitV $ LitLoc l, <[l := Some (replicate (Z.to_nat n) v)]> σ)) →
+     head_step_mrel p (AllocN (Val $ LitV $ LitInt n) (Val v), σ) X
+  | LoadNS l i σ X :
+    (∀ v,
+       σ !! Locoff l i = Some v →
+       X (of_val v, σ)) →
+    head_step_mrel p (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i), σ) X
+  | StoreNS l i w σ X :
+    (∀ v,
+       σ !! Locoff l i = Some v →
+       X (Val $ LitV LitUnit, <[Locoff l i := w]> σ)) →
+    head_step_mrel p
+      (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w), σ) X
+  | LengthS l σ X :
+    (∀ vs,
+       σ !! l = Some (Some vs) →
+       X (Val $ LitV $ LitInt (length vs), σ)) →
+    head_step_mrel p (Length (Val $ LitV $ LitLoc l), σ) X
+  | ExternS s va σ X :
+    (∀ args e res,
+       (p : gmap string ml_function) !! s = Some (MlFun args e) →
+       apply_function (MlFun args e) va = Some res →
+       X (res, σ)) →
+    head_step_mrel p (Extern s (map Val va), σ) X.
 
+Program Definition head_step p : umrel (expr * state) :=
+  {| mrel := head_step_mrel p |}.
+Next Obligation.
+  intros p [e σ] X X' Hstep HX. inversion Hstep; subst; try solve [econstructor; eauto].
+  constructor; naive_solver.
+Qed.
 
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).

@@ -86,6 +86,14 @@ Proof.
     + apply IHx. congruence.
 Qed.
 
+Lemma foldl_max {A} (l: list A) (f : A → nat) (n : nat) :
+  n ≤ foldl (λ acc x, acc `max` f x) n l.
+Proof.
+  revert n. induction l as [|x l IHl].
+  { cbn. lia. }
+  { cbn. intros n. specialize (IHl (n `max` f x)). lia. }
+Qed.
+
 Section language_commons.
   Context {val : Type}.
   (** Classifying expressions into values and calls. *)

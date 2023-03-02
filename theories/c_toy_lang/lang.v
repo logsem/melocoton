@@ -2,8 +2,8 @@ From stdpp Require Export binders strings.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
-From iris.prelude Require Import options.
 From melocoton Require Import commons multirelations.
+From iris.prelude Require Import options.
 
 Declare Scope expr_scope.
 Declare Scope val_scope.
@@ -448,17 +448,8 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | FunCallRCtx vf va ve => FunCall (of_val vf) (map of_val va ++ [e] ++ ve)
   end.
 
-
-Lemma foldl_max {A} (l: list A) (f : A → nat) (n : nat) :
-  n ≤ foldl (λ acc x, acc `max` f x) n l.
-Proof.
-  revert n. induction l as [|x l IHl].
-  { cbn. lia. }
-  { cbn. intros n. specialize (IHl (n `max` f x)). lia. }
-Qed.
-
 Lemma fill_item_size Ki e :
-   expr_size e < expr_size (fill_item Ki e).
+  expr_size e < expr_size (fill_item Ki e).
 Proof.
   destruct Ki; cbn [fill_item]; try (cbn; lia).
   - cbn. apply le_lt_n_Sm, foldl_max.
