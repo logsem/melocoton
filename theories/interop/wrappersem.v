@@ -274,7 +274,7 @@ Inductive head_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     head_step_mrel p (WrE (ExprV w) [ki], CState ρc mem) X
   (* Execution finishes with an ML value, translate it into a C value *)
   | ValS eml ρml σ v w ρc mem X :
-    to_val eml = Some v →
+    language.language.to_val eml = Some v →
     ml_to_c [v] ρml σ [w] ρc mem →
     X (WrSE (ExprV w), CState ρc mem) →
     head_step_mrel p (WrSE (ExprML eml), MLState ρml σ) X
@@ -355,3 +355,13 @@ Global Program Instance wrap_linkable : linkable wrap_lang memory := {
   split_state := Wrap.split_state;
 }.
 Next Obligation. intros *. inversion 1; inversion 1; by simplify_eq. Qed.
+
+Lemma prim_head_step_WrSE pe se st X :
+  mlanguage.prim_step pe (WrSE se, st) X →
+  mlanguage.head_step pe (WrSE se, st) X.
+Proof.
+  intros Hstep%prim_head_step; eauto.
+  intros ? [? ?] HH ?. rewrite /fill /= /Wrap.fill /= in HH.
+  inversion HH; simplify_list_eq.
+  symmetry in HH; apply app_nil in HH. naive_solver.
+Qed.

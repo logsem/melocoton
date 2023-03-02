@@ -229,6 +229,35 @@ Section language.
     - by left.
     - right. exists x. unfold to_val. rewrite <- Hx. now rewrite to_of_class.
   Qed.
+  Lemma fill_class K e :
+    is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
+  Proof.
+    intros [?|[v Hv]]%fill_class'; first by left. right.
+    rewrite /to_val Hv. eauto.
+  Qed.
+  Lemma to_val_fill_call K f vs :
+    to_val (fill K (of_call Λ f vs)) = None.
+  Proof.
+    destruct (to_val (fill K (of_call Λ f vs))) eqn:HH; eauto.
+    destruct (fill_class K (of_call Λ f vs)) as [H1|H2].
+    { unfold to_val in HH. repeat case_match; simplify_eq. eauto. }
+    { subst. rewrite fill_empty in HH. unfold to_val in HH.
+      repeat case_match; simplify_eq.
+      unfold of_call in *. by rewrite -> to_of_class in *. }
+    { clear HH. rewrite -> to_val_of_call in H2. by apply is_Some_None in H2. }
+  Qed.
+  Lemma call_call_in_ctx K K' fn fn' vs vs' :
+    fill K (of_class _ (ExprCall fn vs)) = fill K' (of_class _ (ExprCall fn' vs')) →
+    K' = comp_ectx K empty_ectx ∧ fn' = fn ∧ vs' = vs.
+  Proof.
+    intros HH. destruct (call_in_ctx _ _ _ _ _ HH) as [[K'' ->]|[? H2]].
+    { rewrite -fill_comp in HH. apply fill_inj in HH.
+      destruct (fill_class K'' (of_class _ (ExprCall fn' vs'))) as [Hc|Hc].
+      { rewrite -HH /= to_of_class //. }
+      2: { exfalso. rewrite /to_val to_of_class in Hc. by apply is_Some_None in Hc. }
+      subst K''. rewrite fill_empty in HH. apply of_class_inj in HH. by simplify_eq. }
+    { exfalso. apply of_class_inj in H2. congruence. }
+  Qed.
 
   Lemma head_step_no_call p1 p2 e1 σ1 e2 σ2 efs :
       head_step p1 e1 σ1 e2 σ2 efs → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs.
@@ -236,12 +265,6 @@ Section language.
     apply language_mixin.
   Qed.
 
-  Lemma fill_class K e :
-    is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
-  Proof.
-    intros [?|[v Hv]]%fill_class'; first by left. right.
-    rewrite /to_val Hv. eauto.
-  Qed.
   Lemma step_by_val p K' K_redex e1' e1_redex σ1 e2 σ2 efs :
       fill K' e1' = fill K_redex e1_redex →
       to_val e1' = None →

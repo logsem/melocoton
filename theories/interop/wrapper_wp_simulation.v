@@ -111,40 +111,17 @@ Proof.
       { rewrite /wrap_penv /= lookup_prims_prog_None //. } }
 
     iIntros (X Hstep) "!>!>".
-
-    eapply prim_head_step in Hstep.
-    2: { unfold sub_redexes_are_values.
-         intros ? [? ?] HH ?. rewrite /fill /= /Wrap.fill /= in HH.
-         inversion HH; simplify_list_eq. (* XXX *)
-         symmetry in H2; apply app_nil in H2. naive_solver. }
+    eapply prim_head_step_WrSE in Hstep.
     inversion Hstep; simplify_eq.
     { exfalso.
       eapply (@language.prim_step_call_inv _ ML_lang) in H3
         as (? & ? & ? & ? & ? & ? & ?); simplify_eq. }
-    2: { exfalso.
-         edestruct (language.fill_class K' (language.of_class ML_lang (ExprCall fn_name vs))) as [|].
-         { exists (ExprVal v). unfold ML_lang.to_val in H2.
-           case_match; simplify_eq; []. rewrite /= H //. }
-         { simplify_eq. }
-         { cbn in *. rewrite /language.language.to_val in H.
-           case_match. 2: by eapply is_Some_None.
-           case_match. 2: by eapply is_Some_None.
-           simplify_eq. cbn in *. rewrite map_unmap_val /= in H0.
-           congruence. } }
+    2: { exfalso. by rewrite to_val_fill_call in H2. }
 
     apply language.of_to_class in H2. subst.
-    symmetry in H.
-    eapply language.call_in_ctx in H as H2. destruct H2 as [[K'' ?]|[? ?]]; last exfalso.
-    2: { cbn in *. congruence. }
-    subst. rewrite -language.fill_comp in H. apply language.fill_inj in H.
-    edestruct (language.fill_class K'' (language.of_class ML_lang (ExprCall fn_name0 vs0))) as [|].
-    { rewrite -H. rewrite /= map_unmap_val //. }
-    2: { exfalso. rewrite /language.language.to_val language.to_of_class in H0. by apply is_Some_None in H0. }
-    subst K''.
-    rewrite (_: language.comp_ectx K' language.empty_ectx = K') // in H6.
-    rewrite language.fill_empty /= in H. injection H. intros <-%map_inj <-.
-    2: naive_solver.
-    clear H.
+    eapply (@language.call_call_in_ctx _ ML_lang) in H.
+    rewrite (_: ∀ k, language.comp_ectx k language.empty_ectx = k) // in H.
+    destruct H as (<- & <- & <-).
 
     iMod (wrap_interp_ml_to_c with "[- Hnb Hnprim Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
       first done.
@@ -202,15 +179,13 @@ Proof.
       destruct Hred as (e' & σ' & Hprim). econstructor; last done.
       rewrite Hpeemp in Hprim. cbn. eapply Hprim.
     * iIntros (X Hstep).
-      eapply head_reducible_prim_step in Hstep.
-      2: { exists (λ _, True). destruct Hred as (?&?&?).
-           econstructor; eauto. rewrite Hpeemp in H. done. }
+      eapply prim_head_step_WrSE in Hstep.
       inversion Hstep; simplify_eq.
       2: { exfalso; eapply reducible_call_is_in_prog.
            { by eapply language.language.reducible_no_threads_reducible. }
            { rewrite /language.to_call H2 //. }
            { rewrite Hpeemp. set_solver. } }
-      2: { apply ML_lang.of_to_val in H2; subst eml.
+      2: { apply language.language.of_to_val in H2; subst eml.
            apply language.language.reducible_no_threads_reducible in Hred.
            apply language.language.reducible_not_val in Hred. cbn in Hred; congruence. }
 
@@ -257,8 +232,7 @@ Proof.
     { iPureIntro. eexists (λ _, True). eapply head_prim_step.
       eapply CallbackS; eauto. eapply c_to_ml_True. }
     iIntros (X Hstep).
-    eapply head_reducible_prim_step in Hstep.
-    2: { exists (λ _, True). eapply CallbackS; eauto. eapply c_to_ml_True. }
+    apply prim_head_step_WrSE in Hstep.
     inversion Hstep; simplify_eq.
     { exfalso. inversion H4. (* XXX *) }
     pose proof (repr_lval_inj_1 _ _ _ _ Hθinj Hreprw H4); simplify_map_eq.
