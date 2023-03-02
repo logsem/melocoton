@@ -157,6 +157,12 @@ Section mlanguage.
   Lemma of_to_class e c : to_class e = Some c → of_class Λ c = e.
   Proof. apply mlanguage_mixin. Qed.
 
+  Lemma of_class_inj k1 k2 : of_class Λ k1 = of_class Λ k2 → k1 = k2.
+  Proof.
+    intros H. enough (Some k1 = Some k2) by congruence.
+    rewrite <- !to_of_class. rewrite H. done.
+  Qed.
+
   Lemma to_val_of_call f vs : to_val (of_call Λ f vs) = None.
   Proof. rewrite /to_val /of_call to_of_class. done. Qed.
   Lemma to_call_of_val v : to_call (of_val Λ v) = None.
@@ -183,17 +189,9 @@ Section mlanguage.
   Lemma fill_class' K e :
     is_Some (to_class (fill K e)) → K = empty_ectx ∨ ∃ v, to_class e = Some (ExprVal v).
   Proof. apply mlanguage_mixin. Qed.
-
   Lemma fill_size K e :
       K ≠ empty_ectx → expr_size e < expr_size (fill K e).
   Proof. apply mlanguage_mixin. Qed.
-  Lemma head_redex_cases p e σ : 
-      is_Some (to_val e)
-    ∨ is_head_redex p (e, σ)
-    ∨ (¬ is_head_redex p (e, σ) ∧
-        (∃ K e', e = fill K e' ∧ to_val e' = None ∧ K ≠ empty_ectx)).
-  Proof. apply mlanguage_mixin. Qed.
-
   Lemma step_by_val' p K' K_redex e1' e1_redex σ :
       fill K' e1' = fill K_redex e1_redex →
       match to_class e1' with Some (ExprVal _) => False | _ => True end →
@@ -214,11 +212,40 @@ Section mlanguage.
     intros [H1|(x&Hx)]%call_in_ctx; auto.
     right. exists x. rewrite /to_val -Hx to_of_class//.
   Qed.
+  Lemma head_redex_cases p e σ :
+      is_Some (to_val e)
+    ∨ is_head_redex p (e, σ)
+    ∨ (¬ is_head_redex p (e, σ) ∧
+        (∃ K e', e = fill K e' ∧ to_val e' = None ∧ K ≠ empty_ectx)).
+  Proof. apply mlanguage_mixin. Qed.
   Lemma fill_class K e :
     is_Some (to_class (fill K e)) → K = empty_ectx ∨ is_Some (to_val e).
   Proof.
     intros [?|[v Hv]]%fill_class'; first by left. right.
     rewrite /to_val Hv. eauto.
+  Qed.
+  Lemma to_val_fill_call K f vs :
+    to_val (fill K (of_call Λ f vs)) = None.
+  Proof.
+    destruct (to_val (fill K (of_call Λ f vs))) eqn:HH; eauto.
+    destruct (fill_class K (of_call Λ f vs)) as [H1|H2].
+    { unfold to_val in HH. repeat case_match; simplify_eq. eauto. }
+    { subst. rewrite fill_empty in HH. unfold to_val in HH.
+      repeat case_match; simplify_eq.
+      unfold of_call in *. by rewrite -> to_of_class in *. }
+    { clear HH. rewrite -> to_val_of_call in H2. by apply is_Some_None in H2. }
+  Qed.
+  Lemma call_call_in_ctx K K' fn fn' vs vs' :
+    fill K (of_class _ (ExprCall fn vs)) = fill K' (of_class _ (ExprCall fn' vs')) →
+    K' = comp_ectx K empty_ectx ∧ fn' = fn ∧ vs' = vs.
+  Proof.
+    intros HH. destruct (call_in_ctx _ _ _ _ _ HH) as [[K'' ->]|[? H2]].
+    { rewrite -fill_comp in HH. apply fill_inj in HH.
+      destruct (fill_class K'' (of_class _ (ExprCall fn' vs'))) as [Hc|Hc].
+      { rewrite -HH /= to_of_class //. }
+      2: { exfalso. rewrite /to_val to_of_class in Hc. by apply is_Some_None in Hc. }
+      subst K''. rewrite fill_empty in HH. apply of_class_inj in HH. by simplify_eq. }
+    { exfalso. apply of_class_inj in H2. congruence. }
   Qed.
   Lemma step_by_val p K' K_redex e1' e1_redex σ :
       fill K' e1' = fill K_redex e1_redex →
@@ -393,7 +420,7 @@ Section mlanguage.
     eapply umrel_upclosed.
     - eapply Hhstep. by rewrite fill_empty.
     - intros [e σ]. rewrite fill_empty. eauto.
-  Qed. 
+  Qed.
 
   Lemma prim_step_call_inv p K f vs e' σ X :
     prim_step p (fill K (of_call Λ f vs), σ) X →
