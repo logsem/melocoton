@@ -319,8 +319,12 @@ Section language.
     ∃ e' σ' efs, prim_step p e σ e' σ' efs.
   Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∀ e' σ' efs, ¬prim_step p e σ e' σ' efs.
+  Definition irreducible_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+    ∀ e' σ' efs, ¬prim_step p e σ e' σ' [].
   Definition stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ irreducible p e σ.
+  Definition stuck_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
+    to_val e = None ∧ irreducible_no_threads p e σ.
   Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     is_Some (to_val e) ∨ reducible p e σ.
   Definition not_stuck_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=

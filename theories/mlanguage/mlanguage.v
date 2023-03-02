@@ -33,7 +33,7 @@ Section mlanguage_mixin.
         (∀ (fn : func) (e2 : expr),
           p !! f = Some fn → Some e2 = apply_func fn vs → X (resume_with C e2, σ));
 
-    mixin_not_is_call e : is_Some (to_val e) ↔ (∀ f vs C, ¬ is_call e f vs C);
+    mixin_not_is_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
 
     mixin_prim_step_total p e σ :
       to_val e = None →
@@ -108,7 +108,7 @@ Section mlanguage.
           p !! f = Some fn → Some e2 = apply_func fn vs → X (resume_with C e2, σ)).
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma not_is_call e : is_Some (to_val e) ↔ (∀ f vs C, ¬ is_call e f vs C).
+  Lemma not_is_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C).
   Proof. apply mlanguage_mixin. Qed.
 
   Lemma not_is_call_2 e f vs C : is_call e f vs C → to_val e = None.
@@ -116,11 +116,6 @@ Section mlanguage.
     intros H; destruct (to_val e) eqn:Heq; try done.
     exfalso; apply mk_is_Some in Heq.
     eapply not_is_call in Heq. done.
-  Qed.
-
-  Lemma not_is_call_1 e v f vs C : to_val e = Some v → ¬ is_call e f vs C.
-  Proof.
-    intros H; revert f vs C; apply not_is_call. by eexists.
   Qed.
 
   (* There is no NB *)
