@@ -320,7 +320,7 @@ Section language.
   Definition irreducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∀ e' σ' efs, ¬prim_step p e σ e' σ' efs.
   Definition irreducible_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
-    ∀ e' σ' efs, ¬prim_step p e σ e' σ' [].
+    ∀ e' σ', ¬prim_step p e σ e' σ' [].
   Definition stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ irreducible p e σ.
   Definition stuck_no_threads (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
@@ -374,6 +374,8 @@ Section language.
 
   Lemma not_reducible p e σ : ¬reducible p e σ ↔ irreducible p e σ.
   Proof. unfold reducible, irreducible. naive_solver. Qed.
+  Lemma not_reducible_no_threads p e σ : ¬reducible_no_threads p e σ ↔ irreducible_no_threads p e σ.
+  Proof. unfold reducible_no_threads, irreducible_no_threads. naive_solver. Qed.
   Lemma reducible_not_val p e σ : reducible p e σ → to_val e = None.
   Proof. intros (?&?&?&?); eauto using val_stuck. Qed.
   Lemma val_irreducible p e σ : is_Some (to_val e) → irreducible p e σ.
