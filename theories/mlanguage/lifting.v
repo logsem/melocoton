@@ -52,22 +52,21 @@ Proof.
   by iApply wp_value.
 Qed.
 
-Lemma wp_lift_atomic_head_step {pe E Φ} e1 :
+Lemma wp_lift_atomic_prim_step {pe E Φ} e1 :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
-    ⌜is_head_redex (penv_prog pe) (e1, σ1)⌝ ∗
-    ▷ ∀ X, ⌜head_step (penv_prog pe) (e1, σ1) X⌝ ={E}=∗
+    ▷ ∀ X, ⌜prim_step (penv_prog pe) (e1, σ1) X⌝ ={E}=∗
       ∃ e2 σ2, ⌜X (e2, σ2)⌝ ∗
         state_interp σ2 ∗ from_option Φ False (to_val e2))
   ⊢ WP e1 @ pe; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
   iApply (wp_lift_step_fupd pe E _ e1)=>//; iIntros (σ1) "Hσ1".
-  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro.
-  iIntros (X Hstep). eapply head_reducible_prim_step in Hstep. 2:apply HH. do 3 iModIntro.
-  iMod ("H" $! X Hstep) as (e' σ' HX) "[H1 H2]". iModIntro.
-  iExists _, _. iSplitR; first done. iFrame.
-  destruct (to_val e') eqn:?; last by iExFalso.
+  iMod ("H" $! σ1 with "Hσ1") as "H". iModIntro.
+  iIntros (X Hstep).
+  do 3 iModIntro. iMod ("H" $! X Hstep) as "(%e2&%σ2&%HX&Hσ&H)".
+  iExists _, _. iSplitR; first done. iModIntro. iFrame.
+  destruct (to_val e2) eqn:?; last by iExFalso.
   by iApply wp_value.
 Qed.
 
@@ -84,30 +83,6 @@ Proof.
   iModIntro. iExists e2, _. iSplitR.
   { iPureIntro. eapply Hstep; eauto. }
   iFrame.
-Qed.
-
-Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} pe E e1 e2 φ n Φ :
-  PureExec φ n (penv_prog pe) e1 e2 →
-  φ →
-  (|={E}[E]▷=>^n WP e2 @ pe; E {{ Φ }}) ⊢ WP e1 @ pe; E {{ Φ }}.
-Proof.
-  iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
-  iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl.
-  { iMod lc_zero as "Hz". by iApply "Hwp". }
-  iApply wp_lift_pure_det_step.
-  - done.
-  - intros. eapply pure_step_det; eauto.
-  - iApply (step_fupd_wand with "Hwp"). iApply "IH".
-Qed.
-
-Lemma wp_pure_step_later `{!Inhabited (state Λ)} pe E e1 e2 φ n Φ :
-  PureExec φ n (penv_prog pe) e1 e2 →
-  φ →
-  ▷^n (WP e2 @ pe; E {{ Φ }}) ⊢ WP e1 @ pe; E {{ Φ }}.
-Proof.
-  intros Hexec ?. rewrite -wp_pure_step_fupd //. clear Hexec.
-  enough (∀ P, ▷^n P -∗ |={E}▷=>^n P) as Hwp by apply Hwp. iIntros (?).
-  induction n as [|n IH]; by rewrite //= -step_fupd_intro // IH.
 Qed.
 
 End lifting.
