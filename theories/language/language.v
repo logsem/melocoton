@@ -42,8 +42,10 @@ Section language_mixin.
       fill K e = fill K' (of_class (ExprCall s' vv))
       → (∃ K'', K' = comp_ectx K K'') ∨ (∃ v, of_class (ExprVal v) = e);
 
+(* XXX not used?
     mixin_head_step_mp_call p1 p2 e1 σ1 e2 σ2 efs :
       head_step p1 e1 σ1 e2 σ2 efs → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs;
+*)
 
     (** Substitution and free variables *)
     (* mixin_subst_map_empty e : subst_map ∅ e = e; *)
@@ -259,11 +261,12 @@ Section language.
     { exfalso. apply of_class_inj in H2. congruence. }
   Qed.
 
+(*
   Lemma head_step_no_call p1 p2 e1 σ1 e2 σ2 efs :
       head_step p1 e1 σ1 e2 σ2 efs → to_class e1 = None → head_step p2 e1 σ1 e2 σ2 efs.
   Proof.
     apply language_mixin.
-  Qed.
+  Qed. *)
 
   Lemma step_by_val p K' K_redex e1' e1_redex σ1 e2 σ2 efs :
       fill K' e1' = fill K_redex e1_redex →
