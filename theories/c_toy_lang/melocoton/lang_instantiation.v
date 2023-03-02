@@ -3,25 +3,10 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
-From melocoton.interop Require Import lang_to_mlang.
-From melocoton.c_toy_lang Require Import iris.lang_instantiation.
 From melocoton.language Require Import language.
 From melocoton.c_toy_lang Require Export lang metatheory.
 
 Local Notation state := (gmap loc heap_cell).
-
-Definition of_class (e : mixin_expr_class val) : expr := match e with
-  ExprVal v => Val v
-| ExprCall vf vl => FunCall (Val $ LitV $ LitFunPtr vf) (map Val vl) end.
-#[local] Notation omap f x := (match x with Some v => f v | None => None end).
-Fixpoint unmap_val el := match el with 
-      Val v::er => omap (fun vr => Some (v::vr)) (unmap_val er)
-    | nil => Some nil
-    | _ => None end.
-Definition to_class (e : expr) : option (mixin_expr_class val) := match e with
-  Val v => Some (ExprVal v)
-| FunCall (Val (LitV (LitFunPtr vf))) el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
-| _ => None end.
 
 Lemma map_unmap_val l : unmap_val (map Val l) = Some l.
 Proof.
@@ -30,7 +15,7 @@ Proof.
   - cbn. rewrite IHl. easy.
 Qed.
 
-Lemma to_of_cancel e : to_class (of_class e) = Some e.
+Local Lemma to_of_cancel e : to_class (of_class e) = Some e.
 Proof.
   destruct e.
   - easy.
@@ -46,7 +31,7 @@ Proof.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
 
-Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
+Local Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
 Proof.
   destruct e; cbn; try congruence.
   - intros H. injection H. intros <-. easy.
@@ -55,86 +40,98 @@ Proof.
     intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
 Qed.
 
-Inductive bogo_head_step' (p:program) : expr → state → expr → state → list expr → Prop :=
-  bogo_obs e1 σ1 e2 σ2 :
-    head_step p e1 σ1 e2 σ2 →
-    bogo_head_step' p e1 σ1 e2 σ2 [].
-
-Lemma bogo_head_step'_elim p e1 σ1 e2 σ2 l2 : 
-  bogo_head_step' p e1 σ1 e2 σ2 l2 → head_step p e1 σ1 e2 σ2.
-Proof. by intros []. Qed.
-
-Lemma bogo_head_step'_elim' p e1 σ1 e2 σ2 l2 : 
-  bogo_head_step' p e1 σ1 e2 σ2 l2 → head_step p e1 σ1 e2 σ2 /\ l2 = [].
-Proof. inversion 1;subst. now repeat split. Qed.
-
-Lemma head_step_no_val p v σ1 e2 σ2 efs :
-  bogo_head_step' p (Val v) σ1 e2 σ2 efs → False.
+Lemma fill_class (K : list ectx_item) (e:expr) :
+  is_Some (to_class (fill K e)) → K = nil ∨ ∃ v, to_class e = Some (ExprVal v).
 Proof.
-  intros H. inversion H; subst. inversion H0.
-Qed.
-
-Lemma fill_class {p:program} (K : list ectx_item) (e:expr) : 
-    is_Some (to_class (ectxi_language.fill K e)) → K = nil ∨ ∃ v, to_class e = Some (ExprVal v).
-Proof.
-  (* TODO use to_val_fill_some *)
   intros [v Hv]. revert v Hv. induction K as [|k1 K] using rev_ind; intros v Hv. 1:now left. right.
   rewrite fill_app in Hv.
   destruct k1; cbn in Hv; try congruence.
-  + destruct (ectxi_language.fill K e) eqn:Heq; cbn in Hv; try congruence. destruct v0. destruct l; cbn in Hv; try congruence.
+  + destruct (fill K e) eqn:Heq; cbn in Hv; try congruence. destruct v0. destruct l; cbn in Hv; try congruence.
     revert Hv. edestruct unmap_val eqn:Heq2; try congruence. intros H. injection H. intros <-.
     cbn in IHK. destruct (IHK _ eq_refl) as [->|Hr].
     - cbn in Heq. subst. eexists. cbn. reflexivity.
     - easy.
   + destruct vf. destruct l; cbn in Hv; try congruence. revert Hv. edestruct unmap_val eqn:Heq; try congruence.
     intros H. injection H. intros <-. apply unmap_val_map in Heq.
-    assert (In (ectxi_language.fill K e) (map Val l)) as [vv [Hvv' Hvv]]%in_map_iff.
+    assert (In (fill K e) (map Val l)) as [vv [Hvv' Hvv]]%in_map_iff.
     1: rewrite Heq; apply in_app_iff; right; now left.
     destruct (IHK (ExprVal vv)) as [Hl|Hr].
     - rewrite <- Hvv'. easy.
     - subst. cbn in *. subst. eexists. cbn. reflexivity.
     - easy.
 Qed.
-Definition fill (K : list ectx_item) (e : expr) : expr :=
-  @ectxi_language.fill (C_ectxi_lang (∅ : gmap _ _)) K e.
 
-Lemma fill_comp k K e : fill (k::K) e = fill K (fill_item k e).
+Local Notation to_val e :=
+  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
+
+Local Lemma of_to_val e v : to_val e = Some v → of_val v = e.
 Proof.
-  reflexivity.
+  intros. eapply (of_to_cancel e (ExprVal v)).
+  repeat case_match; by simplify_eq.
 Qed.
+
+Local Lemma to_val_funcall fn vs :
+  to_val (FunCall fn vs) = None.
+Proof.
+  repeat (case_match; simplify_eq; cbn in * ); eauto.
+Qed.
+
+Local Hint Resolve to_val_funcall : core.
 
 Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
 Proof.
-  induction K in e|-*.
-  - intros H; apply H.
-  - intros H. cbn in H. specialize (IHK _ H).
-    eapply fill_item_val. apply IHK.
+  intros [? HH]. case_match; simplify_eq.
+  case_match; simplify_eq.
+  pose proof (mk_is_Some _ _ H) as H2.
+  apply fill_class in H2 as [->|[? ->]]; last done.
+  rewrite /= H //.
 Qed.
 
-Lemma fill_tail k K e e' : to_val e = None -> to_val e' = None -> fill_item k e = fill K e' -> K = [] ∨ exists K', K = K' ++ [k] /\ e = fill K' e'.
-Proof. intros He He'.
+Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
+Proof.
+  intros HH. destruct (to_val (fill K e)) eqn:Heq; try done.
+  destruct (fill_val K e); try done. congruence.
+Qed.
+
+Lemma fill_comp_item k K e : fill (k :: K) e = fill K (fill_item k e).
+Proof. reflexivity. Qed.
+
+Lemma fill_tail k K e e' :
+  to_val e = None →
+  to_val e' = None →
+  fill_item k e = fill K e' →
+  K = [] ∨ ∃ K', K = K' ++ [k] ∧ e = fill K' e'.
+Proof.
+  intros He He'.
   destruct K.
   + intros _. now left.
   + destruct (@exists_last _ (e0::K)) as (L & l & Hl); first congruence.
-    rewrite Hl. unfold fill, ectxi_language.fill.
+    rewrite Hl. unfold fill.
     rewrite foldl_snoc. cbn. intros H. pose proof H as H_copy.
     apply fill_item_no_val_inj in H_copy as ->.
-    2: easy. 
+    2: easy.
     2: { destruct (to_val (foldl (flip fill_item) e' L)) eqn:Heq; last done.
          edestruct (fill_val L e'). 1: eexists; apply Heq. congruence. }
     right. eexists. split; first done. now apply fill_item_inj in H.
 Qed.
 
-Lemma fill_ctx K s vv K' e : 
-  fill K' e = fill K (of_class (ExprCall s vv))
-  -> (exists v, e = Val v) \/ (exists K2, K = K2 ++ K').
+Global Instance fill_inj K : Inj (=) (=) (fill K).
+Proof.
+  intros e1 e2.
+  induction K as [|Ki K IH] in e1, e2 |- *; rewrite /Inj; first done.
+  rewrite !fill_comp_item. by intros ?%IH%fill_item_inj.
+Qed.
+
+Lemma fill_ctx K s vv K' e :
+  fill K' e = fill K (of_class (ExprCall s vv)) →
+  (∃ v, e = Val v) ∨ (∃ K2, K = K2 ++ K').
 Proof. cbn.
   induction K' as [|[] K' IH] in K,e|-*; intros H; first last.
   1-13: destruct  (IH _ _ H) as [(v & Hv)|(K2 & ->)]; try (cbn in *; congruence).
   1-13:  destruct (to_val e) eqn:Heq; first (apply of_to_val in Heq; by left; eexists).
-  1-13:  rewrite fill_comp in H.
-  1-13:  unfold fill in H; rewrite fill_app in H; apply ectx_language.fill_inj in H.
-  1-13:  apply fill_tail in H as H2; try (cbn; congruence).
+  1-13:  rewrite fill_comp_item in H.
+  1-13:  rewrite fill_app in H; apply fill_inj in H.
+  1-13:  apply fill_tail in H as H2; try (simplify_eq; eauto; congruence).
   1-13:  destruct H2 as [->|(K3 & -> & HK3)]; try (cbn in *; congruence).
   1-16:  try (right; exists K3; by rewrite <- app_assoc).
   - exfalso. cbn in H. assert (In e (map Val vv)) as Hin.
@@ -148,43 +145,47 @@ Qed.
 Lemma melocoton_lang_mixin_C :
   @LanguageMixin expr val function (list ectx_item) state
                  of_class to_class
-                 nil (fun a b => b++a) fill
-                 apply_function bogo_head_step'.
+                 nil comp_ectx fill
+                 apply_function head_step.
 Proof. split.
   + apply to_of_cancel.
   + apply of_to_cancel.
-  + apply head_step_no_val.
-  + intros p f vs σ1 e2 σ2 efs. split.
-    - intros H. inversion H; subst. inversion H0; subst. repeat econstructor; [apply H3|].
-      rewrite <- H7. f_equal. eapply map_inj in H2; congruence.
-    - intros ([args ee] & H1 & H2 & -> & ->). econstructor. cbn. by eapply FunCallS.
+  + intros *. inversion 1.
+  + intros p f vs σ1 e2 σ2. split.
+    - intros H. inversion H; subst. inversion H; subst. repeat econstructor; [apply H2|].
+      rewrite <- H6. f_equal. eapply map_inj in H1; congruence.
+    - intros ([args ee] & H1 & H2 & ->). econstructor; eauto.
   + intros K K' e s' vv Heq.
     destruct (fill_ctx K' s' vv K e) as [(v&HL)|(K2&HK2)].
     - apply Heq.
     - right. exists v. rewrite HL. easy.
     - left. exists K2. easy.
-  + intros p1 p2 e1 σ1 e2 σ2 efs H Hnc. inversion H; subst. econstructor. inversion H0; subst. all: try by econstructor.
+  + intros p1 p2 e1 σ1 e2 σ2 H Hnc.
+    inversion H; subst. all: try by econstructor.
     cbn in Hnc. rewrite map_unmap_val in Hnc. congruence.
   + intros e. easy.
-  + intros K1 K2 e. now rewrite /fill fill_app.
-  + intros K a b. apply ectx_language.fill_inj.
-  + unfold fill. apply fill_class.
-  + intros p. unfold fill.
-    change ((@ectxi_language.fill (C_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (C_ectxi_lang p))).
-    intros K' K_redec e1' e1_redex σ1 e2 σ2 efs H Heq (Hstep & ->)%bogo_head_step'_elim'.
-    destruct (ectx_language.step_by_val K' K_redec e1' e1_redex σ1 nil e2 σ2 nil H) as [K'' HK''].
-    1: now destruct e1'; cbn in *.
-    1: by econstructor; apply Hstep.
-    exists K''. apply HK''.
-  + intros p. unfold fill.
-    change ((@ectxi_language.fill (C_ectxi_lang (∅:gmap _ _)))) with ((@ectxi_language.fill (C_ectxi_lang p))).
-    intros K e σ1 e2 σ2 efs (Hstep & ->)%bogo_head_step'_elim'.
-    change (gmap string function) with program in p.
-    edestruct (ectx_language.head_ctx_step_val K e σ1 nil e2 σ2 nil) as [Hl|Hr].
-    1: econstructor; apply Hstep.
-    1: right; destruct Hl as (v&Hv); exists v; destruct e; cbn in *; congruence.
-    1: left; now rewrite Hr.
+  + intros K1 K2 e. rewrite fill_app //.
+  + intros K a b. apply fill_inj.
+  + apply fill_class.
+  + intros p.
+    intros K K' e1 e1' σ1 e2 σ2 Hfill Hred Hstep; revert K' Hfill.
+    induction K as [|Ki K IH] using rev_ind=> /= K' Hfill; eauto using app_nil_r.
+    destruct K' as [|Ki' K' _] using @rev_ind; simplify_eq/=.
+    { rewrite fill_app in Hstep. apply head_ctx_step_val in Hstep.
+      apply fill_val in Hstep. destruct Hstep as [? Hstep].
+      by repeat (case_match; simplify_eq). }
+    rewrite !fill_app /= in Hfill.
+    assert (Ki = Ki') as ->.
+    { eapply fill_item_no_val_inj, Hfill.
+      2: { by eapply val_head_stuck, fill_not_val in Hstep. }
+      eapply fill_not_val. by destruct e1. }
+    simplify_eq. destruct (IH K') as [K'' ->]; auto.
+    exists K''. rewrite /comp_ectx assoc //.
+  + intros p K e σ1 e2 σ2.
+    destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
+    rewrite fill_app /=.
+    intros [v' ?]%head_ctx_step_val%fill_val. right. exists v'.
+    by repeat (case_match; simplify_eq).
 Qed.
 
 Canonical Structure C_lang := Language melocoton_lang_mixin_C.
-Canonical Structure C_mlang := lang_to_mlang C_lang.

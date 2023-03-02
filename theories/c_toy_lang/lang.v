@@ -3,7 +3,7 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
-
+From melocoton Require Import commons.
 
 Declare Scope expr_scope.
 Declare Scope val_scope.
@@ -48,15 +48,6 @@ Inductive expr :=
   | While (e0 e1 : expr)
   | FunCall (e0 : expr) (ee : list expr).
 Set Elimination Schemes.
-
-Fixpoint In2 {A} (a : A) (l : list A) : Type := match l with nil => False | b :: m => sum (b = a) (In2 a m) end.
-
-Lemma In2_In {A} (a:A) l : In2 a l -> In a l.
-Proof.
-  induction l.
-  - easy.
-  - intros [Hl|Hr]; [now left | right]. apply IHl, Hr.
-Qed.
 
 Definition expr_rect (P : expr → Type) :
     (∀ v : val, P (Val v))
@@ -203,20 +194,32 @@ Definition arity (F : function) := match F with Fun b e => length b end.
 
 Notation of_val := Val (only parsing).
 
-Definition to_val (e : expr) : option val :=
+Definition of_class (e : mixin_expr_class) : expr :=
   match e with
-  | Val v => Some v
+  | ExprVal v => Val v
+  | ExprCall vf vl => FunCall (Val $ LitV $ LitFunPtr vf) (map Val vl)
+  end.
+
+#[local] Notation omap f x := (match x with Some v => f v | None => None end).
+
+Fixpoint unmap_val el :=
+  match el with
+  | Val v::er => omap (fun vr => Some (v::vr)) (unmap_val er)
+  | [] => Some nil
   | _ => None
   end.
 
+Definition to_class (e : expr) : option mixin_expr_class :=
+  match e with
+  | Val v => Some (ExprVal v)
+  | FunCall (Val (LitV (LitFunPtr vf))) el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
+  | _ => None
+  end.
+
+Local Notation to_val e :=
+  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
 
 (** Equality and other typeclass stuff *)
-Lemma to_of_val v : to_val (of_val v) = Some v.
-Proof. by destruct v. Qed.
-
-Lemma of_to_val e v : to_val e = Some v → of_val v = e.
-Proof. destruct e=>//=. by intros [= <-]. Qed.
-
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
@@ -396,6 +399,13 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | FunCallLCtx ea => FunCall e ea
   | FunCallRCtx vf va ve => FunCall (of_val vf) (map of_val va ++ [e] ++ ve)
   end.
+
+Definition ectx := list ectx_item.
+Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
+Definition comp_ectx (K K' : ectx) : ectx := K' ++ K.
+
+Lemma fill_app (K1 K2 : ectx) e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
+Proof. apply foldl_app. Qed.
 
 (** Substitution *)
 Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
@@ -582,46 +592,17 @@ Inductive head_step (p : program) : expr → state → expr → state → Prop :
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
 
-Lemma fill_item_val Ki e :
-  is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
-Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
-
 Lemma val_head_stuck p e1 σ1 e2 σ2 : head_step p e1 σ1 e2 σ2 → to_val e1 = None.
-Proof. destruct 1; naive_solver. Qed.
+Proof.
+  inversion 1; simplify_eq; try done.
+  cbn. repeat (case_match; simplify_eq); done.
+Qed.
 
 Lemma head_ctx_step_val p Ki e σ1 e2 σ2 :
   head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_val e).
 Proof. revert e2. induction Ki. 1-12: inversion_clear 1; simplify_option_eq; eauto.
        - inversion 1. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
          apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
-Qed.
-
-Lemma list_eq_sliced {X} (L1 L2 R1 R2 : list X) (M1 M2 : X) (P : X -> Prop) :
-  L1 ++ M1 :: R1 = L2 ++ M2 :: R2 ->
-  (forall x, In x L1 -> P x) -> (forall x, In x L2 -> P x) -> ~ P M1 -> ~P M2 ->
-  L1 = L2 /\ M1 = M2 /\ R1 = R2.
-Proof.
-  revert L2. induction L1 as [|L1L L1R IH]; intros L2 Heq HL1 HL2 HM1 HM2; destruct L2 as [|L2L L2R].
-  - cbn in Heq; repeat split; congruence.
-  - cbn in Heq. exfalso. apply HM1. apply HL2. left. congruence.
-  - cbn in Heq. exfalso. apply HM2. apply HL1. left. congruence.
-  - cbn in Heq. destruct (IH L2R) as (-> & -> & ->).
-    + congruence.
-    + intros x Hx. apply HL1. now right.
-    + intros x Hx. apply HL2. now right.
-    + easy.
-    + easy.
-    + repeat split. congruence.
-Qed.
-
-Lemma map_inj {X Y} (f : X -> Y) : (forall x y, f x = f y -> x = y)
-  -> forall Lx Ly, map f Lx = map f Ly -> Lx = Ly.
-Proof.
-  intros Hinj. intros Lx. induction Lx as [|x xr IHx].
-  - intros [|y yr]. 1:easy. cbn. congruence.
-  - intros [|y yr]. 1:cbn; congruence. cbn. intros Heq. f_equal.
-    + apply Hinj. congruence.
-    + apply IHx. congruence.
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -654,13 +635,3 @@ End C_lang.
 
 (* Prefer C_lang names over ectx_language names. *)
 Export C_lang.
-
-
-
-
-
-
-
-
-
-

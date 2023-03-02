@@ -17,13 +17,10 @@ Ltac inv_head_step :=
      try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable
      and should thus better be avoided. *)
      inversion H; subst; clear H
-  | H : @bogo_head_step' _ _ _ _ _ _ |- _ => destruct (@bogo_head_step'_elim' _ _ _ _ _ _ H) as (? & ?); subst; clear H
   end.
 Create HintDb head_step.
 Global Hint Extern 0 (head_reducible _ _ _) => eexists _, _, _; simpl : head_step.
-Global Hint Extern 0 (head_reducible_no_threads _ _ _) => eexists _, _; simpl : head_step.
 
 (* [simpl apply] is too stupid, so we need extern hints here. *)
 Global Hint Extern 1 (head_step _ _ _ _ _) => econstructor : head_step.
-Global Hint Extern 1 (bogo_head_step' _ _ _ _ _ _) => econstructor : head_step.
 Global Hint Extern 0 (head_step _ (Malloc _) _ _ _) => apply alloc_fresh : head_step.

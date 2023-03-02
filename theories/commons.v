@@ -58,6 +58,47 @@ Proof.
       by do 2 right.
 Qed.
 
+Fixpoint In2 {A} (a : A) (l : list A) : Type :=
+  match l with
+  | [] => False
+  | b :: m => sum (b = a) (In2 a m)
+  end.
+
+Lemma In2_In {A} (a:A) l : In2 a l -> In a l.
+Proof.
+  induction l.
+  - easy.
+  - intros [Hl|Hr]; [now left | right]. apply IHl, Hr.
+Qed.
+
+Lemma list_eq_sliced {X} (L1 L2 R1 R2 : list X) (M1 M2 : X) (P : X -> Prop) :
+  L1 ++ M1 :: R1 = L2 ++ M2 :: R2 ->
+  (forall x, In x L1 -> P x) -> (forall x, In x L2 -> P x) -> ~ P M1 -> ~P M2 ->
+  L1 = L2 /\ M1 = M2 /\ R1 = R2.
+Proof.
+  revert L2. induction L1 as [|L1L L1R IH]; intros L2 Heq HL1 HL2 HM1 HM2; destruct L2 as [|L2L L2R].
+  - cbn in Heq; repeat split; congruence.
+  - cbn in Heq. exfalso. apply HM1. apply HL2. left. congruence.
+  - cbn in Heq. exfalso. apply HM2. apply HL1. left. congruence.
+  - cbn in Heq. destruct (IH L2R) as (-> & -> & ->).
+    + congruence.
+    + intros x Hx. apply HL1. now right.
+    + intros x Hx. apply HL2. now right.
+    + easy.
+    + easy.
+    + repeat split. congruence.
+Qed.
+
+Lemma map_inj {X Y} (f : X -> Y) : (forall x y, f x = f y -> x = y)
+  -> forall Lx Ly, map f Lx = map f Ly -> Lx = Ly.
+Proof.
+  intros Hinj. intros Lx. induction Lx as [|x xr IHx].
+  - intros [|y yr]. 1:easy. cbn. congruence.
+  - intros [|y yr]. 1:cbn; congruence. cbn. intros Heq. f_equal.
+    + apply Hinj. congruence.
+    + apply IHx. congruence.
+Qed.
+
 Section language_commons.
   Context {val : Type}.
   (** Classifying expressions into values and calls. *)
