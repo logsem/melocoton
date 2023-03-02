@@ -356,12 +356,82 @@ Global Program Instance wrap_linkable : linkable wrap_lang memory := {
 }.
 Next Obligation. intros *. inversion 1; inversion 1; by simplify_eq. Qed.
 
+(* inversion lemmas *)
+
 Lemma prim_head_step_WrSE pe se st X :
   mlanguage.prim_step pe (WrSE se, st) X →
   mlanguage.head_step pe (WrSE se, st) X.
-Proof.
+Proof using.
   intros Hstep%prim_head_step; eauto.
   intros ? [? ?] HH ?. rewrite /fill /= /Wrap.fill /= in HH.
   inversion HH; simplify_list_eq.
   symmetry in HH; apply app_nil in HH. naive_solver.
+Qed.
+
+Lemma wrap_step_call_inv pe K fn_name vs ρml σ X :
+  prim_step pe
+    (WrSE (Wrap.ExprML (language.fill K (language.of_call ML_lang fn_name vs))),
+     Wrap.MLState ρml σ) X →
+  ∃ ws ρc mem,
+     pe !! fn_name = None ∧
+     Wrap.ml_to_c vs ρml σ ws ρc mem ∧
+     X (Wrap.WrE (Wrap.ExprCall fn_name ws) [K], Wrap.CState ρc mem).
+Proof using.
+  intros Hstep.
+  eapply prim_head_step_WrSE in Hstep.
+  inversion Hstep; simplify_eq.
+  { exfalso.
+    eapply (@language.prim_step_call_inv _ ML_lang) in H3
+      as (? & ? & ? & ? & ? & ? & ?); simplify_eq. }
+  2: { exfalso. by rewrite to_val_fill_call in H2. }
+  apply language.of_to_class in H2. subst eml.
+  eapply (@language.call_call_in_ctx _ ML_lang) in H.
+  rewrite (_: ∀ k, language.comp_ectx k language.empty_ectx = k) // in H.
+  destruct H as (<- & <- & <-). do 3 eexists. split_and!; eauto.
+Qed.
+
+Lemma wrap_step_ret_inv pe K wret ρc mem X :
+  prim_step pe (Wrap.WrE (Wrap.ExprV wret) [K], Wrap.CState ρc mem) X →
+  Wrap.c_to_ml wret ρc mem (λ v ρml σ,
+    X (WrSE (Wrap.ExprML (language.fill K (Val v))), Wrap.MLState ρml σ)).
+Proof using.
+  intros Hstep.
+  eapply head_reducible_prim_step in Hstep.
+  2: { exists (λ _, True). eapply Wrap.RetS, Wrap.c_to_ml_True. }
+  inversion Hstep; by simplify_eq.
+Qed.
+
+Lemma wrap_step_expr_inv pe eml ρml σ X :
+  reducible_no_threads ∅ eml σ →
+  prim_step pe (WrSE (Wrap.ExprML eml), Wrap.MLState ρml σ) X →
+  ∃ eml' σ',
+    language.language.prim_step ∅ eml σ eml' σ' [] ∧
+    X (WrSE (Wrap.ExprML eml'), Wrap.MLState ρml σ').
+Proof using.
+  intros Hred Hstep.
+  eapply prim_head_step_WrSE in Hstep.
+  inversion Hstep; simplify_eq.
+  2: { exfalso; eapply reducible_call_is_in_prog.
+       { by eapply language.language.reducible_no_threads_reducible. }
+       { rewrite /language.to_call H2 //. }
+       { set_solver. } }
+  2: { apply language.language.of_to_val in H2; subst eml.
+       apply language.language.reducible_no_threads_reducible in Hred.
+       apply language.language.reducible_not_val in Hred. cbn in Hred; congruence. }
+  do 2 eexists. split; eauto.
+Qed.
+
+Lemma wrap_step_callback_inv pe w w' ρc mem X :
+  prim_step pe (WrSE (Wrap.RunPrimitive Pcallback [w; w']), Wrap.CState ρc mem) X →
+  ∃ γ f x e,
+    repr_lval (θC ρc) (Lloc γ) w ∧
+    ζC ρc !! γ = Some (Bclosure f x e) ∧
+    Wrap.c_to_ml w' ρc mem (λ v ρml σ,
+      X (WrSE (Wrap.ExprML (App (Val (RecV f x e)) (Val v))), Wrap.MLState ρml σ)).
+Proof using.
+  intros Hstep.
+  apply prim_head_step_WrSE in Hstep.
+  inversion Hstep; simplify_eq.
+  { match goal with HH: Wrap.c_prim_step Pcallback _ _ _ _ _ _ |- _ => inversion HH end. }
+  repeat eexists; eauto.
 Qed.

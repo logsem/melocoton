@@ -69,6 +69,7 @@ Proof.
   iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
+
 Lemma wp_simulates (pe : prog_environ ML_lang Σ) E eml Φ :
   penv_prog pe = ∅ → (* XXX *)
      not_at_boundary
@@ -102,6 +103,8 @@ Proof.
     { destruct (decide (is_prim_name fn_name)) as [His|]; last by eauto.
       iExFalso. iApply "Hnprim"; eauto. }
 
+    (* take an administrative step in the wrapper *)
+
     iModIntro. iRight; iRight.
     iSplit.
     { iPureIntro. exists (λ _, True). eapply head_prim_step.
@@ -111,27 +114,14 @@ Proof.
       { rewrite /wrap_penv /= lookup_prims_prog_None //. } }
 
     iIntros (X Hstep) "!>!>".
-    eapply prim_head_step_WrSE in Hstep.
-    inversion Hstep; simplify_eq.
-    { exfalso.
-      eapply (@language.prim_step_call_inv _ ML_lang) in H3
-        as (? & ? & ? & ? & ? & ? & ?); simplify_eq. }
-    2: { exfalso. by rewrite to_val_fill_call in H2. }
-
-    apply language.of_to_class in H2. subst.
-    eapply (@language.call_call_in_ctx _ ML_lang) in H.
-    rewrite (_: ∀ k, language.comp_ectx k language.empty_ectx = k) // in H.
-    destruct H as (<- & <- & <-).
-
+    apply wrap_step_call_inv in Hstep as (ws & ρc & mem & ? & ? & ?).
     iMod (wrap_interp_ml_to_c with "[- Hnb Hnprim Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
       first done.
-    { rewrite /wrap_state_interp /ML_state_interp /named. iFrame. iSplitL "Hσ". by iExists _.
-      iExists _. by iFrame. }
+    { rewrite /wrap_state_interp /ML_state_interp /named.
+      iSplitL "Hσ"; first by iExists _. iExists _. by iFrame. }
+    iModIntro. iExists _, _. iSplit; first done. iFrame "Hσ".
 
-    iModIntro.
-    iExists _, _. iSplit; first done. iFrame "Hσ".
-
-    (* step done *)
+    (* step done; make an external call in the wrapper *)
 
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
     iIntros (st') "Hst'".
@@ -139,38 +129,33 @@ Proof.
     clear nCv.
 
     iModIntro. iRight; iLeft. iExists fn_name, ws, [K'].
-    iSplit; first done.
-    iSplit; first done.
-    iFrame "Hb Hst'". rewrite /wrap_penv /=.
-
+    iSplit; first done. iSplit; first done.
+    iFrame "Hb Hst'".
     iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ block_sim vret lvret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
     iSplitL "HGC HT".
-    { rewrite /wrap_proto /named. iExists _, _, _, _. iFrame "HGC HT Hblk".
-      iSplit; first done. iIntros (? ? ? ?) "? ? ? %". iExists _, _, _. by iFrame. }
-
+    { rewrite {2}/wrap_penv /wrap_proto /named /=. iExists _, _, _, _.
+      iFrame "HGC HT Hblk". iSplit; first done.
+      iIntros (? ? ? ?) "? ? ? %". iExists _, _, _. by iFrame. }
     iNext. iIntros (wret) "((%θ' & %vret & %lvret & HGC & HΞ & Hsim & %) & Hb)".
 
-    (* extcall done *)
+    (* extcall done; take an administrative step for the call return *)
 
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-    iIntros (st') "Hst' !>".
-    clear dependent ρc' mem' X.
+    iIntros (st') "Hst' !>". clear dependent ρc' mem' X.
     iDestruct (SI_at_boundary_is_in_C with "Hst' Hb") as %(ρc'&mem'&->). simpl.
     iRight; iRight. iSplit.
     { iPureIntro. exists (λ _, True). eapply head_prim_step.
       eapply RetS. eapply c_to_ml_True. }
     iIntros (X Hstep).
-    eapply head_reducible_prim_step in Hstep.
-    2: { exists (λ _, True). eapply RetS, c_to_ml_True. }
-    inversion Hstep; simplify_eq.
-
+    apply wrap_step_ret_inv in Hstep.
     iMod (wrap_interp_c_to_ml with "Hst' HGC Hb Hsim") as "HH";
       [ done | done | ].
     iDestruct "HH" as "(%ρml' & %σ' & %HX & Hst & Hnb)".
     do 3 iModIntro. iExists _, _. iSplit; first done. iFrame "Hst".
 
-    iApply ("IH" with "Hnb Hnprim").
-    by iApply "Hr".
+    (* continue execution using IH *)
+
+    iApply ("IH" with "Hnb Hnprim"). by iApply "Hr".
 
   (* step *)
   + iDestruct "HWP" as "(%Hred & HWP)".
@@ -179,21 +164,13 @@ Proof.
       destruct Hred as (e' & σ' & Hprim). econstructor; last done.
       rewrite Hpeemp in Hprim. cbn. eapply Hprim.
     * iIntros (X Hstep).
-      eapply prim_head_step_WrSE in Hstep.
-      inversion Hstep; simplify_eq.
-      2: { exfalso; eapply reducible_call_is_in_prog.
-           { by eapply language.language.reducible_no_threads_reducible. }
-           { rewrite /language.to_call H2 //. }
-           { rewrite Hpeemp. set_solver. } }
-      2: { apply language.language.of_to_val in H2; subst eml.
-           apply language.language.reducible_no_threads_reducible in Hred.
-           apply language.language.reducible_not_val in Hred. cbn in Hred; congruence. }
-
-      rewrite Hpeemp. iMod ("HWP" $! _ _ H3) as "HWP".
+      apply wrap_step_expr_inv in Hstep as (eml' & σ' & Hstep & ?);
+        [| by rewrite Hpeemp in Hred].
+      rewrite Hpeemp. iMod ("HWP" $! _ _ Hstep) as "HWP".
       do 2 iModIntro. iMod "HWP" as "(HσC & HWP')".
       iModIntro. iExists _, _. iSplitR; first by iPureIntro.
       iSplitR "HWP' Hnb Hnprim".
-      { rewrite /weakestpre.state_interp /= /named. iFrame.
+      { rewrite /weakestpre.state_interp /= /named.
         iSplitL "HσC"; first by iExists _. iExists _; by iFrame. }
       iApply ("IH" with "Hnb Hnprim HWP'").
 Qed.
@@ -232,10 +209,9 @@ Proof.
     { iPureIntro. eexists (λ _, True). eapply head_prim_step.
       eapply CallbackS; eauto. eapply c_to_ml_True. }
     iIntros (X Hstep).
-    apply prim_head_step_WrSE in Hstep.
-    inversion Hstep; simplify_eq.
-    { exfalso. inversion H4. (* XXX *) }
-    pose proof (repr_lval_inj_1 _ _ _ _ Hθinj Hreprw H4); simplify_map_eq.
+    apply wrap_step_callback_inv in Hstep as (? & ? & ? & ? & Hrepr & ? & ?).
+    pose proof (repr_lval_inj_1 _ _ _ _ Hθinj Hreprw Hrepr);
+      simplify_map_eq; clear Hrepr.
 
     iMod (wrap_interp_c_to_ml with "Hst HGC Hb Hsim'") as "HH";
       [ done | done | ].
