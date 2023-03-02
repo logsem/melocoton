@@ -154,33 +154,6 @@ Definition is_closed_function X f := match f with
   Fun lst expr => is_closed_expr (X ∪ list_to_set 
         (flat_map (fun k => match k with BAnon => [] | BNamed l => [l] end) lst)) expr end.
 
-(* The stepping relation preserves closedness *)
-Lemma head_step_is_closed (p : gmap string function) e1 σ1 e2 σ2 :
-  (forall f e, p !! f = Some e → is_closed_function ∅ e) →
-  is_closed_expr ∅ e1 →
-  head_step p e1 σ1 e2 σ2 →
-  is_closed_expr ∅ e2.
-Proof.
-  intros Clp Cl1 STEP.
-  induction STEP; simpl in *; 
-    try apply map_Forall_insert_2; try by naive_solver.
-  - subst. repeat apply is_closed_subst'; naive_solver.
-  - edestruct (zip_args args va) as [σ'|] eqn:Heq. 2: congruence.
-    injection H0. intros <-. clear H0.
-    eapply is_closed_subst_all.
-    specialize (Clp _ _ H).
-    cbn in Clp.
-    assert (forall a b, a = b -> is_closed_expr a e -> is_closed_expr b e) as Happ by (now intros ? ? ->).
-    eapply Happ, Clp.
-    clear Happ H.
-    induction args as [|[|a] ar IH] in Heq,va,σ'|-*; cbn; destruct va; cbn in *; try congruence.
-    + injection Heq. intros <-. set_solver. 
-    + eapply IH. apply Heq.
-    + unfold option_map in Heq. specialize (IH va). destruct (zip_args ar va) as [σ''|] eqn:Heq2; last congruence.
-      specialize (IH σ'' eq_refl). 
-      injection Heq. intros <-. set_solver.
-Qed.
-
 Lemma subst_all_empty e : subst_all ∅ e = e.
 Proof.
   induction e; simplify_map_eq; auto with f_equal.

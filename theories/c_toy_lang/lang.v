@@ -3,7 +3,7 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
-
+From melocoton Require Import commons multirelations.
 
 Declare Scope expr_scope.
 Declare Scope val_scope.
@@ -197,6 +197,22 @@ Defined.
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
+Fixpoint expr_size (e : expr) : nat :=
+  match e with
+  | Let _ e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | Load e => S (expr_size e)
+  | Store e0 e1 => S (Nat.max (expr_size e0) (expr_size e1))
+  | Malloc e1 => S (expr_size e1)
+  | Free e0 e1 => S (Nat.max (expr_size e0) (expr_size e1))
+  | UnOp _ e => S (expr_size e)
+  | BinOp _ e1 e2 => S (Nat.max (expr_size e1) (expr_size e2))
+  | If e0 e1 e2 => S (Nat.max (expr_size e0) (Nat.max (expr_size e1) (expr_size e2)))
+  | While e0 e1 => S (Nat.max (expr_size e0) (expr_size e1))
+  | FunCall e0 ee =>
+     S (foldl (λ acc e, Nat.max acc (expr_size e)) (expr_size e0) ee)
+  | _ => 0
+  end.
+
 Inductive function := Fun (b : list binder) (e : expr).
 
 Definition arity (F : function) := match F with Fun b e => length b end.
@@ -266,9 +282,6 @@ Notation Uninitialized := (Some None : heap_cell).
 Notation Storing v := (Some (Some v) : heap_cell).
 
 (** The state: heaps of heap_cells. *)
-(*Record state : Type := {
-  heap: gmap loc heap_cell
-}.*)
 Local Notation state := (gmap loc heap_cell).
 
 Class program := prog : gmap string function.
@@ -396,6 +409,43 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | FunCallLCtx ea => FunCall e ea
   | FunCallRCtx vf va ve => FunCall (of_val vf) (map of_val va ++ [e] ++ ve)
   end.
+
+
+Lemma foldl_max {A} (l: list A) (f : A → nat) (n : nat) :
+  n ≤ foldl (λ acc x, acc `max` f x) n l.
+Proof.
+  revert n. induction l as [|x l IHl].
+  { cbn. lia. }
+  { cbn. intros n. specialize (IHl (n `max` f x)). lia. }
+Qed.
+
+Lemma fill_item_size Ki e :
+   expr_size e < expr_size (fill_item Ki e).
+Proof.
+  destruct Ki; cbn [fill_item]; try (cbn; lia).
+  - cbn. apply le_lt_n_Sm, foldl_max.
+  - cbn. apply le_lt_n_Sm. cbn.
+    rewrite foldl_app /=. etransitivity; [| eapply foldl_max]. lia.
+Qed.
+
+Definition ectx := list ectx_item.
+Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
+
+Definition comp_ectx (K K' : ectx) : ectx :=
+  K' ++ K.
+
+Lemma fill_app (K1 K2 : ectx) e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
+Proof. apply foldl_app. Qed.
+
+Lemma fill_size K e :
+  K ≠ [] →
+  expr_size e < expr_size (fill K e).
+Proof.
+  induction K as [|K1 [| K2 Ks]] in e |- *; first done.
+  { intros _. apply fill_item_size. }
+  { intros _.
+    etransitivity; last by eapply IHK. apply fill_item_size. }
+Qed.
 
 (** Substitution *)
 Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
@@ -538,44 +588,70 @@ Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) 
 Definition apply_function (f:function) (av : list val) := match f with Fun an e =>
     match (zip_args an av) with Some σ => Some (subst_all σ e) | _ => None end end.
 
-Inductive head_step (p : program) : expr → state → expr → state → Prop :=
-  | LetS x v1 e2 ee σ :
-     ee = subst' x v1 e2 ->
-     head_step p (Let x (Val v1) e2) σ ee σ
-  | LoadS l v σ :
-     σ !! l = Some $ Storing v →
-     head_step p (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
-  | StoreS l k w σ :
-     σ !! l = Some $ (Some k) →
-     head_step p (Store (Val $ LitV $ LitLoc l) (Val w)) σ
-               (Val $ LitV LitUnit) (state_upd_heap <[l:=Storing w]> σ)
-  | MallocS n σ l :
-     (0 < n)%Z →
-     (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ !! (l +ₗ i) = None) →
-     head_step p (Malloc (Val $ LitV $ LitInt n)) σ
-               (Val $ LitV $ LitLoc l) (state_init_heap l n Uninitialized σ)
-  | FreeS l n σ :
-     (∀ i, (0 ≤ i)%Z → (i < n)%Z → ∃ v, σ !! (l +ₗ i) = Some $ Some v) →
-     head_step p (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt n)) σ
-               (Val $ LitV LitUnit) (state_init_heap l n Deallocated σ)
-  | UnOpS op v v' σ :
-     un_op_eval op v = Some v' →
-     head_step p (UnOp op (Val v)) σ (Val v') σ
-  | BinOpS op v1 v2 v' σ :
-     bin_op_eval op v1 v2 = Some v' →
-     head_step p (BinOp op (Val v1) (Val v2)) σ (Val (LitV v')) σ
-  | IfTrueS v0 e1 e2 σ :
-     asTruth v0 = true →
-     head_step p (If (Val v0) e1 e2) σ e1 σ
-  | IfFalseS v0 e1 e2 σ :
-     asTruth v0 = false →
-     head_step p (If (Val v0) e1 e2) σ e2 σ
-  | WhileS e1 e2 σ :
-     head_step p (While e1 e2) σ (If e1 (Let BAnon e1 (While e1 e2)) (Val $ LitV $ LitInt 0)) σ
-  | FunCallS s va args res e σ :
-     (p : gmap string function) !! s = Some (Fun args e) →
-     apply_function (Fun args e) va = Some res →
-     head_step p (FunCall (Val $ LitV $ LitFunPtr s) (map Val va)) σ res σ.
+Implicit Types X : expr * state → Prop.
+Inductive head_step_mrel (p : program) : (expr * state) → (expr * state → Prop ) → Prop :=
+  | LetS x v1 e2 ee σ X :
+     ee = subst' x v1 e2 →
+     X (ee, σ) →
+     head_step_mrel p (Let x (Val v1) e2, σ) X
+  | LoadS u σ X :
+     (∀ l v,
+      u = LitV $ LitLoc l →
+      σ !! l = Some $ Storing v → X (of_val v, σ)) →
+     head_step_mrel p (Load (Val u), σ) X
+  | StoreS u w σ X :
+     (∀ l k,
+      u = LitV $ LitLoc l →
+      σ !! l = Some $ (Some k) →
+      X (Val $ LitV LitUnit, state_upd_heap <[l:=Storing w]> σ)) →
+     head_step_mrel p (Store (Val u) (Val w), σ) X
+  | MallocS u σ X :
+     (∀ n,
+      u = LitV $ LitInt n →
+      (0 < n)%Z →
+      ∃ l, (∀ i, (0 ≤ i)%Z → (i < n)%Z → σ !! (l +ₗ i) = None) ∧
+           X (Val $ LitV $ LitLoc l, state_init_heap l n Uninitialized σ)) →
+     head_step_mrel p (Malloc (Val u), σ) X
+  | FreeS u u' σ X :
+     (∀ l n v,
+      u = LitV $ LitLoc l →
+      u' = LitV $ LitInt n →
+      σ !! l = Some $ (Some v) →
+      X (Val $ LitV LitUnit, state_init_heap l n Deallocated σ)) →
+     head_step_mrel p (Free (Val u) (Val u'), σ) X
+  | UnOpS op v σ X :
+     (∀ v',
+      un_op_eval op v = Some v' →
+      X (Val v', σ)) →
+     head_step_mrel p (UnOp op (Val v), σ) X
+  | BinOpS op v1 v2 σ X :
+     (∀ v',
+      bin_op_eval op v1 v2 = Some v' →
+      X (Val (LitV v'), σ)) →
+     head_step_mrel p (BinOp op (Val v1) (Val v2), σ) X
+  | IfS v0 e1 e2 σ X :
+     (asTruth v0 = true → X (e1, σ)) →
+     (asTruth v0 = false → X (e2, σ)) →
+     head_step_mrel p (If (Val v0) e1 e2, σ) X
+  | WhileS e1 e2 σ X :
+     X (If e1 (Let BAnon e1 (While e1 e2)) (Val $ LitV $ LitInt 0), σ) →
+     head_step_mrel p (While e1 e2, σ) X
+  | FunCallS u va σ X :
+     (∀ s args res e,
+      u = LitV $ LitFunPtr s →
+      (p : gmap string function) !! s = Some (Fun args e) →
+      apply_function (Fun args e) va = Some res →
+      X (res, σ)) →
+     head_step_mrel p (FunCall (Val u) (map Val va), σ) X
+  | VarUBS x σ X :
+     head_step_mrel p (Var x, σ) X.
+
+Program Definition head_step p : umrel (expr * state) :=
+  {| mrel := head_step_mrel p |}.
+Next Obligation.
+  intros p [e σ] φ φ' Hstep Hφ. inversion Hstep; subst; try solve [econstructor; eauto].
+  constructor; naive_solver.
+Qed.
 
 
 (** Basic properties about the language *)
@@ -586,42 +662,16 @@ Lemma fill_item_val Ki e :
   is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
 Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
 
-Lemma val_head_stuck p e1 σ1 e2 σ2 : head_step p e1 σ1 e2 σ2 → to_val e1 = None.
-Proof. destruct 1; naive_solver. Qed.
+Lemma val_head_stuck p e1 σ1 :
+  head_step p (e1, σ1) (λ _, True) → to_val e1 = None.
+Proof. inversion 1; by simplify_eq. Qed.
 
-Lemma head_ctx_step_val p Ki e σ1 e2 σ2 :
-  head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_val e).
-Proof. revert e2. induction Ki. 1-12: inversion_clear 1; simplify_option_eq; eauto.
-       - inversion 1. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
-         apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
-Qed.
-
-Lemma list_eq_sliced {X} (L1 L2 R1 R2 : list X) (M1 M2 : X) (P : X -> Prop) :
-  L1 ++ M1 :: R1 = L2 ++ M2 :: R2 ->
-  (forall x, In x L1 -> P x) -> (forall x, In x L2 -> P x) -> ~ P M1 -> ~P M2 ->
-  L1 = L2 /\ M1 = M2 /\ R1 = R2.
+Lemma head_ctx_step_val p Ki e σ1 X :
+  head_step p (fill_item Ki e, σ1) X → is_Some (to_val e).
 Proof.
-  revert L2. induction L1 as [|L1L L1R IH]; intros L2 Heq HL1 HL2 HM1 HM2; destruct L2 as [|L2L L2R].
-  - cbn in Heq; repeat split; congruence.
-  - cbn in Heq. exfalso. apply HM1. apply HL2. left. congruence.
-  - cbn in Heq. exfalso. apply HM2. apply HL1. left. congruence.
-  - cbn in Heq. destruct (IH L2R) as (-> & -> & ->).
-    + congruence.
-    + intros x Hx. apply HL1. now right.
-    + intros x Hx. apply HL2. now right.
-    + easy.
-    + easy.
-    + repeat split. congruence.
-Qed.
-
-Lemma map_inj {X Y} (f : X -> Y) : (forall x y, f x = f y -> x = y)
-  -> forall Lx Ly, map f Lx = map f Ly -> Lx = Ly.
-Proof.
-  intros Hinj. intros Lx. induction Lx as [|x xr IHx].
-  - intros [|y yr]. 1:easy. cbn. congruence.
-  - intros [|y yr]. 1:cbn; congruence. cbn. intros Heq. f_equal.
-    + apply Hinj. congruence.
-    + apply IHx. congruence.
+  revert X. induction Ki. 1-12(* ,14 *): solve [inversion_clear 1; simplify_option_eq; eauto].
+  inversion 1. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
+  apply in_map_iff. rewrite H2. apply in_or_app. right. now left.
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -638,17 +688,18 @@ Proof.
     + f_equal. apply (map_inj Val). 2:easy. congruence.
 Qed.
 
-Lemma alloc_fresh p n σ :
+Lemma alloc_fresh p u σ X :
   let l := fresh_locs (dom σ) in
-  (0 < n)%Z →
-  head_step p (Malloc ((Val $ LitV $ LitInt $ n))) σ
-            (Val $ LitV $ LitLoc l) (state_init_heap l n Uninitialized σ).
+  (∀ n, u = LitV $ LitInt n → X (Val $ LitV $ LitLoc l, state_init_heap l n Uninitialized σ)) →
+  head_step p (Malloc (Val u), σ) X.
 Proof.
-  intros.
-  apply MallocS; first done.
-  intros. apply not_elem_of_dom.
-  by apply fresh_locs_fresh.
+  intros. apply MallocS. intros ? -> ?. exists l. split; eauto.
+  intros. by apply not_elem_of_dom, fresh_locs_fresh.
 Qed.
+
+Lemma alloc_step p u σ :
+  head_step p (Malloc (Val u), σ) (λ _, True).
+Proof. eapply alloc_fresh; auto. Qed.
 
 End C_lang.
 
