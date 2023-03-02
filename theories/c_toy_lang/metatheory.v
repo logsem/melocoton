@@ -343,6 +343,3 @@ Proof.
     by eexists.
 Qed.
 
-
-
-

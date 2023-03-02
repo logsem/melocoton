@@ -219,20 +219,58 @@ Definition arity (F : function) := match F with Fun b e => length b end.
 
 Notation of_val := Val (only parsing).
 
-Definition to_val (e : expr) : option val :=
-  match e with
-  | Val v => Some v
-  | _ => None
-  end.
+Definition of_class (e : mixin_expr_class) : expr := match e with
+  ExprVal v => Val v
+| ExprCall vf vl => FunCall (Val $ LitV $ LitFunPtr vf) (map Val vl) end.
 
+#[local] Notation omap f x := (match x with Some v => f v | None => None end).
+
+Fixpoint unmap_val el := match el with
+      Val v::er => omap (fun vr => Some (v::vr)) (unmap_val er)
+    | nil => Some nil
+    | _ => None end.
+
+Definition to_class (e : expr) : option mixin_expr_class := match e with
+  Val v => Some (ExprVal v)
+| FunCall (Val (LitV (LitFunPtr vf))) el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
+| _ => None end.
+
+Lemma map_unmap_val l : unmap_val (map Val l) = Some l.
+Proof.
+  induction l.
+  - easy.
+  - cbn. rewrite IHl. easy.
+Qed.
+
+Lemma to_of_cancel e : to_class (of_class e) = Some e.
+Proof.
+  destruct e.
+  - easy.
+  - cbn. rewrite map_unmap_val. easy.
+Qed.
+
+Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
+Proof.
+  induction le in lv|-*.
+  - intros H. injection H. intros <-. easy.
+  - cbn. destruct a. 2-12:congruence.
+    destruct (unmap_val le) eqn:Heq. 2:congruence.
+    intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
+Qed.
+
+Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
+Proof.
+  destruct e; cbn; try congruence.
+  - intros H. injection H. intros <-. easy.
+  - destruct e. 2-12: congruence. destruct v. destruct l. 1-2: congruence.
+    destruct unmap_val eqn:Heq. 2:congruence.
+    intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
+Qed.
+
+Local Notation to_val e :=
+  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
 
 (** Equality and other typeclass stuff *)
-Lemma to_of_val v : to_val (of_val v) = Some v.
-Proof. by destruct v. Qed.
-
-Lemma of_to_val e v : to_val e = Some v → of_val v = e.
-Proof. destruct e=>//=. by intros [= <-]. Qed.
-
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
@@ -658,13 +696,12 @@ Qed.
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
 
-Lemma fill_item_val Ki e :
-  is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
-Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
-
 Lemma val_head_stuck p e1 σ1 :
   head_step p (e1, σ1) (λ _, True) → to_val e1 = None.
-Proof. inversion 1; by simplify_eq. Qed.
+Proof.
+  inversion 1; simplify_eq; try done.
+  cbn. repeat (case_match; simplify_eq); done.
+Qed.
 
 Lemma head_ctx_step_val p Ki e σ1 X :
   head_step p (fill_item Ki e, σ1) X → is_Some (to_val e).
@@ -705,13 +742,3 @@ End C_lang.
 
 (* Prefer C_lang names over ectx_language names. *)
 Export C_lang.
-
-
-
-
-
-
-
-
-
-
