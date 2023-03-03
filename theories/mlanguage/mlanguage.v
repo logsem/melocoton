@@ -37,6 +37,9 @@ Section mlanguage_mixin.
     mixin_not_is_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
     mixin_is_call_in_cont e C1 C2 s vv :
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2);
+    mixin_is_call_in_cont_inv e C1 C2 s vv :
+      to_val e = None → is_call (resume_with C1 e) s vv C2 →
+      ∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C';
 
     mixin_resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e);
     mixin_resume_compose e C1 C2 :
@@ -142,6 +145,11 @@ Section mlanguage.
 
   Lemma is_call_in_cont e C1 C2 s vv :
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2).
+  Proof. apply mlanguage_mixin. Qed.
+
+  Lemma is_call_in_cont_inv e C1 C2 s vv :
+      to_val e = None → is_call (resume_with C1 e) s vv C2 →
+      ∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C'.
   Proof. apply mlanguage_mixin. Qed.
 
   Lemma resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e).

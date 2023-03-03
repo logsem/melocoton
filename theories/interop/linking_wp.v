@@ -3,7 +3,7 @@ From stdpp Require Import strings gmap.
 From iris.algebra.lib Require Import excl_auth.
 From melocoton.interop Require Import linking.
 From melocoton.mlanguage Require Import mlanguage.
-From melocoton.mlanguage Require Import weakestpre lifting.
+From melocoton.mlanguage Require Import weakestpre.
 From iris.proofmode Require Import proofmode.
 
 (* FIXME: the proofs in this file need cleanup *)
@@ -190,6 +190,7 @@ Proof using.
   iApply wp_unfold. rewrite /wp_pre.
   iIntros (σ) "Hσ". iModIntro. iRight; iRight.
   iSplit; first done.
+  iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. rewrite Hfn in H0; done. }
   iIntros (X Hstep'). inversion Hstep'; simplify_eq.
   iModIntro. iNext. iModIntro. iExists _, _. iFrame.
   iPureIntro; eapply H4. done.
@@ -215,6 +216,7 @@ Proof using.
   iDestruct "Hσ" as "(Hob & Hpubσ & Hprivσ1 & Hprivσ2)".
   iMod (state_interp_join with "Hpubσ Hprivσ1") as (σ1) "(Hσ1 & %Hsplit)". iModIntro.
   iSplit; first done.
+  iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
   iIntros (X Hstep').
   inversion Hstep'; simplify_eq/=; []. iModIntro. iNext.
   iMod (link_state_update _ In1 with "Hob Hb") as "(Hob & Hb)".
@@ -243,6 +245,7 @@ Proof using.
   iDestruct "Hσ" as "(Hob & Hpubσ & Hprivσ1 & Hprivσ2)".
   iMod (state_interp_join with "Hpubσ Hprivσ2") as (σ2) "(Hσ2 & %Hsplit)". iModIntro.
   iSplit; first done.
+  iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
   iIntros (X Hstep').
   inversion Hstep'; simplify_eq/=; []. iModIntro. iNext.
   iMod (link_state_update _ In2 with "Hob Hb") as "(Hob & Hb)".
@@ -262,6 +265,7 @@ Proof using.
   iMod (state_interp_join with "Hpub Hpriv1") as (σ1) "[Hσ1 %Hsplit]".
   iModIntro. iRight. iRight.
   iSplitR; first done.
+  iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
   iIntros (X Hstep').
   inversion Hstep'; simplify_eq/=; [].
   iModIntro. iNext.
@@ -280,6 +284,7 @@ Proof using.
   iMod (state_interp_join with "Hpub Hpriv2") as (σ2) "[Hσ2 %Hsplit]".
   iModIntro. iRight. iRight.
   iSplitR; first by eauto.
+  iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
   iIntros (X Hstep').
   inversion Hstep'; simplify_eq/=; [].
   iModIntro. iNext.
@@ -352,11 +357,8 @@ Lemma link_step_call_ext_1_inv pe1 pe2 pe e C f vs σ1 pubσ privσ1 privσ2 X :
   X (Link.LkE (Link.ExprCall f vs) [inl C], Link.St pubσ privσ1 privσ2).
 Proof.
   intros Hlink Heq; inversion 1; simplify_eq /=; intros Hsplit Hiscall.
-  { exfalso. eapply H6; eauto. rewrite is_link_prog proj1_prog_union; try done. apply Hlink. }
-  { done. }
-  { by erewrite not_is_call_2 in H4. }
-  destruct (is_call_unique _ _ _ _ _ _ _ H3 Hiscall) as (->&->&->).
-  by eapply H6.
+  eapply H5; try done.
+  rewrite is_link_prog proj1_prog_union; first done. apply Hlink.
 Qed.
 
 
@@ -369,11 +371,8 @@ Lemma link_step_call_ext_2_inv pe1 pe2 pe e C f vs σ2 pubσ privσ1 privσ2 X :
   X (Link.LkE (Link.ExprCall f vs) [inr C], Link.St pubσ privσ1 privσ2).
 Proof.
   intros Hlink Heq; inversion 1; simplify_eq /=; intros Hsplit Hiscall.
-  { exfalso. eapply H6; eauto. rewrite is_link_prog proj2_prog_union; try done. apply Hlink. }
-  { done. }
-  { by erewrite not_is_call_2 in H4. }
-  destruct (is_call_unique _ _ _ _ _ _ _ H3 Hiscall) as (->&->&->).
-  by eapply H6.
+  eapply H5; try done.
+  rewrite is_link_prog proj2_prog_union; first done. apply Hlink.
 Qed.
 
 Lemma wp_link_run_mut pe1 pe2 pe E :
@@ -400,22 +399,20 @@ Proof using.
       (* administrative step Val1S: Link.Expr1 ~> Link.ExprV *)
       iDestruct (@splittable_at_boundary with "Hb1 Hσ") as %(pubσ&privσ1&Hsplitσ1).
       iSplit; first done.
+      iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
       iIntros (X Hstep).
-      inversion Hstep; simplify_eq/=.
-      { exfalso. by eapply val_prim_step. }
-      { done. }
-      { match goal with H : to_val (of_val _ _) = _ |- _ => rewrite to_of_val in H; simplify_eq end.
-        iMod (state_interp_split with "Hσ") as "[Hpriv1 Hpub]"; first by eauto.
-        iExists _, _. iSplitR; first by eauto.
-        iMod (link_state_update _ Boundary with "Hob Hb") as "[Hob Hb]".
-        do 3 iModIntro. iFrame. by iApply wp_value. }
-      { exfalso. eapply not_is_call_2 in H2. by rewrite to_of_val in H2. } }
+      inversion Hstep; simplify_eq/=. clear H2 H4.
+      iMod (state_interp_split with "Hσ") as "[Hpriv1 Hpub]"; first by eauto.
+      iExists _, _. iSplitR; first (iPureIntro; eapply H5; eauto; by rewrite to_of_val).
+      iMod (link_state_update _ Boundary with "Hob Hb") as "[Hob Hb]".
+      do 3 iModIntro. iFrame. by iApply wp_value. }
 
     (* WP: call case *)
     { iDestruct "Hwp" as (f vs C Hiscall Hf) "(Hb1 & Hσ1 & Hcall)". iModIntro. iRight; iRight.
       (* administrative step MakeCall1S: Link.Expr1 ~> Link.ExprCall *)
       iDestruct (@splittable_at_boundary with "Hb1 Hσ1") as %(pubσ&privσ1&Hsplitσ1).
       iSplitR; first by eauto.
+      iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
       iIntros (X Hstep).
       eapply link_step_call_ext_1_inv in Hstep; eauto; [].
 
@@ -462,20 +459,22 @@ Proof using.
         iDestruct "IH" as "#[IH1 _]". iApply ("IH1" with "HΞ [$Hb $Hb2]"). } }
 
     { (* WP: step case *)
-      iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight. iSplit; first done.
+      iDestruct "Hwp" as (Hred Hnocall) "Hwp". iModIntro. iRight; iRight. iSplit; first done.
+      iSplit.
+      { iPureIntro. intros (f'&vs'&C&Hcall&Hpe). cbv in Hcall. congruence. }
       iIntros (X Hstep).
-      inversion Hstep; simplify_eq.
-      { (* non-vacuous case: step in Λ1 *)
-        clear Hstep. rename H4 into Hstep.
-        rewrite is_link_prog proj1_prog_union in Hstep; [|apply Hislink].
-        iSpecialize ("Hwp" $! _ Hstep). iMod "Hwp". iIntros "!>!>". iMod "Hwp" as (e' σ' HX) "[Hσ Hwp]".
-        iModIntro. iExists _, _. iSplit; first (iPureIntro; by eapply H6). iFrame "Hσ Hob Hpriv2".
-        iDestruct "IH" as "[IH1 _]". iApply ("IH1" with "Hwp [$Hb $Hb2]"). }
-      { done. }
-      { assert (prim_step (penv_prog pe1) (e1, σ1) (λ _, False)) as HUB.
-        1: { eapply call_prim_step; first done. intros fn e2 HH1 HH2.
-             rewrite is_link_prog proj1_prog_union in H4;[|apply Hislink]. congruence. }
-        iMod ("Hwp" $! _ HUB) as "Hwp". do 2 iModIntro. iMod "Hwp" as (? ? []) "_". } } }
+      inversion Hstep; simplify_eq. clear H4 H5.
+      clear Hstep. rename H2 into Hstep.
+      specialize (Hstep _ _ eq_refl).
+      rewrite is_link_prog proj1_prog_union in Hstep; [|apply Hislink].
+      assert (¬ (∃ (K : cont Λ1) (fn_name : string) (arg : list val),
+             is_call e1 fn_name arg K ∧ penv_prog pe1 !! fn_name = None)) as HHHH.
+      { intros (?&?&?&?&?); eapply Hnocall; eauto. }
+      specialize (Hstep HHHH Hred).
+      destruct Hstep as (X1&Hstep&HX1).
+      iSpecialize ("Hwp" $! _ Hstep). iMod "Hwp". iIntros "!>!>". iMod "Hwp" as (e' σ' HX) "[Hσ Hwp]".
+      iModIntro. iExists _, _. iSplit; first (iPureIntro; by eapply HX1). iFrame "Hσ Hob Hpriv2".
+      iDestruct "IH" as "[IH1 _]". iApply ("IH1" with "Hwp [$Hb $Hb2]"). } }
 
   (* Case 2: running Λ2 *)
   { iIntros (e1 Φ) "Hwp [Hb Hb1]".
@@ -491,6 +490,7 @@ Proof using.
       (* administrative step Val2S: Link.Expr2 ~> Link.ExprV *)
       iDestruct (@splittable_at_boundary with "Hb2 Hσ") as %(pubσ&privσ2&Hsplitσ2).
       iSplit; first done.
+      iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
       iIntros (X Hstep).
       inversion Hstep; simplify_eq/=.
       { exfalso. by eapply val_prim_step. }
@@ -507,6 +507,7 @@ Proof using.
       (* administrative step MakeCall2S: Link.Expr2 ~> Link.ExprCall *)
       iDestruct (@splittable_at_boundary with "Hb2 Hσ2") as %(privσ2&pubσ&Hsplitσ2).
       iSplitR; first by eauto.
+      iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
       iIntros (X Hstep).
       eapply link_step_call_ext_2_inv in Hstep; eauto; [].
 

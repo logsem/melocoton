@@ -61,15 +61,19 @@ Proof using.
     iSplitR; first done. iSplitR; first done. iSplitR; first done. iSplitL "Hσ"; first by iExists n.
     iExists Ξ. iFrame. iNext. iIntros (v) "[Hv _]". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
-    { iPureIntro. eapply reducible_not_val. done. }
+    { iPureIntro. eapply reducible_not_val. done. } iSplitR.
+    { iPureIntro. intros (f&vs&C&->&Hno).
+      eapply reducible_call_is_in_prog; try done.
+      by rewrite /to_call to_of_class. }
     iIntros (X Hstep). inversion Hstep; simplify_eq.
-    + iMod ("H3" $! σ2 e2 H3) as "H3". do 2 iModIntro. iMod "H3" as "(Hσ&HWP)". iModIntro. 
-      do 2 iExists _; iSplit; first done.
-      iSplitL "Hσ"; first by iExists _.
-      iApply "IH". done.
-    + destruct H4 as [_ H4%not_reducible]. exfalso; tauto.
+    destruct H5 as (e2&σ2&Hstep'&HX). 1: done.
+    iMod ("H3" $! σ2 e2 Hstep') as "H3". do 2 iModIntro. iMod "H3" as "(Hσ&HWP)". iModIntro. 
+    do 2 iExists _; iSplit; first done.
+    iSplitL "Hσ"; first by iExists _.
+    iApply "IH". done.
 Qed.
 
+(*
 Lemma wp_lang_to_mlang_backwards (e : Λ.(language.expr)) pe E Φ :
   ⊢ WP e @ (penv_to_mlang pe); E {{ Φ }} -∗ WP e @ pe; E {{ Φ }}.
 Proof using.
@@ -90,6 +94,7 @@ Proof using.
   - iRight. iRight. iModIntro.
     eapply (prim_step_is_total p e σ) in Hred as Hstep.
     inversion Hstep; simplify_eq.
+    
     2: { iPoseProof ("H3" $! (λ _, False) (LiftUbStep _ p e σ _ H4)) as "H3".
          iAssert (|={E}▷=> False)%I with "[H3]" as "Halmost_false".
          1: iMod "H3"; do 2 iModIntro; iMod "H3" as "(%&%&[]&_)".
@@ -105,6 +110,7 @@ Proof using.
     iApply "IH". done.
 Abort.
 
+*)
 
 End ToMlang_logic.
 

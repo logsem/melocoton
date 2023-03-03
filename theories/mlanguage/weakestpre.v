@@ -33,7 +33,8 @@ Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
     ∨ (∃ f vs C, ⌜is_call e f vs C⌝ ∗ ⌜p !! f = None⌝ ∗
        at_boundary Λ ∗ state_interp σ ∗
        ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r ∗ at_boundary Λ -∗ wp E (resume_with C (of_val Λ r)) Φ)
-    ∨ (⌜to_val e = None⌝ ∗ ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
+    ∨ (⌜to_val e = None⌝ ∗ (⌜¬ ∃ f vs C, is_call e f vs C ∧ p !! f = None⌝) ∗
+       ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
        ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ)
   )%I.
 
@@ -93,7 +94,7 @@ Global Instance wp_ne pe E e n :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /wp_pre_cases /=.
-  do 11 f_equiv. 1: do 8 f_equiv.
+  do 12 f_equiv. 1: do 7 f_equiv.
   all: f_contractive.
   1: do 1 f_equiv. 2: do 2 f_equiv.
   all: intros r; f_equiv.
@@ -138,7 +139,7 @@ Proof.
     iNext. iIntros "%r HΞ". iApply ("IH" $! (resume_with K (of_val Λ r)) E1 E2 HE Φ Ψ with "[Hr HΞ] HΦ").
     iApply ("Hr" with "HΞ").
   - do 2 iRight.
-    iDestruct "H3" as "(HH & H3)".
+    iDestruct "H3" as "(HH & Hnc & H3)".
     iModIntro. rewrite Hpe1. iFrame. iIntros (X) "Hstep".
     iSpecialize ("H3" $! X with "Hstep").
     iMod (fupd_mask_subseteq E1) as "Hclose2"; first done.
@@ -185,7 +186,7 @@ Proof.
   destruct (decide (n = 0)) as [->|Hn]; first last.
   { iDestruct "H" as "[Hn _]". iMod ("Hn" with "Hσ") as %?. lia. }
   iDestruct "H" as "[_ [>HP Hwp]]".
-  iMod ("Hwp" $! σ1 with "Hσ") as "[(%z & -> & Hσ & H)|[(%s & %vv & %K & %is_call & H2 & Hb & Hσ & H3)|[% H3]]]".
+  iMod ("Hwp" $! σ1 with "Hσ") as "[(%z & -> & Hσ & H)|[(%s & %vv & %K & %is_call & H2 & Hb & Hσ & H3)|(%&%&H3)]]".
   + rewrite to_of_val in Heq.
     exfalso. apply TCEq_eq in Heq. congruence.
   + cbn. iRight. iLeft. iMod "HP". iModIntro.
@@ -194,7 +195,7 @@ Proof.
     iExists Ξ. iFrame. iNext. iIntros "%r Hr". iSpecialize ("HΞ" $! r with "Hr").
     iApply (wp_strong_mono pe pe E E with "HΞ [HP]"). 1-2:easy.
     iIntros "%v Hv". iMod "HP". iMod ("Hv" with "HP"). iAssumption.
-  + iMod "HP". iModIntro. iRight. iRight. iSplitR; first done.
+  + iMod "HP". iModIntro. iRight. iRight. iSplitR; first done. iSplitR; first done.
     iIntros (X Hstep). iSpecialize ("H3" $! X Hstep).
     iMod "H3". do 2 iModIntro. iMod "H3" as (e' σ' HX) "(Hσ' & H3)". do 2 iMod "HP".
     iModIntro. iExists e', σ'. iSplitR; first by eauto. iFrame.
@@ -234,7 +235,7 @@ Lemma wp_bind K pe E e Φ :
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre.
   iIntros "%σ Hσ".
-  iMod ("H" $! σ with "Hσ") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & %HH & %H2 & Hb & Hσ & %Ξ & HT & Hr)|(%Hnv&H3)]]".
+  iMod ("H" $! σ with "Hσ") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & %HH & %H2 & Hb & Hσ & %Ξ & HT & Hr)|(%Hnv&%Hstep&H3)]]".
   - rewrite {1} wp_unfold /wp_pre.
     iMod ("H" $! σ with "Hσ") as "H". iModIntro. iApply "H".
   - iModIntro. iRight. iLeft. iExists s, vv, (compose_cont K K').
@@ -245,6 +246,9 @@ Proof.
     iApply "IH". iApply ("Hr" with "HΞ").
   - iRight. iRight. iModIntro. iSplit.
     1: iPureIntro; by apply resume_not_val.
+    iSplit.
+    { iPureIntro; intros (f&vs&C&(C'&Hc&->)%is_call_in_cont_inv&Hno); last done.
+      eapply Hstep; eauto. }
     iIntros (X HstepW%prim_step_resume); last done.
     iMod ("H3" $! _ HstepW) as "H3". do 2 iModIntro.
     iMod "H3" as "(%e4&%σ4&%HX&Hσ&HWP)". iModIntro.
@@ -314,7 +318,9 @@ Proof.
   iIntros (Hcall Hfn Hfunc) "H". iApply wp_unfold. rewrite /wp_pre /=.
   iIntros (σ) "Hσ !>". iRight. iRight.
   iSplitR.
-  1: by erewrite not_is_call_2.
+  1: by erewrite not_is_call_2. iSplitR.
+  1: { iPureIntro; intros (f&vs'&C'&Hc&Hpe).
+       destruct (is_call_unique _ _ _ _ _ _ _ Hcall Hc) as (->&->&->); simplify_eq. }
   iIntros (X Hstep) "!>!>!>".
   do 2 iExists _. eapply call_prim_step in Hstep; try done.
   iSplitR; first done. iFrame.

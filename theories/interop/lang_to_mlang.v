@@ -50,6 +50,11 @@ Section ToMlang.
         do 2 eexists. split; eauto.
     - intros e [v Hv] f vs C ->. rewrite to_val_fill_call in Hv; done.
     - intros e C1 C2 s vv Heq. rewrite /is_call -fill_comp. by f_equal.
+    - intros e C1 C2 s vv H1 H2. epose proof H2 as [(C'&HC')|[v Hv]]%call_in_ctx.
+      + subst C2. eexists; split; last done.
+        rewrite /is_call -fill_comp in H2.
+        by eapply fill_inj.
+      + rewrite -Hv /to_val to_of_class // in H1.
     - intros e C. apply fill_val.
     - intros e C1 C2. apply fill_comp.
     - by intros e s1 s2 f1 f2 C1 C2 -> (->&->&->)%call_call_in_ctx.
