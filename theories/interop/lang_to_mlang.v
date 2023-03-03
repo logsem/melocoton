@@ -13,11 +13,11 @@ Section ToMlang.
 
   Inductive prim_step_mrel : prog -> expr_state -> (expr_state->Prop) -> Prop := 
   | LiftStep p e1 σ1 e2 σ2 (X : _ → Prop) : 
-        prim_step p e1 σ1 e2 σ2 [] → 
+        prim_step p e1 σ1 e2 σ2 → 
         (X (e2, σ2)) →
       prim_step_mrel p (e1,σ1) X
   | LiftUbStep p e1 σ1 X :
-        stuck_no_threads p e1 σ1 →
+        stuck p e1 σ1 →
       prim_step_mrel p (e1,σ1) X.
 
   Program Definition prim_step (p : prog) : umrel (expr_state) :=
@@ -34,7 +34,7 @@ Section ToMlang.
     e = fill C (of_class Λ (ExprCall s vs)).
 
   Definition XM_for (P:Prop) : Prop := P ∨ ¬ P.
-  Axiom (XM_for_reducible_no_thread : ∀ p e σ, XM_for (reducible_no_threads (Λ:=Λ) p e σ)).
+  Axiom (XM_for_reducible_no_thread : ∀ p e σ, XM_for (reducible (Λ:=Λ) p e σ)).
 
   Lemma language_mlanguage_mixin :
     MlanguageMixin (val:=val) (of_val Λ) to_val is_call (fill) (Λ.(apply_func)) prim_step.
@@ -47,7 +47,7 @@ Section ToMlang.
       + destruct H4 as [H4 _]. rewrite to_of_val in H4; done.
     - intros p e f vs C σ X ->. split; intros H.
       + inversion H; simplify_eq.
-        * apply prim_step_call_inv in H3 as (er&fn&HH1&HH2&->&->&_).
+        * apply prim_step_call_inv in H3 as (er&fn&HH1&HH2&->&->).
           intros ? ? ? ?; simplify_eq; simplify_map_eq; congruence.
         * destruct H4 as [Hv Hpr]. intros fn e2 HH1 HH2; exfalso; eapply Hpr.
           eapply fill_prim_step, head_prim_step, call_head_step. by repeat eexists.
@@ -55,9 +55,9 @@ Section ToMlang.
         * eapply LiftStep; last by eapply H.
           eapply fill_prim_step, head_prim_step, call_head_step. by repeat eexists.
         * eapply LiftUbStep. split; first apply to_val_fill_call.
-          intros e' σ' (er&fn'&HH1&HH2&->&->&_)%prim_step_call_inv; repeat simplify_eq. congruence.
+          intros e' σ' (er&fn'&HH1&HH2&->&->)%prim_step_call_inv; repeat simplify_eq. congruence.
         * eapply LiftUbStep. split; first apply to_val_fill_call.
-          intros e' σ' (er&fn'&HH1&HH2&->&->&_)%prim_step_call_inv; repeat simplify_eq.
+          intros e' σ' (er&fn'&HH1&HH2&->&->)%prim_step_call_inv; repeat simplify_eq.
     - intros e [v Hv] f vs C ->. rewrite to_val_fill_call in Hv; done.
     - intros p e σ H.
       destruct (XM_for_reducible_no_thread p e σ) as [(e2&σ2&Hl)|Hr].

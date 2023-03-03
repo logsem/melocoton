@@ -18,8 +18,8 @@ Implicit Types Φ : val → iProp Σ.
 Lemma wp_lift_step_fupd s E Φ e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜reducible_no_threads (penv_prog s) e1 σ1⌝ ∗
-    ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2 []⌝
+    ⌜reducible (penv_prog s) e1 σ1⌝ ∗
+    ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2⌝
       ={E}▷=∗^(1) |={E}=>
       state_interp σ2 (S ns) ∗
       WP e2 @ s; E {{ Φ }})
@@ -37,8 +37,8 @@ Qed.
 Lemma wp_lift_atomic_step {s E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜reducible_no_threads (penv_prog s) e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
+    ⌜reducible (penv_prog s) e1 σ1⌝ ∗
+    ▷ ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
@@ -58,16 +58,16 @@ Qed.
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
   to_val e1 = None →
   (∀ σ1 ns, state_interp σ1 ns ={E}=∗
-    ⌜head_reducible_no_threads (penv_prog s) e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜head_step (penv_prog s) e1 σ1 e2 σ2 []⌝ ={E}=∗
+    ⌜head_reducible (penv_prog s) e1 σ1⌝ ∗
+    ▷ ∀ e2 σ2, ⌜head_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
       state_interp σ2 (S ns) ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
   iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1 ns) "Hσ1".
-  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. iSplitR; first (iPureIntro; by eapply head_prim_reducible_no_threads).
-  iIntros (e' σ' Hstep%head_reducible_prim_step). 2: { destruct HH as (?&?&HH). do 3 eexists. done. }
+  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. iSplitR; first (iPureIntro; by eapply head_prim_reducible).
+  iIntros (e' σ' Hstep%head_reducible_prim_step). 2: {  destruct HH as (?&?&HH). do 2 eexists. done. }
   do 2 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
   iFrame.
@@ -77,40 +77,40 @@ Qed.
 
 Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state Λ)} {s E Φ} e1 e2 :
   (∀ σ1, reducible (penv_prog s) e1 σ1) →
-  (∀ σ1 e2' σ2 efs', prim_step (penv_prog s) e1 σ1 e2' σ2 efs' →
-    σ2 = σ1 ∧ e2' = e2 ∧ efs' = []) →
+  (∀ σ1 e2' σ2, prim_step (penv_prog s) e1 σ1 e2' σ2 →
+    σ2 = σ1 ∧ e2' = e2) →
   (|={E}[E]▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply wp_lift_step_fupd.
   { specialize (Hsafe inhabitant). destruct s; eauto using reducible_not_val. }
   iIntros (σ1 ns) "Hσ". iMod "H". iModIntro. iSplitR.
-  { iPureIntro. destruct (Hsafe σ1) as (?&?&?&?Hsafe').
-    destruct (Hstep _ _ _ _ Hsafe') as (->&->&->).  do 2 eexists. done. }
+  { iPureIntro. destruct (Hsafe σ1) as (?&?&?Hsafe').
+    destruct (Hstep _ _ _ Hsafe') as (->&->).  do 2 eexists. done. }
   iIntros (e' σ2 Hstep'). do 3 iModIntro. iMod "H".
   iMod (state_interp_mono σ1 ns with "Hσ") as "Hs".
   iModIntro.
-  destruct (Hstep σ1 e' σ2 [] Hstep') as (He1 & He2 & He3). subst.
+  destruct (Hstep σ1 e' σ2 Hstep') as (He1 & He2). subst.
   iFrame.
 Qed.
 
   Record pure_step (p : language.prog Λ) (e1 e2 : expr Λ) := {
     pure_step_safe σ1 : reducible p e1 σ1;
-    pure_step_det σ1 e2' σ2 efs :
-      prim_step p e1 σ1 e2' σ2 efs → σ2 = σ1 ∧ e2' = e2 ∧ efs = []
+    pure_step_det σ1 e2' σ2 :
+      prim_step p e1 σ1 e2' σ2 → σ2 = σ1 ∧ e2' = e2
   }.
 
   Record pure_head_step (p : language.prog Λ) (e1 e2 : expr Λ) := {
     pure_head_step_safe σ1 : head_reducible p e1 σ1;
-    pure_head_step_det σ1 e2' σ2 efs :
-      head_step p e1 σ1 e2' σ2 efs → σ2 = σ1 ∧ e2' = e2 ∧ efs = []
+    pure_head_step_det σ1 e2' σ2 :
+      head_step p e1 σ1 e2' σ2 → σ2 = σ1 ∧ e2' = e2
   }.
 
   Lemma pure_head_step_pure_step p e1 e2 : pure_head_step p e1 e2 -> pure_step p e1 e2.
   Proof.
     intros [Hp1 Hp2]. split.
-    - intros σ. destruct (Hp1 σ) as (e2' & σ2 & efs & ?).
-      eexists e2', σ2, efs. by apply head_prim_step.
-    - intros σ1 e2' σ2 efs ?%head_reducible_prim_step; eauto.
+    - intros σ. destruct (Hp1 σ) as (e2' & σ2 & ?).
+      eexists e2', σ2. by apply head_prim_step.
+    - intros σ1 e2' σ2 ?%head_reducible_prim_step; eauto.
   Qed.
 
 Class PureExec (φ : Prop) (n : nat)  (p : language.prog Λ) (e1 e2 : expr Λ) :=
@@ -120,10 +120,10 @@ Lemma pure_exec_fill φ n p e1 e2 K : PureExec φ n p  e1 e2 -> PureExec φ n p 
 Proof.
   intros H Hφ. specialize (H Hφ). induction H as [|n x y z [Hred Hdet] Hstep IH]; econstructor.
   - econstructor.
-    + intros σ1. destruct (Hred σ1) as (e' & σ' & efs' & H). do 3 eexists.
+    + intros σ1. destruct (Hred σ1) as (e' & σ' & H). do 2 eexists.
       apply fill_prim_step, H.
-    + intros σ1 e2 σ2 efs (e2' & -> & HH)%fill_reducible_prim_step; last apply Hred.
-      destruct (Hdet _ _ _ _ HH) as (-> & -> & ->); done.
+    + intros σ1 e2 σ2 (e2' & -> & HH)%fill_reducible_prim_step; last apply Hred.
+      destruct (Hdet _ _ _ HH) as (-> & ->); done.
   - apply IH.
 Qed.
 

@@ -5,7 +5,7 @@ From iris.prelude Require Import options.
 
 Section pure_exec.
   Variable (p:language.prog C_lang).
-  Local Ltac solve_exec_safe := intros; subst; do 3 eexists; try (repeat (econstructor; eauto); done).
+  Local Ltac solve_exec_safe := intros; subst; do 2 eexists; try (repeat (econstructor; eauto); done).
   Local Ltac solve_exec_puredet := simpl; intros; inv_head_step; try done.
   Local Ltac solve_pure_exec :=
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
@@ -68,7 +68,7 @@ Section pure_exec.
   Global Instance pure_funcall s va args res e : 
     PureExec ((p : gmap.gmap string function) !! s = Some (Fun args e) ∧ zip_args args va = Some res) 1 p (FunCall (Val $ LitV $ LitFunPtr s) (map Val va)) (subst_all res e).
   Proof. solve_pure_exec; destruct H as [H1 H2].
-    1: do 2 econstructor. 1:apply H1.
+    1: econstructor; first done.
     + unfold apply_function. rewrite H2. reflexivity.
     + repeat split; try congruence. destruct (zip_args args0 va) eqn:Heq; last congruence.
       congruence.

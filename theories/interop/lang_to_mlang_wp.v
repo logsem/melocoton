@@ -64,13 +64,13 @@ Proof using.
     iSplitR; first done. iSplitR; first done. iSplitR; first done. iSplitL "Hσ"; first by iExists n.
     iExists Ξ. iFrame. iNext. iIntros (v) "[Hv _]". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
-    { iPureIntro. eapply reducible_not_val. destruct Hred as (?&?&?); by do 3 eexists. }
+    { iPureIntro. eapply reducible_not_val. done. }
     iIntros (X Hstep). inversion Hstep; simplify_eq.
     + iMod ("H3" $! σ2 e2 H3) as "H3". do 2 iModIntro. iMod "H3" as "(Hσ&HWP)". iModIntro. 
       do 2 iExists _; iSplit; first done.
       iSplitL "Hσ"; first by iExists _.
       iApply "IH". done.
-    + destruct H4 as [_ H4%not_reducible_no_threads]. exfalso; tauto.
+    + destruct H4 as [_ H4%not_reducible]. exfalso; tauto.
 Qed.
 
 Lemma wp_lang_to_mlang_backwards (e : Λ.(language.expr)) pe E Φ :
@@ -136,7 +136,7 @@ Proof.
       do 2 iExists _. iSplit; first done.
       iSplitL "Hσ"; first by iExists _. iApply "IH". done.
     + destruct H4 as [Hnvf Hst].
-      assert (stuck_no_threads (penv_prog (penv_to_mlang pe)) e σ) as Hirred.
+      assert (stuck (penv_prog (penv_to_mlang pe)) e σ) as Hirred.
       { split; first done. intros ? ? ?. eapply (Hst (fill K e') σ').
         eapply fill_prim_step. done. }
       iMod ("H3" $! (λ _, False) (LiftUbStep _ _ _ _ _ Hirred)) as "H3".

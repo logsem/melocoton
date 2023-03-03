@@ -29,7 +29,7 @@ Global Hint Extern 0 (AsRecV (RecV _ _ _) _ _ _) =>
 
 Section pure_exec.
   Context  {p:language.prog ML_lang}.
-  Local Ltac solve_exec_safe := intros; subst; do 3 eexists; try (repeat (econstructor; eauto); done).
+  Local Ltac solve_exec_safe := intros; subst; do 2 eexists; try (repeat (econstructor; eauto); done).
   Local Ltac solve_exec_puredet := simpl; intros; inv_head_step; try inv_head_step; try done.
   Local Ltac solve_pure_exec :=
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
@@ -97,7 +97,7 @@ Section pure_exec.
   Proof. destruct f.
          subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
          constructor; [solve_exec_safe | solve_exec_puredet].
-         + econstructor. destruct H. econstructor; done.
+         + econstructor; by destruct H.
          + repeat split; try congruence. destruct H as [H1 H2]. rewrite H3 in H1.
            assert (args = b) as -> by congruence.
            assert (e = e0) as -> by congruence.
