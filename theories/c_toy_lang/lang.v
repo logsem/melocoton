@@ -269,9 +269,6 @@ Notation Uninitialized := (Some None : heap_cell).
 Notation Storing v := (Some (Some v) : heap_cell).
 
 (** The state: heaps of heap_cells. *)
-(*Record state : Type := {
-  heap: gmap loc heap_cell
-}.*)
 Local Notation state := (gmap loc heap_cell).
 
 Class program := prog : gmap string function.
