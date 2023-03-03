@@ -194,7 +194,7 @@ Definition arity (F : function) := match F with Fun b e => length b end.
 
 Notation of_val := Val (only parsing).
 
-Definition of_class (e : mixin_expr_class) : expr :=
+Definition of_class_C (e : mixin_expr_class) : expr :=
   match e with
   | ExprVal v => Val v
   | ExprCall vf vl => FunCall (Val $ LitV $ LitFunPtr vf) (map Val vl)
@@ -209,7 +209,7 @@ Fixpoint unmap_val el :=
   | _ => None
   end.
 
-Definition to_class (e : expr) : option mixin_expr_class :=
+Definition to_class_C (e : expr) : option mixin_expr_class :=
   match e with
   | Val v => Some (ExprVal v)
   | FunCall (Val (LitV (LitFunPtr vf))) el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
@@ -217,7 +217,7 @@ Definition to_class (e : expr) : option mixin_expr_class :=
   end.
 
 Local Notation to_val e :=
-  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
+  (match to_class_C e with Some (ExprVal v) => Some v | _ => None end).
 
 (** Equality and other typeclass stuff *)
 Global Instance of_val_inj : Inj (=) (=) of_val.

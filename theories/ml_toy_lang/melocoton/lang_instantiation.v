@@ -11,7 +11,7 @@ Import ML_lang.
 Local Notation state := (gmap loc (option (list val))).
 
 Local Lemma fill_class (K : list ectx_item) (e:expr) :
-  is_Some (to_class (fill K e)) → K = nil ∨ ∃ v, to_class e = Some (ExprVal v).
+  is_Some (to_class_ML (fill K e)) → K = nil ∨ ∃ v, to_class_ML e = Some (ExprVal v).
 Proof.
   intros [v Hv]. revert v Hv. induction K as [|k1 K] using rev_ind; intros v Hv. 1:now left. right.
   rewrite fill_app in Hv.
@@ -27,7 +27,7 @@ Proof.
 Qed.
 
 Local Notation to_val e :=
-  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
+  (match to_class_ML e with Some (ExprVal v) => Some v | _ => None end).
 
 Local Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
 Proof.
@@ -59,7 +59,7 @@ Qed.
 
 Local Lemma of_to_val e v : to_val e = Some v → of_val v = e.
 Proof.
-  intros. eapply (of_to_cancel e (ExprVal v)).
+  intros. eapply (of_to_class_ML e (ExprVal v)).
   repeat case_match; by simplify_eq.
 Qed.
 
@@ -88,7 +88,7 @@ Proof.
 Qed.
 
 Local Lemma fill_ctx K s vv K' e :
-  fill K' e = fill K (of_class (ExprCall s vv)) →
+  fill K' e = fill K (of_class_ML (ExprCall s vv)) →
   (∃ v, e = Val v) ∨ (∃ K2, K = K2 ++ K').
 Proof. cbn.
   induction K' as [|[] K' IH] in K,e|-*; intros H; first last.
@@ -108,12 +108,12 @@ Qed.
 
 Lemma melocoton_lang_mixin_ML :
   @LanguageMixin expr val ml_function (list ectx_item) state
-                 of_class to_class
+                 of_class_ML to_class_ML
                  nil comp_ectx fill
                  apply_function head_step.
 Proof. split.
-  + apply to_of_cancel.
-  + apply of_to_cancel.
+  + apply to_of_class_ML.
+  + apply of_to_class_ML.
   + intros *; inversion 1.
   + intros p f vs σ1 e2 σ2. split.
     - intros H. inversion H; subst. inversion H; subst.

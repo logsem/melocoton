@@ -353,7 +353,7 @@ Proof.
   iIntros (Φ) ">Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1 ns) "(Hσ & Hsteps) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   iSplit.
-  1: { iPureIntro. econstructor. do 2 eexists. econstructor.
+  1: { iPureIntro. do 2 eexists. econstructor.
        intros i H1 H2. exists v. rewrite <- H. f_equal.
        destruct l; cbn. unfold loc_add. f_equal. cbn. lia. }
   iIntros (e2 σ2 Hstep); inv_head_step.
@@ -398,8 +398,9 @@ Proof.
   { cbv -[map unmap_val]. now rewrite map_unmap_val. }
   iIntros (σ1 ns) "(Hσ & Hsteps) !>".
   iSplit.
-  { iPureIntro. eexists _,_. apply head_prim_step. do 2 econstructor; done. }
-  iIntros (v2 σ2 Hstep). apply head_reducible_prim_step in Hstep. 2: { eexists _,_,_. do 2 econstructor; done. }
+  { iPureIntro. eexists _,_. apply head_prim_step. econstructor; done. }
+  iIntros (v2 σ2 Hstep).
+  apply head_reducible_prim_step in Hstep; last by eauto with head_step.
   inv_head_step. iMod "Hcont". do 2 iModIntro.
   iMod (steps_auth_update_S with "Hsteps") as "Hsteps".
   iMod "Hcont".

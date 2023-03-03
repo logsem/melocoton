@@ -181,14 +181,13 @@ Proof.
        iPoseProof (big_sepL_lookup_acc with "Hl") as "(Hpto&Hl)". 1: apply Heq.
        iDestruct (gen_heap_valid with "Hσ Hpto") as %?.
        iPureIntro. exists vv. rewrite <- H. do 2 f_equal. lia. }
-  iSplit.
-  1: { iPureIntro. econstructor. do 2 eexists. econstructor. done. }
+  iSplit; first by eauto with head_step.
   iIntros (e2 σ2 Hstep); inv_head_step. iModIntro.
   iMod (primitive_laws.steps_auth_update_S with "Hsteps") as "Hsteps".
   iFrame.
   iSplitL.
   2: { iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ". }
-  clear H5 Halloc.
+  clear H4 Halloc.
   iInduction vs as [|vh vr] "IH" forall (l σ1).
   - iModIntro. cbn. unfold state_init_heap, state_upd_heap.
     change (Z.to_nat 0%nat) with 0. cbn. rewrite map_empty_union. iFrame.

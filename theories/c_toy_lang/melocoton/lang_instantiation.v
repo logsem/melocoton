@@ -15,7 +15,7 @@ Proof.
   - cbn. rewrite IHl. easy.
 Qed.
 
-Local Lemma to_of_cancel e : to_class (of_class e) = Some e.
+Local Lemma to_of_class_C e : to_class_C (of_class_C e) = Some e.
 Proof.
   destruct e.
   - easy.
@@ -31,7 +31,7 @@ Proof.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
 
-Local Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
+Local Lemma of_to_class_C e c : to_class_C e = Some c → of_class_C c = e.
 Proof.
   destruct e; cbn; try congruence.
   - intros H. injection H. intros <-. easy.
@@ -41,7 +41,7 @@ Proof.
 Qed.
 
 Local Lemma fill_class (K : list ectx_item) (e:expr) :
-  is_Some (to_class (fill K e)) → K = nil ∨ ∃ v, to_class e = Some (ExprVal v).
+  is_Some (to_class_C (fill K e)) → K = nil ∨ ∃ v, to_class_C e = Some (ExprVal v).
 Proof.
   intros [v Hv]. revert v Hv. induction K as [|k1 K] using rev_ind; intros v Hv. 1:now left. right.
   rewrite fill_app in Hv.
@@ -62,11 +62,11 @@ Proof.
 Qed.
 
 Local Notation to_val e :=
-  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
+  (match to_class_C e with Some (ExprVal v) => Some v | _ => None end).
 
 Local Lemma of_to_val e v : to_val e = Some v → of_val v = e.
 Proof.
-  intros. eapply (of_to_cancel e (ExprVal v)).
+  intros. eapply (of_to_class_C e (ExprVal v)).
   repeat case_match; by simplify_eq.
 Qed.
 
@@ -123,7 +123,7 @@ Proof.
 Qed.
 
 Local Lemma fill_ctx K s vv K' e :
-  fill K' e = fill K (of_class (ExprCall s vv)) →
+  fill K' e = fill K (of_class_C (ExprCall s vv)) →
   (∃ v, e = Val v) ∨ (∃ K2, K = K2 ++ K').
 Proof. cbn.
   induction K' as [|[] K' IH] in K,e|-*; intros H; first last.
@@ -144,12 +144,12 @@ Qed.
 
 Lemma melocoton_lang_mixin_C :
   @LanguageMixin expr val function (list ectx_item) state
-                 of_class to_class
+                 of_class_C to_class_C
                  nil comp_ectx fill
                  apply_function head_step.
 Proof. split.
-  + apply to_of_cancel.
-  + apply of_to_cancel.
+  + apply to_of_class_C.
+  + apply of_to_class_C.
   + intros *. inversion 1.
   + intros p f vs σ1 e2 σ2. split.
     - intros H. inversion H; subst. inversion H; subst. repeat econstructor; [apply H2|].

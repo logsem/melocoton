@@ -138,7 +138,7 @@ Bind Scope val_scope with val.
 
 Notation of_val := Val (only parsing).
 
-Definition of_class (e : mixin_expr_class) : expr :=
+Definition of_class_ML (e : mixin_expr_class) : expr :=
   match e with
   | ExprVal v => Val v
   | ExprCall vf vl => Extern vf (map Val vl)
@@ -153,7 +153,7 @@ Fixpoint unmap_val el :=
   | _ => None
   end.
 
-Definition to_class (e : expr) : option mixin_expr_class :=
+Definition to_class_ML (e : expr) : option mixin_expr_class :=
   match e with
   | Val v => Some (ExprVal v)
   | Extern vf el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
@@ -167,7 +167,7 @@ Proof.
   - cbn. rewrite IHl. easy.
 Qed.
 
-Lemma to_of_cancel e : to_class (of_class e) = Some e.
+Lemma to_of_class_ML e : to_class_ML (of_class_ML e) = Some e.
 Proof.
   destruct e.
   - easy.
@@ -183,7 +183,7 @@ Proof.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
 
-Lemma of_to_cancel e c : to_class e = Some c → of_class c = e.
+Lemma of_to_class_ML e c : to_class_ML e = Some c → of_class_ML c = e.
 Proof.
   destruct e; cbn; try congruence.
   - intros H. injection H. intros <-. easy.
@@ -192,7 +192,7 @@ Proof.
 Qed.
 
 Local Notation to_val e :=
-  (match to_class e with Some (ExprVal v) => Some v | _ => None end).
+  (match to_class_ML e with Some (ExprVal v) => Some v | _ => None end).
 
 (** Unboxed values are
   * locations
@@ -446,7 +446,7 @@ Proof.
  - destruct v; by f_equal.
 Qed.
 Global Instance val_countable : Countable val.
-Proof. refine (inj_countable of_val (λ e, to_val e) _); auto using to_of_cancel. Qed.
+Proof. refine (inj_countable of_val (λ e, to_val e) _); auto using to_of_class_ML. Qed.
 
 Global Instance state_inhabited : Inhabited state :=
   populate inhabitant.
