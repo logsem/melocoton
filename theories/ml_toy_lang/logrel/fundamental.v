@@ -296,26 +296,27 @@ Section typed_interp.
     iApply wp_pure_step_later; cbn; auto using to_of_val. rewrite lookup_singleton.
     iIntros "!>". iApply wp_value; first done. by iApply interp_subst.
   Qed.
-(*
 
-  Lemma sem_typed_alloc Γ e τ : P ; Γ ⊨ e : τ -∗ P ; Γ ⊨ Alloc e : Tref τ.
+  Lemma sem_typed_alloc P Γ e τ : P ; Γ ⊨ e : τ -∗ P ; Γ ⊨ Alloc e : Tref τ.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP /=".
-    iApply (interp_expr_bind [AllocCtx]); first by iApply "IH".
-    iIntros (v) "#Hv /=".
-    iApply wp_fupd.
-    iApply wp_alloc; auto 1 using to_of_val.
-    iNext; iIntros (l) "Hl /=".
-    iMod (inv_alloc _ with "[Hl]") as "HN";
-      [| iModIntro; iExists _; iSplit; trivial]; eauto.
+    iApply (interp_expr_bind [AllocNRCtx _]); first by iApply "IH".
+    iIntros (v) "#Hv /=". unfold interp_expr.
+    wp_alloc l as "Hl".
+    iMod (inv_alloc _ with "[Hl]") as "#HN".
+    2: iModIntro; cbn; iExists l; by iSplit.
+    iNext; iExists _; by iFrame.
   Qed.
 
-  Lemma sem_typed_load Γ e τ : P ; Γ ⊨ e : (Tref τ) -∗ P ; Γ ⊨ Load e : τ.
+(* TODO: figure out invariants
+
+  Lemma sem_typed_load P Γ e τ : P ; Γ ⊨ e : (Tref τ) -∗ P ; Γ ⊨ Load e : τ.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP /=".
-    iApply (interp_expr_bind [LoadCtx]); first by iApply "IH".
-    iIntros (v) "#Hv /=".
-    iDestruct "Hv" as (l) "[% #Hv]"; subst.
+    iApply (interp_expr_bind [LoadNLCtx _]); first by iApply "IH".
+    rewrite /= /fill /=.
+    iIntros (v) "#(%l&->&#Hv) /=".
+    Search inv.
     iApply wp_atomic.
     iInv (logN .@ l) as (w) "[Hw1 #Hw2]" "Hclose".
     iApply (wp_load with "Hw1").
@@ -338,13 +339,47 @@ Section typed_interp.
     iIntros "Hz1". iMod ("Hclose" with "[Hz1 Hz2]"); eauto.
   Qed. *)
 
+  Lemma sem_typed_extern_ind P Γ Δ vs s tr tl1 tl2 vl1 el2 :
+      P !! s = Some (FunType (tl1 ++ tl2) tr) →
+      ⟦ Γ ⟧* Δ vs -∗ ⟦ P ⟧ₚ* Δ -∗
+      ⌜Forall2 (λ e τ, ⊢ P; Γ ⊨ e : τ) el2 tl2⌝ -∗
+      ([∗ list] k↦τ;v ∈ tl1;vl1, ⟦ τ ⟧ Δ v) -∗
+      (⟦ tr ⟧ₑ Δ) (Extern s (map Val vl1 ++ map (env_subst vs) el2)).
+  Proof.
+    iIntros (HPs) "#HΓ #HP %H2 #H1".
+    iInduction el2 as [|e el2] "IH" forall (vl1 tl1 tl2 HPs H2) "H1".
+    - cbn. rewrite app_nil_r. eapply Forall2_nil_inv_l in H2 as ->.
+      rewrite app_nil_r in HPs.
+      iPoseProof (big_sepM_lookup with "HP") as "#HPs"; first exact HPs. cbn.
+      iApply ("HPs" $! s vl1 (⟦ tr ⟧ Δ)).
+      iSplitR; first done.
+      iSplitL; last by iIntros (r) "Hr".
+      iApply "H1".
+    - eapply Forall2_cons_inv_l in H2 as (τ&tl2'&Heτ&H2&->).
+      cbn. iPoseProof Heτ as "Heτ"; clear Heτ.
+      iApply (interp_expr_bind [ExternCtx s vl1 _]); first by iApply "Heτ".
+      iIntros (v) "#Hv"; cbn.
+      rewrite cons_middle app_assoc -(map_last Val vl1 v).
+      rewrite cons_middle app_assoc in HPs.
+      iApply "IH".
+      + iPureIntro; exact HPs.
+      + done.
+      + iIntros "!>". iApply (big_sepL2_snoc); iFrame "Hv H1".
+  Qed.
+
   Lemma sem_typed_extern P Γ s el tl tr :
       P !! s = Some (FunType tl tr) →
       ⌜Forall2 (λ e τ, ⊢ P ; Γ ⊨ e : τ) el tl⌝ -∗
       P ; Γ ⊨ (Extern s el) : tr.
   Proof.
-    iIntros (Hlu HH Δ vs) "!# #HΓ #HP /=". 
-  Admitted.
+    iIntros (Hlu HH Δ vs) "!# #HΓ #HP /=".
+    iApply (sem_typed_extern_ind P Γ Δ vs s tr [] tl [] el).
+    - done.
+    - done.
+    - done.
+    - iPureIntro; done.
+    - done.
+  Qed.
 
   Theorem fundamental P Γ e τ : typed P Γ e τ → ⊢ P ; Γ ⊨ e : τ.
   Proof.
@@ -372,7 +407,7 @@ Section typed_interp.
     - iApply sem_typed_unpack; done.
     - iApply sem_typed_fold; done.
     - iApply sem_typed_unfold; done.
-    - admit.
+    - iApply sem_typed_alloc; done.
     - admit.
     - admit.
     - iApply sem_typed_extern; done.

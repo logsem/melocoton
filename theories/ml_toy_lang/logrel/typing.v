@@ -96,7 +96,7 @@ Inductive typed (P : program_env) (Γ : gmap string type) : expr → type → Pr
      P ; Γ ⊢ₜ UnpackIn x e1 e2 : τ'
   | TRoll e τ : P ; Γ ⊢ₜ e : τ.[TRec τ/] → P ; Γ ⊢ₜ Roll e : TRec τ
   | TUnroll e τ : P ; Γ ⊢ₜ e : TRec τ → P ; Γ ⊢ₜ Unroll e : τ.[TRec τ/] 
-  | TAlloc e τ : P ; Γ ⊢ₜ e : τ → P ; Γ ⊢ₜ Alloc e (#1) : Tref τ 
+  | TAlloc e τ : P ; Γ ⊢ₜ e : τ → P ; Γ ⊢ₜ ref e : Tref τ 
   | TLoad e τ : P ; Γ ⊢ₜ e : Tref τ → P ; Γ ⊢ₜ Load e #0 : τ 
   | TStore e e' τ : P ; Γ ⊢ₜ e : Tref τ → P ; Γ ⊢ₜ e' : τ → P ; Γ ⊢ₜ Store e (#0) e' : TUnit 
   | TExtern s el tl tr :
@@ -130,7 +130,7 @@ Lemma typed_ind (P : program_env → gmap string type → expr → type → Prop
   → (∀ (P0 : program_env) (Γ : gmap string type) (x : binder) (e1 e2 : expr) (τ : {bind type}) (τ' : type), P0; Γ ⊢ₜ e1 : TExist τ → P P0 Γ e1 (TExist τ) → subst_prog_env (ren (+1)) P0; binder_insert x τ (subst (ren (+1)) <$> Γ) ⊢ₜ e2 : τ'.[ren (+1)] → P (subst_prog_env (ren (+1)) P0) (binder_insert x τ (subst (ren (+1)) <$> Γ)) e2 τ'.[ren (+1)] → P P0 Γ (unpack: x := e2 in e1)%E τ')
   → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : {bind type}), P0; Γ ⊢ₜ e : τ.[TRec τ/] → P P0 Γ e τ.[TRec τ/] → P P0 Γ (roll:e)%E (TRec τ))
   → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : {bind type}), P0; Γ ⊢ₜ e : TRec τ → P P0 Γ e (TRec τ) → P P0 Γ (unroll:e)%E τ.[TRec τ/])
-  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : type), P0; Γ ⊢ₜ e : τ → P P0 Γ e τ → P P0 Γ ((ref e)%E #1) (Tref τ))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : type), P0; Γ ⊢ₜ e : τ → P P0 Γ e τ → P P0 Γ (ref e)%E (Tref τ))
   → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : type), P0; Γ ⊢ₜ e : Tref τ → P P0 Γ e (Tref τ) → P P0 Γ ((! e)%E #0) τ)
   → (∀ (P0 : program_env) (Γ : gmap string type) (e e' : expr) (τ : type), P0; Γ ⊢ₜ e : Tref τ → P P0 Γ e (Tref τ) → P0; Γ ⊢ₜ e' : τ → P P0 Γ e' τ → P P0 Γ ((e <- #0)%E e') TUnit) 
   → (∀ (P0 : program_env) (Γ : gmap string type) (s : string) (el : list expr) (tl : list type) (tr : type), P0 !! s = Some (FunType tl tr) → Forall2 (typed P0 Γ) el tl → Forall2 (P P0 Γ) el tl → P P0 Γ (Extern s el) tr) 
