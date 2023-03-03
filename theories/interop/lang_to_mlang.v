@@ -33,7 +33,8 @@ Section ToMlang.
   Definition is_call (e : Λ.(expr)) (s : string) (vs : list val) (C : cont) : Prop := 
     e = fill C (of_class Λ (ExprCall s vs)).
 
-  Axiom (XM : forall P , P ∨ ¬ P).
+  Definition XM_for (P:Prop) : Prop := P ∨ ¬ P.
+  Axiom (XM_for_reducible_no_thread : ∀ p e σ, XM_for (reducible_no_threads (Λ:=Λ) p e σ)).
 
   Lemma language_mlanguage_mixin :
     MlanguageMixin (val:=val) (of_val Λ) to_val is_call (fill) (Λ.(apply_func)) prim_step.
@@ -59,7 +60,7 @@ Section ToMlang.
           intros e' σ' (er&fn'&HH1&HH2&->&->&_)%prim_step_call_inv; repeat simplify_eq.
     - intros e [v Hv] f vs C ->. rewrite to_val_fill_call in Hv; done.
     - intros p e σ H.
-      destruct (XM (∃ e2 σ2, language.prim_step p e σ e2 σ2 [])) as [(e2&σ2&Hl)|Hr].
+      destruct (XM_for_reducible_no_thread p e σ) as [(e2&σ2&Hl)|Hr].
       + eapply LiftStep; last done. exact Hl.
       + eapply LiftUbStep. split; first done. intros ? ? ?. eapply Hr. by do 2 eexists.
   Qed.

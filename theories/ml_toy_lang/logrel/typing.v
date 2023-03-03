@@ -46,103 +46,100 @@ Inductive EqType : type → Prop :=
 
 
 Inductive program_type := FunType : list type -> type -> program_type.
+Check subst.
+Definition subst_prog_type (f : var → type) : program_type → program_type := fun '(FunType tv tr) => FunType (fmap (subst f) tv) (subst f tr).
 Definition program_env := gmap string program_type.
+Definition subst_prog_env f (p : program_env) := fmap (subst_prog_type f) p.
 
 Section IndDef.
-Context (P : program_env).
 
-Reserved Notation "Γ ⊢ₜ e : τ" (at level 74, e, τ at next level).
+Reserved Notation "P ; Γ ⊢ₜ e : τ" (at level 74, e, τ at next level).
 Unset Elimination Schemes.
-Inductive typed (Γ : gmap string type) : expr → type → Prop :=
-  | Var_typed x τ : Γ !! x = Some τ → Γ ⊢ₜ Var x : τ 
-  | Unit_typed : Γ ⊢ₜ  #LitUnit : TUnit
-  | Nat_typed (n:Z) : Γ ⊢ₜ # n : TNat
-  | Bool_typed (b:bool) : Γ ⊢ₜ # b : TBool
+Inductive typed (P : program_env) (Γ : gmap string type) : expr → type → Prop :=
+  | Var_typed x τ : Γ !! x = Some τ → P ; Γ ⊢ₜ Var x : τ 
+  | Unit_typed : P ; Γ ⊢ₜ  #LitUnit : TUnit
+  | Nat_typed (n:Z) : P ; Γ ⊢ₜ # n : TNat
+  | Bool_typed (b:bool) : P ; Γ ⊢ₜ # b : TBool
   | BinOp_typed_nat_nat op e1 e2 :
      binop_arithmetic op = true → 
-     Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TNat → Γ ⊢ₜ BinOp op e1 e2 : TNat
+     P ; Γ ⊢ₜ e1 : TNat → P ; Γ ⊢ₜ e2 : TNat → P ; Γ ⊢ₜ BinOp op e1 e2 : TNat
   | BinOp_typed_nat_bool op e1 e2 :
      binop_arithmetic_to_bool op = true → 
-     Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TNat → Γ ⊢ₜ BinOp op e1 e2 : TBool
+     P ; Γ ⊢ₜ e1 : TNat → P ; Γ ⊢ₜ e2 : TNat → P ; Γ ⊢ₜ BinOp op e1 e2 : TBool
   | BinOp_typed_bool op e1 e2 :
      binop_boolish op = true → 
-     Γ ⊢ₜ e1 : TBool → Γ ⊢ₜ e2 : TBool → Γ ⊢ₜ BinOp op e1 e2 : TBool
-  | BinOp_typed_eq T op e1 e2 :
+     P ; Γ ⊢ₜ e1 : TBool → P ; Γ ⊢ₜ e2 : TBool → P ; Γ ⊢ₜ BinOp op e1 e2 : TBool
+  | BinOp_typed_eq T e1 e2 :
      EqType T → 
-     Γ ⊢ₜ e1 : T → Γ ⊢ₜ e2 : T → Γ ⊢ₜ BinOp op e1 e2 : TBool
-  | Pair_typed e1 e2 τ1 τ2 : Γ ⊢ₜ e1 : τ1 → Γ ⊢ₜ e2 : τ2 → Γ ⊢ₜ Pair e1 e2 : TProd τ1 τ2
-  | Fst_typed e τ1 τ2 : Γ ⊢ₜ e : TProd τ1 τ2 → Γ ⊢ₜ Fst e : τ1
-  | Snd_typed e τ1 τ2 : Γ ⊢ₜ e : TProd τ1 τ2 → Γ ⊢ₜ Snd e : τ2
-  | InjL_typed e τ1 τ2 : Γ ⊢ₜ e : τ1 → Γ ⊢ₜ InjL e : TSum τ1 τ2
-  | InjR_typed e τ1 τ2 : Γ ⊢ₜ e : τ2 → Γ ⊢ₜ InjR e : TSum τ1 τ2
+     P ; Γ ⊢ₜ e1 : T → P ; Γ ⊢ₜ e2 : T → P ; Γ ⊢ₜ BinOp EqOp e1 e2 : TBool
+  | Pair_typed e1 e2 τ1 τ2 : P ; Γ ⊢ₜ e1 : τ1 → P ; Γ ⊢ₜ e2 : τ2 → P ; Γ ⊢ₜ Pair e1 e2 : TProd τ1 τ2
+  | Fst_typed e τ1 τ2 : P ; Γ ⊢ₜ e : TProd τ1 τ2 → P ; Γ ⊢ₜ Fst e : τ1
+  | Snd_typed e τ1 τ2 : P ; Γ ⊢ₜ e : TProd τ1 τ2 → P ; Γ ⊢ₜ Snd e : τ2
+  | InjL_typed e τ1 τ2 : P ; Γ ⊢ₜ e : τ1 → P ; Γ ⊢ₜ InjL e : TSum τ1 τ2
+  | InjR_typed e τ1 τ2 : P ; Γ ⊢ₜ e : τ2 → P ; Γ ⊢ₜ InjR e : TSum τ1 τ2
   | Case_typed e0 e1 e2 τ1 τ2 τ3 :
-     Γ ⊢ₜ e0 : TSum τ1 τ2 → Γ ⊢ₜ e1 : (TArrow τ1 τ3) → Γ ⊢ₜ e2 : (TArrow τ2 τ3) →
-     Γ ⊢ₜ Case e0 e1 e2 : τ3
+     P ; Γ ⊢ₜ e0 : TSum τ1 τ2 → P ; Γ ⊢ₜ e1 : (TArrow τ1 τ3) → P ; Γ ⊢ₜ e2 : (TArrow τ2 τ3) →
+     P ; Γ ⊢ₜ Case e0 e1 e2 : τ3
   | If_typed e0 e1 e2 τ :
-     Γ ⊢ₜ e0 : TBool → Γ ⊢ₜ e1 : τ → Γ ⊢ₜ e2 : τ → Γ ⊢ₜ If e0 e1 e2 : τ
+     P ; Γ ⊢ₜ e0 : TBool → P ; Γ ⊢ₜ e1 : τ → P ; Γ ⊢ₜ e2 : τ → P ; Γ ⊢ₜ If e0 e1 e2 : τ
   | Rec_typed f x e τ1 τ2 :
-     (binder_insert f (TArrow τ1 τ2) (binder_insert x τ1 Γ)) ⊢ₜ e : τ2 → Γ ⊢ₜ Rec f x e : TArrow τ1 τ2
+     P ; (binder_insert f (TArrow τ1 τ2) (binder_insert x τ1 Γ)) ⊢ₜ e : τ2 → P ; Γ ⊢ₜ Rec f x e : TArrow τ1 τ2
   | App_typed e1 e2 τ1 τ2 :
-     Γ ⊢ₜ e1 : TArrow τ1 τ2 → Γ ⊢ₜ e2 : τ1 → Γ ⊢ₜ App e1 e2 : τ2
+     P ; Γ ⊢ₜ e1 : TArrow τ1 τ2 → P ; Γ ⊢ₜ e2 : τ1 → P ; Γ ⊢ₜ App e1 e2 : τ2
   | TLam_typed e τ :
-     subst (ren (+1)) <$> Γ ⊢ₜ e : τ → Γ ⊢ₜ TLam e : TForall τ
-  | TApp_typed e τ τ' : Γ ⊢ₜ e : TForall τ → Γ ⊢ₜ TApp e : τ.[τ'/]
+     subst_prog_env (ren (+1)) P ; subst (ren (+1)) <$> Γ ⊢ₜ e : τ → P ; Γ ⊢ₜ TLam e : TForall τ
+  | TApp_typed e τ τ' : P ; Γ ⊢ₜ e : TForall τ → P ; Γ ⊢ₜ TApp e : τ.[τ'/]
   | Pack_typed e τ τ' :
-     Γ ⊢ₜ e : τ.[τ'/] → Γ ⊢ₜ Pack e : TExist τ
+     P ; Γ ⊢ₜ e : τ.[τ'/] → P ; Γ ⊢ₜ Pack e : TExist τ
   | UnpackIn_typed x e1 e2 τ τ' :
-     Γ ⊢ₜ e1 : TExist τ →
-     binder_insert x τ (subst (ren (+1)) <$> Γ) ⊢ₜ e2 : τ'.[ren (+1)] →
-     Γ ⊢ₜ UnpackIn x e1 e2 : τ'
-  | TRoll e τ : Γ ⊢ₜ e : τ.[TRec τ/] → Γ ⊢ₜ Roll e : TRec τ
-  | TUnroll e τ : Γ ⊢ₜ e : TRec τ → Γ ⊢ₜ Unroll e : τ.[TRec τ/] 
-  | TAlloc e τ : Γ ⊢ₜ e : τ → Γ ⊢ₜ Alloc e (#1) : Tref τ 
-  | TLoad e τ : Γ ⊢ₜ e : Tref τ → Γ ⊢ₜ Load e #0 : τ 
-  | TStore e e' τ : Γ ⊢ₜ e : Tref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e (#0) e' : TUnit 
+     P ; Γ ⊢ₜ e1 : TExist τ →
+     subst_prog_env (ren (+1)) P ; binder_insert x τ (subst (ren (+1)) <$> Γ) ⊢ₜ e2 : τ'.[ren (+1)] →
+     P ; Γ ⊢ₜ UnpackIn x e1 e2 : τ'
+  | TRoll e τ : P ; Γ ⊢ₜ e : τ.[TRec τ/] → P ; Γ ⊢ₜ Roll e : TRec τ
+  | TUnroll e τ : P ; Γ ⊢ₜ e : TRec τ → P ; Γ ⊢ₜ Unroll e : τ.[TRec τ/] 
+  | TAlloc e τ : P ; Γ ⊢ₜ e : τ → P ; Γ ⊢ₜ Alloc e (#1) : Tref τ 
+  | TLoad e τ : P ; Γ ⊢ₜ e : Tref τ → P ; Γ ⊢ₜ Load e #0 : τ 
+  | TStore e e' τ : P ; Γ ⊢ₜ e : Tref τ → P ; Γ ⊢ₜ e' : τ → P ; Γ ⊢ₜ Store e (#0) e' : TUnit 
   | TExtern s el tl tr :
       P !! s = Some (FunType tl tr) →
-      Forall2 (typed Γ) el tl →
-      Γ ⊢ₜ (Extern s el) : tr (*
-  | TCAS e1 e2 e3 τ :
-     EqType τ → Γ ⊢ₜ e1 : Tref τ → Γ ⊢ₜ e2 : τ → Γ ⊢ₜ e3 : τ →
-     Γ ⊢ₜ CAS e1 e2 e3 : TBool
-  | TFAA e1 e2 : Γ ⊢ₜ e1 : Tref TNat → Γ ⊢ₜ e2 : TNat → Γ ⊢ₜ FAA e1 e2 : TNat *)
-where "Γ ⊢ₜ e : τ" := (typed Γ e τ).
+      Forall2 (typed P Γ) el tl →
+      P ; Γ ⊢ₜ (Extern s el) : tr
+where "P ; Γ ⊢ₜ e : τ" := (typed P Γ e τ).
 
 (* Forall2 (typed Γ) requires special care *)
-Lemma typed_ind (P0 : gmap string type → expr → type → Prop) : 
-  (∀ (Γ : gmap string type) (x : string) (τ : type), Γ !! x = Some τ → P0 Γ x τ)
-→ (∀  Γ : gmap string type, P0 Γ #() TUnit)
-→ (∀ (Γ : gmap string type) (n : Z), P0 Γ #n TNat)
-→ (∀ (Γ : gmap string type) (b : bool), P0 Γ #b TBool)
-→ (∀ (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic op = true → Γ ⊢ₜ e1 : TNat → P0 Γ e1 TNat → Γ ⊢ₜ e2 : TNat → P0 Γ e2 TNat → P0 Γ (BinOp op e1 e2) TNat)
-→ (∀ (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic_to_bool op = true → Γ ⊢ₜ e1 : TNat → P0 Γ e1 TNat → Γ ⊢ₜ e2 : TNat → P0 Γ e2 TNat → P0 Γ (BinOp op e1 e2) TBool)
-→ (∀ (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_boolish op = true → Γ ⊢ₜ e1 : TBool → P0 Γ e1 TBool → Γ ⊢ₜ e2 : TBool → P0 Γ e2 TBool → P0 Γ (BinOp op e1 e2) TBool)
-→ (∀ (Γ : gmap string type) (T : type) (op : bin_op) (e1 e2 : expr), EqType T → Γ ⊢ₜ e1 : T → P0 Γ e1 T → Γ ⊢ₜ e2 : T → P0 Γ e2 T → P0 Γ (BinOp op e1 e2) TBool)
-→ (∀ (Γ : gmap string type) (e1 e2 : expr) (τ1 τ2 : type), Γ ⊢ₜ e1 : τ1 → P0 Γ e1 τ1 → Γ ⊢ₜ e2 : τ2 → P0 Γ e2 τ2 → P0 Γ (e1, e2)%E (TProd τ1 τ2))
-→ (∀ (Γ : gmap string type) (e : expr) (τ1 τ2 : type), Γ ⊢ₜ e : TProd τ1 τ2 → P0 Γ e (TProd τ1 τ2) → P0 Γ (Fst e) τ1)
-→ (∀ (Γ : gmap string type) (e : expr) (τ1 τ2 : type), Γ ⊢ₜ e : TProd τ1 τ2 → P0 Γ e (TProd τ1 τ2) → P0 Γ (Snd e) τ2)
-→ (∀ (Γ : gmap string type) (e : expr) (τ1 τ2 : type), Γ ⊢ₜ e : τ1 → P0 Γ e τ1 → P0 Γ (InjL e) (TSum τ1 τ2))
-→ (∀ (Γ : gmap string type) (e : expr) (τ1 τ2 : type), Γ ⊢ₜ e : τ2 → P0 Γ e τ2 → P0 Γ (InjR e) (TSum τ1 τ2))
-→ (∀ (Γ : gmap string type) (e0 e1 e2 : expr) (τ1 τ2 τ3 : type), Γ ⊢ₜ e0 : TSum τ1 τ2 → P0 Γ e0 (TSum τ1 τ2) → Γ ⊢ₜ e1 : TArrow τ1 τ3 → P0 Γ e1 (TArrow τ1 τ3) → Γ ⊢ₜ e2 : TArrow τ2 τ3 → P0 Γ e2 (TArrow τ2 τ3) → P0 Γ (Case e0 e1 e2) τ3)
-→ (∀ (Γ : gmap string type) (e0 e1 e2 : expr) (τ : type), Γ ⊢ₜ e0 : TBool → P0 Γ e0 TBool → Γ ⊢ₜ e1 : τ → P0 Γ e1 τ → Γ ⊢ₜ e2 : τ → P0 Γ e2 τ → P0 Γ (if: e0 then e1 else e2)%E τ)
-→ (∀ (Γ : gmap string type) (f14 x : binder) (e : expr) (τ1 τ2 : type), binder_insert f14 (TArrow τ1 τ2) (binder_insert x τ1 Γ) ⊢ₜ e : τ2 → P0 (binder_insert f14 (TArrow τ1 τ2) (binder_insert x τ1 Γ)) e τ2 → P0 Γ (rec: f14 x := e)%E (TArrow τ1 τ2))
-→ (∀ (Γ : gmap string type) (e1 e2 : expr) (τ1 τ2 : type), Γ ⊢ₜ e1 : TArrow τ1 τ2 → P0 Γ e1 (TArrow τ1 τ2) → Γ ⊢ₜ e2 : τ1 → P0 Γ e2 τ1 → P0 Γ (e1 e2) τ2)
-→ (∀ (Γ : gmap string type) (e : expr) (τ : type), subst (ren (+1)) <$> Γ ⊢ₜ e : τ → P0 (subst (ren (+1)) <$> Γ) e τ → P0 Γ (Λ: <>, e)%E (TForall τ))
-→ (∀ (Γ : gmap string type) (e : expr) (τ τ' : {bind type}), Γ ⊢ₜ e : TForall τ → P0 Γ e (TForall τ) → P0 Γ (TApp e) τ.[τ'/])
-→ (∀ (Γ : gmap string type) (e : expr) (τ τ' : type), Γ ⊢ₜ e : τ.[τ'/] → P0 Γ e τ.[τ'/] → P0 Γ (pack:e)%E (TExist τ))
-→ (∀ (Γ : gmap string type) (x : binder) (e1 e2 : expr) (τ : {bind type}) (τ' : type),
-       Γ ⊢ₜ e1 : TExist τ → P0 Γ e1 (TExist τ) → binder_insert x τ (subst (ren (+1)) <$> Γ) ⊢ₜ e2 : τ'.[ren (+1)] → P0 (binder_insert x τ (subst (ren (+1)) <$> Γ)) e2 τ'.[ren (+1)] → P0 Γ (unpack: x := e2 in e1)%E τ')
-→ (∀ (Γ : gmap string type) (e : expr) (τ : {bind type}), Γ ⊢ₜ e : τ.[TRec τ/] → P0 Γ e τ.[TRec τ/] → P0 Γ (roll:e)%E (TRec τ))
-→ (∀ (Γ : gmap string type) (e : expr) (τ : {bind type}), Γ ⊢ₜ e : TRec τ → P0 Γ e (TRec τ) → P0 Γ (unroll:e)%E τ.[TRec τ/])
-→ (∀ (Γ : gmap string type) (e : expr) (τ : type), Γ ⊢ₜ e : τ → P0 Γ e τ → P0 Γ ((ref e)%E #1) (Tref τ))
-→ (∀ (Γ : gmap string type) (e : expr) (τ : type), Γ ⊢ₜ e : Tref τ → P0 Γ e (Tref τ) → P0 Γ ((! e)%E #0) τ)
-→ (∀ (Γ : gmap string type) (e e' : expr) (τ : type), Γ ⊢ₜ e : Tref τ → P0 Γ e (Tref τ) → Γ ⊢ₜ e' : τ → P0 Γ e' τ → P0 Γ ((e <- #0)%E e') TUnit)
-→ (∀ (Γ : gmap string type) (s : string) (el : list expr) (tl : list type) (tr : type),
-       P !! s = Some (FunType tl tr) → Forall2 (P0 Γ) el tl → P0 Γ (Extern s el) tr) → ∀ (Γ : gmap string type) (e : expr) (t : type), Γ ⊢ₜ e : t → P0 Γ e t.
+Lemma typed_ind (P : program_env → gmap string type → expr → type → Prop) : 
+    (∀ (P0 : program_env) (Γ : gmap string type) (x : string) (τ : type), Γ !! x = Some τ → P P0 Γ x τ)
+  → (∀ (P0 : program_env) (Γ : gmap string type), P P0 Γ #() TUnit)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (n : Z), P P0 Γ #n TNat)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (b : bool), P P0 Γ #b TBool)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic op = true → P0; Γ ⊢ₜ e1 : TNat → P P0 Γ e1 TNat → P0; Γ ⊢ₜ e2 : TNat → P P0 Γ e2 TNat → P P0 Γ (BinOp op e1 e2) TNat)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic_to_bool op = true → P0; Γ ⊢ₜ e1 : TNat → P P0 Γ e1 TNat → P0; Γ ⊢ₜ e2 : TNat → P P0 Γ e2 TNat → P P0 Γ (BinOp op e1 e2) TBool)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_boolish op = true → P0; Γ ⊢ₜ e1 : TBool → P P0 Γ e1 TBool → P0; Γ ⊢ₜ e2 : TBool → P P0 Γ e2 TBool → P P0 Γ (BinOp op e1 e2) TBool)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (T : type) (e1 e2 : expr), EqType T → P0; Γ ⊢ₜ e1 : T → P P0 Γ e1 T → P0; Γ ⊢ₜ e2 : T → P P0 Γ e2 T → P P0 Γ (BinOp EqOp e1 e2) TBool)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e1 e2 : expr) (τ1 τ2 : type), P0; Γ ⊢ₜ e1 : τ1 → P P0 Γ e1 τ1 → P0; Γ ⊢ₜ e2 : τ2 → P P0 Γ e2 τ2 → P P0 Γ (e1, e2)%E (TProd τ1 τ2))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ1 τ2 : type), P0; Γ ⊢ₜ e : TProd τ1 τ2 → P P0 Γ e (TProd τ1 τ2) → P P0 Γ (Fst e) τ1)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ1 τ2 : type), P0; Γ ⊢ₜ e : TProd τ1 τ2 → P P0 Γ e (TProd τ1 τ2) → P P0 Γ (Snd e) τ2)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ1 τ2 : type), P0; Γ ⊢ₜ e : τ1 → P P0 Γ e τ1 → P P0 Γ (InjL e) (TSum τ1 τ2))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ1 τ2 : type), P0; Γ ⊢ₜ e : τ2 → P P0 Γ e τ2 → P P0 Γ (InjR e) (TSum τ1 τ2))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e0 e1 e2 : expr) (τ1 τ2 τ3 : type), P0; Γ ⊢ₜ e0 : TSum τ1 τ2 → P P0 Γ e0 (TSum τ1 τ2) → P0; Γ ⊢ₜ e1 : TArrow τ1 τ3 → P P0 Γ e1 (TArrow τ1 τ3) → P0; Γ ⊢ₜ e2 : TArrow τ2 τ3 → P P0 Γ e2 (TArrow τ2 τ3) → P P0 Γ (Case e0 e1 e2) τ3)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e0 e1 e2 : expr) (τ : type), P0; Γ ⊢ₜ e0 : TBool → P P0 Γ e0 TBool → P0; Γ ⊢ₜ e1 : τ → P P0 Γ e1 τ → P0; Γ ⊢ₜ e2 : τ → P P0 Γ e2 τ → P P0 Γ (if: e0 then e1 else e2)%E τ)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (f14 x : binder) (e : expr) (τ1 τ2 : type), P0; binder_insert f14 (TArrow τ1 τ2) (binder_insert x τ1 Γ) ⊢ₜ e : τ2 → P P0 (binder_insert f14 (TArrow τ1 τ2) (binder_insert x τ1 Γ)) e τ2 → P P0 Γ (rec: f14 x := e)%E (TArrow τ1 τ2))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e1 e2 : expr) (τ1 τ2 : type), P0; Γ ⊢ₜ e1 : TArrow τ1 τ2 → P P0 Γ e1 (TArrow τ1 τ2) → P0; Γ ⊢ₜ e2 : τ1 → P P0 Γ e2 τ1 → P P0 Γ (e1 e2) τ2)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : type), subst_prog_env (ren (+1)) P0; subst (ren (+1)) <$> Γ ⊢ₜ e : τ → P (subst_prog_env (ren (+1)) P0) (subst (ren (+1)) <$> Γ) e τ → P P0 Γ (Λ: <>, e)%E (TForall τ))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ τ' : {bind type}), P0; Γ ⊢ₜ e : TForall τ → P P0 Γ e (TForall τ) → P P0 Γ (TApp e) τ.[τ'/])
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ τ' : type), P0; Γ ⊢ₜ e : τ.[τ'/] → P P0 Γ e τ.[τ'/] → P P0 Γ (pack:e)%E (TExist τ))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (x : binder) (e1 e2 : expr) (τ : {bind type}) (τ' : type), P0; Γ ⊢ₜ e1 : TExist τ → P P0 Γ e1 (TExist τ) → subst_prog_env (ren (+1)) P0; binder_insert x τ (subst (ren (+1)) <$> Γ) ⊢ₜ e2 : τ'.[ren (+1)] → P (subst_prog_env (ren (+1)) P0) (binder_insert x τ (subst (ren (+1)) <$> Γ)) e2 τ'.[ren (+1)] → P P0 Γ (unpack: x := e2 in e1)%E τ')
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : {bind type}), P0; Γ ⊢ₜ e : τ.[TRec τ/] → P P0 Γ e τ.[TRec τ/] → P P0 Γ (roll:e)%E (TRec τ))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : {bind type}), P0; Γ ⊢ₜ e : TRec τ → P P0 Γ e (TRec τ) → P P0 Γ (unroll:e)%E τ.[TRec τ/])
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : type), P0; Γ ⊢ₜ e : τ → P P0 Γ e τ → P P0 Γ ((ref e)%E #1) (Tref τ))
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (τ : type), P0; Γ ⊢ₜ e : Tref τ → P P0 Γ e (Tref τ) → P P0 Γ ((! e)%E #0) τ)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (e e' : expr) (τ : type), P0; Γ ⊢ₜ e : Tref τ → P P0 Γ e (Tref τ) → P0; Γ ⊢ₜ e' : τ → P P0 Γ e' τ → P P0 Γ ((e <- #0)%E e') TUnit) 
+  → (∀ (P0 : program_env) (Γ : gmap string type) (s : string) (el : list expr) (tl : list type) (tr : type), P0 !! s = Some (FunType tl tr) → Forall2 (typed P0 Γ) el tl → Forall2 (P P0 Γ) el tl → P P0 Γ (Extern s el) tr) 
+  →  ∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (t : type), P0; Γ ⊢ₜ e : t → P P0 Γ e t.
 Proof.
   do 27 intros ?.
-  fix IH 4. intros ???; destruct 1; try eauto.
-  enough (Forall2 (P0 Γ) el tl) by eauto.
+  fix IH 5. intros ????; destruct 1; eauto 5.
+  enough (Forall2 (P P0 Γ) el tl) by (eapply H25; clear IH; done).
   clear H26.
   revert el tl H27. fix IHf 3.
   intros el tl; destruct 1; econstructor.
@@ -158,19 +155,14 @@ Proof.
   intros H. cbn. rewrite H. done.
 Qed.
 
-Lemma typed_closed Γ τ e : Γ ⊢ₜ e : τ → is_closed_expr (dom Γ) e.
+Lemma typed_closed P Γ τ e : P ; Γ ⊢ₜ e : τ → is_closed_expr (dom Γ) e.
 Proof.
   intros H; induction H using typed_ind; cbn; eauto.
   - by eapply bool_decide_pack, elem_of_dom_2.
-  - by rewrite !dom_binder_insert in IHtyped.
+  - rewrite !dom_binder_insert in IHtyped.
+    destruct x, f14; cbn in *; try apply IHtyped.
   - by erewrite dom_fmap_L in IHtyped.
-  - eapply andb_prop_intro; split; eauto.
-    eapply bool_decide_pack; set_solver.
   - rewrite !dom_binder_insert !dom_fmap_L in IHtyped2. eauto.
-  - eapply andb_prop_intro; split; eauto.
-    eapply bool_decide_pack; set_solver.
-  - eapply andb_prop_intro; split; eauto.
-    eapply bool_decide_pack; set_solver.
   - eauto 10.
   - eapply forallb_True, Forall2_Forall_l. 1:done.
     eapply Forall_true. done.

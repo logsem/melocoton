@@ -157,11 +157,11 @@ Notation "'match:' e0 'with' 'SOME' x => e2 | 'NONE' => e1 'end'" :=
 Definition TLam e := ((λ: <>, e%E)%E).
 Definition TLamV v := ((λ: <>, v%V)%V).
 Definition TApp e1 := (App e1%E (#())%V).
-Definition IdFunc e := (((λ: "x", "x"%E) e%E)%E).
+Definition IdFunc e := (((λ: "x", "x"%E)%V e%E)%E).
 Definition Roll e := (IdFunc e%E).
 Definition RollV (v:val) := (v%V).
 Definition Unroll e := (IdFunc e%E).
-Definition Pack e := (IdFunc e%E).
+Definition Pack (e:expr) := (e%E).
 Definition PackV (v:val) := (v%V).
 Definition UnpackIn x e1 e2 := (Let x e1 e2).
 

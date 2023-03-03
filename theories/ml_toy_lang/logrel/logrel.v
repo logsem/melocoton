@@ -211,8 +211,16 @@ Section logrel.
     Γ !! x = None → vs !! x = None →
     (⟦ <[x:=τ]> Γ ⟧* Δ ( <[x:=v]> vs) ⊣⊢ ⟦ τ ⟧ Δ v ∗ ⟦ Γ ⟧* Δ vs).
   Proof.
-    intros H1 H2. iApply big_sepM2_insert; done.
+    intros H1 H2. by iApply big_sepM2_insert.
   Qed.
+
+  Lemma interp_env_insert_2 Δ Γ vs τ v x :
+    ⟦ τ ⟧ Δ v -∗ ⟦ Γ ⟧* Δ vs -∗ ⟦ <[x:=τ]> Γ ⟧* Δ ( <[x:=v]> vs).
+  Proof. iApply big_sepM2_insert_2. Qed.
+
+  Lemma interp_env_binder_insert_2 Δ Γ vs τ v x :
+    ⟦ τ ⟧ Δ v -∗ ⟦ Γ ⟧* Δ vs -∗ ⟦ binder_insert x τ Γ ⟧* Δ ( binder_insert x v vs).
+  Proof. destruct x; try iApply big_sepM2_insert_2. iIntros "_ $". Qed.
 
   Lemma interp_env_ren Δ (Γ : gmap string type) (vs : gmap string val) τi :
     ⟦ subst (ren (+1)) <$> Γ ⟧* (τi :: Δ) vs ⊣⊢ ⟦ Γ ⟧* Δ vs.
@@ -230,6 +238,27 @@ Section logrel.
       iApply (big_sepM2_wand with "H"). iApply big_sepM2_intro.
       1: intros k; erewrite <- !elem_of_dom, Hdom; done.
       iIntros "!> %k %τ %v %H1 %H2 H". iApply (interp_weaken [] [τi] Δ). done.
+  Qed.
+
+  Lemma interp_prog_env_ren Δ P τi :
+    interp_prog_env (subst_prog_env (ren (+1)) P) (τi :: Δ) ⊣⊢ interp_prog_env P Δ.
+  Proof.
+    etransitivity; first apply big_sepM_fmap.
+    iStartProof. iSplit; iIntros "H"; iApply (big_sepM_wand with "H []");
+    iApply (big_sepM_intro); iIntros "!>" (s [tl tr] Hs) "#H !> %s' %vv %Φ (% & #Hl & Hr)"; subst s';
+    iApply ("H" $! s vv Φ); (iSplit; first done); iSplitL "Hl".
+    - iApply big_sepL2_fmap_l. iApply (big_sepL2_wand with "Hl").
+      iPoseProof (big_sepL2_length with "Hl") as "%Hlen". 
+      iApply big_sepL2_intro; first done.
+      iIntros "!> %k %τ1 %v1 %H1 %H2 HH". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
+    - iIntros (r) "HH". iApply "Hr". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
+    - iDestruct big_sepL2_fmap_l as "[HHL HHR]"; iPoseProof ("HHL" with "Hl") as "Hl'".
+      iApply (big_sepL2_wand with "Hl'").
+      iPoseProof (big_sepL2_length with "Hl") as "%Hlen".
+      rewrite fmap_length in Hlen. 
+      iApply big_sepL2_intro; first done.
+      iIntros "!> %k %τ1 %v1 %H1 %H2 HH". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
+    - iIntros (r) "HH". iApply "Hr". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
   Qed.
 End logrel.
 

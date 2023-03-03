@@ -516,9 +516,7 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | ExternCtx s va ve => Extern s (map of_val va ++ [e] ++ ve)
   end.
 
-Definition delete_binder (g:gmap string val) (b : binder) : gmap string val := match b with
-  BAnon => g
-| BNamed n => delete n g end.
+Notation delete_binder g b := (binder_delete b g).
 
 Definition ectx := list ectx_item.
 Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
