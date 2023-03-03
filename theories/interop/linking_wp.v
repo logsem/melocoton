@@ -492,15 +492,11 @@ Proof using.
       iSplit; first done.
       iSplit. { iPureIntro; intros (?&?&?&?&?); cbn. cbv in H. repeat simplify_eq. }
       iIntros (X Hstep).
-      inversion Hstep; simplify_eq/=.
-      { exfalso. by eapply val_prim_step. }
-      { done. }
-      { match goal with H : to_val (of_val _ _) = _ |- _ => rewrite to_of_val in H; simplify_eq end.
-        iMod (state_interp_split with "Hσ") as "[Hpub Hpriv2]"; first by eauto.
-        iExists _, _. iSplitR; first by eauto.
-        iMod (link_state_update _ Boundary with "Hob Hb") as "[Hob Hb]".
-        do 3 iModIntro. iFrame. by iApply wp_value. }
-      { exfalso. eapply not_is_call_2 in H2. by rewrite to_of_val in H2. } }
+      inversion Hstep; simplify_eq/=. clear H2 H4.
+      iMod (state_interp_split with "Hσ") as "[Hpriv2 Hpub]"; first by eauto.
+      iExists _, _. iSplitR; first (iPureIntro; eapply H5; eauto; by rewrite to_of_val).
+      iMod (link_state_update _ Boundary with "Hob Hb") as "[Hob Hb]".
+      do 3 iModIntro. iFrame. by iApply wp_value. }
 
     (* WP: call case *)
     { iDestruct "Hwp" as (f vs C Hiscall Hf) "(Hb2 & Hσ2 & Hcall)". iModIntro. iRight; iRight.
@@ -554,20 +550,22 @@ Proof using.
         iDestruct "IH" as "#[_ IH2]". iApply ("IH2" with "HΞ [$Hb $Hb1]"). } }
 
     { (* WP: step case *)
-      iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight. iSplit; first done.
+      iDestruct "Hwp" as (Hred Hnocall) "Hwp". iModIntro. iRight; iRight. iSplit; first done.
+      iSplit.
+      { iPureIntro. intros (f'&vs'&C&Hcall&Hpe). cbv in Hcall. congruence. }
       iIntros (X Hstep).
-      inversion Hstep; simplify_eq.
-      { (* non-vacuous case: step in Λ2 *)
-        clear Hstep. rename H4 into Hstep.
-        rewrite is_link_prog proj2_prog_union in Hstep; [|apply Hislink].
-        iSpecialize ("Hwp" $! _ Hstep). iMod "Hwp". iIntros "!>!>". iMod "Hwp" as (e' σ' HX) "[Hσ Hwp]".
-        iModIntro. iExists _, _. iSplit; first (iPureIntro; by eapply H6). iFrame "Hσ Hob Hpriv1".
-        iDestruct "IH" as "[_ IH2]". iApply ("IH2" with "Hwp [$Hb $Hb1]"). }
-      { done. }
-      { assert (prim_step (penv_prog pe2) (e1, σ2) (λ _, False)) as HUB.
-        1: { eapply call_prim_step; first done. intros fn e2 HH1 HH2.
-             rewrite is_link_prog proj2_prog_union in H4;[|apply Hislink]. congruence. }
-        iMod ("Hwp" $! _ HUB) as "Hwp". do 2 iModIntro. iMod "Hwp" as (? ? []) "_". } } }
+      inversion Hstep; simplify_eq. clear H4 H5.
+      clear Hstep. rename H2 into Hstep.
+      specialize (Hstep _ _ eq_refl).
+      rewrite is_link_prog proj2_prog_union in Hstep; [|apply Hislink].
+      assert (¬ (∃ (K : cont Λ2) (fn_name : string) (arg : list val),
+             is_call e1 fn_name arg K ∧ penv_prog pe2 !! fn_name = None)) as HHHH.
+      { intros (?&?&?&?&?); eapply Hnocall; eauto. }
+      specialize (Hstep HHHH Hred).
+      destruct Hstep as (X1&Hstep&HX1).
+      iSpecialize ("Hwp" $! _ Hstep). iMod "Hwp". iIntros "!>!>". iMod "Hwp" as (e' σ' HX) "[Hσ Hwp]".
+      iModIntro. iExists _, _. iSplit; first (iPureIntro; by eapply HX1). iFrame "Hσ Hob Hpriv1".
+      iDestruct "IH" as "[_ IH2]". iApply ("IH2" with "Hwp [$Hb $Hb1]"). } }
 Qed.
 
 Lemma wp_link_run1 pe1 pe2 pe E e1 Φ :
@@ -637,6 +635,7 @@ Proof using.
   iMod (state_interp_join with "Hpub Hpriv1") as (σ1) "(Hσ1 & %Hsplit)".
   iModIntro. iRight. iRight.
   iSplitR; first done.
+  iSplitR. 1: { iPureIntro; intros (?&?&?&H&?); cbv in H; done. }
   iIntros (X Hstep).
   inversion Hstep; simplify_eq/=.
   iMod (link_state_update _ In1 with "Hob Hb") as "[Hob Hb]".
@@ -658,6 +657,7 @@ Proof using.
   iMod (state_interp_join with "Hpub Hpriv2") as (σ2) "(Hσ2 & %Hsplit)".
   iModIntro. iRight. iRight.
   iSplitR; first done.
+  iSplitR. 1: { iPureIntro; intros (?&?&?&H&?); cbv in H; done. }
   iIntros (X Hstep).
   inversion Hstep; simplify_eq/=.
   iMod (link_state_update _ In2 with "Hob Hb") as "[Hob Hb]".

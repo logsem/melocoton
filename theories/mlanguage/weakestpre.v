@@ -33,7 +33,7 @@ Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
     ∨ (∃ f vs C, ⌜is_call e f vs C⌝ ∗ ⌜p !! f = None⌝ ∗
        at_boundary Λ ∗ state_interp σ ∗
        ∃ Ξ, T f vs Ξ ∗ ▷ ∀ r, Ξ r ∗ at_boundary Λ -∗ wp E (resume_with C (of_val Λ r)) Φ)
-    ∨ (⌜to_val e = None⌝ ∗ (⌜¬ ∃ f vs C, is_call e f vs C ∧ p !! f = None⌝) ∗
+    ∨ (⌜to_val e = None⌝ ∗ (⌜not_is_ext_call p e⌝) ∗
        ∀ X, ⌜prim_step p (e, σ) X⌝ -∗ |={E}=>▷|={E}=>
        ∃ e' σ', ⌜X (e', σ')⌝ ∗ state_interp σ' ∗ wp E e' Φ)
   )%I.
@@ -246,9 +246,7 @@ Proof.
     iApply "IH". iApply ("Hr" with "HΞ").
   - iRight. iRight. iModIntro. iSplit.
     1: iPureIntro; by apply resume_not_val.
-    iSplit.
-    { iPureIntro; intros (f&vs&C&(C'&Hc&->)%is_call_in_cont_inv&Hno); last done.
-      eapply Hstep; eauto. }
+    iSplit. 1: iPureIntro; by eapply is_not_ext_call_resume_with.
     iIntros (X HstepW%prim_step_resume); last done.
     iMod ("H3" $! _ HstepW) as "H3". do 2 iModIntro.
     iMod "H3" as "(%e4&%σ4&%HX&Hσ&HWP)". iModIntro.
@@ -318,9 +316,8 @@ Proof.
   iIntros (Hcall Hfn Hfunc) "H". iApply wp_unfold. rewrite /wp_pre /=.
   iIntros (σ) "Hσ !>". iRight. iRight.
   iSplitR.
-  1: by erewrite not_is_call_2. iSplitR.
-  1: { iPureIntro; intros (f&vs'&C'&Hc&Hpe).
-       destruct (is_call_unique _ _ _ _ _ _ _ Hcall Hc) as (->&->&->); simplify_eq. }
+  1: by erewrite is_val_not_call_2. iSplitR.
+  1: iPureIntro; by eapply is_call_not_ext.
   iIntros (X Hstep) "!>!>!>".
   do 2 iExists _. eapply call_prim_step in Hstep; try done.
   iSplitR; first done. iFrame.
