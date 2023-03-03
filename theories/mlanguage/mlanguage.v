@@ -11,6 +11,7 @@ Section mlanguage_mixin.
 
   Context (is_call : expr → string → list val → cont → Prop).
   Context (resume_with : cont → expr → expr).
+  Context (compose_cont : cont → cont → cont).
 
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
@@ -34,6 +35,17 @@ Section mlanguage_mixin.
           p !! f = Some fn → Some e2 = apply_func fn vs → X (resume_with C e2, σ));
 
     mixin_not_is_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
+    mixin_is_call_in_cont e C1 C2 s vv :
+      is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2);
+
+    mixin_resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e);
+    mixin_resume_compose e C1 C2 :
+      resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e;
+
+    mixin_prim_step_resume p C e σ X :
+      to_val e = None →
+      prim_step p (resume_with C e, σ) X →
+      prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2));
 
     mixin_prim_step_total p e σ :
       to_val e = None →
@@ -55,25 +67,28 @@ Structure mlanguage {val : Type} := Mlanguage {
 
   is_call : expr → string → list val → cont → Prop;
   resume_with : cont → expr → expr;
+  compose_cont : cont → cont → cont;
 
   apply_func : func → list val → option expr;
   prim_step : (gmap string func) → umrel (expr * state);
 
 
   mlanguage_mixin :
-    MlanguageMixin (val:=val) of_val to_val is_call resume_with apply_func prim_step
+    MlanguageMixin (val:=val) of_val to_val is_call resume_with compose_cont
+      apply_func prim_step
 }.
 
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments mlanguage : clear implicits.
-Arguments Mlanguage {_ expr _ _ _ _ _ _ resume_with apply_func prim_step}.
+Arguments Mlanguage {_ expr _ _ _ _ _ _ resume_with _ apply_func prim_step}.
 Arguments of_val {_} _ _.
 Arguments to_val {_ _} _.
 Arguments is_call {_ _}.
-Arguments apply_func {_ _}.
 Arguments resume_with {_ _}.
+Arguments compose_cont {_ _}.
+Arguments apply_func {_ _}.
 Arguments prim_step {_ _}.
 Notation prog Λ := (mixin_prog Λ.(func)).
 (* From an ectx_language, we can construct a mlanguage. *)
@@ -117,6 +132,30 @@ Section mlanguage.
     exfalso; apply mk_is_Some in Heq.
     eapply not_is_call in Heq. done.
   Qed.
+
+  Lemma is_call_in_cont e C1 C2 s vv :
+      is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2).
+  Proof. apply mlanguage_mixin. Qed.
+
+  Lemma resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e).
+  Proof. apply mlanguage_mixin. Qed.
+
+  Lemma resume_not_val e C : to_val e = None → to_val (resume_with C e) = None.
+  Proof.
+    intros Heq; destruct (to_val (resume_with C e)) as [v|] eqn:Heq2; last done.
+    eapply mk_is_Some in Heq2. apply resume_val in Heq2. rewrite Heq in Heq2.
+    by destruct Heq2.
+  Qed.
+
+  Lemma resume_compose e C1 C2 :
+      resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e.
+  Proof. apply mlanguage_mixin. Qed.
+
+  Lemma prim_step_resume p C e σ X :
+      to_val e = None →
+      prim_step p (resume_with C e, σ) X →
+      prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2)).
+  Proof. apply mlanguage_mixin. Qed.
 
   (* There is no NB *)
   Lemma prim_step_is_total p e σ : to_val e = None → prim_step p (e,σ) (λ _, True).

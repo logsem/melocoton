@@ -5,7 +5,7 @@ From melocoton.ml_toy_lang Require Export lang notation metatheory.
 From iris.algebra Require Import list gmap big_op.
 From iris.base_logic Require Import invariants.
 From iris.prelude Require Import options.
-From melocoton.language Require Export weakestpre wp_link.
+From melocoton.language Require Export weakestpre.
 From Autosubst Require Export Autosubst.
 Import uPred.
 

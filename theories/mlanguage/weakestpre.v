@@ -228,6 +228,31 @@ Proof.
 Qed.
 
 
+
+Lemma wp_bind K pe E e Φ :
+  WP e @ pe; E {{ v, WP resume_with K (of_val Λ v) @ pe; E {{ Φ }} }} ⊢ WP resume_with K e @ pe; E {{ Φ }}.
+Proof.
+  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre.
+  iIntros "%σ Hσ".
+  iMod ("H" $! σ with "Hσ") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & %HH & %H2 & Hb & Hσ & %Ξ & HT & Hr)|(%Hnv&H3)]]".
+  - rewrite {1} wp_unfold /wp_pre.
+    iMod ("H" $! σ with "Hσ") as "H". iModIntro. iApply "H".
+  - iModIntro. iRight. iLeft. iExists s, vv, (compose_cont K K').
+    iSplit. 1: (iPureIntro; by eapply is_call_in_cont).
+    iSplitR; first done. iFrame.
+    iExists Ξ. iFrame. iNext.
+    iIntros "%r HΞ". rewrite -resume_compose.
+    iApply "IH". iApply ("Hr" with "HΞ").
+  - iRight. iRight. iModIntro. iSplit.
+    1: iPureIntro; by apply resume_not_val.
+    iIntros (X HstepW%prim_step_resume); last done.
+    iMod ("H3" $! _ HstepW) as "H3". do 2 iModIntro.
+    iMod "H3" as "(%e4&%σ4&%HX&Hσ&HWP)". iModIntro.
+    do 2 iExists _. iSplit; first done. iFrame.
+    iApply "IH". done.
+Qed.
+
+
 (** * Derived rules *)
 Lemma wp_mono pe E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ pe; E {{ Φ }} ⊢ WP e @ pe; E {{ Ψ }}.
 Proof.

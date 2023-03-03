@@ -343,6 +343,7 @@ Section typed_interp.
       ⌜Forall2 (λ e τ, ⊢ P ; Γ ⊨ e : τ) el tl⌝ -∗
       P ; Γ ⊨ (Extern s el) : tr.
   Proof.
+    iIntros (Hlu HH Δ vs) "!# #HΓ #HP /=". 
   Admitted.
 
   Theorem fundamental P Γ e τ : typed P Γ e τ → ⊢ P ; Γ ⊨ e : τ.

@@ -18,169 +18,6 @@ Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types pe : prog_environ Λ Σ.
 
-Lemma wp_link (pe pe_extended : prog_environ Λ Σ) F k E e Φ :
-  ⌜ k ∉ dom (penv_prog pe) ⌝
-  -∗ ⌜penv_prog pe_extended = <[ k := F ]> (penv_prog pe)⌝
-  -∗ (□ (∀ (s:string) vv Ψ, ⌜s ∉ (dom (penv_prog pe)) ∧ s <> k⌝ -∗ penv_proto pe s vv Ψ -∗ penv_proto pe_extended s vv Ψ))
-  -∗ (□ (∀ vv Ψ, penv_proto pe k vv Ψ -∗ WP (of_class Λ (ExprCall k vv)) @ pe_extended; E {{v, Ψ v}}))
-  -∗ WP e @ pe; E {{v, Φ v}}
-  -∗ WP e @ pe_extended; E {{v, Φ v}}.
-Proof.
-  iIntros (HnE HE) "#Hs2T #Hs1T H". iLöb as "IH" forall (e Φ).
-  rewrite !wp_unfold /wp_pre /=.
-  iIntros "%σ %ns Hσ". iSpecialize ("H" $! σ ns with "Hσ").
-  iMod "H".
-  iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s & %vv & %K & -> & %H2 & H3)|(%HH & H3)]]".
-  - iLeft. iExists x. iFrame. iModIntro. done.
-  - iMod "H3" as "(%Ξ & Hσ & HT & Hcont)". destruct (decide (k = s)) as [->|Hne]. 
-    + iPoseProof ("Hs1T" with "HT") as "HT'".
-      rewrite !(wp_unfold pe_extended E (of_class Λ (ExprCall s vv))) /wp_pre /=.
-      iMod ("HT'" $! σ ns with "Hσ") as "HT'".
-      iDestruct "HT'" as "[ (%x & %Hcontr & Hσ & H) |[ (%s' & %vv' & %K' & %Hcontr & %H2' & H3') |(%HH' & H3)]]".
-      { exfalso.
-        enough (to_class (of_class Λ (ExprCall s vv)) = to_class (of_class Λ (ExprVal x))) by
-          (repeat rewrite to_of_class in H; congruence).
-        congruence. }
-      { exfalso.
-        destruct (fill_class K' (of_class Λ (ExprCall s' vv'))) as [->|HR].
-        - rewrite <- Hcontr. rewrite to_of_class. by eexists.
-        - rewrite fill_empty in Hcontr. 
-          assert (to_class (of_class Λ (ExprCall s vv)) = to_class (of_class Λ (ExprCall s' vv'))) as H by congruence.
-          do 2 rewrite to_of_class in H. assert (s' = s) as -> by congruence.
-          rewrite HE in H2'. rewrite lookup_insert in H2'. congruence.
-        - unfold to_val in HR. rewrite to_of_class in HR. by destruct HR. }
-      iModIntro.
-      iRight. iRight.
-      iSplitR.
-      { iPureIntro. eapply reducible_no_threads_fill. done. }
-      iIntros "%σ' %e' %Hstep".
-      apply fill_reducible_prim_step in Hstep.
-      2: { by eapply reducible_no_threads_reducible. }
-      destruct Hstep as (e'' & -> & Hstep).
-      iSpecialize ("H3" $! σ' _ Hstep). iMod "H3". do 1 iModIntro. iNext. iMod "H3" as "(H31 & H32)".
-      iModIntro. iFrame. iApply wp_bind. iApply (wp_wand with "[H32]").
-      * iApply "H32".
-      * iIntros (v) "Hv". iSpecialize ("Hcont" $! v with "Hv"). iApply "IH". done.
-    + iPoseProof ("Hs2T" with "[] HT") as "HT'"; first iPureIntro.
-      { split; try congruence. by apply not_elem_of_dom_2. }
-      iModIntro. iRight. iLeft. iExists s, vv, K.
-      iSplitR; first done. iSplitR.
-      { iPureIntro. rewrite HE. by rewrite lookup_insert_ne. }
-      iModIntro. iExists Ξ. iFrame. iNext. iIntros (r) "Hr". iApply "IH".
-      iApply ("Hcont" with "Hr").
-  - iModIntro. iRight. iRight.
-    destruct HH as (? & σ' & (K & e1' & e2' & -> & -> & HH)%prim_step_inv).
-    destruct (to_class e1') as [[v|s vv]|] eqn:Heq.
-    + apply of_to_class in Heq. rewrite <- Heq in HH. exfalso. eapply val_head_step. done.
-    + apply of_to_class in Heq. subst e1'. apply call_head_step_inv in HH.
-      destruct HH as (fn & Hs & Hfn & -> & _). assert (k ≠ s) as Hne.
-      { intros ->. apply elem_of_dom_2 in Hs. done. }
-      iSplitR.
-      { iPureIntro. eexists _,_. econstructor. 1-2:done. apply call_head_step.
-        exists fn; repeat split; try done. rewrite HE. by rewrite lookup_insert_ne. }
-      iIntros (σ' e' Hstep).
-      assert (prim_step (penv_prog pe) (fill K (of_class Λ (ExprCall s vv))) σ (fill K e2') σ []) as Hstep'.
-      { econstructor. 1-2:done. eapply call_head_step. exists fn; repeat split; done. }
-      apply head_reducible_prim_step_ctx in Hstep; last first.
-      1: eexists _, _, _; apply call_head_step; eexists; repeat split; try done;
-         rewrite HE; by rewrite lookup_insert_ne.
-      destruct Hstep as (e3 & Heq3 & (ffn & Heq4 & Heq5 & -> & _)%call_head_step_inv).
-      iSpecialize ("H3" $! _ _ Hstep').
-      iMod "H3". iModIntro. iNext. iMod "H3" as "(Hσ' & HWP)". iModIntro.
-      iFrame. iApply "IH". enough (e' = fill K e2') as -> by done.
-      rewrite HE in Heq4. rewrite lookup_insert_ne in Heq4; last done.
-      rewrite Hs in Heq4. congruence.
-    + iSplitR.
-      { iPureIntro. eexists _,_. eapply head_step_no_call in HH. 
-        1: econstructor; first done; first done.
-        1: apply HH. 1: done. (*
-        rewrite HE. apply insert_subseteq. by apply not_elem_of_dom_1. *) }
-      iIntros (σ'' e'' Hstep).
-      apply head_reducible_prim_step_ctx in Hstep; last first.
-      { eexists _,_,_. eapply head_step_no_call in HH. 
-        1: apply HH. 1: done. (*
-        rewrite HE. apply insert_subseteq. by apply not_elem_of_dom_1. *) }
-      destruct Hstep as (e2'' & -> & Hstep).
-      eapply head_step_no_call in Hstep; last done.
-      iMod ("H3" $! _ _ (Prim_step _ _ _ _ _ _ _ _ _ eq_refl eq_refl Hstep)) as "H3".
-      iModIntro. iNext. iMod "H3" as "(Hσ'' & Hfill)". iModIntro. iFrame.
-      iApply "IH". iFrame.
-Qed.
-
-Lemma wp_link_rec (pe pe_extended : prog_environ Λ Σ) F k E e Φ :
-  ⌜ k ∉ dom (penv_prog pe) ⌝
-  -∗ ⌜penv_prog pe_extended = <[ k := F ]> (penv_prog pe)⌝
-  -∗ (□ (∀ (s:string) vv Ψ, ⌜s ∉ (dom (penv_prog pe)) ∧ s <> k⌝ -∗ penv_proto pe s vv Ψ -∗ penv_proto pe_extended s vv Ψ))
-  -∗ (□ (∀ vv Ψ, penv_proto pe k vv Ψ -∗ WPFun F with vv @ (pe); E {{v, Ψ v}}))
-  -∗ WP e @ pe; E {{v, Φ v}}
-  -∗ WP e @ pe_extended; E {{v, Φ v}}.
-Proof.
-  iIntros (HnE HE) "#Hs2T #Hs1T H". iLöb as "IH" forall (e Φ).
-  rewrite !wp_unfold /wp_pre /=.
-  iIntros "%σ %ns Hσ". iSpecialize ("H" $! σ ns with "Hσ").
-  iMod "H".
-  iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s & %vv & %K & -> & %H2 & H3)|(%HH & H3)]]".
-  - iLeft. iExists x. iFrame. iModIntro. done.
-  - iMod "H3" as "(%Ξ & Hσ & HT & Hcont)". destruct (decide (k = s)) as [->|Hne]. 
-    + iPoseProof ("Hs1T" with "HT") as "HT'". unfold wp_func at 2.
-      destruct (apply_func F vv) as [e'|] eqn:Heq; try done.
-      iRight. iRight. iMod "HT'". iModIntro.
-      assert (head_step (penv_prog pe_extended) (of_class Λ (ExprCall s vv)) σ e' σ []) as Hstepy.
-      1: apply call_head_step; exists F; split; first (rewrite HE; by rewrite lookup_insert); by repeat split.
-      iSplitR.
-      1: iPureIntro; eexists _,_; by econstructor.
-      iIntros (σ' e'' (e2'' & -> & (F' & HeqF' & HeqF'a & -> & HH)%call_head_step_inv)%head_reducible_prim_step_ctx).
-      2: do 3 eexists; done.
-      iModIntro. iNext. iMod "HT'". iMod (state_interp_mono with "Hσ" ) as "Hσ". iModIntro. iFrame.
-      iApply "IH". rewrite HE in HeqF'. rewrite (lookup_insert) in HeqF'. iApply wp_bind.
-      assert (e' = e2'') as -> by congruence.
-      iApply (wp_wand with "HT'").
-      iIntros (v) "Hv". iApply ("Hcont" $! v with "Hv").
-    + iPoseProof ("Hs2T" with "[] HT") as "HT'"; first iPureIntro.
-      { split; try congruence. by apply not_elem_of_dom_2. }
-      iModIntro. iRight. iLeft. iExists s, vv, K.
-      iSplitR; first done. iSplitR.
-      { iPureIntro. rewrite HE. by rewrite lookup_insert_ne. }
-      iModIntro. iExists Ξ. iFrame. iNext. iIntros (r) "Hr". iApply "IH".
-      iApply ("Hcont" with "Hr").
-  - iModIntro. iRight. iRight.
-    destruct HH as (? & σ' & (K & e1' & e2' & -> & -> & HH)%prim_step_inv).
-    destruct (to_class e1') as [[v|s vv]|] eqn:Heq.
-    + apply of_to_class in Heq. rewrite <- Heq in HH. exfalso. eapply val_head_step. done.
-    + apply of_to_class in Heq. subst e1'. apply call_head_step_inv in HH.
-      destruct HH as (fn & Hs & Hfn & -> & _). assert (k ≠ s) as Hne.
-      { intros ->. apply elem_of_dom_2 in Hs. done. }
-      iSplitR.
-      { iPureIntro. eexists _,_. econstructor. 1-2:done. apply call_head_step.
-        exists fn; repeat split; try done. rewrite HE. by rewrite lookup_insert_ne. }
-      iIntros (σ' e' Hstep).
-      assert (prim_step (penv_prog pe) (fill K (of_class Λ (ExprCall s vv))) σ (fill K e2') σ []) as Hstep'.
-      { econstructor. 1-2:done. eapply call_head_step. exists fn; repeat split; done. }
-      apply head_reducible_prim_step_ctx in Hstep; last first.
-      1: eexists _, _, _; apply call_head_step; eexists; repeat split; try done;
-         rewrite HE; by rewrite lookup_insert_ne.
-      destruct Hstep as (e3 & Heq3 & (ffn & Heq4 & Heq5 & -> & _)%call_head_step_inv).
-      iSpecialize ("H3" $! _ _ Hstep').
-      iMod "H3". iModIntro. iNext. iMod "H3" as "(Hσ' & HWP)". iModIntro.
-      iFrame. iApply "IH". enough (e' = fill K e2') as -> by done.
-      rewrite HE in Heq4. rewrite lookup_insert_ne in Heq4; last done.
-      rewrite Hs in Heq4. congruence.
-    + iSplitR.
-      { iPureIntro. eexists _,_. eapply head_step_no_call in HH. 
-        1: econstructor; first done; first done.
-        1: apply HH. 1: done. (*
-        rewrite HE. apply insert_subseteq. by apply not_elem_of_dom_1. *) }
-      iIntros (σ'' e'' Hstep).
-      apply head_reducible_prim_step_ctx in Hstep; last first.
-      { eexists _,_,_. eapply head_step_no_call in HH. 
-        1: apply HH. 1: done. (*
-        rewrite HE. apply insert_subseteq. by apply not_elem_of_dom_1. *) }
-      destruct Hstep as (e2'' & -> & Hstep).
-      eapply head_step_no_call in Hstep; last done.
-      iMod ("H3" $! _ _ (Prim_step _ _ _ _ _ _ _ _ _ eq_refl eq_refl Hstep)) as "H3".
-      iModIntro. iNext. iMod "H3" as "(Hσ'' & Hfill)". iModIntro. iFrame.
-      iApply "IH". iFrame.
-Qed.
 
 Notation mkPe p T := ({| penv_prog := p; penv_proto := T |} : prog_environ Λ Σ).
 
@@ -348,19 +185,19 @@ Proof.
          2: { apply val_head_stuck in Hstep. congruence. }
          rewrite ! fill_empty in Heq2. subst e1'.
          apply call_head_step in Hstep.
-         destruct Hstep as (Fn & Heqp2' & He2' & -> & _ ). iRight. iRight.
+         destruct Hstep as (Fn & Heqp2' & He2' & -> ). iRight. iRight.
          assert (union_map_list (map snd A) !! s' = Some Fn) as Heqs'.
          { apply union_map_list_spec; first done. exists pc; repeat split; try done.
            apply in_map_iff. exists ((Tc,pc)); repeat split. by eapply nth_error_In. }
          iModIntro. iSplit; first iPureIntro.
          { do 2 eexists. rewrite HeqK. econstructor; first done. 1:done.
            apply call_head_step. exists Fn. repeat split; try done. }
-         subst e. iIntros (? ? (e'2 & -> & (Fn3 & Heqp3' & He3' & -> & _ )%call_head_step)%head_reducible_prim_step_ctx).
-         2: { do 3 eexists.
+         subst e. iIntros (? ? (e'2 & -> & (Fn3 & Heqp3' & He3' & ->)%call_head_step)%head_reducible_prim_step_ctx).
+         2: { do 2 eexists.
               apply call_head_step. exists Fn. repeat split; try done. }
          rewrite Heqs' in Heqp3'. assert (e'2 = e2') as -> by congruence.
          iSpecialize ("H3'" $! σ e2').
-         assert (prim_step pc (of_class Λ (ExprCall s' vv')) σ e2' σ []) as Hstep2.
+         assert (prim_step pc (of_class Λ (ExprCall s' vv')) σ e2' σ) as Hstep2.
          { apply head_prim_step. apply call_head_step. eexists; repeat split; done. }
          iSpecialize ("H3'" $! Hstep2). iMod "H3'". iModIntro. iNext.
          iMod "H3'" as "(? & H3')". iModIntro. iFrame.
@@ -375,14 +212,14 @@ Proof.
       iIntros (r) "Hr". iSpecialize ("H3" with "Hr"). iApply ("IHe" $! _ _ i). by rewrite Heq.
     * iModIntro. iRight. iRight.
       iSplitR.
-      { iPureIntro. eapply reducible_no_threads_mono; last done.
+      { iPureIntro. eapply reducible_mono; last done.
         apply union_map_subset; first done. apply elem_of_list_In.
         apply in_map_iff. exists ((Ti, pi)); split; eauto.
         by eapply nth_error_In. }
       iIntros (σ' e' Hstep%prim_step_inv).
       iSpecialize ("H3" $! σ' e').
       destruct Hstep as (K & e1' & e2' & -> & -> & H).
-      assert (prim_step pi (fill K e1') σ (fill K e2') σ' []) as Hstep.
+      assert (prim_step pi (fill K e1') σ (fill K e2') σ') as Hstep.
       { econstructor. 1-2:done. destruct (to_class e1') as [[]|] eqn:Heqe1.
         - exfalso. eapply val_head_step. apply of_to_class in Heqe1. erewrite Heqe1. done.
         - apply of_to_class in Heqe1. subst e1'.
@@ -394,8 +231,8 @@ Proof.
                1: done.
                exfalso. apply of_to_class in Hvv. subst eK1. eapply val_head_step. done. }
           rewrite fill_empty in Heq1. subst eK1. apply call_head_step in H, HHstep.
-          destruct H as (FN1 & HFN1 &Happy1 & -> & _).
-          destruct HHstep as (FN2 & HFN2 &Happy2 & -> & _).
+          destruct H as (FN1 & HFN1 &Happy1 & ->).
+          destruct HHstep as (FN2 & HFN2 &Happy2 & ->).
           apply union_map_list_spec in HFN1; last done. destruct HFN1 as (? & [[TT kk] [<- (kki & Hkki)%In_nth_error]]%in_map_iff & HFN1).
           cbn in HFN1. destruct (decide (kki = i)) as [-> | Hcontr].
           1: apply call_head_step; exists FN2; repeat split; try congruence.

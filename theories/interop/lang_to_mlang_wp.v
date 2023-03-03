@@ -109,40 +109,6 @@ Proof using.
 Abort.
 
 
-Lemma wp_lang_to_mlang_bind K pe E e Φ :
-  WP e @ (penv_to_mlang pe); E {{ v, WP fill K (of_class _ (ExprVal v)) @ (penv_to_mlang pe); E {{ Φ }} }} ⊢ WP fill K e @ (penv_to_mlang pe); E {{ Φ }}.
-Proof.
-  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre.
-  iIntros "%σ Hσ".
-  iMod ("H" $! σ with "Hσ") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & %HH & %H2 & Hb & Hσ & %Ξ & HT & Hr)|(%Hnv&H3)]]".
-  - rewrite {1} wp_unfold /wp_pre.
-    iMod ("H" $! σ with "Hσ") as "H". iModIntro. iApply "H".
-  - iModIntro. iRight. iLeft. iExists s, vv, (comp_ectx K K').
-    rewrite /is_call /= /lang_to_mlang.is_call in HH; subst e.
-    iSplitR; first by erewrite (fill_comp K K').
-    iSplitR; first done. iFrame.
-    iExists Ξ. iFrame. iNext.
-    iIntros "%r HΞ". rewrite /resume_with /=.
-    rewrite <- fill_comp.
-    iApply "IH". iApply ("Hr" with "HΞ").
-  - iRight. iRight. iModIntro. iSplit. 
-    1: iPureIntro; by apply fill_not_val.
-    iIntros (X Hstep). inversion Hstep; simplify_eq.
-    + eapply fill_step_inv in H3 as (e2'&->&Hstep'); last done.
-      assert (prim_step (penv_prog (penv_to_mlang pe)) (e, σ) (λ '(e4,σ4), e4=e2' ∧ σ4=σ2)) as HstepW.
-      1: eapply LiftStep; done.
-      iMod ("H3" $! _ HstepW) as "H3". do 2 iModIntro.
-      iMod "H3" as "(%e4&%σ4&(->&->)&(%n0&Hσ)&HWP)". iModIntro.
-      do 2 iExists _. iSplit; first done.
-      iSplitL "Hσ"; first by iExists _. iApply "IH". done.
-    + destruct H4 as [Hnvf Hst].
-      assert (stuck (penv_prog (penv_to_mlang pe)) e σ) as Hirred.
-      { split; first done. intros ? ? ?. eapply (Hst (fill K e') σ').
-        eapply fill_prim_step. done. }
-      iMod ("H3" $! (λ _, False) (LiftUbStep _ _ _ _ _ Hirred)) as "H3".
-      do 2 iModIntro. iMod "H3" as "(%&%&[]&_)".
-Qed.
-
 End ToMlang_logic.
 
 Global Arguments penv_to_mlang {_ _ _} _.

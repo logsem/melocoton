@@ -34,10 +34,10 @@ Section ToMlang.
     e = fill C (of_class Λ (ExprCall s vs)).
 
   Definition XM_for (P:Prop) : Prop := P ∨ ¬ P.
-  Axiom (XM_for_reducible_no_thread : ∀ p e σ, XM_for (reducible (Λ:=Λ) p e σ)).
+  Axiom (XM_for_reducible : ∀ p e σ, XM_for (reducible (Λ:=Λ) p e σ)).
 
   Lemma language_mlanguage_mixin :
-    MlanguageMixin (val:=val) (of_val Λ) to_val is_call (fill) (Λ.(apply_func)) prim_step.
+    MlanguageMixin (val:=val) (of_val Λ) to_val is_call (fill) (Λ.(comp_ectx)) (Λ.(apply_func)) prim_step.
   Proof using.
     constructor.
     - apply to_of_val.
@@ -59,8 +59,17 @@ Section ToMlang.
         * eapply LiftUbStep. split; first apply to_val_fill_call.
           intros e' σ' (er&fn'&HH1&HH2&->&->)%prim_step_call_inv; repeat simplify_eq.
     - intros e [v Hv] f vs C ->. rewrite to_val_fill_call in Hv; done.
+    - intros e C1 C2 s vv Heq. rewrite /is_call -fill_comp. by f_equal.
+    - intros e C. apply fill_val.
+    - intros e C1 C2. apply fill_comp.
+    - intros p C e σ X Hnv. inversion 1; simplify_eq.
+      + apply fill_step_inv in H3 as (e2'&->&HH); last done.
+        by eapply LiftStep.
+      + destruct H4 as [Hnv2 Hstuck].
+        eapply LiftUbStep; split; first done.
+        intros e2 σ2 Hc. eapply Hstuck, fill_prim_step, Hc.
     - intros p e σ H.
-      destruct (XM_for_reducible_no_thread p e σ) as [(e2&σ2&Hl)|Hr].
+      destruct (XM_for_reducible p e σ) as [(e2&σ2&Hl)|Hr].
       + eapply LiftStep; last done. exact Hl.
       + eapply LiftUbStep. split; first done. intros ? ? ?. eapply Hr. by do 2 eexists.
   Qed.

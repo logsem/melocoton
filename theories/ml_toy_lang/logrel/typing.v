@@ -46,7 +46,6 @@ Inductive EqType : type → Prop :=
 
 
 Inductive program_type := FunType : list type -> type -> program_type.
-Check subst.
 Definition subst_prog_type (f : var → type) : program_type → program_type := fun '(FunType tv tr) => FunType (fmap (subst f) tv) (subst f tr).
 Definition program_env := gmap string program_type.
 Definition subst_prog_env f (p : program_env) := fmap (subst_prog_type f) p.
