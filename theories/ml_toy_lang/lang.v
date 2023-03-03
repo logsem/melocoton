@@ -665,6 +665,18 @@ Inductive head_step (p : ml_program) : expr → state → expr → state → Pro
      σ !! Locoff l i = Some v →
      head_step p (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
                  (Val $ LitV LitUnit) (<[Locoff l i := w]> σ)
+  (* Silently diverge in case of out-of-bound accesses. We want to distinguish
+     OOB accesses from other failures (which are UB), so that we can prove a
+     type safety result. In a more realistic language we could have a dedicated
+     failure state for OOB, or a mechanism for exceptions/panics... *)
+  | LoadNOobS l i σ :
+     σ !! Locoff l i = None →
+     head_step p (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i)) σ
+                 (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i)) σ
+  | StoreNOobS l i w σ :
+     σ !! Locoff l i = None →
+     head_step p (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
+                 (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
   | LengthS l vs σ :
     σ !! l = Some (Some vs) →
     head_step p (Length (Val $ LitV $ LitLoc l)) σ

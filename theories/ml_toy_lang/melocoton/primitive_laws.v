@@ -361,6 +361,25 @@ Proof.
   iApply "HΦ". iFrame.
 Qed.
 
+Lemma wp_loadN_oob pe E l i dq vs v :
+  (i < 0 ∨ length vs ≤ i)%Z →
+  {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) @ pe; E
+  {{{ RET v; False }}}.
+Proof.
+  iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
+  iApply wp_lift_step_fupd; first done.
+  iIntros (σ1 ns) "(Hσ & Hsteps & Hdom) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  assert (σ1 !! l.[i] = None).
+  { rewrite store_lookup_eq. case_bool_decide; [|done]. simplify_map_eq/=.
+    destruct Hi; try lia. apply lookup_ge_None_2; lia. }
+  iSplit. { iPureIntro. eapply head_prim_reducible. eexists _, _. by eapply LoadNOobS. }
+  iIntros (v2 σ2 Hstep).
+  eapply head_reducible_prim_step in Hstep; first inv_head_step.
+  2: { eexists _, _; by eapply LoadNOobS. }
+  iMod (steps_auth_update_S with "Hsteps") as "Hsteps". do 4 iModIntro. iFrame.
+  iApply ("IH" with "[$] [$]").
+Qed.
+
 Lemma wp_load pe E l dq v :
   {{{ ▷ l ↦M{dq} v }}} Load (Val $ LitV $ LitLoc l) @ pe; E
   {{{ RET v; l ↦M{dq} v }}}.
@@ -385,6 +404,25 @@ Proof.
   rewrite (store_insert_offset _ _ _ vs); auto; [].
   iModIntro. iFrame "Hσ Hsteps". iSplitL "Hdom"; last by iApply "HΦ".
   iApply dom_auth_dom; last done. rewrite dom_insert_L. eapply elem_of_dom_2 in H; set_solver.
+Qed.
+
+Lemma wp_storeN_oob pe E l i vs v w :
+  (i < 0 ∨ length vs ≤ i)%Z →
+  {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) @ pe; E
+  {{{ RET v; False }}}.
+Proof.
+  iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
+  iApply wp_lift_step_fupd; first done.
+  iIntros (σ1 ns) "(Hσ & Hsteps & Hdom) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  assert (σ1 !! l.[i] = None).
+  { rewrite store_lookup_eq. case_bool_decide; [|done]. simplify_map_eq/=.
+    destruct Hi; try lia. apply lookup_ge_None_2; lia. }
+  iSplit. { iPureIntro. eapply head_prim_reducible. eexists _, _. by eapply StoreNOobS. }
+  iIntros (v2 σ2 Hstep).
+  eapply head_reducible_prim_step in Hstep; first inv_head_step.
+  2: { eexists _, _; by eapply StoreNOobS. }
+  iMod (steps_auth_update_S with "Hsteps") as "Hsteps". do 4 iModIntro. iFrame.
+  iApply ("IH" with "[$] [$]").
 Qed.
 
 Lemma wp_store pe E l v w :
