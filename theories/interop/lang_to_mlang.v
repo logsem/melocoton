@@ -11,21 +11,18 @@ Section ToMlang.
   Local Notation prog := (gmap string Λ.(func)).
   Local Notation expr_state := ((Λ.(expr) * Λ.(state)))%type.
 
-  Inductive prim_step_mrel : prog -> expr_state -> (expr_state->Prop) -> Prop := 
-  | LiftStep p e1 σ1 e2 σ2 (X : _ → Prop) : 
-        prim_step p e1 σ1 e2 σ2 → 
-        (X (e2, σ2)) →
-      prim_step_mrel p (e1,σ1) X
-  | LiftUbStep p e1 σ1 X :
-        stuck p e1 σ1 →
+  Inductive prim_step_mrel : prog -> expr_state -> (expr_state->Prop) -> Prop :=
+  | LiftStep p e1 σ1 (X : _ → Prop) :
+      to_val e1 = None →
+      (reducible p e1 σ1 → ∃ e2 σ2, prim_step p e1 σ1 e2 σ2 ∧ X (e2, σ2)) →
       prim_step_mrel p (e1,σ1) X.
 
   Program Definition prim_step (p : prog) : umrel (expr_state) :=
     {| mrel := prim_step_mrel p |}.
   Next Obligation.
     intros p. intros [e1 σ1] X Y Hstep HXY. inversion Hstep; subst.
-    - eapply (LiftStep p e1 σ1 e2 σ2); first done. apply HXY, H4.
-    - by eapply (LiftUbStep p e1 σ1).
+    - eapply (LiftStep p e1 σ1); first done.
+      intros HH; specialize (H4 HH) as (?&?&?&?); eauto.
   Qed.
 
   Notation cont := Λ.(ectx).
@@ -39,37 +36,30 @@ Section ToMlang.
     constructor.
     - apply to_of_val.
     - apply of_to_val.
-    - intros p v σ X H; inversion H; simplify_eq.
-      + by eapply val_prim_step.
-      + destruct H4 as [H4 _]. rewrite to_of_val in H4; done.
+    - intros p v σ X H; inversion H; simplify_eq. rewrite to_of_val // in H3.
     - intros p e f vs C σ X ->. split; intros H.
       + inversion H; simplify_eq.
-        * apply prim_step_call_inv in H3 as (er&fn&HH1&HH2&->&->).
-          intros ? ? ? ?; simplify_eq; simplify_map_eq; congruence.
-        * destruct H4 as [Hv Hpr]. intros fn e2 HH1 HH2; exfalso; eapply Hpr.
-          eapply fill_prim_step, head_prim_step, call_head_step. by repeat eexists.
-      + destruct (p !! f) as [fn|] eqn:Heq1; first destruct (apply_func fn vs) as [e2|] eqn:Heq2.
-        * eapply LiftStep; last by eapply H.
-          eapply fill_prim_step, head_prim_step, call_head_step. by repeat eexists.
-        * eapply LiftUbStep. split; first apply to_val_fill_call.
-          intros e' σ' (er&fn'&HH1&HH2&->&->)%prim_step_call_inv; repeat simplify_eq. congruence.
-        * eapply LiftUbStep. split; first apply to_val_fill_call.
-          intros e' σ' (er&fn'&HH1&HH2&->&->)%prim_step_call_inv; repeat simplify_eq.
+        * intros fn e2 ? ?. destruct H5 as (?&?&?&?).
+          { do 2 eexists. eapply fill_prim_step, head_prim_step, call_head_step.
+            by repeat eexists. }
+          apply prim_step_call_inv in H2 as (er&fn'&HH1&HH2&->&->).
+          simplify_map_eq. congruence.
+      + econstructor; first by eapply to_val_fill_call.
+        intros (? & ? & Hstep). pose proof Hstep as Hstep'.
+        apply prim_step_call_inv in Hstep as (?&?&?&?&?&?); simplify_eq.
+        do 2 eexists. split; eauto.
     - intros e [v Hv] f vs C ->. rewrite to_val_fill_call in Hv; done.
     - intros e C1 C2 s vv Heq. rewrite /is_call -fill_comp. by f_equal.
     - intros e C. apply fill_val.
     - intros e C1 C2. apply fill_comp.
     - by intros e s1 s2 f1 f2 C1 C2 -> (->&->&->)%call_call_in_ctx.
     - intros p C e σ X Hnv. inversion 1; simplify_eq.
-      + apply fill_step_inv in H3 as (e2'&->&HH); last done.
-        by eapply LiftStep.
-      + destruct H4 as [Hnv2 Hstuck].
-        eapply LiftUbStep; split; first done.
-        intros e2 σ2 Hc. eapply Hstuck, fill_prim_step, Hc.
-    - intros p e σ XM H.
-      destruct (XM ((reducible (Λ:=Λ) p e σ))) as [(e2&σ2&Hl)|Hr].
-      + eapply LiftStep; last done. exact Hl.
-      + eapply LiftUbStep. split; first done. intros ? ? ?. eapply Hr. by do 2 eexists.
+      econstructor; first done. intros (? & ? & Hstep).
+      destruct H5 as (?&?&?&?).
+      { do 2 eexists. by eapply fill_prim_step. }
+      apply fill_step_inv in H0 as (?&?&?); eauto; simplify_eq.
+      do 2 eexists. split; eauto.
+    - intros p e σ H. econstructor; eauto. intros (?&?&?). eauto.
   Qed.
 
   Definition lang_to_mlang : mlanguage val :=

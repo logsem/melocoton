@@ -3,8 +3,6 @@ From iris.algebra Require Import ofe.
 From iris.prelude Require Import options.
 From melocoton Require Export multirelations commons.
 
-Definition XM : Prop := ∀ P, P ∨ ¬ P.
-
 Section mlanguage_mixin.
   Context {expr val func state cont : Type}.
 
@@ -55,10 +53,8 @@ Section mlanguage_mixin.
       prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2));
 
     (* Just a meta-theorem to ensure that there are no cases left to cover.
-       Not used in proofs.
-       XM allows us to not prove e.g. decidability of prim_step *)
+       Not used in proofs. *)
     mixin_prim_step_total p e σ :
-      XM →
       to_val e = None →
       prim_step p (e, σ) (λ _, True)
   }.
@@ -175,7 +171,7 @@ Section mlanguage.
   Proof. apply mlanguage_mixin. Qed.
 
   (* There is no NB *)
-  Lemma prim_step_is_total p e σ : XM → to_val e = None → prim_step p (e,σ) (λ _, True).
+  Lemma prim_step_is_total p e σ : to_val e = None → prim_step p (e,σ) (λ _, True).
   Proof. apply mlanguage_mixin. Qed.
 
   Class IntoVal (e : expr Λ) (v : val) :=

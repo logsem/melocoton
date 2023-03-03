@@ -80,32 +80,78 @@ Section Linking.
 
   (* TODO: Double-check that angelic and demonic nondeterminism and NB and UB are appropiate *)
   Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
-  (* Internal step of an underlying module. *)
-  | Step1S e1 σ1 privσ2 C (X1 : _ → Prop) X :
-    prim_step (proj1_prog p) (e1, σ1) X1 →
-    (* Unresolved external calls are UB. Instead, we block reduction on such calls here *)
-    (∀ K fn_name arg, mlanguage.is_call e1 fn_name arg K →
-                      proj1_prog p !! fn_name = None → False) →
-    (∀ e1' σ1', X1 (e1', σ1') → X (LkE (Expr1 e1') C, St1 σ1' privσ2)) →
-    prim_step_mrel p (LkE (Expr1 e1) C, St1 σ1 privσ2) X
-  | Step1WrongStateS e1 C σ X : 
-    (match σ with St1 σ1 privσ2 => False | _ => True end) →
+  | Step1S e1 C σ X :
+    (* Internal step of an underlying module. *)
+    (∀ σ1 privσ2,
+       σ = St1 σ1 privσ2 →
+       ¬ (∃ K fn_name arg, mlanguage.is_call e1 fn_name arg K ∧ proj1_prog p !! fn_name = None) →
+       mlanguage.to_val e1 = None →
+       ∃ (X1 : _ → Prop),
+         mlanguage.prim_step (proj1_prog p) (e1, σ1) X1 ∧
+         (∀ e1' σ1',
+            X1 (e1', σ1') →
+            X (LkE (Expr1 e1') C, St1 σ1' privσ2))) →
+
+    (* Stuck module calls bubble up as calls at the level of the linking module.
+       (They may get unstuck then, if they match a function implemented by the
+       other module.) *)
+    (∀ pubσ σ1 privσ2 privσ1 fn_name arg k1,
+       σ = St1 σ1 privσ2 →
+       mlanguage.is_call e1 fn_name arg k1 →
+       proj1_prog p !! fn_name = None →
+       mlanguage.split_state σ1 pubσ privσ1 →
+       X (LkE (ExprCall fn_name arg) (inl k1::C), St pubσ privσ1 privσ2)) →
+
+    (* Producing a value when execution is finished *)
+    (∀ σ1 privσ2 pubσ privσ1 v,
+       σ = St1 σ1 privσ2 →
+       mlanguage.to_val e1 = Some v →
+       (* Splitting the state is angelic, the underlying language can choose a concrete splitting. *)
+       (* If no such splitting exists, we have UB *)
+       mlanguage.split_state σ1 pubσ privσ1 →
+       X (LkE (ExprV v) C, St pubσ privσ1 privσ2)) →
+
     prim_step_mrel p (LkE (Expr1 e1) C, σ) X
-  | Step2S e2 σ2 privσ1 C (X2 : _ → Prop) X :
-    prim_step (proj2_prog p) (e2, σ2) X2 →
-    (∀ K fn_name arg, mlanguage.is_call e2 fn_name arg K →
-                      proj2_prog p !! fn_name = None → False) →
-    (∀ e2' σ2', X2 (e2', σ2') → X (LkE (Expr2 e2') C, St2 privσ1 σ2')) →
-    prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
-  | Step2WrongStateS e1 C σ X : 
-    (match σ with St2 σ2 privσ1 => False | _ => True end) →
-    prim_step_mrel p (LkE (Expr2 e1) C, σ) X
+
+  | Step2S e2 C σ X :
+    (* Internal step of an underlying module. *)
+    (∀ σ2 privσ1,
+       σ = St2 privσ1 σ2 →
+       ¬ (∃ K fn_name arg, mlanguage.is_call e2 fn_name arg K ∧ proj2_prog p !! fn_name = None) →
+       mlanguage.to_val e2 = None →
+       ∃ (X2 : _ → Prop),
+         mlanguage.prim_step (proj2_prog p) (e2, σ2) X2 ∧
+         (∀ e2' σ2',
+            X2 (e2', σ2') →
+            X (LkE (Expr2 e2') C, St2 privσ1 σ2'))) →
+
+    (* Stuck module calls bubble up as calls at the level of the linking module.
+       (They may get unstuck then, if they match a function implemented by the
+       other module.) *)
+    (∀ pubσ σ2 privσ1 privσ2 fn_name arg k2,
+       σ = St2 privσ1 σ2 →
+       mlanguage.is_call e2 fn_name arg k2 →
+       proj2_prog p !! fn_name = None →
+       mlanguage.split_state σ2 pubσ privσ2 →
+       X (LkE (ExprCall fn_name arg) (inr k2::C), St pubσ privσ1 privσ2)) →
+
+    (* Producing a value when execution is finished *)
+    (∀ σ2 privσ1 pubσ privσ2 v,
+       σ = St2 privσ1 σ2 →
+       mlanguage.to_val e2 = Some v →
+       (* Splitting the state is angelic, the underlying language can choose a concrete splitting. *)
+       (* If no such splitting exists, we have UB *)
+       mlanguage.split_state σ2 pubσ privσ2 →
+       X (LkE (ExprV v) C, St pubσ privσ1 privσ2)) →
+
+    prim_step_mrel p (LkE (Expr2 e2) C, σ) X
+
   (* Entering a function. Change the view of the heap in the process. *)
   | RunFunction1S σ fn1 args C X :
     (* Merge state and assert that fn1 is applicable to the arguments *)
     (* If state can not be merged or fn1 not be applied, we have UB *)
     (* Note that both e1 and σ1 are unique, the latter by split_state_inj *)
-    (∀ e1 σ1 pubσ privσ1 privσ2, 
+    (∀ e1 σ1 pubσ privσ1 privσ2,
         σ = St pubσ privσ1 privσ2 →
         mlanguage.apply_func fn1 args = Some e1 →
         mlanguage.split_state σ1 pubσ privσ1 →
@@ -118,23 +164,7 @@ Section Linking.
         mlanguage.split_state σ2 pubσ privσ2 →
         X (LkE (Expr2 e2) C, St2 privσ1 σ2)) →
     prim_step_mrel p (LkE (RunFunction (inr fn2) arg) C, σ) X
-  (* Producing a value when execution is finished *)
-  | Val1S e1 v σ C X :
-    mlanguage.to_val e1 = Some v →
-    (* Splitting the state is angelic, the underlying language can choose a concrete splitting. *)
-    (* If no such splitting exists, we have UB *)
-    (∀ σ1 privσ2 pubσ privσ1,
-        σ = St1 σ1 privσ2 →
-        mlanguage.split_state σ1 pubσ privσ1 →
-        X (LkE (ExprV v) C, St pubσ privσ1 privσ2)) →
-    prim_step_mrel p (LkE (Expr1 e1) C, σ) X
-  | Val2S e2 v σ C X :
-    mlanguage.to_val e2 = Some v →
-    (∀ σ2 privσ1 pubσ privσ2,
-        σ = St2 privσ1 σ2 →
-        mlanguage.split_state σ2 pubσ privσ2 →
-        X (LkE (ExprV v) C, St pubσ privσ1 privσ2)) →
-    prim_step_mrel p (LkE (Expr2 e2) C, σ) X
+
   (* Continuing execution by returning a value to its caller *)
   | Ret1S v k1 σ C X :
     (* Merging states is angelic/unique (see above) *)
@@ -144,7 +174,7 @@ Section Linking.
           X (LkE (Expr1 (mlanguage.resume_with k1 (mlanguage.of_val Λ1 v))) C, St1 σ1 privσ2)) →
     prim_step_mrel p (LkE (ExprV v) (inl k1::C), σ) X
   | Ret2S v k2 σ C X :
-    (∀ σ2 pubσ privσ1 privσ2, 
+    (∀ σ2 pubσ privσ1 privσ2,
           σ = St pubσ privσ1 privσ2 →
           mlanguage.split_state σ2 pubσ privσ2 →
           X (LkE (Expr2 (mlanguage.resume_with k2 (mlanguage.of_val Λ2 v))) C, St2 privσ1 σ2)) →
@@ -152,22 +182,7 @@ Section Linking.
   (* Stuck module calls bubble up as calls at the level of the linking module.
      (They may get unstuck then, if they match a function implemented by the
      other module.) *)
-  | MakeCall1S k1 e1 fn_name arg σ C X :
-    mlanguage.is_call e1 fn_name arg k1 →
-    proj1_prog p !! fn_name = None →
-    (∀ pubσ σ1 privσ2 privσ1, 
-        σ = St1 σ1 privσ2 →
-        mlanguage.split_state σ1 pubσ privσ1 →
-        X (LkE (ExprCall fn_name arg) (inl k1::C), St pubσ privσ1 privσ2)) →
-    prim_step_mrel p (LkE (Expr1 e1) C, σ) X
-  | MakeCall2S k2 e2 fn_name arg σ C X :
-    mlanguage.is_call e2 fn_name arg k2 →
-    proj2_prog p !! fn_name = None →
-    (∀ σ2 privσ1 pubσ privσ2,
-          σ = St2 privσ1 σ2 →
-          mlanguage.split_state σ2 pubσ privσ2 →
-          X (LkE (ExprCall fn_name arg) (inr k2::C), St pubσ privσ1 privσ2)) →
-    prim_step_mrel p (LkE (Expr2 e2) C, σ) X
+
   (* Resolve an internal call to a module function *)
   | CallS fn_name arg σ C X :
     (* Again, stuck calls cause UB *)
@@ -179,9 +194,8 @@ Section Linking.
     {| mrel := prim_step_mrel p |}.
   Next Obligation.
     intros p. intros [[se k] σ] X Y Hstep HXY. inversion Hstep; subst;
-      [ eapply Step1S | eapply Step1WrongStateS | eapply Step2S | eapply Step2WrongStateS | eapply RunFunction1S | eapply RunFunction2S
-      | eapply Val1S | eapply Val2S | eapply Ret1S | eapply Ret2S
-      | eapply MakeCall1S | eapply MakeCall2S | eapply CallS ]; eauto.
+      [ eapply Step1S | eapply Step2S | eapply RunFunction1S | eapply RunFunction2S
+      | eapply Ret1S | eapply Ret2S | eapply CallS ]; eauto; naive_solver.
   Qed.
 
   Lemma mlanguage_mixin :
@@ -204,30 +218,18 @@ Section Linking.
     - intros [] C1 C2. rewrite /= app_assoc //.
     - intros e s1 s2 f1 f2 C1 C2 -> H; unfold is_call in H; simplify_eq. done.
     - intros p C [es eC] σ X Hnv H; inversion H; simplify_eq.
-      1-4: econstructor; by eauto. (* Normal step *)
+      1-2: econstructor; by eauto. (* Step*S *)
       1-2: econstructor; by eauto. (* RunFunctionS *)
-      1: eapply Val1S; by eauto.
-      1: eapply Val2S; by eauto.
       1-2: destruct eC; simplify_list_eq; []; econstructor; by eauto. (* RetS *)
-      1: eapply MakeCall1S; by eauto.
-      1: eapply MakeCall2S; by eauto.
       1: econstructor; eauto.
-    - intros p [[] eC] σ XM Hnv; simplify_eq.
+    - intros p [[] eC] σ Hnv; simplify_eq.
       + destruct eC as [|[] eC']; first done. all: by econstructor.
       + by econstructor.
       + destruct fn; by econstructor.
-      + destruct (XM (∃ K fn_name arg, mlanguage.is_call e fn_name arg K ∧ proj1_prog p !! fn_name = None)) as [(K&fn_name&arg&Hiscall&HNone)|Hr].
-        * eapply MakeCall1S; eauto.
-        * destruct σ; try (eapply Step1WrongStateS; by eauto).
-          destruct (mlanguage.to_val e) as [v|] eqn:Heq; try (eapply Val1S; by eauto).
-          eapply Step1S; eauto. 2: intros; eapply Hr; by repeat eexists.
-          eapply mlanguage.prim_step_is_total; done.
-      + destruct (XM (∃ K fn_name arg, mlanguage.is_call e fn_name arg K ∧ proj2_prog p !! fn_name = None)) as [(K&fn_name&arg&Hiscall&HNone)|Hr].
-        * eapply MakeCall2S; eauto.
-        * destruct σ; try (eapply Step2WrongStateS; by eauto).
-          destruct (mlanguage.to_val e) as [v|] eqn:Heq; try (eapply Val2S; by eauto).
-          eapply Step2S; eauto. 2: intros; eapply Hr; by repeat eexists.
-          eapply mlanguage.prim_step_is_total; done.
+      + econstructor; eauto. intros. exists (λ _, True). split; eauto.
+        by eapply prim_step_is_total.
+      + econstructor; eauto. intros. exists (λ _, True). split; eauto.
+        by eapply prim_step_is_total.
   Qed.
 End Linking.
 End Link.
