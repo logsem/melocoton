@@ -3,6 +3,8 @@ From iris.algebra Require Import ofe.
 From iris.prelude Require Import options.
 From melocoton Require Export multirelations commons.
 
+Definition XM : Prop := ∀ P, P ∨ ¬ P.
+
 Section mlanguage_mixin.
   Context {expr val func state cont : Type}.
 
@@ -42,12 +44,21 @@ Section mlanguage_mixin.
     mixin_resume_compose e C1 C2 :
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e;
 
+    mixin_is_call_unique e s1 s2 f1 f2 C1 C2 :
+      is_call e s1 f1 C1 →
+      is_call e s2 f2 C2 →
+      s1 = s2 ∧ f1 = f2 ∧ C1 = C2;
+
     mixin_prim_step_resume p C e σ X :
       to_val e = None →
       prim_step p (resume_with C e, σ) X →
       prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2));
 
+    (* Just a meta-theorem to ensure that there are no cases left to cover.
+       Not used in proofs.
+       XM allows us to not prove e.g. decidability of prim_step *)
     mixin_prim_step_total p e σ :
+      XM →
       to_val e = None →
       prim_step p (e, σ) (λ _, True)
   }.
@@ -151,6 +162,12 @@ Section mlanguage.
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e.
   Proof. apply mlanguage_mixin. Qed.
 
+  Lemma is_call_unique e s1 s2 f1 f2 C1 C2 :
+      is_call e s1 f1 C1 →
+      is_call e s2 f2 C2 →
+      s1 = s2 ∧ f1 = f2 ∧ C1 = C2.
+  Proof. apply mlanguage_mixin. Qed.
+
   Lemma prim_step_resume p C e σ X :
       to_val e = None →
       prim_step p (resume_with C e, σ) X →
@@ -158,7 +175,7 @@ Section mlanguage.
   Proof. apply mlanguage_mixin. Qed.
 
   (* There is no NB *)
-  Lemma prim_step_is_total p e σ : to_val e = None → prim_step p (e,σ) (λ _, True).
+  Lemma prim_step_is_total p e σ : XM → to_val e = None → prim_step p (e,σ) (λ _, True).
   Proof. apply mlanguage_mixin. Qed.
 
   Class IntoVal (e : expr Λ) (v : val) :=
@@ -178,3 +195,9 @@ End mlanguage.
 (* discrete OFE instance for expr *)
 Definition exprO {val} {Λ : mlanguage val} := leibnizO (expr Λ).
 Global Instance expr_equiv {val} {Λ : mlanguage val} : Equiv (expr Λ). apply exprO. Defined.
+
+
+Class linkable {val} (Λ : mlanguage val) (public_state : Type) := Linkable {
+  private_state : Type;
+  split_state : Λ.(state) → public_state → private_state → Prop
+}.

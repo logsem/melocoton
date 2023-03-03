@@ -2,22 +2,6 @@ From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
 From melocoton.mlanguage Require Import mlanguage.
 
-Class linkable {val} (Λ : mlanguage val) (public_state : Type) := Linkable {
-  private_state : Type;
-  split_state : Λ.(state) → public_state → private_state → Prop;
-  split_state_inj σ σ' pubσ privσ :
-    split_state σ pubσ privσ →
-    split_state σ' pubσ privσ →
-    σ = σ';
-}.
-
-Ltac simplify_split_state :=
-  repeat match goal with
-  | H1 : split_state _ ?x ?y,
-    H2 : split_state _ ?x ?y |- _ =>
-      pose proof (split_state_inj _ _ x y H2 H1) as ->
-  end.
-
 Module Link.
 Section Linking.
   Context {val : Type}.
@@ -46,53 +30,44 @@ Section Linking.
   (* Execution of code belonging to the second underlying module. *)
   | Expr2 (e : Λ2.(mlanguage.expr)).
 
-  Definition ectx : Type :=
-    list (Λ1.(ectx) + Λ2.(ectx)).
+  Definition cont : Type :=
+    list (Λ1.(cont) + Λ2.(cont)).
 
   (* expr need to be wrapped in a fresh inductive for the language canonical
      structure to work when using WP *)
   Inductive expr : Type :=
-    LkE (se: simple_expr) (k: ectx).
+    LkE (se: simple_expr) (k: cont).
 
   Definition private_state : Type :=
     (lk1.(private_state) * lk2.(private_state)).
-  Notation LkSE se := (LkE se []).
 
   Inductive state : Type :=
     | St (pubσ : public_state)
-             (privσ1 : lk1.(linking.private_state))
-             (privσ2 : lk2.(linking.private_state))
-    | St1 (σ1 : Λ1.(mlanguage.state)) (privσ2 : lk2.(linking.private_state))
-    | St2 (privσ1 : lk1.(linking.private_state)) (σ2 : Λ2.(mlanguage.state)).
+             (privσ1 : lk1.(mlanguage.private_state))
+             (privσ2 : lk2.(mlanguage.private_state))
+    | St1 (σ1 : Λ1.(mlanguage.state)) (privσ2 : lk2.(mlanguage.private_state))
+    | St2 (privσ1 : lk1.(mlanguage.private_state)) (σ2 : Λ2.(mlanguage.state)).
 
   Inductive split_state : state → public_state → private_state → Prop :=
     | LinkSplitSt pubσ privσ1 privσ2 :
       split_state (St pubσ privσ1 privσ2) pubσ (privσ1, privσ2).
 
-  Definition of_class (c : mixin_expr_class val) : expr :=
-    match c with
-    | ExprVal v => LkSE (ExprV v)
-    | commons.ExprCall fn args => LkSE (ExprCall fn args)
-    end.
+  Definition of_val (v:val) : expr := LkE (ExprV v) [].
+  Definition to_val (e:expr) : option val := match e with
+    LkE (ExprV v) [] => Some v
+  | _ => None end.
 
-  Definition to_class (e : expr) : option (mixin_expr_class val) :=
-    match e with
-    | LkSE (ExprV v) => Some (ExprVal v)
-    | LkSE (ExprCall fn_name args) => Some (commons.ExprCall fn_name args)
-    | _ => None
-    end.
-
-  Definition empty_ectx : ectx := [].
-
-  Definition comp_ectx (K1 K2 : ectx) : ectx :=
+  Definition comp_cont (K1 K2 : cont) : cont :=
     K2 ++ K1.
 
-  Definition fill (K : ectx) (e : expr) : expr :=
+  Definition resume_with (K : cont) (e : expr) : expr :=
     let 'LkE se k := e in
     LkE se (k ++ K).
 
   Definition apply_func (fn : func) (args : list val) : option expr :=
-    Some (LkSE (RunFunction fn args)).
+    Some (LkE (RunFunction fn args) []).
+
+  Definition is_call e (fn_name:string) args C := e = LkE (ExprCall fn_name args) C.
 
   Local Notation prog := (gmap string func).
 
@@ -103,109 +78,156 @@ Section Linking.
 
   Implicit Types X : expr * state → Prop.
 
-  Inductive head_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
+  (* TODO: Double-check that angelic and demonic nondeterminism and NB and UB are appropiate *)
+  Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (* Internal step of an underlying module. *)
-  | Step1S e1 σ1 privσ2 (X1 : _ → Prop) X :
+  | Step1S e1 σ1 privσ2 C (X1 : _ → Prop) X :
     prim_step (proj1_prog p) (e1, σ1) X1 →
-    (∀ e1' σ1', X1 (e1', σ1') → X (LkSE (Expr1 e1'), St1 σ1' privσ2)) →
-    head_step_mrel p (LkSE (Expr1 e1), St1 σ1 privσ2) X
-  | Step2S e2 σ2 privσ1 (X2 : _ → Prop) X :
+    (* Unresolved external calls are UB. Instead, we block reduction on such calls here *)
+    (∀ K fn_name arg, mlanguage.is_call e1 fn_name arg K →
+                      proj1_prog p !! fn_name = None → False) →
+    (∀ e1' σ1', X1 (e1', σ1') → X (LkE (Expr1 e1') C, St1 σ1' privσ2)) →
+    prim_step_mrel p (LkE (Expr1 e1) C, St1 σ1 privσ2) X
+  | Step1WrongStateS e1 C σ X : 
+    (match σ with St1 σ1 privσ2 => False | _ => True end) →
+    prim_step_mrel p (LkE (Expr1 e1) C, σ) X
+  | Step2S e2 σ2 privσ1 C (X2 : _ → Prop) X :
     prim_step (proj2_prog p) (e2, σ2) X2 →
-    (∀ e2' σ2', X2 (e2', σ2') → X (LkSE (Expr2 e2'), St2 privσ1 σ2')) →
-    head_step_mrel p (LkSE (Expr2 e2), St2 privσ1 σ2) X
+    (∀ K fn_name arg, mlanguage.is_call e2 fn_name arg K →
+                      proj2_prog p !! fn_name = None → False) →
+    (∀ e2' σ2', X2 (e2', σ2') → X (LkE (Expr2 e2') C, St2 privσ1 σ2')) →
+    prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
+  | Step2WrongStateS e1 C σ X : 
+    (match σ with St2 σ2 privσ1 => False | _ => True end) →
+    prim_step_mrel p (LkE (Expr2 e1) C, σ) X
   (* Entering a function. Change the view of the heap in the process. *)
-  | RunFunction1S σ1 pubσ privσ1 privσ2 fn1 args e1 X :
-    mlanguage.apply_func fn1 args = Some e1 →
-    linking.split_state σ1 pubσ privσ1 →
-    X (LkSE (Expr1 e1), St1 σ1 privσ2) →
-    head_step_mrel p (LkSE (RunFunction (inl fn1) args), St pubσ privσ1 privσ2) X
-  | RunFunction2S σ2 pubσ privσ1 privσ2 fn2 arg e2 X :
-    mlanguage.apply_func fn2 arg = Some e2 →
-    linking.split_state σ2 pubσ privσ2 →
-    X (LkSE (Expr2 e2), St2 privσ1 σ2) →
-    head_step_mrel p (LkSE (RunFunction (inr fn2) arg), St pubσ privσ1 privσ2) X
+  | RunFunction1S σ fn1 args C X :
+    (* Merge state and assert that fn1 is applicable to the arguments *)
+    (* If state can not be merged or fn1 not be applied, we have UB *)
+    (* Note that both e1 and σ1 are unique, the latter by split_state_inj *)
+    (∀ e1 σ1 pubσ privσ1 privσ2, 
+        σ = St pubσ privσ1 privσ2 →
+        mlanguage.apply_func fn1 args = Some e1 →
+        mlanguage.split_state σ1 pubσ privσ1 →
+        X (LkE (Expr1 e1) C, St1 σ1 privσ2)) →
+    prim_step_mrel p (LkE (RunFunction (inl fn1) args) C, σ) X
+  | RunFunction2S σ fn2 arg C X :
+    (∀ e2 σ2 pubσ privσ1 privσ2,
+        σ = St pubσ privσ1 privσ2 →
+        mlanguage.apply_func fn2 arg = Some e2 →
+        mlanguage.split_state σ2 pubσ privσ2 →
+        X (LkE (Expr2 e2) C, St2 privσ1 σ2)) →
+    prim_step_mrel p (LkE (RunFunction (inr fn2) arg) C, σ) X
   (* Producing a value when execution is finished *)
-  | Val1S e1 v σ1 pubσ privσ1 privσ2 X :
-    to_val e1 = Some v →
-    linking.split_state σ1 pubσ privσ1 →
-    X (LkSE (ExprV v), St pubσ privσ1 privσ2) →
-    head_step_mrel p (LkSE (Expr1 e1), St1 σ1 privσ2) X
-  | Val2S e2 v σ2 pubσ privσ1 privσ2 X :
-    to_val e2 = Some v →
-    linking.split_state σ2 pubσ privσ2 →
-    X (LkSE (ExprV v), St pubσ privσ1 privσ2) →
-    head_step_mrel p (LkSE (Expr2 e2), St2 privσ1 σ2) X
+  | Val1S e1 v σ C X :
+    mlanguage.to_val e1 = Some v →
+    (* Splitting the state is angelic, the underlying language can choose a concrete splitting. *)
+    (* If no such splitting exists, we have UB *)
+    (∀ σ1 privσ2 pubσ privσ1,
+        σ = St1 σ1 privσ2 →
+        mlanguage.split_state σ1 pubσ privσ1 →
+        X (LkE (ExprV v) C, St pubσ privσ1 privσ2)) →
+    prim_step_mrel p (LkE (Expr1 e1) C, σ) X
+  | Val2S e2 v σ C X :
+    mlanguage.to_val e2 = Some v →
+    (∀ σ2 privσ1 pubσ privσ2,
+        σ = St2 privσ1 σ2 →
+        mlanguage.split_state σ2 pubσ privσ2 →
+        X (LkE (ExprV v) C, St pubσ privσ1 privσ2)) →
+    prim_step_mrel p (LkE (Expr2 e2) C, σ) X
   (* Continuing execution by returning a value to its caller *)
-  | Ret1S v k1 σ1 pubσ privσ1 privσ2 X :
-    linking.split_state σ1 pubσ privσ1 →
-    X (LkSE (Expr1 (mlanguage.fill k1 (of_val Λ1 v))), St1 σ1 privσ2) →
-    head_step_mrel p (LkE (ExprV v) [inl k1], St pubσ privσ1 privσ2) X
-  | Ret2S v k2 σ2 pubσ privσ1 privσ2 X :
-    linking.split_state σ2 pubσ privσ2 →
-    X (LkSE (Expr2 (mlanguage.fill k2 (of_val Λ2 v))), St2 privσ1 σ2) →
-    head_step_mrel p (LkE (ExprV v) [inr k2], St pubσ privσ1 privσ2) X
+  | Ret1S v k1 σ C X :
+    (* Merging states is angelic/unique (see above) *)
+    (∀ pubσ privσ1 privσ2 σ1,
+          σ = St pubσ privσ1 privσ2 →
+          mlanguage.split_state σ1 pubσ privσ1 →
+          X (LkE (Expr1 (mlanguage.resume_with k1 (mlanguage.of_val Λ1 v))) C, St1 σ1 privσ2)) →
+    prim_step_mrel p (LkE (ExprV v) (inl k1::C), σ) X
+  | Ret2S v k2 σ C X :
+    (∀ σ2 pubσ privσ1 privσ2, 
+          σ = St pubσ privσ1 privσ2 →
+          mlanguage.split_state σ2 pubσ privσ2 →
+          X (LkE (Expr2 (mlanguage.resume_with k2 (mlanguage.of_val Λ2 v))) C, St2 privσ1 σ2)) →
+    prim_step_mrel p (LkE (ExprV v) (inr k2::C), σ) X
   (* Stuck module calls bubble up as calls at the level of the linking module.
      (They may get unstuck then, if they match a function implemented by the
      other module.) *)
-  | MakeCall1S k1 e1 fn_name arg σ1 pubσ privσ1 privσ2 X :
-    mlanguage.to_class e1 = Some (commons.ExprCall fn_name arg) →
+  | MakeCall1S k1 e1 fn_name arg σ C X :
+    mlanguage.is_call e1 fn_name arg k1 →
     proj1_prog p !! fn_name = None →
-    linking.split_state σ1 pubσ privσ1 →
-    X (LkE (ExprCall fn_name arg) [inl k1], St pubσ privσ1 privσ2) →
-    head_step_mrel p (LkSE (Expr1 (mlanguage.fill k1 e1)), St1 σ1 privσ2) X
-  | MakeCall2S k2 e2 fn_name arg σ2 pubσ privσ1 privσ2 X :
-    mlanguage.to_class e2 = Some (commons.ExprCall fn_name arg) →
+    (∀ pubσ σ1 privσ2 privσ1, 
+        σ = St1 σ1 privσ2 →
+        mlanguage.split_state σ1 pubσ privσ1 →
+        X (LkE (ExprCall fn_name arg) (inl k1::C), St pubσ privσ1 privσ2)) →
+    prim_step_mrel p (LkE (Expr1 e1) C, σ) X
+  | MakeCall2S k2 e2 fn_name arg σ C X :
+    mlanguage.is_call e2 fn_name arg k2 →
     proj2_prog p !! fn_name = None →
-    linking.split_state σ2 pubσ privσ2 →
-    X (LkE (ExprCall fn_name arg) [inr k2], St pubσ privσ1 privσ2) →
-    head_step_mrel p (LkSE (Expr2 (mlanguage.fill k2 e2)), St2 privσ1 σ2) X
+    (∀ σ2 privσ1 pubσ privσ2,
+          σ = St2 privσ1 σ2 →
+          mlanguage.split_state σ2 pubσ privσ2 →
+          X (LkE (ExprCall fn_name arg) (inr k2::C), St pubσ privσ1 privσ2)) →
+    prim_step_mrel p (LkE (Expr2 e2) C, σ) X
   (* Resolve an internal call to a module function *)
-  | CallS fn_name fn arg σ X :
-    p !! fn_name = Some fn →
-    X (LkSE (RunFunction fn arg), σ) →
-    head_step_mrel p (LkSE (ExprCall fn_name arg), σ) X.
+  | CallS fn_name arg σ C X :
+    (* Again, stuck calls cause UB *)
+    (∀ fn, p !! fn_name = Some fn →
+           X (LkE (RunFunction fn arg) C, σ)) →
+    prim_step_mrel p (LkE (ExprCall fn_name arg) C, σ) X.
 
-  Program Definition head_step (p : prog) : umrel (expr * state) :=
-    {| mrel := head_step_mrel p |}.
+  Program Definition prim_step (p : prog) : umrel (expr * state) :=
+    {| mrel := prim_step_mrel p |}.
   Next Obligation.
     intros p. intros [[se k] σ] X Y Hstep HXY. inversion Hstep; subst;
-      [ eapply Step1S | eapply Step2S | eapply RunFunction1S | eapply RunFunction2S
+      [ eapply Step1S | eapply Step1WrongStateS | eapply Step2S | eapply Step2WrongStateS | eapply RunFunction1S | eapply RunFunction2S
       | eapply Val1S | eapply Val2S | eapply Ret1S | eapply Ret2S
       | eapply MakeCall1S | eapply MakeCall2S | eapply CallS ]; eauto.
   Qed.
 
   Lemma mlanguage_mixin :
-    MlanguageMixin (val:=val) of_class to_class empty_ectx comp_ectx fill
-      apply_func head_step.
+    MlanguageMixin (val:=val) of_val to_val is_call resume_with comp_cont
+      apply_func prim_step.
   Proof using.
     constructor.
-    - intros c. destruct c; reflexivity.
-    - intros e c. destruct e as [e k]. destruct e; cbn.
-      1,2: destruct k. all: inversion 1; cbn; auto.
-    - intros p v σ X. cbn. inversion 1.
-    - intros p fn_name v σ X. split.
-      + cbn. inversion 1; subst; naive_solver.
-      + intros (fn & e2 & (? & Hfn & HX)). cbn.
-        unfold apply_func in Hfn; simplify_eq. econstructor; eauto.
-    - intros ? ? [? ?] ? ?. rewrite /fill /=. intros. simplify_eq/=; eauto.
-    - intros [e k]. rewrite /fill /empty_ectx app_nil_r //.
-    - intros K1 K2 [e k]. rewrite /fill /comp_ectx app_assoc //.
-    - intros K [e1 k1] [e2 k2]. cbn. inversion 1; subst.
-      rewrite (app_inv_tail K k1 k2) //.
-    - intros K [e k]. unfold fill. intros Hsome.
-      destruct (decide (K = empty_ectx)). by left. exfalso.
-      assert (k ++ K ≠ []). { intros [? ?]%app_eq_nil. done. }
-      cbn in Hsome. destruct (k ++ K) eqn:?.
-      2: destruct e; by inversion Hsome. by destruct e.
-    - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ X.
-      rewrite /fill. inversion 1; subst.
-      destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.
-      all: intros _; inversion 1; subst; unfold comp_ectx; cbn; eauto.
-      all: naive_solver.
-    - intros p K [e k] σ X. rewrite /fill. inversion 1; subst.
-      all: try match goal with H : _ |- _ => symmetry in H; apply app_nil in H end.
-      all: try match goal with H : _ |- _ => symmetry in H; apply app_singleton in H end.
-      all: naive_solver.
+    - intros v. done.
+    - intros e c. destruct e as [e [|]]; destruct e; cbn; intros; by simplify_eq.
+    - intros p v σ X. unfold of_val. inversion 1.
+    - intros p e fn_name arg C σ X ->. split.
+      + cbn. inversion 1; simplify_eq. intros fn' e H4' H5'.
+        unfold apply_func in H5'. simplify_eq. apply H5. done.
+      + intros H. cbn. unfold apply_func in H. econstructor. intros fn Heq.
+        eapply (H _ _ Heq eq_refl).
+    - intros e [v Hv] f vs C ->. done.
+    - intros ? C1 C2 s vv ->. cbn. done.
+    - intros [] C [v Hv]; cbn in Hv. repeat case_match; simplify_eq.
+      apply app_eq_nil in H0 as [-> ->]. done.
+    - intros [] C1 C2. rewrite /= app_assoc //.
+    - intros e s1 s2 f1 f2 C1 C2 -> H; unfold is_call in H; simplify_eq. done.
+    - intros p C [es eC] σ X Hnv H; inversion H; simplify_eq.
+      1-4: econstructor; by eauto. (* Normal step *)
+      1-2: econstructor; by eauto. (* RunFunctionS *)
+      1: eapply Val1S; by eauto.
+      1: eapply Val2S; by eauto.
+      1-2: destruct eC; simplify_list_eq; []; econstructor; by eauto. (* RetS *)
+      1: eapply MakeCall1S; by eauto.
+      1: eapply MakeCall2S; by eauto.
+      1: econstructor; eauto.
+    - intros p [[] eC] σ XM Hnv; simplify_eq.
+      + destruct eC as [|[] eC']; first done. all: by econstructor.
+      + by econstructor.
+      + destruct fn; by econstructor.
+      + destruct (XM (∃ K fn_name arg, mlanguage.is_call e fn_name arg K ∧ proj1_prog p !! fn_name = None)) as [(K&fn_name&arg&Hiscall&HNone)|Hr].
+        * eapply MakeCall1S; eauto.
+        * destruct σ; try (eapply Step1WrongStateS; by eauto).
+          destruct (mlanguage.to_val e) as [v|] eqn:Heq; try (eapply Val1S; by eauto).
+          eapply Step1S; eauto. 2: intros; eapply Hr; by repeat eexists.
+          eapply mlanguage.prim_step_is_total; done.
+      + destruct (XM (∃ K fn_name arg, mlanguage.is_call e fn_name arg K ∧ proj2_prog p !! fn_name = None)) as [(K&fn_name&arg&Hiscall&HNone)|Hr].
+        * eapply MakeCall2S; eauto.
+        * destruct σ; try (eapply Step2WrongStateS; by eauto).
+          destruct (mlanguage.to_val e) as [v|] eqn:Heq; try (eapply Val2S; by eauto).
+          eapply Step2S; eauto. 2: intros; eapply Hr; by repeat eexists.
+          eapply mlanguage.prim_step_is_total; done.
   Qed.
 End Linking.
 End Link.
@@ -230,9 +252,6 @@ Global Program Instance link_linkable
   (lk1 : linkable Λ1 public_state)
   (lk2 : linkable Λ2 public_state) :
 linkable (link_lang Λ1 Λ2) public_state := {
-  linking.private_state := Link.private_state _ Λ1 Λ2;
-  linking.split_state := Link.split_state _ Λ1 Λ2;
+  mlanguage.private_state := Link.private_state _ Λ1 Λ2;
+  mlanguage.split_state := Link.split_state _ Λ1 Λ2;
 }.
-Next Obligation.
-  intros *. inversion 1; inversion 1; by simplify_eq.
-Qed.

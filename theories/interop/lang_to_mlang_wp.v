@@ -4,7 +4,6 @@ From melocoton.interop Require Import lang_to_mlang.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
-(* From melocoton.interop Require Import linking_wp. *)
 From iris.proofmode Require Import proofmode.
 
 Section ToMlang_logic.
@@ -25,8 +24,6 @@ Global Program Instance lang_to_mlang_mlangGS :
   at_boundary := True%I;
 }.
 
-(*
-
 Global Program Instance lang_to_mlang_linkableGS :
   (@linkableGS _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
 := {
@@ -37,7 +34,7 @@ Next Obligation.
   simpl. intros ? []. iIntros "? _". iModIntro. iExists _. by iFrame.
 Qed.
 Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constructor. Qed.
-*)
+
 (* This is a *local* instance to allow typechecking the lemma below. The idea is
    that it should stay local. For each specific language, one should manually
    define the corresponding mlanguage (by applying lang_to_mlang), and define it

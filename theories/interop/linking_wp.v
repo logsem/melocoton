@@ -18,25 +18,6 @@ Class linkGS Σ := LinkGS {
   linkG_γ : gname;
 }.
 
-Class linkableGS
-  {val pubstate} (Λ : mlanguage val)
-  `{!mlangGS val Σ Λ, !linkable Λ pubstate}
-  (public_state_interp : pubstate → iProp Σ)
-:= LinkableGS {
-  private_state_interp : private_state → iProp Σ;
-
-  state_interp_split σ pubσ privσ :
-    split_state σ pubσ privσ →
-    state_interp σ ==∗ public_state_interp pubσ ∗ private_state_interp privσ;
-
-  state_interp_join pubσ privσ :
-    public_state_interp pubσ -∗ private_state_interp privσ ==∗
-    ∃ σ, state_interp σ ∗ ⌜split_state σ pubσ privσ⌝;
-
-  splittable_at_boundary σ :
-    at_boundary Λ -∗ state_interp σ -∗ ⌜∃ pubσ privσ, split_state σ pubσ privσ⌝;
-}.
-
 Section Linking_logic.
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
@@ -57,6 +38,7 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
+(* ToDo: use ghost variables *)
 Definition link_state_interp (st : (link_lang Λ1 Λ2).(state)) : iProp Σ :=
   match st with
   | Link.St pubσ privσ1 privσ2 =>
@@ -207,12 +189,10 @@ Proof using.
   iIntros (Hfn) "Hwp".
   iApply wp_unfold. rewrite /wp_pre.
   iIntros (σ) "Hσ". iModIntro. iRight; iRight.
-  iSplitR.
-  { iPureIntro. eexists (λ _, True). eexists k, (Link.LkE _ []). split; first done.
-    eapply Link.CallS; eauto. }
-  iIntros (X Hstep'). destruct Hstep' as (K' & [se1' k1'] & ? & Hstep'); simplify_eq.
-  inversion Hstep'; simplify_eq; []. simplify_map_eq.
-  iModIntro. iNext. iModIntro. iExists _, _. iSplitR; first done. iFrame.
+  iSplit; first done.
+  iIntros (X Hstep'). inversion Hstep'; simplify_eq.
+  iModIntro. iNext. iModIntro. iExists _, _. iFrame.
+  iPureIntro; eapply H4. done.
 Qed.
 
 Lemma wp_link_run_function_1 pe1 pe2 pe E k2 k fn arg fname Φ Ξ :
@@ -233,14 +213,12 @@ Proof using.
   iRight; iRight.
   iPoseProof (is_link_internal2 _ _ _ _ E Hfn with "HTΞ") as (? Happlyfunc) "Hwpcall".
   iDestruct "Hσ" as "(Hob & Hpubσ & Hprivσ1 & Hprivσ2)".
-  iMod (state_interp_join with "Hpubσ Hprivσ1") as (σ1) "(Hσ1 & %Hsplit)".
-  iModIntro. iSplitR.
-  { iPureIntro. exists (λ _, True). eexists _, (Link.LkE _ []). split; [done|].
-    eapply Link.RunFunction1S; eauto. }
-  iIntros (X Hstep'). destruct Hstep' as (K' & [se2' k2'] & ? & Hstep'). simpl in *; simplify_eq.
-  inversion Hstep'; simplify_eq/=; []. simplify_split_state. iModIntro. iNext.
+  iMod (state_interp_join with "Hpubσ Hprivσ1") as (σ1) "(Hσ1 & %Hsplit)". iModIntro.
+  iSplit; first done.
+  iIntros (X Hstep').
+  inversion Hstep'; simplify_eq/=; []. iModIntro. iNext.
   iMod (link_state_update _ In1 with "Hob Hb") as "(Hob & Hb)".
-  iModIntro. iExists _, _. iSplitR; first done. iFrame.
+  iModIntro. iExists _, _. iSplitR; first by eauto. iFrame.
   iDestruct ("Hwpcall" with "Hb1") as "Hwpcall".
   by iApply ("Hwp" with "[] Hwpcall Hb").
 Qed.
@@ -263,20 +241,18 @@ Proof using.
   iRight; iRight.
   iPoseProof (is_link_internal1 _ _ _ _ E Hfn with "HTΞ") as (? Happlyfunc) "Hwpcall".
   iDestruct "Hσ" as "(Hob & Hpubσ & Hprivσ1 & Hprivσ2)".
-  iMod (state_interp_join with "Hpubσ Hprivσ2") as (σ2) "(Hσ2 & %Hsplit)".
-  iModIntro. iSplitR.
-  { iPureIntro. exists (λ _, True). eexists _, (Link.LkE _ []). split; [done|].
-    eapply Link.RunFunction2S; eauto. }
-  iIntros (X Hstep'). destruct Hstep' as (K' & [se2' k2'] & ? & Hstep'). simpl in *; simplify_eq.
-  inversion Hstep'; simplify_eq/=; []. simplify_split_state. iModIntro. iNext.
+  iMod (state_interp_join with "Hpubσ Hprivσ2") as (σ2) "(Hσ2 & %Hsplit)". iModIntro.
+  iSplit; first done.
+  iIntros (X Hstep').
+  inversion Hstep'; simplify_eq/=; []. iModIntro. iNext.
   iMod (link_state_update _ In2 with "Hob Hb") as "(Hob & Hb)".
-  iModIntro. iExists _, _. iSplitR; first done. iFrame.
+  iModIntro. iExists _, _. iSplitR; first by eauto. iFrame.
   iDestruct ("Hwpcall" with "Hb2") as "Hwpcall".
   by iApply ("Hwp" with "[] Hwpcall Hb").
 Qed.
 
 Lemma wp_link_retval_1 (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k1 v Φ :
-  (link_state_frag In1 -∗ WP LkSE (Link.Expr1 (fill k1 (of_val Λ1 v))) @ pe; E {{ Φ }}) -∗
+  (link_state_frag In1 -∗ WP LkSE (Link.Expr1 (resume_with k1 (of_val Λ1 v))) @ pe; E {{ Φ }}) -∗
   (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inl k1] @ pe; E {{ Φ }}).
 Proof using.
   iIntros "Hwp Hb".
@@ -285,17 +261,16 @@ Proof using.
   iDestruct "Hσ" as "(Hob & Hpub & Hpriv1 & Hpriv2)".
   iMod (state_interp_join with "Hpub Hpriv1") as (σ1) "[Hσ1 %Hsplit]".
   iModIntro. iRight. iRight.
-  iSplitR.
-  { iPureIntro. apply head_prim_reducible. exists (λ _, True). eapply Link.Ret1S; eauto. }
-  iIntros (X Hstep'). destruct Hstep' as (K' & [se1' k1'] & ? & Hstep'). simplify_eq/=.
-  inversion Hstep'; simplify_eq/=; []. simplify_split_state.
+  iSplitR; first done.
+  iIntros (X Hstep').
+  inversion Hstep'; simplify_eq/=; [].
   iModIntro. iNext.
   iMod (link_state_update _ In1 with "Hob Hb") as "(Hob & Hb)".
-  iModIntro. iExists _, _. iSplitR; first done. iFrame. iApply "Hwp". iFrame.
+  iModIntro. iExists _, _. iSplitR; first by eauto. iFrame. by iApply "Hwp".
 Qed.
 
 Lemma wp_link_retval_2 (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k2 v Φ :
-  (link_state_frag In2 -∗ WP LkSE (Link.Expr2 (fill k2 (of_val Λ2 v))) @ pe; E {{ Φ }}) -∗
+  (link_state_frag In2 -∗ WP LkSE (Link.Expr2 (resume_with k2 (of_val Λ2 v))) @ pe; E {{ Φ }}) -∗
   (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inr k2] @ pe; E {{ Φ }}).
 Proof using.
   iIntros "Hwp Hb".
@@ -304,13 +279,12 @@ Proof using.
   iDestruct "Hσ" as "(Hob & Hpub & Hpriv1 & Hpriv2)".
   iMod (state_interp_join with "Hpub Hpriv2") as (σ2) "[Hσ2 %Hsplit]".
   iModIntro. iRight. iRight.
-  iSplitR.
-  { iPureIntro. apply head_prim_reducible. eexists (λ _, True). eapply Link.Ret2S; eauto. }
-  iIntros (X Hstep'). destruct Hstep' as (K' & [se2' k2'] & ? & Hstep'). simplify_eq/=.
-  inversion Hstep'; simplify_eq/=; []. simplify_split_state.
+  iSplitR; first by eauto.
+  iIntros (X Hstep').
+  inversion Hstep'; simplify_eq/=; [].
   iModIntro. iNext.
   iMod (link_state_update _ In2 with "Hob Hb") as "(Hob & Hb)".
-  iModIntro. iExists _, _. iSplitR; first done. iFrame. iApply "Hwp". iFrame.
+  iModIntro. iExists _, _. iSplitR; first by eauto. iFrame. iApply "Hwp". iFrame.
 Qed.
 
 Lemma wp_link_extcall_1 pe1 pe2 pe E k1 fn_name arg Φ Ξ :
@@ -319,8 +293,8 @@ Lemma wp_link_extcall_1 pe1 pe2 pe E k1 fn_name arg Φ Ξ :
   penv_prog pe2 !! fn_name = None →
   penv_proto pe1 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ1 -∗
-        WP fill (comp_ectx k1 empty_ectx) (of_class Λ1 (ExprVal r)) @ pe1; E {{ λ v, Φ v ∗ at_boundary Λ1 }}) -∗
-  (▷ ∀ r, WP fill k1 (of_class Λ1 (ExprVal r)) @ pe1; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
+        WP resume_with k1 (of_val Λ1 r) @ pe1; E {{ λ v, Φ v ∗ at_boundary Λ1 }}) -∗
+  (▷ ∀ r, WP resume_with k1 (of_val Λ1 r) @ pe1; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
         link_state_frag Boundary -∗
         at_boundary Λ2 -∗
         WP Link.LkE (Link.ExprV r) [inl k1] @ pe; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
@@ -337,7 +311,7 @@ Proof using.
   { by iApply is_link_external1. }
   iNext. iIntros (r) "[Hr Hb]". iDestruct "Hb" as "(Hb & Hb1 & Hb2)".
   simpl.
-  iSpecialize ("HΞ" with "[$Hr $Hb1]"). rewrite -fill_comp fill_empty.
+  iSpecialize ("HΞ" with "[$Hr $Hb1]").
   iApply ("Hwp" with "HΞ Hb Hb2").
 Qed.
 
@@ -347,8 +321,8 @@ Lemma wp_link_extcall_2 pe1 pe2 pe E k2 fn_name arg Φ Ξ :
   penv_prog pe2 !! fn_name = None →
   penv_proto pe2 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ2 -∗
-        WP fill (comp_ectx k2 empty_ectx) (of_class Λ2 (ExprVal r)) @ pe2; E {{ λ v, Φ v ∗ at_boundary Λ2 }}) -∗
-  (▷ ∀ r, WP fill k2 (of_class Λ2 (ExprVal r)) @ pe2; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
+        WP resume_with k2 (of_val Λ2 r) @ pe2; E {{ λ v, Φ v ∗ at_boundary Λ2 }}) -∗
+  (▷ ∀ r, WP resume_with k2 (of_val Λ2 r) @ pe2; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
         link_state_frag Boundary -∗
         at_boundary Λ1 -∗
         WP Link.LkE (Link.ExprV r) [inr k2] @ pe; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
@@ -365,68 +339,41 @@ Proof using.
   { by iApply is_link_external2. }
   iNext. iIntros (r) "[Hr Hb]". iDestruct "Hb" as "(Hb & Hb1 & Hb2)".
   simpl.
-  iSpecialize ("HΞ" with "[$Hr $Hb2]"). rewrite -fill_comp fill_empty.
+  iSpecialize ("HΞ" with "[$Hr $Hb2]").
   iApply ("Hwp" with "HΞ Hb Hb1").
 Qed.
 
-Lemma link_head_step_call_ext_1_inv pe1 pe2 pe K f vs σ1 privσ2 X :
+Lemma link_step_call_ext_1_inv pe1 pe2 pe e C f vs σ1 pubσ privσ1 privσ2 X :
   is_link_environ pe1 pe2 pe →
   penv_prog pe1 !! f = None →
-  head_step (penv_prog pe) (LkSE (Link.Expr1 (fill K (of_class Λ1 (ExprCall f vs)))),
-                            Link.St1 σ1 privσ2) X →
-  ∃ pubσ privσ1 k,
-    K = comp_ectx k empty_ectx ∧
-    X (Link.LkE (Link.ExprCall f vs) [inl k], Link.St pubσ privσ1 privσ2) ∧
-    split_state σ1 pubσ privσ1.
-Proof using.
-  intros Hislink Hf Hstep. inversion Hstep; subst; simplify_eq.
-  { exfalso.
-    match goal with H:_|-_ => eapply call_prim_step_fill in H as (?&?&HH&?&_) end.
-    rewrite is_link_prog in HH.
-    rewrite proj1_prog_union in HH; [| apply Hislink]. congruence. }
-  { exfalso. match goal with H:_|-_ => apply mk_is_Some in H; apply fill_val in H; destruct H as [? HH] end.
-    rewrite /to_val to_of_class // in HH. }
-  match goal with H: fill _ _ = fill _ _ |- _ => rename H into Hfill end.
-  match goal with H: Link.proj1_prog _ _ _ !! _ = None |- _ => rename H into Hnofn end.
-  rewrite is_link_prog proj1_prog_union in Hnofn;[|apply Hislink].
-  pose proof (call_in_ctx_to_val _ _ _ _ _ Hfill) as [[K'' ->]|Hval].
-  2: { exfalso. unfold to_val in Hval. destruct Hval. by repeat case_match. }
-  rewrite -fill_comp in Hfill. apply fill_inj in Hfill. subst e1.
-  unshelve epose proof (fill_class' K'' _ _) as HH;[shelve|eexists; eassumption|]. (* XX *)
-  destruct HH as [->|[? HH]].
-  2: { exfalso. rewrite to_of_class in HH. congruence. }
-  do 3 eexists; repeat split; eauto.
-  match goal with H: to_class _ = Some _ |- _ => rename H into Hcall end.
-  rewrite fill_empty to_of_class in Hcall. by simplify_eq/=.
+  prim_step (penv_prog pe) (LkSE (Link.Expr1 e), Link.St1 σ1 privσ2) X →
+  split_state σ1 pubσ privσ1 →
+  is_call e f vs C →
+  X (Link.LkE (Link.ExprCall f vs) [inl C], Link.St pubσ privσ1 privσ2).
+Proof.
+  intros Hlink Heq; inversion 1; simplify_eq /=; intros Hsplit Hiscall.
+  { exfalso. eapply H6; eauto. rewrite is_link_prog proj1_prog_union; try done. apply Hlink. }
+  { done. }
+  { by erewrite not_is_call_2 in H4. }
+  destruct (is_call_unique _ _ _ _ _ _ _ H3 Hiscall) as (->&->&->).
+  by eapply H6.
 Qed.
 
-Lemma link_head_step_call_ext_2_inv pe1 pe2 pe K f vs σ2 privσ1 X :
+
+Lemma link_step_call_ext_2_inv pe1 pe2 pe e C f vs σ2 pubσ privσ1 privσ2 X :
   is_link_environ pe1 pe2 pe →
   penv_prog pe2 !! f = None →
-  head_step (penv_prog pe) (LkSE (Link.Expr2 (fill K (of_class Λ2 (ExprCall f vs)))),
-                            Link.St2 privσ1 σ2) X →
-  ∃ pubσ privσ2 k,
-    K = comp_ectx k empty_ectx ∧
-    X (Link.LkE (Link.ExprCall f vs) [inr k], Link.St pubσ privσ1 privσ2) ∧
-    split_state σ2 pubσ privσ2.
-Proof using.
-  intros Hislink Hf Hstep. inversion Hstep; subst; simplify_eq.
-  { exfalso. match goal with H:_|-_ => eapply call_prim_step_fill in H as (?&?&HH&?&_) end.
-    rewrite is_link_prog proj2_prog_union in HH; [| apply Hislink]. congruence. }
-  { exfalso. match goal with H:_|-_ => apply mk_is_Some in H; apply fill_val in H; destruct H as [? HH] end.
-    rewrite /to_val to_of_class // in HH. }
-  match goal with H: fill _ _ = fill _ _ |- _ => rename H into Hfill end.
-  match goal with H: Link.proj2_prog _ _ _ !! _ = None |- _ => rename H into Hnofn end.
-  rewrite is_link_prog proj2_prog_union in Hnofn;[|apply Hislink].
-  pose proof (call_in_ctx_to_val _ _ _ _ _ Hfill) as [[K'' ->]|Hval].
-  2: { exfalso. unfold to_val in Hval. destruct Hval. by repeat case_match. }
-  rewrite -fill_comp in Hfill. apply fill_inj in Hfill. subst e2.
-  unshelve epose proof (fill_class' K'' _ _) as HH;[shelve|eexists; eassumption|]. (* XX *)
-  destruct HH as [->|[? HH]].
-  2: { exfalso. rewrite to_of_class in HH. congruence. }
-  do 3 eexists; repeat split; eauto.
-  match goal with H: to_class _ = Some _ |- _ => rename H into Hcall end.
-  rewrite fill_empty to_of_class in Hcall. by simplify_eq/=.
+  prim_step (penv_prog pe) (LkSE (Link.Expr2 e), Link.St2 privσ1 σ2) X →
+  split_state σ2 pubσ privσ2 →
+  is_call e f vs C →
+  X (Link.LkE (Link.ExprCall f vs) [inr C], Link.St pubσ privσ1 privσ2).
+Proof.
+  intros Hlink Heq; inversion 1; simplify_eq /=; intros Hsplit Hiscall.
+  { exfalso. eapply H6; eauto. rewrite is_link_prog proj2_prog_union; try done. apply Hlink. }
+  { done. }
+  { by erewrite not_is_call_2 in H4. }
+  destruct (is_call_unique _ _ _ _ _ _ _ H3 Hiscall) as (->&->&->).
+  by eapply H6.
 Qed.
 
 Lemma wp_link_run_mut pe1 pe2 pe E :
@@ -452,34 +399,25 @@ Proof using.
       iModIntro. iRight; iRight.
       (* administrative step Val1S: Link.Expr1 ~> Link.ExprV *)
       iDestruct (@splittable_at_boundary with "Hb1 Hσ") as %(pubσ&privσ1&Hsplitσ1).
-      assert (Hhred: head_reducible (penv_prog pe) (LkSE (Link.Expr1 (of_class Λ1 (ExprVal v)))) (Link.St1 σ1 privσ2)).
-      { exists (λ _, True). eapply Link.Val1S; eauto. rewrite /to_val to_of_class //=. }
-      iSplitR; [iPureIntro; by apply head_prim_reducible|].
-      iIntros (X Hstep). apply head_reducible_prim_step in Hstep; [|done].
+      iSplit; first done.
+      iIntros (X Hstep).
       inversion Hstep; simplify_eq/=.
-      { exfalso. by match goal with H:_ |- _ => apply val_prim_step in H end. }
-      { match goal with H : to_val (of_class _ _) = _ |- _ => rewrite to_of_val in H; simplify_eq end.
+      { exfalso. by eapply val_prim_step. }
+      { done. }
+      { match goal with H : to_val (of_val _ _) = _ |- _ => rewrite to_of_val in H; simplify_eq end.
         iMod (state_interp_split with "Hσ") as "[Hpriv1 Hpub]"; first by eauto.
-        iExists _, _. iSplitR; first done.
+        iExists _, _. iSplitR; first by eauto.
         iMod (link_state_update _ Boundary with "Hob Hb") as "[Hob Hb]".
         do 3 iModIntro. iFrame. by iApply wp_value. }
-      { exfalso.
-        assert (is_Some (to_val e1)) as [? ?].
-        { eapply fill_val. eexists. unfold to_val.
-          match goal with H : fill _ _ = _ |- _ => erewrite H end. rewrite to_of_class//. }
-        unfold to_val in *. repeat case_match; congruence. } }
+      { exfalso. eapply not_is_call_2 in H2. by rewrite to_of_val in H2. } }
 
     (* WP: call case *)
-    { iDestruct "Hwp" as (f vs K -> Hf) "(Hb1 & Hσ1 & Hcall)". iModIntro. iRight; iRight.
+    { iDestruct "Hwp" as (f vs C Hiscall Hf) "(Hb1 & Hσ1 & Hcall)". iModIntro. iRight; iRight.
       (* administrative step MakeCall1S: Link.Expr1 ~> Link.ExprCall *)
       iDestruct (@splittable_at_boundary with "Hb1 Hσ1") as %(pubσ&privσ1&Hsplitσ1).
-      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr1 (fill K (of_class Λ1 (ExprCall f vs))))) (Link.St1 σ1 privσ2)).
-      { exists (λ _, True). eapply Link.MakeCall1S; eauto. by rewrite to_of_class.
-        rewrite is_link_prog proj1_prog_union; [done | apply Hislink]. }
-      iSplitR; [iPureIntro; by apply head_prim_reducible|].
-      iIntros (X Hstep). apply head_reducible_prim_step in Hstep;[|done].
-      clear pubσ privσ1 Hsplitσ1.
-      eapply link_head_step_call_ext_1_inv in Hstep as (pubσ&privσ1&k1&->&?&?); eauto.
+      iSplitR; first by eauto.
+      iIntros (X Hstep).
+      eapply link_step_call_ext_1_inv in Hstep; eauto; [].
 
       iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]".
       iMod (state_interp_split with "Hσ1") as "[Hpriv1 Hpub]"; first done.
@@ -501,18 +439,17 @@ Proof using.
         iApply (wp_link_run_function_2 with "Hb Hb2 HTΞ"); first done.
         iIntros (e2 He2) "Hwpcall Hb".
 
-        progress change (Link.LkE (Link.Expr2 e2) [inl k1]) with
-          (Link.fill _ _ ([inl k1]:ectx (link_lang Λ1 Λ2)) (LkSE (Link.Expr2 e2))).
+        progress change (Link.LkE (Link.Expr2 e2) [inl C]) with
+          (resume_with ([inl C]:cont (link_lang Λ1 Λ2)) (LkSE (Link.Expr2 e2))).
         iApply wp_bind.
         iApply (wp_wand with "[Hwpcall Hb Hb1]").
         { iDestruct "IH" as "#[_ IH2]". iApply ("IH2" with "Hwpcall [$Hb $Hb1]"). }
         iIntros (r) "[Hr (Hb & Hb1 & Hb2)]". iSpecialize ("HΞ" $! r).
-        rewrite -fill_comp fill_empty. simpl.
-
+        cbn.
         (* administrative step Ret1S: Link.ExprV ~> Link.Expr1 *)
         iApply (wp_link_retval_1 with "[-Hb] Hb"). iIntros "Hb".
         (* continue the execution by induction *)
-        iDestruct "IH" as "#[IH1 _]". iApply ("IH1" with "[-Hb Hb2] [$Hb $Hb2]"). unfold of_val.
+        iDestruct "IH" as "#[IH1 _]". iApply ("IH1" with "[-Hb Hb2] [$Hb $Hb2]").
         iApply "HΞ". iFrame. }
 
       { (* external call *)
@@ -525,64 +462,53 @@ Proof using.
         iDestruct "IH" as "#[IH1 _]". iApply ("IH1" with "HΞ [$Hb $Hb2]"). } }
 
     { (* WP: step case *)
-      iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight.
-      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr1 e1)) (Link.St1 σ1 privσ2)).
-      { destruct Hred as (? & Hstep). exists (λ _, True).
-        eapply Link.Step1S. rewrite is_link_prog proj1_prog_union; [| apply Hislink].
-        all: eauto. }
-      iSplitR; [by iPureIntro; apply head_prim_reducible|].
-      iIntros (X Hstep). apply head_reducible_prim_step in Hstep;[|done].
+      iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight. iSplit; first done.
+      iIntros (X Hstep).
       inversion Hstep; simplify_eq.
       { (* non-vacuous case: step in Λ1 *)
         clear Hstep. rename H4 into Hstep.
         rewrite is_link_prog proj1_prog_union in Hstep; [|apply Hislink].
         iSpecialize ("Hwp" $! _ Hstep). iMod "Hwp". iIntros "!>!>". iMod "Hwp" as (e' σ' HX) "[Hσ Hwp]".
-        iModIntro. iExists _, _. iSplitR; [iPureIntro; naive_solver|]. iFrame "Hσ Hob Hpriv2".
+        iModIntro. iExists _, _. iSplit; first (iPureIntro; by eapply H6). iFrame "Hσ Hob Hpriv2".
         iDestruct "IH" as "[IH1 _]". iApply ("IH1" with "Hwp [$Hb $Hb2]"). }
-      { exfalso. apply reducible_not_val in Hred. congruence. }
-      { exfalso. clear Hstep. erewrite <-(of_to_class e0) in Hred; [|eassumption].
-        rewrite is_link_prog proj1_prog_union in H4;[|apply Hislink].
-        destruct Hred as (?&Hred). eapply extcall_ctx_irreducible; eauto. } } }
+      { done. }
+      { assert (prim_step (penv_prog pe1) (e1, σ1) (λ _, False)) as HUB.
+        1: { eapply call_prim_step; first done. intros fn e2 HH1 HH2.
+             rewrite is_link_prog proj1_prog_union in H4;[|apply Hislink]. congruence. }
+        iMod ("Hwp" $! _ HUB) as "Hwp". do 2 iModIntro. iMod "Hwp" as (? ? []) "_". } } }
 
   (* Case 2: running Λ2 *)
-  { iIntros (e2 Φ) "Hwp [Hb Hb1]".
-    rewrite wp_unfold. rewrite /wp_pre. iApply wp_unfold. rewrite /wp_pre.
+  { iIntros (e1 Φ) "Hwp [Hb Hb1]".
+    rewrite wp_unfold. rewrite /wp_pre.
+    iApply wp_unfold. rewrite /wp_pre.
     iIntros (σ) "Hσ". iDestruct (link_at_in2 with "Hσ Hb") as %(privσ1 & σ2 & ->).
     iDestruct "Hσ" as "(Hob & Hpriv1 & Hσ2)".
     iMod ("Hwp" $! σ2 with "[$Hσ2]") as "[Hwp|[Hwp|Hwp]]".
 
     (* WP: value case *)
-    { iDestruct "Hwp" as (v ->) "[Hσ [HΦ Hb2]]". iModIntro. iRight; iRight.
+    { iDestruct "Hwp" as (v ->) "[Hσ [HΦ Hb2]]".
+      iModIntro. iRight; iRight.
       (* administrative step Val2S: Link.Expr2 ~> Link.ExprV *)
       iDestruct (@splittable_at_boundary with "Hb2 Hσ") as %(pubσ&privσ2&Hsplitσ2).
-      assert (Hhred: head_reducible (penv_prog pe) (LkSE (Link.Expr2 (of_class Λ2 (ExprVal v)))) (Link.St2 privσ1 σ2)).
-      { exists (λ _, True). eapply Link.Val2S; eauto. rewrite /to_val to_of_class //=. }
-      iSplitR; [iPureIntro; by apply head_prim_reducible|].
-      iIntros (X Hstep). apply head_reducible_prim_step in Hstep; [|done].
+      iSplit; first done.
+      iIntros (X Hstep).
       inversion Hstep; simplify_eq/=.
-      { exfalso. by match goal with H:_ |- _ => apply val_prim_step in H end. }
-      { match goal with H : to_val (of_class _ _) = _ |- _ => rewrite to_of_val in H; simplify_eq end.
-        iMod (state_interp_split with "Hσ") as "[Hpriv2 Hpub]"; first by eauto.
-        iExists _, _. iSplitR; first done.
+      { exfalso. by eapply val_prim_step. }
+      { done. }
+      { match goal with H : to_val (of_val _ _) = _ |- _ => rewrite to_of_val in H; simplify_eq end.
+        iMod (state_interp_split with "Hσ") as "[Hpub Hpriv2]"; first by eauto.
+        iExists _, _. iSplitR; first by eauto.
         iMod (link_state_update _ Boundary with "Hob Hb") as "[Hob Hb]".
         do 3 iModIntro. iFrame. by iApply wp_value. }
-      { exfalso.
-        assert (is_Some (to_val e2)) as [? ?].
-        { eapply fill_val. eexists. unfold to_val.
-          match goal with H : fill _ _ = _ |- _ => erewrite H end. rewrite to_of_class//. }
-        unfold to_val in *. repeat case_match; congruence. } }
+      { exfalso. eapply not_is_call_2 in H2. by rewrite to_of_val in H2. } }
 
     (* WP: call case *)
-    { iDestruct "Hwp" as (f vs K -> Hf) "(Hb2 & Hσ2 & Hcall)". iModIntro. iRight; iRight.
-      (* administrative step MakeCall1S: Link.Expr2 ~> Link.ExprCall *)
-      iDestruct (@splittable_at_boundary with "Hb2 Hσ2") as %(pubσ&privσ2&Hsplitσ2).
-      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr2 (fill K (of_class Λ2 (ExprCall f vs))))) (Link.St2 privσ1 σ2)).
-      { exists (λ _, True). eapply Link.MakeCall2S; eauto. by rewrite to_of_class.
-        rewrite is_link_prog proj2_prog_union; [done | apply Hislink]. }
-      iSplitR; [iPureIntro; by apply head_prim_reducible|].
-      iIntros (X Hstep). apply head_reducible_prim_step in Hstep;[|done].
-      clear pubσ privσ2 Hsplitσ2.
-      eapply link_head_step_call_ext_2_inv in Hstep as (pubσ&privσ2&k2&->&?&?); eauto.
+    { iDestruct "Hwp" as (f vs C Hiscall Hf) "(Hb2 & Hσ2 & Hcall)". iModIntro. iRight; iRight.
+      (* administrative step MakeCall2S: Link.Expr2 ~> Link.ExprCall *)
+      iDestruct (@splittable_at_boundary with "Hb2 Hσ2") as %(privσ2&pubσ&Hsplitσ2).
+      iSplitR; first by eauto.
+      iIntros (X Hstep).
+      eapply link_step_call_ext_2_inv in Hstep; eauto; [].
 
       iDestruct "Hcall" as (Ξ) "[HTΞ HΞ]".
       iMod (state_interp_split with "Hσ2") as "[Hpub Hpriv2]"; first done.
@@ -591,7 +517,7 @@ Proof using.
       iFrame "Hob Hpub Hpriv1 Hpriv2".
 
       (* two cases: this is an external call of the linking module itself, or it
-         is a call to a function of pe2 *)
+         is a call to a function of pe1 *)
       destruct (penv_prog pe1 !! f) as [fn1|] eqn:Hf1.
 
       { (* call to a function of pe1 *)
@@ -602,49 +528,45 @@ Proof using.
         iApply wp_link_call; first done.
         (* administrative step RunFunction1S: LinkRunFunction ~> Link.Expr1 *)
         iApply (wp_link_run_function_1 with "Hb Hb1 HTΞ"); first done.
-        iIntros (e1 He1) "Hwpcall Hb".
+        iIntros (e2 He2) "Hwpcall Hb".
 
-        progress change (Link.LkE (Link.Expr1 e1) [inr k2]) with
-          (Link.fill _ _ ([inr k2]:ectx (link_lang Λ1 Λ2)) (LkSE (Link.Expr1 e1))).
+        progress change (Link.LkE (Link.Expr1 e2) [inr C]) with
+          (resume_with ([inr C]:cont (link_lang Λ1 Λ2)) (LkSE (Link.Expr1 e2))).
         iApply wp_bind.
         iApply (wp_wand with "[Hwpcall Hb Hb2]").
         { iDestruct "IH" as "#[IH1 _]". iApply ("IH1" with "Hwpcall [$Hb $Hb2]"). }
         iIntros (r) "[Hr (Hb & Hb1 & Hb2)]". iSpecialize ("HΞ" $! r).
-        rewrite -fill_comp fill_empty. simpl.
-
-        (* administrative step Ret2S: Link.ExprV ~> Link.Expr2 *)
+        cbn.
+        (* administrative step Ret2S: Link.ExprV ~> Link.Expr1 *)
         iApply (wp_link_retval_2 with "[-Hb] Hb"). iIntros "Hb".
         (* continue the execution by induction *)
-        iDestruct "IH" as "#[_ IH2]". iApply ("IH2" with "[-Hb Hb1] [$Hb $Hb1]"). unfold of_val.
+        iDestruct "IH" as "#[_ IH2]". iApply ("IH2" with "[-Hb Hb1] [$Hb $Hb1]").
         iApply "HΞ". iFrame. }
 
       { (* external call *)
-        iApply (wp_link_extcall_2 with "HTΞ HΞ [] [$Hb $Hb1 $Hb2]"); auto. iNext.
+        iApply (wp_link_extcall_2 with "HTΞ HΞ [] [$Hb $Hb1 $Hb2]"); auto.
+        iNext.
         iIntros (r) "HΞ Hb Hb1".
-        (* administrative step Ret1S: Link.ExprV ~> Link.Expr1 *)
+        (* administrative step Ret2S: Link.ExprV ~> Link.Expr2 *)
         iApply (wp_link_retval_2 with "[-Hb] Hb"). iIntros "Hb".
         (* continue the execution by induction *)
         iDestruct "IH" as "#[_ IH2]". iApply ("IH2" with "HΞ [$Hb $Hb1]"). } }
 
     { (* WP: step case *)
-      iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight.
-      assert (head_reducible (penv_prog pe) (LkSE (Link.Expr2 e2)) (Link.St2 privσ1 σ2)).
-      { destruct Hred as (? & Hstep).
-        exists (λ _, True). eapply Link.Step2S.
-        rewrite is_link_prog proj2_prog_union; [| apply Hislink]. all: eauto. }
-      iSplitR; [by iPureIntro; apply head_prim_reducible|].
-      iIntros (X Hstep). apply head_reducible_prim_step in Hstep;[|done].
+      iDestruct "Hwp" as (Hred) "Hwp". iModIntro. iRight; iRight. iSplit; first done.
+      iIntros (X Hstep).
       inversion Hstep; simplify_eq.
       { (* non-vacuous case: step in Λ2 *)
         clear Hstep. rename H4 into Hstep.
         rewrite is_link_prog proj2_prog_union in Hstep; [|apply Hislink].
         iSpecialize ("Hwp" $! _ Hstep). iMod "Hwp". iIntros "!>!>". iMod "Hwp" as (e' σ' HX) "[Hσ Hwp]".
-        iModIntro. iExists _, _. iSplitR; [iPureIntro; naive_solver|]. iFrame "Hob Hσ Hpriv1".
+        iModIntro. iExists _, _. iSplit; first (iPureIntro; by eapply H6). iFrame "Hσ Hob Hpriv1".
         iDestruct "IH" as "[_ IH2]". iApply ("IH2" with "Hwp [$Hb $Hb1]"). }
-      { exfalso. apply reducible_not_val in Hred. congruence. }
-      { exfalso. clear Hstep. erewrite <-(of_to_class e0) in Hred; [|eassumption].
-        rewrite is_link_prog proj2_prog_union in H4;[|apply Hislink].
-        destruct Hred as (?&Hred). eapply extcall_ctx_irreducible; eauto. } } }
+      { done. }
+      { assert (prim_step (penv_prog pe2) (e1, σ2) (λ _, False)) as HUB.
+        1: { eapply call_prim_step; first done. intros fn e2 HH1 HH2.
+             rewrite is_link_prog proj2_prog_union in H4;[|apply Hislink]. congruence. }
+        iMod ("Hwp" $! _ HUB) as "Hwp". do 2 iModIntro. iMod "Hwp" as (? ? []) "_". } } }
 Qed.
 
 Lemma wp_link_run1 pe1 pe2 pe E e1 Φ :
@@ -697,7 +619,6 @@ Lemma wp_link_internal_call p fn vs (func: Link.func Λ1 Λ2) Φ E :
   WP LkSE (Link.ExprCall fn vs) @ p; E {{ Φ }}.
 Proof using.
   iIntros (Hfn) "Hwp".
-  rewrite (_: LkSE (Link.ExprCall fn vs) = of_class _ (ExprCall fn vs)) //.
   by iApply wp_internal_call.
 Qed.
 
@@ -714,13 +635,11 @@ Proof using.
   iDestruct "Hσ" as "(Hob & Hpub & Hpriv1 & Hpriv2)".
   iMod (state_interp_join with "Hpub Hpriv1") as (σ1) "(Hσ1 & %Hsplit)".
   iModIntro. iRight. iRight.
-  iSplitR.
-  { iPureIntro. eapply head_prim_reducible. exists (λ _, True). by econstructor. }
-  iIntros (X Hstep). apply head_reducible_prim_step in Hstep.
-  2: { exists (λ _, True). by econstructor. }
-  inversion Hstep; simplify_eq/=. simplify_split_state.
+  iSplitR; first done.
+  iIntros (X Hstep).
+  inversion Hstep; simplify_eq/=.
   iMod (link_state_update _ In1 with "Hob Hb") as "[Hob Hb]".
-  iIntros "!>!>!>". iExists _, _. iSplitR; first done.
+  iIntros "!>!>!>". iExists _, _. iSplit; first by eauto.
   simpl. iFrame. iApply ("Hwp" with "[-Hb1] Hb1"). iFrame.
 Qed.
 
@@ -737,13 +656,11 @@ Proof using.
   iDestruct "Hσ" as "(Hob & Hpub & Hpriv1 & Hpriv2)".
   iMod (state_interp_join with "Hpub Hpriv2") as (σ2) "(Hσ2 & %Hsplit)".
   iModIntro. iRight. iRight.
-  iSplitR.
-  { iPureIntro. eapply head_prim_reducible. exists (λ _, True). by econstructor. }
-  iIntros (X Hstep). apply head_reducible_prim_step in Hstep.
-  2: { exists (λ _, True). by econstructor. }
-  inversion Hstep; simplify_eq/=. simplify_split_state.
+  iSplitR; first done.
+  iIntros (X Hstep).
+  inversion Hstep; simplify_eq/=.
   iMod (link_state_update _ In2 with "Hob Hb") as "[Hob Hb]".
-  iIntros "!>!>!>". iExists _, _. iSplitR; first done.
+  iIntros "!>!>!>". iExists _, _. iSplitR; first by eauto.
   simpl. iFrame. iApply ("Hwp" with "[-Hb2] Hb2"). iFrame.
 Qed.
 

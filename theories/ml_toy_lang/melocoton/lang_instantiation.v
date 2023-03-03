@@ -127,6 +127,8 @@ Proof. split.
   + intros p1 p2 e1 σ1 e2 σ2 H Hnc.
     inversion H; subst. all: try by econstructor.
     cbn in Hnc. rewrite map_unmap_val in Hnc. congruence.
+  + done.
+  + intros e; rewrite /comp_ectx app_nil_r //.
   + now intros e.
   + intros K1 K2 e. rewrite fill_app //.
   + intros K a b. apply fill_inj.

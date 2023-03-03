@@ -42,6 +42,8 @@ Section language_mixin.
 
     (** Evaluation contexts *)
     mixin_fill_empty e : fill empty_ectx e = e;
+    mixin_comp_empty_l K: comp_ectx empty_ectx K = K;
+    mixin_comp_empty_r K : comp_ectx K empty_ectx = K;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_fill_inj K : Inj (=) (=) (fill K);
     (* The the things in a class contain only values in redex positions (or the
@@ -167,6 +169,10 @@ Section language.
 
   Lemma fill_empty e : fill empty_ectx e = e.
   Proof. apply language_mixin. Qed.
+  Lemma comp_empty_l K: comp_ectx empty_ectx K = K.
+  Proof. apply language_mixin. Qed.
+  Lemma comp_empty_r K : comp_ectx K empty_ectx = K.
+  Proof. apply language_mixin. Qed.
   Lemma fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e.
   Proof. apply language_mixin. Qed.
   Global Instance fill_inj K : Inj (=) (=) (fill K).
@@ -214,14 +220,14 @@ Section language.
   Qed.
   Lemma call_call_in_ctx K K' fn fn' vs vs' :
     fill K (of_class _ (ExprCall fn vs)) = fill K' (of_class _ (ExprCall fn' vs')) →
-    K' = comp_ectx K empty_ectx ∧ fn' = fn ∧ vs' = vs.
+    K' = K ∧ fn' = fn ∧ vs' = vs.
   Proof.
     intros HH. destruct (call_in_ctx _ _ _ _ _ HH) as [[K'' ->]|[? H2]].
     { rewrite -fill_comp in HH. apply fill_inj in HH.
       destruct (fill_class K'' (of_class _ (ExprCall fn' vs'))) as [Hc|Hc].
       { rewrite -HH /= to_of_class //. }
       2: { exfalso. rewrite /to_val to_of_class in Hc. by apply is_Some_None in Hc. }
-      subst K''. rewrite fill_empty in HH. apply of_class_inj in HH. by simplify_eq. }
+      subst K''. rewrite fill_empty in HH. rewrite comp_empty_r. apply of_class_inj in HH. by simplify_eq. }
     { exfalso. apply of_class_inj in H2. congruence. }
   Qed.
 

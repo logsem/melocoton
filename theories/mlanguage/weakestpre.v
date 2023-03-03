@@ -372,3 +372,23 @@ Section proofmode_classes.
 
 
 End proofmode_classes.
+
+
+Class linkableGS
+  {val pubstate} (Λ : mlanguage val)
+  `{!mlangGS val Σ Λ, !linkable Λ pubstate}
+  (public_state_interp : pubstate → iProp Σ)
+:= LinkableGS {
+  private_state_interp : private_state → iProp Σ;
+
+  state_interp_split σ pubσ privσ :
+    split_state σ pubσ privσ →
+    state_interp σ ==∗ public_state_interp pubσ ∗ private_state_interp privσ;
+
+  state_interp_join pubσ privσ :
+    public_state_interp pubσ -∗ private_state_interp privσ ==∗
+    ∃ σ, state_interp σ ∗ ⌜split_state σ pubσ privσ⌝;
+
+  splittable_at_boundary σ :
+    at_boundary Λ -∗ state_interp σ -∗ ⌜∃ pubσ privσ, split_state σ pubσ privσ⌝;
+}.
