@@ -18,6 +18,13 @@ Inductive is_prim : string → prim → Prop :=
 
 Global Hint Constructors is_prim : core.
 
+Global Instance prim_dec : EqDecision prim.
+Proof.
+  intros p1 p2.
+  destruct p1; destruct p2;
+    (try by left); try by right.
+Qed.
+
 Ltac inv_is_prim :=
   repeat match goal with
   | H : is_prim (String _ _) _ |- _ => inversion H; subst; clear H
