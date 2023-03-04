@@ -40,6 +40,8 @@ Definition to_val (e : expr) : option word :=
   | _ => None
   end.
 
+Definition is_call e f vs C := e = WrE (ExprCall f vs) C.
+
 Definition comp_cont (K1 K2 : cont) : cont :=
   K2 ++ K1.
 
@@ -171,6 +173,8 @@ Proof. intros HX HH. unfold c_to_ml; naive_solver. Qed.
 Lemma c_to_ml_True w ρc mem : c_to_ml w ρc mem (λ _ _ _, True).
 Proof. unfold c_to_ml; naive_solver. Qed.
 
+Hint Resolve c_to_ml_True : core.
+
 Local Notation CLocV w := (C_lang.LitV (C_lang.LitLoc w)).
 Local Notation CIntV x := (C_lang.LitV (C_lang.LitInt x)).
 
@@ -183,13 +187,16 @@ Inductive c_prim_step :
   prim → list word → wrapstateC → memory →
   (word → wrapstateC → memory → Prop) → Prop
 :=
-  | PrimAllocS tgnum sz ρc mem Y :
-    (∀ tg roots privmem a mem',
+  | PrimAllocS ls ρc mem Y :
+    (∀ tgnum sz tg roots privmem a mem',
+       ls = [CIntV tgnum; CIntV sz] →
        tgnum = vblock_tag_as_int tg →
        (0 ≤ sz)%Z →
        dom roots = rootsC ρc →
        repr (θC ρc) roots privmem mem →
-       ∃ γ χC' ζC' θC',
+       GC_correct (ζC ρc) (θC ρc) →
+       roots_are_live (θC ρc) roots →
+     ∃ γ χC' ζC' θC',
          χC ρc !! γ = None ∧
          χC' = {[ γ := LlocPrivate ]} ∪ (χC ρc) ∧
          ζC' = {[ γ := (Bvblock (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz)))) ]} ∪ (ζC ρc) ∧
@@ -198,22 +205,25 @@ Inductive c_prim_step :
          roots_are_live θC' roots ∧
          θC' !! γ = Some a ∧
          Y (C_lang.LitV (C_lang.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
-    c_prim_step Palloc [CIntV tgnum; CIntV sz] ρc mem Y
-  | PrimRegisterrootS a ρc mem Y :
-    (∀ rootsC',
+    c_prim_step Palloc ls ρc mem Y
+  | PrimRegisterrootS ls ρc mem Y :
+    (∀ a rootsC',
+       ls = [CLocV a] →
        a ∉ rootsC ρc →
        rootsC' = {[ a ]} ∪ rootsC ρc →
        Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem) →
-    c_prim_step Pregisterroot [CLocV a] ρc mem Y
-  | PrimUnregisterrootS a ρc mem Y :
-    (∀ rootsC',
+    c_prim_step Pregisterroot ls ρc mem Y
+  | PrimUnregisterrootS ls ρc mem Y :
+    (∀ a rootsC',
+       ls = [CLocV a] →
        a ∈ rootsC ρc →
        rootsC' = rootsC ρc ∖ {[ a ]} →
        Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem) →
-    c_prim_step Punregisterroot [CLocV a] ρc mem Y
-  | PrimModifyS w i w' ρc mem Y :
+    c_prim_step Punregisterroot ls ρc mem Y
+  | PrimModifyS ls ρc mem Y :
     (* blk' is uniquely chosen *)
-    (∀ γ lv blk ζC' blk',
+    (∀ w i w' γ lv blk ζC' blk',
+       ls = [w; CIntV i; w'] →
        (0 ≤ i)%Z →
        repr_lval (θC ρc) (Lloc γ) w →
        (ζC ρc) !! γ = Some blk →
@@ -221,26 +231,38 @@ Inductive c_prim_step :
        modify_block blk (Z.to_nat i) lv blk' →
        ζC' = <[ γ := blk' ]> (ζC ρc) →
        Y (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem) →
-    c_prim_step Pmodify [w; CIntV i; w'] ρc mem Y
-  | PrimReadfieldS w i ρc mem Y :
-    (∀ γ mut tag lvs lv w',
+    c_prim_step Pmodify ls ρc mem Y
+  | PrimReadfieldS ls ρc mem Y :
+    (∀ w i γ mut tag lvs lv w',
+       ls = [w; CIntV i] →
        (0 ≤ i)%Z →
        repr_lval (θC ρc) (Lloc γ) w →
        (ζC ρc) !! γ = Some (Bvblock (mut, (tag, lvs))) →
        lvs !! (Z.to_nat i) = Some lv →
        repr_lval (θC ρc) lv w' →
        Y w' ρc mem) →
-    c_prim_step Preadfield [w; CIntV i] ρc mem Y
-  | PrimVal2intS ρc mem w Y :
-    (∀ x,
+    c_prim_step Preadfield ls ρc mem Y
+  | PrimVal2intS ls ρc mem Y :
+    (∀ w x,
+       ls = [w] →
        repr_lval (θC ρc) (Lint x) w →
        Y (CIntV x) ρc mem) →
-    c_prim_step Pval2int [w] ρc mem Y
-  | PrimInt2valS ρc mem x Y :
-    (∀ w,
+    c_prim_step Pval2int ls ρc mem Y
+  | PrimInt2valS ls ρc mem Y :
+    (∀ x w,
+       ls = [CIntV x] →
        repr_lval (θC ρc) (Lint x) w →
        Y w ρc mem) →
-    c_prim_step Pint2val [CIntV x] ρc mem Y.
+    c_prim_step Pint2val ls ρc mem Y.
+
+Lemma c_prim_step_total p ws ρc mem : p ≠ Pcallback → c_prim_step p ws ρc mem (λ _ _ _, True).
+Proof.
+  intros H; destruct p; try done.
+  all: econstructor; try by eauto.
+  admit. (* XXX actually prove *)
+Admitted.
+
+Hint Resolve c_prim_step_total : core.
 
 Local Definition is_ML_call (e : ML_lang.expr) fn_name vs K :=
   e = language.fill K (of_class _ (commons.ExprCall fn_name vs)).
@@ -252,6 +274,7 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
        ρ = MLState ρml σ →
        language.language.to_val eml = None →
        (¬ ∃ K fn_name arg, is_ML_call eml fn_name arg K) →
+       reducible ∅ eml σ →
        ∃ eml' σ',
          (* We assume a closed ML expression: the "prog" collection of functions does
             not make too much sense at the ML level. Composition of ML "modules" is
@@ -304,15 +327,16 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     prim_step_mrel p (WrE (RunPrimitive prm ws) K, ρ) X
 
   (* Call to the callback primitive *)
-  | CallbackS w w' ρ K X :
-    (∀ ρc mem γ f x e,
+  | CallbackS ls ρ K X :
+    (∀ w w' ρc mem γ f x e,
+       ls = [w; w'] →
        ρ = CState ρc mem →
        repr_lval (θC ρc) (Lloc γ) w →
        (ζC ρc) !! γ = Some (Bclosure f x e) →
        c_to_ml w' ρc mem (λ v ρml σ,
          X (WrE (ExprML (App (Val (RecV f x e)) (Val v))) K,
              MLState ρml σ))) →
-    prim_step_mrel p (WrE (RunPrimitive Pcallback [w; w']) K, ρ) X.
+    prim_step_mrel p (WrE (RunPrimitive Pcallback ls) K, ρ) X.
 
 Program Definition prim_step (P : prog) : umrel (expr * state) :=
   {| mrel := prim_step_mrel P |}.
@@ -331,38 +355,41 @@ Next Obligation.
 Qed.
 
 Lemma mlanguage_mixin :
-  MlanguageMixin (val:=word) of_class to_class [] comp_cont fill
-    apply_func prim_step.
+  MlanguageMixin (val:=word) of_val to_val is_call resume_with
+    comp_cont apply_func prim_step.
 Proof using.
   constructor.
   - intros c. destruct c; reflexivity.
   - intros e c. destruct e as [e k]. destruct e; cbn.
     1,2: destruct k. all: inversion 1; cbn; auto.
   - intros p v st X. cbn. inversion 1; subst; naive_solver.
-  - intros p fname v st X. split.
-    + cbn. inversion 1; subst; naive_solver.
-    + intros (prm & e & ? & Hprm & ?). cbn. unfold apply_func in Hprm.
-      simplify_eq. econstructor; eauto.
-  - intros ? ? [? ?] ? ?. rewrite /fill /=. intros. simplify_eq/=. eauto.
-  - intros [e k]. rewrite /fill /empty_cont app_nil_r //.
-  - intros K1 K2 [e k]. rewrite /fill /comp_cont app_assoc //.
-  - intros K [e1 k1] [e2 k2]. cbn. inversion 1; subst.
-    rewrite (app_inv_tail K k1 k2) //.
-  - intros K [e k]. unfold fill. intros Hsome.
-    destruct (decide (K = [])). by left. exfalso.
-    assert (k ++ K ≠ []). { intros [? ?]%app_eq_nil. done. }
-    cbn in Hsome. destruct (k ++ K) eqn:Heqk; first done.
-    destruct e; simplify_eq; rewrite ?Heqk in Hsome;
-      by eapply is_Some_None.
-  - intros p K' K_redex [e1' k1'] [e1_redex k1_redex] σ X.
-    rewrite /fill. inversion 1; subst.
-    destruct e1_redex; destruct k1' as [|u1' k1']; cbn; try by inversion 1.
-    all: intros _; inversion 1; subst; unfold comp_cont; cbn; eauto.
-    naive_solver.
-  - intros p K [e k] σ X. rewrite /fill. inversion 1; subst.
-    all: try match goal with H : _ |- _ => symmetry in H; apply app_nil in H end.
-    all: try match goal with H : _ |- _ => symmetry in H; apply app_singleton in H end.
-    all: naive_solver.
+  - intros p e fname vs C σ X ->. rewrite /apply_func; split.
+    + inversion 1; intros ????; simplify_map_eq. naive_solver.
+    + intros H; eapply ExprCallS. naive_solver.
+  - by intros e [v Hv] f vs C ->.
+  - by intros e C1 C2 s vv ->.
+  - intros [] C1 C2 s vv Hv Hcall; cbn in *.
+    rewrite /is_call /resume_with in Hcall; simplify_eq.
+    by eexists.
+  - intros [] C [v Hv]. rewrite /to_val /resume_with in Hv.
+    repeat case_match; try congruence.
+    apply app_eq_nil in H0 as (->&->); done.
+  - intros [] C1 C2.
+    rewrite /resume_with /comp_cont app_assoc //.
+  - intros e ?????? -> H. cbv in H; by simplify_eq.
+  - intros p C [] σ X Hnv. rewrite /resume_with.
+    inversion 1; simplify_eq.
+    all: try (econstructor; eauto; done).
+    destruct k; simplify_list_eq.
+    by econstructor.
+  - intros p [[] ] σ H; cbv; try (by (econstructor; eauto)).
+    + destruct k; cbv in H; try done.
+      econstructor; eauto.
+    + destruct prm.
+      all: try (econstructor; intros ρc mem ->; by eapply c_prim_step_total).
+      eapply CallbackS. eauto.
+    + econstructor; try by naive_solver.
+      intros ?? -> Hnone _ (?&?&Hstep). by do 2 eexists.
 Qed.
 
 End wrappersem.
@@ -377,20 +404,9 @@ Global Program Instance wrap_linkable : linkable wrap_lang memory := {
   private_state := wrapstateC;
   split_state := Wrap.split_state;
 }.
-Next Obligation. intros *. inversion 1; inversion 1; by simplify_eq. Qed.
 
 (* inversion lemmas *)
-
-Lemma prim_prim_step_WrSE pe se st X :
-  mlanguage.prim_step pe (WrSE se, st) X →
-  mlanguage.prim_step pe (WrSE se, st) X.
-Proof using.
-  intros Hstep%prim_prim_step; eauto.
-  intros ? [? ?] HH ?. rewrite /fill /= /Wrap.fill /= in HH.
-  inversion HH; simplify_list_eq.
-  symmetry in HH; apply app_nil in HH. naive_solver.
-Qed.
-
+(* XXX are they still useful?
 Lemma wrap_step_call_inv pe K fn_name vs ρml σ X :
   prim_step pe
     (WrSE (Wrap.ExprML (language.fill K (language.of_call ML_lang fn_name vs))),
@@ -458,3 +474,4 @@ Proof using.
   { match goal with HH: Wrap.c_prim_step Pcallback _ _ _ _ _ _ |- _ => inversion HH end. }
   repeat eexists; eauto.
 Qed.
+*)
