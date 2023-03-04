@@ -4,7 +4,7 @@ From melocoton.language Require Import language.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_toy_lang Require Import lang.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation.
-From melocoton.interop Require Import basics linking wrapperstate prims.
+From melocoton.interop Require Import basics basics_constructions linking wrapperstate prims.
 
 Module Wrap.
 Section wrappersem.
@@ -188,7 +188,7 @@ Inductive c_prim_step :
   (word → wrapstateC → memory → Prop) → Prop
 :=
   | PrimAllocS ls ρc mem Y :
-    (∀ tgnum sz tg roots privmem a mem',
+    (∀ tgnum sz tg roots privmem,
        ls = [CIntV tgnum; CIntV sz] →
        tgnum = vblock_tag_as_int tg →
        (0 ≤ sz)%Z →
@@ -196,7 +196,7 @@ Inductive c_prim_step :
        repr (θC ρc) roots privmem mem →
        GC_correct (ζC ρc) (θC ρc) →
        roots_are_live (θC ρc) roots →
-     ∃ γ χC' ζC' θC',
+     ∃ γ χC' ζC' θC' a mem',
          χC ρc !! γ = None ∧
          χC' = {[ γ := LlocPrivate ]} ∪ (χC ρc) ∧
          ζC' = {[ γ := (Bvblock (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz)))) ]} ∪ (ζC ρc) ∧
@@ -259,8 +259,41 @@ Lemma c_prim_step_total p ws ρc mem : p ≠ Pcallback → c_prim_step p ws ρc 
 Proof.
   intros H; destruct p; try done.
   all: econstructor; try by eauto.
-  admit. (* XXX actually prove *)
-Admitted.
+
+  intros tgnum sz tg roots privmem
+    -> -> Hsz Hroots [pubmem Hrepr2] [Hθinj HGCOK] Hrootslive.
+  pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk.
+  pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod.
+  pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src.
+  pose (fresh fresh_src) as γ.
+  pose (fresh fresh_not_θ_cod) as w.
+  pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union.
+  exists
+    γ,
+    (<[ γ := LlocPrivate ]> (χC ρc)),
+    (<[ γ := Bvblock (Mut, blk) ]> (ζC ρc)),
+    (<[ γ := w ]> (θC ρc)),
+    w,
+    mem. split_and!.
+  - by eapply not_elem_of_dom.
+  - apply insert_union_singleton_l.
+  - apply insert_union_singleton_l.
+  - split.
+    + eapply gmap_inj_extend; try done.
+      intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).
+      eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin.
+    + intros γ1 blk1 γ' H1 [(->&HH)|(HH1&HH2)]%lookup_insert_Some H3.
+      1: subst blk1; by apply lval_in_vblock, elem_of_list_In, repeat_spec in H3.
+      rewrite dom_insert_L in H1.
+      apply elem_of_union in H1 as [->%elem_of_singleton|H1]; first done.
+      rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done.
+  - eapply repr_mono; last by eexists.
+    eapply insert_subseteq, not_elem_of_dom, HFθ.
+  - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r.
+    by eapply Hrootslive.
+  - apply lookup_insert.
+  - done.
+Qed.
 
 Hint Resolve c_prim_step_total : core.
 
