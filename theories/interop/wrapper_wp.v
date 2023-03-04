@@ -45,6 +45,7 @@ Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
+
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
     "SIζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
@@ -61,7 +62,7 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "GCroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots_s
   ∗ "GCζvirt" ∷ lstore_own_auth wrapperGS_γζvirt ζvirt
   ∗ "GCbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) true
-  ∗ "(GCσMLv & GCnMLv & GCσdom)" ∷ state_interp σMLvirt nMLv
+  ∗ "(GCσMLv & GCnMLv & GCσdom)" ∷ state_interp (σMLvirt : language.language.state ML_lang) nMLv
   ∗ "GCχvirt" ∷ lloc_own_auth wrapperGS_γχvirt χvirt
   ∗ "GCχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χvirt ζvirt, ℓ ↦M/)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 roots_m
@@ -118,7 +119,7 @@ Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
       "(%nCv & HσC & HnC)" ∷ public_state_interp mem ∗
       "SIC"        ∷ private_state_interp ρc
   | Wrap.MLState ρml σ =>
-      "(%nMLv & HσML & HvML & HσMLdom)" ∷ (∃ n, state_interp σ n) ∗
+      "(%nMLv & HσML & HvML & HσMLdom)" ∷ (∃ n, state_interp (σ:language.language.state ML_lang) n) ∗
       "SIML"         ∷ ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml)
 end.
 
