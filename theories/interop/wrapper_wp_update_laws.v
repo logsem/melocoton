@@ -54,7 +54,7 @@ Proof.
   iSplitR "Hzz".
   { rewrite /GC /named.
     iExists ζ, ζfreeze, (delete ll ζσ), (<[ll:=(Bvblock (Mut, (TagDefault, lvs)))]> ζvirt).
-    iExists χ, χvirt, (<[l:=None]> σMLvirt), roots_s, roots_m, _. iFrame.
+    iExists χ, χvirt, (<[l:=None]> σMLvirt), roots_s, roots_m. iFrame.
     iSplitL "GCσdom".
     { iApply (dom_auth_dom with "GCσdom").
       rewrite dom_insert_L. eapply elem_of_dom_2 in Hlσ. set_solver. }
@@ -90,7 +90,7 @@ Proof.
   iModIntro. iSplitR "Hℓ".
   { rewrite /GC /named.
     iExists ζ, ζfreeze, (<[γ:=(Bvblock (Mut, (TagDefault, b)))]> ζσ), (delete γ ζvirt).
-    iExists χ, χvirt, (<[ℓ := Some vs]> σMLvirt), roots_s, roots_m, _. iFrame.
+    iExists χ, χvirt, (<[ℓ := Some vs]> σMLvirt), roots_s, roots_m. iFrame.
     iSplitL "GCσdom".
     { iApply (dom_auth_dom with "GCσdom").
       rewrite dom_insert_L; eapply elem_of_dom_2 in Hlσ; set_solver. }
@@ -130,7 +130,7 @@ Proof.
   iModIntro. iSplitR "Hℓγ Hmtζ"; last by eauto.
   rewrite /GC /named.
   iExists ζ, ζfreeze, ζσ, ζvirt.
-  iExists χ, (<[γ:=LlocPublic ℓ]> χvirt), (<[ℓ:=None]> σMLvirt), roots_s, roots_m, _.
+  iExists χ, (<[γ:=LlocPublic ℓ]> χvirt), (<[ℓ:=None]> σMLvirt), roots_s, roots_m.
   iFrame. iSplit.
   { rewrite pub_locs_in_lstore_insert_pub //. by eapply elem_of_dom_2. }
   iPureIntro; split_and!; eauto.
@@ -151,7 +151,7 @@ Proof.
   iDestruct (lstore_own_elem_to_immut with "Hmtζ") as "Hmtζ"; first done.
   iModIntro. iFrame "Hmtζ". rewrite /GC /named.
   iExists ζ, (<[γ:=(Bvblock (Immut, bb))]> ζfreeze), ζσ, (<[γ:=(Bvblock (Immut, bb))]> ζvirt).
-  iExists χ, χvirt, σMLvirt, roots_s, roots_m, _. iFrame.
+  iExists χ, χvirt, σMLvirt, roots_s, roots_m. iFrame.
   assert (Hζγ': ζfreeze !! γ = Some (Bvblock (Mut, bb))).
   { subst. rewrite lookup_union_r; eauto. by eapply map_disjoint_Some_l. }
   iSplit.

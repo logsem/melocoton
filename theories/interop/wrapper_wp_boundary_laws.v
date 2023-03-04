@@ -66,11 +66,9 @@ Proof.
   { iPureIntro. eapply (Hc_to_ml σMLvirt _ _ (ζσ ∪ ζvirt) ζσ χvirt ζvirt roots_m privmem).
     all: try done. by rewrite map_union_comm. }
   iSplitR "SIbound"; last by iFrame "SIbound".
-  rewrite /= /named.
-  iSplitL "GCσMLv GCnMLv GCσdom".
-  { iExists nMLv; iFrame. }
+  rewrite /= /named. iFrame "GCσMLv GCσdom".
   unfold private_state_interp, ML_state_interp, GC_token_remnant, named; cbn.
-  iExists _. iFrame. iPureIntro; split_and!.
+  iFrame. iPureIntro; split_and!.
   1: destruct Hχvirt as (_ & HHH); apply HHH.
   1: apply Hother_blocks.
   1: destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
@@ -112,14 +110,12 @@ Proof.
   iMod (set_to_some with "HσCv GCrootspto") as "(HσCv & GCrootspto)"; first done.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.
-  iSplitL "HσCv HnCv SIζ SIχ SIθ SIroots SIbound".
-  { iSplitL "HσCv HnCv". by iExists _; iFrame.
-    rewrite /C_state_interp /named. iFrame. }
+  iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplit.
   { rewrite /GC /named.
     iExists (ζC ρc), (ζC ρc), ζσ, (ζML ρml ∪ ζnewimm).
     iExists (χC ρc), (χC ρc), σ, (rootsC ρc), (rootsML ρml).
-    iExists _. iFrame. iSplit.
+    iFrame. iSplit.
     { rewrite pub_locs_in_lstore_insert_priv_store; last done.
       erewrite pub_locs_in_lstore_mono at 1; [| eauto..]; [].
       iFrame "SIAχNone". }

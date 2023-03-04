@@ -20,7 +20,7 @@ Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 Global Program Instance lang_to_mlang_mlangGS :
   mlanguage.weakestpre.mlangGS val Σ (lang_to_mlang Λ)
 := {
-  state_interp := (λ σ, ∃ n, language.weakestpre.state_interp σ n)%I;
+  state_interp := language.weakestpre.state_interp;
   at_boundary := True%I;
 }.
 
@@ -55,10 +55,10 @@ Proof using.
   iStartProof. iLöb as "IH" forall (e). destruct pe as [p T].
   rewrite {1} @language.weakestpre.wp_unfold /language.weakestpre.wp_pre. simpl.
   rewrite {1} wp_unfold /mlanguage.weakestpre.wp_pre.
-  iIntros "H" (σ) "(%n & Hσ)". iMod ("H" $! σ n with "Hσ") as "[(%x & %H1 & Hσ & H)|[(%s' & %vv & %K' & %H1 & %H2 & H3)|(%Hred & H3)]]"; cbn.
-  - iLeft. iModIntro. iExists x. iFrame. iSplitR; first done. iExists n. iFrame.
+  iIntros "H" (σ) "Hσ". iMod ("H" $! σ with "Hσ") as "[(%x & %H1 & Hσ & H)|[(%s' & %vv & %K' & %H1 & %H2 & H3)|(%Hred & H3)]]"; cbn.
+  - iLeft. iModIntro. iExists x. by iFrame.
   - iRight. iLeft. iMod "H3" as "(%Ξ & Hσ & HT & Hr)". iExists s', vv, K'. iModIntro.
-    iSplitR; first done. iSplitR; first done. iSplitR; first done. iSplitL "Hσ"; first by iExists n.
+    iSplitR; first done. iSplitR; first done. iSplitR; first done. iFrame.
     iExists Ξ. iFrame. iNext. iIntros (v) "[Hv _]". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
     { iPureIntro. eapply reducible_not_val. done. } iSplitR.
@@ -68,9 +68,8 @@ Proof using.
     iIntros (X Hstep). inversion Hstep; simplify_eq.
     destruct H5 as (e2&σ2&Hstep'&HX). 1: done.
     iMod ("H3" $! σ2 e2 Hstep') as "H3". do 2 iModIntro. iMod "H3" as "(Hσ&HWP)". iModIntro. 
-    do 2 iExists _; iSplit; first done.
-    iSplitL "Hσ"; first by iExists _.
-    iApply "IH". done.
+    do 2 iExists _; iSplit; first done. iFrame.
+    by iApply "IH".
 Qed.
 
 (*

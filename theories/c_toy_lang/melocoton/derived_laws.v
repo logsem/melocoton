@@ -174,7 +174,7 @@ Lemma wp_free_array s E l vs :
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1 ns) "(Hσ & Hsteps) !>".
+  iIntros (σ1) "Hσ !>".
   iAssert (⌜∀ i : Z, (0 ≤ i)%Z → (i < length vs)%Z → ∃ v0, σ1 !! (l +ₗ i) = Some (Some v0)⌝)%I as "%Halloc".
   1: { iIntros (i H1 H2). destruct (vs !! (Z.to_nat i)) as [vv|] eqn:Heq.
        2: { apply lookup_ge_None_1 in Heq. lia. }
@@ -183,7 +183,6 @@ Proof.
        iPureIntro. exists vv. rewrite <- H. do 2 f_equal. lia. }
   iSplit; first by eauto with head_step.
   iIntros (e2 σ2 Hstep); inv_head_step. iModIntro.
-  iMod (primitive_laws.steps_auth_update_S with "Hsteps") as "Hsteps".
   iFrame.
   iSplitL.
   2: { iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ". }

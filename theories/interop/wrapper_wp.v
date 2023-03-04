@@ -55,14 +55,14 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
 
 Definition GC (θ : addr_map) : iProp Σ :=
   ∃ (ζ ζfreeze ζσ ζvirt : lstore) (χ χvirt : lloc_map) (σMLvirt : store)
-    (roots_s : gset addr) (roots_m : gmap addr lval) (nMLv : nat),
+    (roots_s : gset addr) (roots_m : gmap addr lval),
     "GCζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
   ∗ "GCχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
   ∗ "GCθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
   ∗ "GCroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots_s
   ∗ "GCζvirt" ∷ lstore_own_auth wrapperGS_γζvirt ζvirt
   ∗ "GCbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) true
-  ∗ "(GCσMLv & GCnMLv & GCσdom)" ∷ state_interp (σMLvirt : language.language.state ML_lang) nMLv
+  ∗ "(GCσMLv & GCσdom)" ∷ state_interp (σMLvirt : language.language.state ML_lang)
   ∗ "GCχvirt" ∷ lloc_own_auth wrapperGS_γχvirt χvirt
   ∗ "GCχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χvirt ζvirt, ℓ ↦M/)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 roots_m
@@ -94,14 +94,13 @@ Definition GC_token_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) 
  ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦ None).
 
 Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
-  ∃ (nCv : nat),
     "SIζ" ∷ ghost_var wrapperGS_γζ (1/2) ζvirt
   ∗ "SIχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
   ∗ "SIroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
   ∗ "SIbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) false
   ∗ "SIζvirt" ∷ lstore_own_auth wrapperGS_γζvirt ζvirt
-  ∗ "(HσCv & HnCv)" ∷ (state_interp (memC ∪ (fmap (fun k => None) roots)) nCv)
+  ∗ "HσCv" ∷ state_interp (memC ∪ (fmap (fun k => None) roots))
   ∗ "SIAχ" ∷ lloc_own_auth wrapperGS_γχvirt χ
   ∗ "SIAχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χ ζvirt, ℓ ↦M/)
   ∗ "SIGCrem" ∷ GC_token_remnant ζvirt χ roots
@@ -109,18 +108,18 @@ Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χ⌝
   ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
 
-Definition public_state_interp : memory → iProp Σ := (λ mem, ∃ n, state_interp mem n)%I.
+Definition public_state_interp : memory → iProp Σ := state_interp.
 Definition private_state_interp : wrapstateC → iProp Σ :=
   (λ ρc, C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc))%I.
 
 Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
   match σ with
   | Wrap.CState ρc mem =>
-      "(%nCv & HσC & HnC)" ∷ public_state_interp mem ∗
-      "SIC"        ∷ private_state_interp ρc
+      "HσC" ∷ public_state_interp mem ∗
+      "SIC" ∷ private_state_interp ρc
   | Wrap.MLState ρml σ =>
-      "(%nMLv & HσML & HvML & HσMLdom)" ∷ (∃ n, state_interp (σ:language.language.state ML_lang) n) ∗
-      "SIML"         ∷ ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml)
+      "(HσML & HσMLdom)" ∷ state_interp (σ:language.language.state ML_lang) ∗
+      "SIML"             ∷ ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml)
 end.
 
 Global Program Instance wrapGS :
@@ -143,7 +142,7 @@ Next Obligation.
   iExists (CState privσ pubσ). cbn. iSplitL; by iFrame.
 Qed.
 Next Obligation.
-  intros [ρc mem|ρml σ]; cbn; iIntros "Hb Hσ".
+  intros [ρc mem|ρml σ]; iIntros "Hb Hσ".
   + iExFalso. iAssert (⌜true = false⌝)%I as "%Hdone".
     * iApply (ghost_var_agree with "Hb [Hσ]").
       iNamed "Hσ". iNamed "SIML". iFrame.

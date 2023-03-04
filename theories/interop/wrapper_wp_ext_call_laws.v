@@ -48,7 +48,7 @@ Proof.
   iApply (wp_store with "Hown").
   iIntros "!> Hown". iApply "HΦ".
   iFrame "Hroots".
-  do 10 iExists _. rewrite /named. iFrame.
+  do 9 iExists _. rewrite /named. iFrame.
   rewrite dom_insert_lookup_L; last done.
   iSplit.
   { iPoseProof (big_sepM_insert_delete) as "(_&HR)"; iApply "HR"; iClear "HR".
@@ -73,7 +73,7 @@ Proof.
   iApply (wp_load with "Hown").
   iIntros "!> Hown". iApply "HΦ".
   iFrame "Hroot". iSplit; last done.
-  rewrite /GC /named. do 10 iExists _.
+  rewrite /GC /named. do 9 iExists _.
   iPoseProof ("HR" with "[Hown Hrp]") as "Hrootsm"; iClear "HR".
   { iFrame. iExists w; by iFrame. }
   iFrame. eauto.
@@ -132,7 +132,7 @@ Proof.
   { iFrame. eauto. }
   iApply ("IH" with "[-Hb] Hb").
   iApply ("Cont" with "[-]"); last done.
-  do 10 iExists _; rewrite /named; iFrame. eauto.
+  do 9 iExists _; rewrite /named; iFrame. eauto.
 Qed.
 
 Lemma wp_prim_val2int : prim_is_sound proto_val2int.
@@ -148,7 +148,7 @@ Proof.
   iSplitL "SIζ SIχ SIθ SIroots SIbound HnC HσC".
   { iFrame; eauto. }
   iApply ("IH" with "[-Hb] Hb").
-  iApply ("Cont"). do 10 iExists _; unfold named; iFrame. eauto.
+  iApply ("Cont"). do 9 iExists _; unfold named; iFrame. eauto.
 Qed.
 
 Lemma wp_prim_registerroot : prim_is_sound proto_registerroot.
@@ -177,7 +177,7 @@ Proof.
   { iFrame; eauto. }
   iApply ("IH" with "[-Hb] Hb").
   iApply ("Cont" with "[-Hres] Hres").
-  do 10 iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
+  do 9 iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.
   - intros ℓ γ [[-> ->]|[Hne HH]]%lookup_insert_Some; last by eapply Hrootslive.
     inv_repr_lval. by eapply elem_of_dom_2.
@@ -203,7 +203,7 @@ Proof.
   { iFrame; eauto. }
   iApply ("IH" with "[-Hb] Hb").
   iApply ("Cont" $! W with "[-Hpto] Hpto []"). 2: done.
-  do 10 iExists _. iFrame. iPureIntro; split_and!; eauto.
+  do 9 iExists _. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
   - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
 Qed.

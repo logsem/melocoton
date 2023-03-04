@@ -159,8 +159,8 @@ Proof.
   iLöb as "IHe". iIntros (e Φ i).
   destruct (nth_error A i) as [[Ti pi]|] eqn:Heq; last (iIntros "%H"; done).
   rewrite !wp_unfold /wp_pre /=.
-  iIntros "H %σ %ns Hσ".
-  - iSpecialize ("H" $! σ ns with "Hσ").
+  iIntros "H %σ Hσ".
+  - iSpecialize ("H" $! σ with "Hσ").
     iMod "H".
     iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s' & %vv' & %K & %HeqK & %H2 & >(%Ξ & Hσ & [HT|HT] & H3))|(%HH & H3)]]".
     * iModIntro. iLeft. iExists _. iFrame. iPureIntro. done.
@@ -170,7 +170,7 @@ Proof.
       iPoseProof (Hsatis) as "Hsatis".
       iDestruct ("Hsatis" $! s' vv' Ξ with "HT")as "(%HNone & HT)".
       rewrite wp_unfold /wp_pre /=.
-      iSpecialize ("HT" $! σ ns with "Hσ").
+      iSpecialize ("HT" $! σ with "Hσ").
       iMod "HT" as "[(%x & %Heqx & Hσ & H)|[(%s'2 & %vv'2 & %K'2 & %HeqK2 & %H''2 & >(%Ξ' & Hσ & HT' & H3'))|(%HH2&H3')]]".
       -- exfalso. apply of_class_inj in Heqx. congruence.
       -- exfalso. assert (K'2 = empty_ectx) as ->. 

@@ -447,7 +447,7 @@ Qed.
 End RootsRepr.
 
 
-Lemma interp_ML_discarded_locs_pub χpub σ :
+Lemma interp_ML_discarded_locs_pub χpub (σ : store) :
     gen_heap_interp σ
  -∗ ([∗ map] ℓ ∈ χpub, ℓ ↦M/)
  -∗ ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) χpub⌝.
@@ -456,7 +456,7 @@ Proof.
   - iPureIntro. apply map_Forall_empty.
   - iPoseProof (big_sepM_insert) as "[HL _]". 1: apply Hin.
     iPoseProof ("HL" with "HK") as "[H1 H2]".
-    iPoseProof (IH with "HH H2") as "%HIH". 1: iFrame.
+    iPoseProof (IH with "HH H2") as "%HIH".
     iPoseProof (gen_heap_valid with "HH H1") as "%Hv".
     iPureIntro. apply map_Forall_insert. 1: done. split; done.
 Qed.
