@@ -418,9 +418,7 @@ Proof using.
   - intros p [[] ] σ H; cbv; try (by (econstructor; eauto)).
     + destruct k; cbv in H; try done.
       econstructor; eauto.
-    + destruct prm.
-      all: try (econstructor; intros ρc mem ->; by eapply c_prim_step_total).
-      eapply CallbackS. eauto.
+    + destruct prm; econstructor; by eauto.
     + econstructor; try by naive_solver.
       intros ?? -> Hnone _ (?&?&Hstep). by do 2 eexists.
 Qed.

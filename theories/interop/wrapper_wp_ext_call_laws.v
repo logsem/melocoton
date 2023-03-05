@@ -93,6 +93,8 @@ Local Ltac SI_at_boundary :=
   iDestruct (SI_at_boundary_is_in_C with "Hσ Hb") as %(ρc & mem & ->);
   iNamed "Hσ"; iNamed "SIC".
 
+(*
+
 Lemma wp_pre_cases_c_prim p T wp prm ρc mem E ws Φ :
   prm ≠ Pcallback →
   (∃ w ρc' mem', c_prim_step prm ws ρc mem w ρc' mem') →
@@ -458,9 +460,11 @@ Ltac solve_ext_call H :=
     | rewrite weakestpre.wp_unfold; rewrite /weakestpre.wp_pre;
       iApply ("Hwp" $! (CState _ _));
       iSplitL "HσC HnC"; first (iExists _; iFrame); iFrame ].
-
+*)
 Lemma wp_base_prims : prim_is_sound proto_base_prims.
 Proof.
+Admitted.
+(*
   intros pe E prm vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
@@ -473,5 +477,5 @@ Proof.
   - solve_ext_call wp_prim_readfield.
   - solve_ext_call wp_prim_alloc.
 Qed.
-
+*)
 End Laws.

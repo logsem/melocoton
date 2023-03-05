@@ -446,8 +446,7 @@ Qed.
 
 End RootsRepr.
 
-
-Lemma interp_ML_discarded_locs_pub χpub (σ : store) :
+Lemma interp_ML_discarded_locs_pub χpub (σ:store) :
     gen_heap_interp σ
  -∗ ([∗ map] ℓ ∈ χpub, ℓ ↦M/)
  -∗ ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) χpub⌝.
