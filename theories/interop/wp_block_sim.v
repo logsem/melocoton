@@ -3,13 +3,13 @@ From stdpp Require Import strings gmap.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
-From melocoton.interop Require Import wrappersem wrapperstate.
+From melocoton.interop Require Import lang state.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import basics basics_resources wrapper_wp.
+From melocoton.interop Require Import basics basics_resources weakestpre.
 Import Wrap.
 
 Section BlockSimLaws.

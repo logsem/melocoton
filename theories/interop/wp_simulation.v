@@ -4,13 +4,13 @@ From melocoton Require Import named_props.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
-From melocoton.interop Require Import wrappersem basics_resources wrapperstate.
+From melocoton.interop Require Import state lang basics_resources.
 From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import basics prims wrapper_wp wrapper_wp_block_sim
-  wrapper_wp_utils wrapper_wp_ext_call_laws wrapper_wp_boundary_laws.
+From melocoton.interop Require Import basics prims weakestpre wp_block_sim
+  wp_utils wp_ext_call_laws wp_boundary_laws.
 Import Wrap.
 
 Section Simulation.
@@ -161,7 +161,7 @@ Proof.
     edestruct Hstep' as (eml' & σ' & Hstep & ?).
     * done.
     * by eapply reducible_not_val.
-    * intros (f&vs&K&H). rewrite /wrappersem.Wrap.is_ML_call in H.
+    * intros (f&vs&K&H). rewrite /lang.Wrap.is_ML_call in H.
       subst eml. eapply reducible_call_is_in_prog in Hred; first done.
       rewrite /to_call to_of_class //.
     * done.

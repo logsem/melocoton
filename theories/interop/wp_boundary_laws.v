@@ -4,13 +4,12 @@ From melocoton Require Import named_props.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
-From melocoton.interop Require Import wrappersem wrapperstate.
+From melocoton.interop Require Import lang state.
 From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import basics basics_resources wrapper_wp
-  wrapper_wp_block_sim wrapper_wp_utils.
+From melocoton.interop Require Import basics basics_resources weakestpre wp_block_sim wp_utils.
 Import Wrap.
 
 (* lemmas to switch between the ML<->C state interp at a boundary *)

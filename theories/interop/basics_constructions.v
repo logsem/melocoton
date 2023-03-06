@@ -6,7 +6,7 @@ From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws notation.
-From melocoton.interop Require Import basics prims basics_resources wrapperstate.
+From melocoton.interop Require Import basics prims basics_resources state.
 
 Global Notation MLval := ML_lang.val.
 Global Notation Cval := C_lang.val.

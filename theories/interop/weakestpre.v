@@ -4,7 +4,7 @@ From melocoton Require Import named_props.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
-From melocoton.interop Require Import wrappersem wrapperstate.
+From melocoton.interop Require Import lang state.
 From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
