@@ -906,6 +906,19 @@ Proof.
   eapply H3. 1: exact HH1. 1: done. eapply lval_in_vblock. done.
 Qed.
 
+
+Lemma GC_correct_transport_rev ζ1 ζ2 θ : freeze_lstore ζ2 ζ1 → GC_correct ζ1 θ → GC_correct ζ2 θ.
+Proof.
+  intros (H1L&H1R) (H2&H3). split; first done.
+  intros γ blk γ' HH1 HH2 HH3.
+  destruct (ζ1 !! γ) as [b|] eqn:Heq.
+  2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite -H1L in Heq; tauto. }
+  specialize (H1R _ _ _ HH2 Heq). inversion H1R; subst.
+  2: { eapply H3; done. }
+  destruct tgvs. eapply lval_in_vblock in HH3.
+  eapply H3. 1: exact HH1. 1: done. eapply lval_in_vblock. done.
+Qed.
+
 (******************************************************************************)
 (* auxiliary hints & tactics *)
 
