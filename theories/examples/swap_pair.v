@@ -5,16 +5,16 @@ From melocoton Require Import named_props.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import lang weakestpre wp_utils wp_update_laws wp_ext_call_laws wp_simulation.
-From melocoton.ml_toy_lang Require Import notation lang_instantiation.
-From melocoton.c_toy_lang Require Import lang_instantiation.
-From melocoton.ml_toy_lang Require proofmode.
-From melocoton.c_toy_lang Require notation proofmode.
+From melocoton.ml_lang Require Import notation lang_instantiation.
+From melocoton.c_lang Require Import lang_instantiation.
+From melocoton.ml_lang Require proofmode.
+From melocoton.c_lang Require notation proofmode.
 From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 
 
 Section C_prog.
-Import melocoton.c_toy_lang.notation melocoton.c_toy_lang.proofmode.
+Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
 
 Context `{!heapGS_C Σ, !heapGS_ML Σ, !invGS_gen hlc Σ, !primitive_laws.heapGS_ML Σ, !wrapperGS Σ}.
@@ -181,8 +181,8 @@ End C_prog.
 
 Section ML_prog.
 
-Import melocoton.c_toy_lang.primitive_laws.
-Import melocoton.ml_toy_lang.proofmode.
+Import melocoton.c_lang.primitive_laws.
+Import melocoton.ml_lang.proofmode.
 
 Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !heapGS_ML Σ, !wrapperGS Σ, !linkGS Σ}.
 

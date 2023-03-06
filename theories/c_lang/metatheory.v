@@ -1,5 +1,5 @@
 From stdpp Require Import gmap stringmap.
-From melocoton.c_toy_lang Require Export lang.
+From melocoton.c_lang Require Export lang.
 From iris.prelude Require Import options.
 
 (* This file contains some metatheory about the heap_lang language,

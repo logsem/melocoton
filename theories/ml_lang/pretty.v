@@ -1,7 +1,8 @@
 From stdpp Require Export pretty.
 
-From melocoton.c_toy_lang Require Import lang.
+From melocoton.ml_lang Require Import lang.
 From iris.prelude Require Import options.
+Import ML_lang.
 
 (** * Pretty printing for HeapLang values *)
 
@@ -11,8 +12,9 @@ Global Instance pretty_loc : Pretty loc :=
 Global Instance pretty_base_lit : Pretty base_lit :=
   λ l, match l with
        | LitInt z => pretty z
+       | LitBool b => if b then "true" else "false"
+       | LitUnit => "()"
        | LitLoc l => "(loc " +:+ pretty l +:+ ")"
-       | LitFunPtr p => "(& " +:+ p +:+ ")"
        end.
 
 Global Instance pretty_binder : Pretty binder :=
@@ -26,16 +28,21 @@ injective (unlike most `pretty` instances). *)
 Global Instance pretty_val : Pretty val :=
   fix go v :=
     match v with
-    | LitV l => pretty l
+    | LitV l => "#" +:+ pretty l
+    | RecV f x e =>
+      match f with
+      | BNamed f => "rec: " +:+ f +:+ " " +:+ pretty x +:+ " := <body>"
+      | BAnon => "λ: " +:+ pretty x +:+ ", <body>"
+      end
+    | PairV v1 v2 => "(" +:+ go v1 +:+ ", " +:+ go v2 +:+ ")"
+    | InjLV v => "inl (" +:+ go v +:+ ")"
+    | InjRV v => "inr (" +:+ go v +:+ ")"
     end.
 
 Global Instance pretty_un_op : Pretty un_op :=
   λ op, match op with
-        | BitwiseNotOp => "~"
-        | NegOp => "-"
-        | NotOp => "!"
-        | Ptr2Int => "`ptr2int`"
-        | Int2Ptr => "`int2ptr`"
+        | NegOp => "~"
+        | MinusUnOp => "-"
         end.
 
 Global Instance pretty_bin_op : Pretty bin_op :=
@@ -53,6 +60,4 @@ Global Instance pretty_bin_op : Pretty bin_op :=
         | LeOp => "≤"
         | LtOp => "<"
         | EqOp => "="
-        | PtrOffsetOp => "+ₗ"
-        | PtrDiffOp => "-ₗ"
         end .

@@ -1,7 +1,7 @@
 From iris.base_logic Require Import invariants.
 From melocoton.language Require Import lifting.
 From iris.proofmode Require Import proofmode.
-From melocoton.ml_toy_lang.logrel Require Export logrel typing.
+From melocoton.ml_lang.logrel Require Export logrel typing.
 From Autosubst Require Export Autosubst.
 From iris.prelude Require Import options.
 

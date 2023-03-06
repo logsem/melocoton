@@ -2,8 +2,8 @@ From Coq Require Import ZArith.
 From stdpp Require Import base gmap list.
 From iris.heap_lang Require Export locations.
 From melocoton Require Import commons.
-From melocoton.c_toy_lang Require Import lang.
-From melocoton.ml_toy_lang Require Import lang.
+From melocoton.c_lang Require Import lang.
+From melocoton.ml_lang Require Import lang.
 
 (* the type of memory addresses used by the C semantics *)
 Notation addr := iris.heap_lang.locations.loc (only parsing).

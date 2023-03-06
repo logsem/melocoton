@@ -3,7 +3,7 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.program_logic Require ectxi_language.
 From melocoton Require Import commons.
-From melocoton.ml_toy_lang Require Export locoff.
+From melocoton.ml_lang Require Export locoff.
 From iris.prelude Require Import options.
 
 (** heap_lang.  A fairly simple language used for common Iris examples.

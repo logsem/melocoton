@@ -1,7 +1,7 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
-From melocoton.ml_toy_lang Require Export lang tactics lang_instantiation class_instances primitive_laws.
-From melocoton.ml_toy_lang Require Import notation.
+From melocoton.ml_lang Require Export lang tactics lang_instantiation class_instances primitive_laws.
+From melocoton.ml_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 

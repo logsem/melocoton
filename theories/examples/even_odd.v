@@ -1,6 +1,6 @@
 From Coq Require Import Lia.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_toy_lang Require Import notation proofmode.
+From melocoton.c_lang Require Import notation proofmode.
 From melocoton.language Require Import weakestpre.
 From iris.prelude Require Import options.
 
@@ -87,7 +87,7 @@ End specs.
 From melocoton.lang_to_mlang Require Import weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
-From melocoton.c_toy_lang Require Import mlang_instantiation.
+From melocoton.c_lang Require Import mlang_instantiation.
 
 Section linking.
 Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.

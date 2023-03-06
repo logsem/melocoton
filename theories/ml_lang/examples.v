@@ -1,5 +1,5 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
-From melocoton.ml_toy_lang Require Import lang notation proofmode.
+From melocoton.ml_lang Require Import lang notation proofmode.
 From melocoton.language Require Import language wp_link.
 From iris.prelude Require Import options.
 Import uPred.

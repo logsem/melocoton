@@ -1,4 +1,4 @@
-From melocoton.c_toy_lang Require Export lang.
+From melocoton.c_lang Require Export lang.
 From iris.prelude Require Import options.
 
 (** Coercions to make programs easier to type. *)

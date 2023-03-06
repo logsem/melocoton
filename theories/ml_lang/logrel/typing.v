@@ -1,4 +1,4 @@
-From melocoton.ml_toy_lang Require Export lang notation metatheory.
+From melocoton.ml_lang Require Export lang notation metatheory.
 From Autosubst Require Import Autosubst.
 From iris.prelude Require Import options.
 

@@ -1,5 +1,5 @@
 From stdpp Require Import fin_maps.
-From melocoton.ml_toy_lang Require Export lang lang_instantiation.
+From melocoton.ml_lang Require Export lang lang_instantiation.
 From melocoton.language Require Export language.
 From iris.prelude Require Import options.
 Import ML_lang.

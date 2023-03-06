@@ -1,5 +1,5 @@
 From stdpp Require Import gmap stringmap.
-From melocoton.ml_toy_lang Require Export lang.
+From melocoton.ml_lang Require Export lang.
 From iris.prelude Require Import options.
 Import ML_lang.
 
