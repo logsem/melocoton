@@ -6,8 +6,8 @@ From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Import mono_nat.
 From iris.base_logic.lib Require Export gen_heap gen_inv_heap.
 From melocoton.language Require Export weakestpre lifting.
-From melocoton.ml_toy_lang Require Export melocoton.class_instances.
-From melocoton.ml_toy_lang Require Import melocoton.tactics notation.
+From melocoton.ml_toy_lang Require Export class_instances.
+From melocoton.ml_toy_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 From melocoton Require Import monotone.
 Search "view" "GS".

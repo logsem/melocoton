@@ -1,6 +1,6 @@
 From melocoton.language Require Export weakestpre lifting.
 From melocoton.ml_toy_lang Require Export lang.
-From melocoton.ml_toy_lang Require Import tactics melocoton.tactics notation.
+From melocoton.ml_toy_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 Import ML_lang.
 

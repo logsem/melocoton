@@ -8,8 +8,8 @@ From melocoton.interop Require Import state lang.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
+From melocoton.c_toy_lang Require Import lang lang_instantiation primitive_laws.
+From melocoton.ml_toy_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import basics basics_resources weakestpre wp_block_sim.
 Import Wrap.
 

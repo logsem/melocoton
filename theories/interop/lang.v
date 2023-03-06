@@ -3,7 +3,7 @@ From melocoton Require Import multirelations.
 From melocoton.language Require Import language.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_toy_lang Require Import lang.
-From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation.
+From melocoton.ml_toy_lang Require Import lang lang_instantiation.
 From melocoton.interop Require Import basics basics_constructions state prims.
 
 Module Wrap.

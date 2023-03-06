@@ -6,8 +6,8 @@ From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Import mono_nat.
 From iris.base_logic.lib Require Export gen_heap proph_map gen_inv_heap.
 From melocoton.language Require Export weakestpre lifting.
-From melocoton.c_toy_lang Require Export melocoton.class_instances.
-From melocoton.c_toy_lang Require Import tactics melocoton.tactics notation.
+From melocoton.c_toy_lang Require Export class_instances.
+From melocoton.c_toy_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 
 Class heapGS_C Σ := HeapGS {

@@ -1,6 +1,6 @@
 From iris.proofmode Require Import proofmode.
 From melocoton.ml_toy_lang.logrel Require Export persistent_pred typing iterup.
-From melocoton.ml_toy_lang.melocoton Require Export proofmode.
+From melocoton.ml_toy_lang Require Export proofmode.
 From melocoton.ml_toy_lang Require Export lang notation metatheory.
 From iris.algebra Require Import list gmap big_op.
 From iris.base_logic Require Import invariants.
