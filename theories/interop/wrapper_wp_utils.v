@@ -20,6 +20,7 @@ Global Notation Cval := C_lang.val.
 
 
 Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ C_lang (_ : gFunctors)).
+Notation mkPeML p T := ({| penv_prog := p; penv_proto := T |} : prog_environ ML_lang (_ : gFunctors)).
 Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang (_ : gFunctors)).
 
 Section Utils.
@@ -135,7 +136,7 @@ Definition proto_alloc : prim_proto := (λ p vl Φ,
                          Φ w))%I.
 
 
-Definition proto_callback (pe : prog_environ ML_lang Σ) (E : coPset) : prim_proto := (λ p vl Φ,
+Definition proto_callback (E : coPset) T : prim_proto := (λ p vl Φ,
   ∃ θ w γ w' lv' v' f x e ψ,
     "HGC" ∷ GC θ ∗
     "->" ∷ ⌜p = Pcallback⌝ ∗
@@ -144,7 +145,7 @@ Definition proto_callback (pe : prog_environ ML_lang Σ) (E : coPset) : prim_pro
     "Hclos" ∷ γ ↦clos (f, x, e) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
     "Hsim'" ∷ block_sim v' lv' ∗
-    "WPcallback" ∷ WP (App (Val (RecV f x e)) (Val v')) @ pe; E {{ ψ }} ∗
+    "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) @ mkPeML ∅ T ; E {{ ψ }} ∗
     "Cont" ∷ (∀ θ' vret lvret wret,
                 GC θ' -∗
                 ψ vret -∗
@@ -152,13 +153,31 @@ Definition proto_callback (pe : prog_environ ML_lang Σ) (E : coPset) : prim_pro
                 ⌜repr_lval θ' lvret wret⌝ -∗
                 Φ wret))%I.
 
+
+
 (* non-callbacks primitives *)
 Definition proto_base_prims : prim_proto := (λ p vl Φ,
     proto_int2val p vl Φ ∨ proto_val2int p vl Φ ∨ proto_registerroot p vl Φ ∨ proto_unregisterroot p vl Φ
   ∨ proto_modify p vl Φ ∨ proto_readfield p vl Φ ∨ proto_alloc p vl Φ)%I.
 
-Definition proto_prims pe E : prim_proto := (λ p vl Φ,
-  proto_base_prims p vl Φ ∨ proto_callback pe E p vl Φ)%I.
+Definition proto_prims E T : prim_proto := (λ p vl Φ,
+  proto_base_prims p vl Φ ∨ proto_callback E T p vl Φ)%I.
+
+Lemma proto_prims_mask_mono E1 E2 T : E1 ⊆ E2 →
+  ∀ p vl Φ, proto_prims E1 T p vl Φ -∗ proto_prims E2 T p vl Φ.
+Proof.
+  iIntros (H p vl Φ) "[HL|HR]".
+  1: by iLeft.
+  iNamed "HR". iRight.
+  do 10 iExists _; unfold named.
+  iFrame. do 4 (iSplit; first done).
+  iNext. iApply @wp_mask_mono. 1: done.
+  iFrame.
+Qed.
+
+Definition proto_prims_in_C E T : C_proto := (λ f vs Φ,
+  ∃ p, ⌜is_prim f p⌝ ∗ proto_prims E T p vs Φ
+)%I.
 
 
 Section RootsRepr.
@@ -286,81 +305,6 @@ Proof.
       1: done.
       by exists ww.
 Qed.
-(*
-
-(* TODO: ugly workaround around wrong kind of non-det in PrimAllocS *)
-Lemma swap_roots_m_compatible θ mem roots_1 roots_2:
-    ⌜dom roots_1 = dom roots_2⌝
- -∗ ⌜∃ privmem, repr θ roots_1 privmem mem⌝
- -∗ ⌜∃ privmem, repr θ roots_2 privmem mem⌝
- -∗ (gen_heap_interp mem)
- -∗ ([∗ map] a ↦ v ∈ roots_1, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
- -∗ ([∗ map] a ↦ v ∈ roots_2, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝) ∗ gen_heap_interp mem.
-Proof.
-  iIntros "%H1 (%p1&%m1&%Hr1&%Hd1&%Hu1) (%p2&%m2&%Hr2&%Hd2&%Hu2)". iStopProof.
-  destruct (repr_dom_eq θ mem roots_1 roots_2 p1 p2 m1 m2) as [-> ->].
-  1: done.
-  1-2: repeat split; done.
-  clear Hd2 Hu2.
-  pose proof (repr_roots_repr_lval _ _ _ Hr2) as Hr2'. clear Hr2.
-  pose proof (repr_roots_repr_lval _ _ _ Hr1) as Hr1'. clear Hr1.
-  revert roots_2 H1 Hr2'.
-  induction roots_1 as [|k v roots_1 Hne IH] using map_ind; intros roots_2 H1 Hr2'.
-  { rewrite dom_empty_L in H1. symmetry in H1. apply dom_empty_inv_L in H1. subst roots_2.
-    iIntros "_ H1 H2". iFrame. }
-  iIntros "e H1 H2".
-  iPoseProof (big_sepM_insert) as "(Hi&_)". 1: exact Hne.
-  iDestruct ("Hi" with "H2") as "(Hkv & H2)". iClear "Hi".
-  unshelve iDestruct (IH _ (delete k roots_2) with "e H1 H2") as "(H1&H2)".
-  - intros k0 v0 Hin. apply Hr1'. rewrite <- Hin. eapply lookup_insert_ne. intros <-. congruence.
-  - rewrite dom_delete_L. rewrite <- H1. rewrite dom_insert_L.
-    eapply not_elem_of_dom in Hne. set_solver.
-  - intros k0 v0 Hin. apply Hr2'. rewrite <- Hin. symmetry. apply lookup_delete_ne. intros <-. rewrite lookup_delete in Hin. done.
-  - iDestruct "Hkv" as "(%w & Hpto & %Hrepr)".
-    iPoseProof (gen_heap_valid with "H2 Hpto") as "%Helem".
-    iFrame. destruct (roots_2 !! k) as [vv|] eqn:Heq2.
-    2: { eapply not_elem_of_dom in Heq2. rewrite <- H1 in Heq2. erewrite dom_insert_L in Heq2. set_solver. }
-    erewrite <- (insert_delete roots_2 k vv) at 2.
-    iApply big_sepM_insert. 1: by rewrite lookup_delete. 2: done.
-    iFrame.
-    iExists w. iFrame. iPureIntro.
-    destruct (Hr2' _ _ Heq2) as (ww & Hm2ww & Hrepww).
-    enough (w = ww) as -> by done.
-    eapply lookup_union_Some_l in Hm2ww. erewrite <- Hu1 in Hm2ww. rewrite Helem in Hm2ww.
-    injection Hm2ww; done.
-Qed.
-
-Lemma repr_simulates θ θ' mem mem' pm1 pm2 roots_1 roots_2:
-    dom roots_1 = dom roots_2
- -> repr θ roots_1 pm1 mem
- -> repr θ roots_2 pm2 mem
- -> repr θ' roots_2 pm2 mem'
- -> repr θ' roots_1 pm1 mem'.
-Proof.
-  intros H1 (m1&Hr1&Hd1&Hu1) (m2&Hr2&Hd2&Hu2) (m3&Hr3&Hd3&Hu3).
-  destruct (repr_dom_eq θ mem roots_1 roots_2 pm1 pm2 m1 m2) as [-> ->].
-  1: done.
-  1-2: repeat split; done.
-  exists m3. repeat split; try done.
-  pose proof (repr_roots_repr_lval _ _ _ Hr1) as Hr1'.
-  pose proof (repr_roots_repr_lval _ _ _ Hr2) as Hr2'.
-  clear Hd1 Hu1 Hr1 Hr2.
-  revert roots_1 H1 Hr1' mem' Hr2' Hd3 Hu3.
-  induction Hr3 as [θ'|θ' a v w roots_2 mem2 Hrepr1 Hrepr2 Hne1 Hne2]; intros roots_1 H1 Hr1' mem' Hr2' Hd3 Hu3.
-  { rewrite dom_empty_L in H1. apply dom_empty_inv_L in H1. subst roots_1. econstructor. }
-  rewrite dom_insert_L in H1.
-  destruct (roots_1 !! a) as [v1|] eqn:Heq.
-  2: { exfalso; eapply not_elem_of_dom in Heq. set_solver. }
-  rewrite <- (insert_delete roots_1 a v1). 2: done. econstructor.
-  1: eapply Hrepr2.
-  - rewrite dom_delete_L. rewrite H1. set_solver.
-  - intros k1 v' [??]%lookup_delete_Some. apply Hr1'; done.
-  - intros k1 v' Hin. eapply Hr2'. rewrite lookup_insert_ne; first done.
-    eapply elem_of_dom_2 in Hin. intros ->. tauto.
-  - apply map_disjoint_insert_r in Hd3. apply Hd3.
-  - done.
-  -  Search map_disjoint insert. 
-*)
 
 Lemma find_repr_lval_vv θ v : 
    (forall γ, Lloc γ = v → γ ∈ dom θ)

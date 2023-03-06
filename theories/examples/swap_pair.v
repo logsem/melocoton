@@ -6,7 +6,7 @@ From melocoton.interop Require Import basics basics_resources.
 From melocoton.interop Require Import lang_to_mlang lang_to_mlang_wp.
 From melocoton.interop Require Import wrappersem wrapper_wp wrapper_wp_utils wrapper_wp_update_laws wrapper_wp_ext_call_laws wrapper_wp_simulation.
 From melocoton.ml_toy_lang Require Import lang notation melocoton.primitive_laws.
-From melocoton.ml_toy_lang Require melocoton.proofmode.
+From melocoton.ml_toy_lang Require Import melocoton.proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.primitive_laws.
 From melocoton.c_toy_lang Require notation melocoton.proofmode.
 From melocoton.mlanguage Require weakestpre.
@@ -18,7 +18,7 @@ Section C_prog.
 Import melocoton.c_toy_lang.notation melocoton.c_toy_lang.melocoton.proofmode.
 
 
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !primitive_laws.heapGS_ML Σ, !wrapperGS Σ}.
+Context `{!heapGS_C Σ, !heapGS_ML Σ, !invGS_gen hlc Σ, !primitive_laws.heapGS_ML Σ, !wrapperGS Σ}.
 
 
 Definition swap_pair_code (x : expr) : expr := (
@@ -40,29 +40,35 @@ Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 
 Definition swap_pair_mod : gmap string function := {[ "swap_pair" := swap_pair_func]}.
 
-Definition swap_pair_env := (mkPeC swap_pair_mod WP_ext_call_spec).
+Definition swap_pair_ml_spec : @program_specification _ ML_lang _ _ _ _ := (
+  λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%V ]⌝ ∗ wp ((v2,v1)%V)
+)%I.
 
-Lemma swap_pair_correct v1 v2 ec E : 
-    wrap_args [(v1,v2)%V] swap_pair_func ec
- -∗ WP ec @ swap_pair_env; E {{a, wrap_return (λ v, ⌜v = (v2,v1)%V⌝) a }}.
+Definition swap_pair_env := (mkPeC swap_pair_mod (proto_prims_in_C ∅ swap_pair_ml_spec)).
+
+Lemma swap_pair_correct E f vs Φ :
+    wrap_proto swap_pair_ml_spec f vs Φ
+ -∗ ∃ x, ⌜vs = [x]⌝ ∗ WP swap_pair_code (Val x) @ swap_pair_env; E {{a, Φ a }}.
 Proof.
-  iIntros "(%θ&%ll&%aa&HGC&%Happly&%Hrepr&#HsimL)".
+  iIntros "H". iNamed "H".
+  iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
+  rewrite /of_call /of_class /=.
   unfold block_sim_arr.
-  iPoseProof (big_sepL2_cons_inv_l with "HsimL") as "(%l&%lr&->&Hsim&HsimL')".
-  iPoseProof (big_sepL2_nil_inv_l with "HsimL'") as "->". iClear "HsimL' HsimL".
-  cbn. iDestruct "Hsim" as "(%γpair&%lv1&%lv2&->&Hptpair&Hlv1&Hlv2)".
-  destruct (Forall2_cons_inv_l _ _ _ _ Hrepr) as (w&aa'&Hγw&HH&->).
-  pose proof (Forall2_nil_inv_l _ _ HH); subst aa'. clear HH Hrepr.
-  cbn in Happly.
-  injection Happly; intros <-; clear Happly.
-  solve_lookup_fixed.
+  iPoseProof (big_sepL2_cons_inv_l with "Hsim") as "(%l&%lr&->&Hsim&HsimL')".
+  iPoseProof (big_sepL2_nil_inv_l with "HsimL'") as "->".
+  cbn. iDestruct "Hsim" as "(%γpair&%lv1&%lv2&->&#Hptpair&#Hlv1&#Hlv2)".
+  destruct (Forall2_cons_inv_l _ _ _ _ Hrepr) as (w&aa'&Hγw&HH&Hx).
+  pose proof (Forall2_nil_inv_l _ _ HH); subst aa'. simplify_eq. clear HH Hrepr.
+  unfold swap_pair_code.
+  iExists _; iSplit; first done.
   wp_alloc rr as "H". 1: done.
   change (Z.to_nat 2) with 2. cbn. iDestruct "H" as "(H1&H2&_)". destruct rr as [rr].
   wp_pures.
 
+
   (* readfield 1 *)
   wp_extern. cbn.
-  iModIntro. do 5 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 5 iRight; iLeft.
   iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC".
   do 3 (iSplitR; first done). iSplitR.
   1: iDestruct "Hptpair" as "(HL&HR)"; iApply "HL".
@@ -74,7 +80,7 @@ Proof.
   (* readfield 2 *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 5 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 5 iRight; iLeft.
   iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC".
   do 3 (iSplitR; first done). iSplitR.
   1: iDestruct "Hptpair" as "(HL&HR)"; iApply "HL".
@@ -86,7 +92,7 @@ Proof.
   (* registerroot 1 *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 2 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 2 iRight; iLeft.
   iExists _, _, _, _. unfold named. iFrame "HGC".
   do 2 (iSplitR; first done). iSplitL "H1"; first done.
   iSplitR; first done.
@@ -95,7 +101,7 @@ Proof.
   (* registerroot 2 *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 2 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 2 iRight; iLeft.
   iExists _, _, _, _. unfold named. iFrame "HGC".
   do 2 (iSplitR; first done). iSplitL "H2"; first done.
   iSplitR; first done.
@@ -104,7 +110,7 @@ Proof.
   (* alloc *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 6 iRight.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 6 iRight.
   iExists _, TagDefault, _. unfold named. iFrame "HGC".
   do 3 (iSplitR; first done).
   iIntros (θ' γnew wnew) "HGC Hnew %Hreprnew".
@@ -118,7 +124,7 @@ Proof.
   (* modify 1 *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 4 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 4 iRight; iLeft.
   iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC".
   iDestruct "Hnew" as "(Hnew1&Hnew2)". iFrame "Hnew1".
   do 6 (iSplitR; first done).
@@ -132,7 +138,7 @@ Proof.
   (* modify 2 *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 4 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 4 iRight; iLeft.
   iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC Hnew1".
   do 6 (iSplitR; first done).
   iIntros "HGC Hnew1". change (Z.to_nat 0) with 0. cbn.
@@ -140,7 +146,7 @@ Proof.
   (* unregisterroot 1 *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 3 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 3 iRight; iLeft.
   iExists _, _, _. unfold named. iFrame "HGC Hr1".
   do 2 (iSplitR; first done).
   iIntros (wlv1'') "HGC Hr1 %Hrepr1'1".
@@ -150,7 +156,7 @@ Proof.
   (* unregisterroot 2 *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. do 3 iRight; iLeft.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 3 iRight; iLeft.
   iExists _, _, _. unfold named. iFrame "HGC Hr2".
   do 2 (iSplitR; first done).
   iIntros (wlv2'') "HGC Hr2 %Hrepr2'1".
@@ -165,38 +171,19 @@ Proof.
 
   (* Finish, convert points-to *)
   wp_pures.
-  iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&Hnew)".
+  iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
 
-  iModIntro. iExists θ', (Lloc γnew), _.
-  iFrame. do 2 (iSplitR; first done).
-  cbn. iExists _, _, _. iSplitR; first done. iFrame "Hnew Hlv1 Hlv2".
-Qed.
-
-Definition swap_pair_env_lifted : weakestpre.prog_environ _ Σ := (mkPeW swap_pair_mod (λ _ _ _, ⌜False⌝)%I).
-
-Import mlanguage.weakestpre.
-
-Lemma swap_pair_wrapped T E v1 v2:  
-    at_boundary wrap_lang
- -∗ WP (Wrap.RunFunction swap_pair_func [ (v1,v2)%V ]) @ mkPeW swap_pair_mod T; E {{ v, ⌜v = (v2,v1)%V⌝ ∗ at_boundary wrap_lang }}.
-Proof.
-  iIntros "H".
-  iApply (run_function_correct with "[] H").
-  - repeat (econstructor; first (rewrite lookup_singleton_ne; done)). econstructor.
+  iModIntro. iApply ("Cont" with "HGC Hψ [] []").
+  - cbn. do 3 iExists _. iFrame "Hnew Hlv1 Hlv2". done.
   - done.
-  - iIntros (ec). iApply swap_pair_correct.
-Qed. 
-
-
-Definition swap_pair_ml_spec : program_specification := (
-  λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%V ]⌝ ∗ wp ((v2,v1)%V)
-)%I.
+Qed.
 
 End C_prog.
 
 Section ML_prog.
 
-Import melocoton.ml_toy_lang.melocoton.proofmode.
+Import melocoton.c_toy_lang.melocoton.lang_instantiation.
+Import melocoton.ml_toy_lang.melocoton.lang_instantiation melocoton.ml_toy_lang.melocoton.proofmode.
 
 Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !heapGS_ML Σ, !wrapperGS Σ, !linkGS Σ}.
 
@@ -204,7 +191,7 @@ Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) :=
   (Extern "swap_pair" [ ((#3, (#1, #2)))%E ]).
 
 Definition client_env := {| penv_prog := ∅; penv_proto := swap_pair_ml_spec |} : prog_environ ML_lang Σ.
-Notation client_env_lifted := (penv_to_mlang client_env).
+Definition client_env_wrapped := (wrap_penv client_env).
 
 Lemma ML_prog_correct_axiomatic E : ⊢ WP swap_pair_client @ client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%V}}.
 Proof.
@@ -215,40 +202,67 @@ Proof.
   wp_pures. done.
 Qed.
 
-Lemma ML_prog_correct_lifted E : ⊢ WP swap_pair_client @ penv_to_mlang client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%V}}.
-Proof.
-  iApply wp_lang_to_mlang. iApply ML_prog_correct_axiomatic.
-Qed.
-
 Import melocoton.mlanguage.weakestpre.
 
-Notation combined_lang := (link_lang wrap_lang (lang_to_mlang ML_lang)).
-Definition linked_env : prog_environ combined_lang Σ:= {| penv_prog := fmap inl swap_pair_mod; penv_proto := λ _ _ _, ⌜False⌝%I |}.
+Notation combined_lang := (link_lang wrap_lang (lang_to_mlang C_lang)).
+Definition swap_pair_env_lifted := penv_to_mlang swap_pair_env.
 
-Lemma is_linkable_swap_pair : is_link_environ swap_pair_env_lifted client_env_lifted linked_env.
+Lemma swap_pair_correct_lifted E f vs Φ :
+    wrap_proto swap_pair_ml_spec f vs Φ
+ -∗ ∃ x, ⌜vs = [x]⌝ ∗ WP (swap_pair_code (C_lang.Val x) : expr (lang_to_mlang (C_lang))) @ swap_pair_env_lifted ; E {{a, Φ a }}.
 Proof.
-  split; cbn.
-  - rewrite dom_empty_L. set_solver.
-  - rewrite fmap_empty  map_union_empty. done.
-  - iIntros (fn F vs Φ E H1) "%H2". done.
-  - unfold swap_pair_mod.
-    iIntros (fn F vs Φ E [<- <-]%lookup_singleton_Some).
-    iIntros "(%v1&%v2&_&->&HΦ)".
-    unfold Wrap.apply_func. iExists _. iSplitR; first done.
-    iNext. iIntros "Hbound". iApply (@wp_wand with "[Hbound]").
-    1: by iApply swap_pair_wrapped.
-    iIntros (v) "(->&Hbound)". iFrame.
-  - done.
-  - unfold swap_pair_ml_spec.
-    iIntros (fname vs Φ H1 H2) "(%&%&->&->&_)". unfold swap_pair_mod in H1.
-    rewrite lookup_singleton in H1. congruence.
+  iIntros "H".
+  iPoseProof (swap_pair_correct with "H") as (x ->) "HWP".
+  iExists _; iSplit; first done.
+  by iApply wp_lang_to_mlang.
 Qed.
 
-Notation link_in_state := (link_in_state wrap_lang (lang_to_mlang ML_lang)).
+Definition linked_env : prog_environ combined_lang Σ:= {|
+    penv_prog := fmap inl prims.prims_prog ∪ fmap inr swap_pair_mod ; 
+    penv_proto := λ _ _ _, ⌜False⌝%I |}.
 
+Lemma is_linkable_swap_pair : is_link_environ client_env_wrapped swap_pair_env_lifted linked_env.
+Proof.
+  split.
+  - rewrite !dom_insert_L !dom_empty_L. set_solver.
+  - done.
+  - cbn. unfold swap_pair_mod.
+    iIntros (fn F vs Φ E [<- <-]%lookup_singleton_Some) "HH".
+    iPoseProof (swap_pair_correct_lifted with "HH") as (w ->) "HWP".
+    rewrite /C_lang.apply_function /swap_pair_func.
+    cbn -[C_lang.subst_all].
+    iExists _; iSplit; first done.
+    iNext. iIntros "Hbound". iApply (wp_wand with "[HWP]").
+    { solve_lookup_fixed; iApply "HWP". }
+    iIntros (v) "H". iFrame.
+  - iIntros (fname func vs Φ E Hfunc) "Hproto".
+    iExists _; iSplit; first done.
+    iApply later_intro.
+    iIntros "Hb". iApply (@wp_wand with "[Hb Hproto]");
+    first iApply (wp_base_primitives with "[] [Hproto]").
+    + done.
+    + iIntros (fn_name vs' Φ' Hprims) "HH".
+      cbn. iDestruct "HH" as "(%&%&->&_)". inversion Hprims. inversion H. 
+    + cbn. iDestruct "Hproto" as "(%pr&%HH1&HH2)".
+      apply prims.lookup_prims_prog_Some in Hfunc.
+      pose proof (prims.is_prim_inj _ _ _ HH1 Hfunc) as ->.
+      iApply proto_prims_mask_mono; last done.
+      apply namespaces.coPset_empty_subseteq.
+    + done.
+    + iIntros (v) "(Hb&Hv)". iFrame.
+  - iIntros (fn vs Φ HH1 HH2) "H". iNamed "H".
+    iDestruct "Hproto" as (v1 v2 -> ->) "H".
+    rewrite lookup_insert in HH2; done.
+  - iIntros (fn vs Φ HH1 HH2) "H".
+    rewrite /=. iDestruct "H" as (prim HH%prims.lookup_prims_prog_Some) "H".
+    rewrite HH in HH1. done.
+Qed.
+
+Notation link_in_state := (link_in_state wrap_lang (lang_to_mlang C_lang)).
+(*
 Lemma linked_prog_correct_overall E : 
-    link_in_state In2
- -∗ WP LkSE (Link.Expr2 swap_pair_client) @ linked_env; E 
+    link_in_state In1
+ -∗ WP LkSE (Link.Expr1 swap_pair_client) @ linked_env; E 
     {{ λ v, ⌜v = (#1,#2,#3)⌝%V ∗ link_in_state Boundary }}.
 Proof.
   iIntros "H". iApply (wp_link_run2 with "H []").
@@ -257,7 +271,7 @@ Proof.
   1: iApply ML_prog_correct_lifted.
   iIntros (v) "->". cbn. done.
 Qed.
-
+*)
 End ML_prog.
 
 (*

@@ -373,12 +373,7 @@ Section typed_interp.
       P ; Γ ⊨ (Extern s el) : tr.
   Proof.
     iIntros (Hlu HH Δ vs) "!# #HΓ #HP /=".
-    iApply (sem_typed_extern_ind P Γ Δ vs s tr [] tl [] el).
-    - done.
-    - done.
-    - done.
-    - iPureIntro; done.
-    - done.
+    by iApply (sem_typed_extern_ind P Γ Δ vs s tr [] tl [] el).
   Qed.
 
   Theorem fundamental P Γ e τ : typed P Γ e τ → ⊢ P ; Γ ⊨ e : τ.
