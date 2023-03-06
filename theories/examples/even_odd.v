@@ -86,7 +86,7 @@ Qed.
 End specs.
 
 From melocoton.lang_to_mlang Require Import weakestpre.
-From melocoton.interop Require Import linking linking_wp.
+From melocoton.linking Require Import lang weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.c_toy_lang.melocoton Require Import mlang_instantiation.
 

@@ -3,7 +3,6 @@ From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
 From melocoton.mlanguage Require Import mlanguage.
-From melocoton.interop Require Import linking.
 
 Module Mini.
 

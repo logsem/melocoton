@@ -10,7 +10,7 @@ From melocoton.ml_toy_lang Require Import melocoton.proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.primitive_laws.
 From melocoton.c_toy_lang Require notation melocoton.proofmode.
 From melocoton.mlanguage Require weakestpre.
-From melocoton.interop Require Import linking linking_wp.
+From melocoton.linking Require Import lang weakestpre.
 Import uPred.
 
 

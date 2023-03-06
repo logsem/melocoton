@@ -1,6 +1,6 @@
 From iris.proofmode Require Import proofmode.
 From melocoton.mlanguage Require Import weakestpre.
-From melocoton.interop Require Import linking linking_wp.
+From melocoton.linking Require Import lang weakestpre.
 From melocoton.minilang Require Import lang primitive_laws.
 From iris.prelude Require Import options.
 

@@ -9,7 +9,7 @@ From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
-From melocoton.interop Require Import linking_wp basics prims wrapper_wp wrapper_wp_block_sim
+From melocoton.interop Require Import basics prims wrapper_wp wrapper_wp_block_sim
   wrapper_wp_utils wrapper_wp_ext_call_laws wrapper_wp_boundary_laws.
 Import Wrap.
 

@@ -7,7 +7,6 @@ From iris.algebra.lib Require Import excl_auth gmap_view.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre lifting.
 From melocoton.minilang Require Import lang.
-From melocoton.interop Require Import linking_wp.
 From melocoton Require Import commons monotone.
 From iris.prelude Require Import options.
 Import Mini.

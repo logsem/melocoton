@@ -10,7 +10,7 @@ From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.ml_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws.
 From melocoton.c_toy_lang Require Import lang melocoton.lang_instantiation melocoton.primitive_laws notation.
-From melocoton.interop Require Import linking_wp basics prims wrapper_wp wrapper_wp_block_sim wrapper_wp_utils.
+From melocoton.interop Require Import basics prims wrapper_wp wrapper_wp_block_sim wrapper_wp_utils.
 Import Wrap.
 
 Section Laws.

@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
 From iris.algebra.lib Require Import excl_auth.
-From melocoton.interop Require Import linking.
+From melocoton.linking Require Import lang.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre.
 From iris.proofmode Require Import proofmode.
