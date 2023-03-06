@@ -3,7 +3,7 @@ From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
 From melocoton.interop Require Import basics basics_resources.
-From melocoton.interop Require Import lang_to_mlang lang_to_mlang_wp.
+From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import wrappersem wrapper_wp wrapper_wp_utils wrapper_wp_update_laws wrapper_wp_ext_call_laws wrapper_wp_simulation.
 From melocoton.ml_toy_lang Require Import lang notation melocoton.primitive_laws.
 From melocoton.ml_toy_lang Require Import melocoton.proofmode.

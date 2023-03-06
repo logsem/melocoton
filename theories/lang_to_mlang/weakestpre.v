@@ -1,9 +1,9 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
-From melocoton.interop Require Import lang_to_mlang.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
+From melocoton.lang_to_mlang Require Import lang.
 From iris.proofmode Require Import proofmode.
 
 Section ToMlang_logic.
