@@ -2,7 +2,7 @@ From stdpp Require Import base strings list gmap.
 From melocoton Require Import multirelations.
 From melocoton.language Require Import language.
 From melocoton.mlanguage Require Import mlanguage.
-From melocoton.c_lang Require Import lang.
+From melocoton.c_interface Require Import defs.
 From melocoton.ml_lang Require Import lang lang_instantiation.
 From melocoton.interop Require Import basics basics_constructions state prims.
 
@@ -175,8 +175,8 @@ Proof. unfold c_to_ml; naive_solver. Qed.
 
 Hint Resolve c_to_ml_True : core.
 
-Local Notation CLocV w := (C_lang.LitV (C_lang.LitLoc w)).
-Local Notation CIntV x := (C_lang.LitV (C_lang.LitInt x)).
+Local Notation CLocV w := (C_intf.LitV (C_intf.LitLoc w)).
+Local Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
 
 (* Semantics of wrapper primitives, that can be called from the wrapped C
    program as external functions. The callback primitive is treated separately
@@ -204,7 +204,7 @@ Inductive c_prim_step :
          repr θC' roots privmem mem' ∧
          roots_are_live θC' roots ∧
          θC' !! γ = Some a ∧
-         Y (C_lang.LitV (C_lang.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
+         Y (C_intf.LitV (C_intf.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     c_prim_step Palloc ls ρc mem Y
   | PrimRegisterrootS ls ρc mem Y :
     (∀ a rootsC',

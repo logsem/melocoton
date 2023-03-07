@@ -8,8 +8,8 @@ From melocoton.interop Require Import state lang basics_resources.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
+From melocoton.c_interface Require Import defs notation resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.c_lang Require Import lang lang_instantiation primitive_laws notation.
 From melocoton.interop Require Import basics prims weakestpre wp_block_sim wp_utils.
 Import Wrap.
 
@@ -21,64 +21,11 @@ Context `{!heapGS_ML Σ, !heapGS_C Σ}.
 Context `{!invGS_gen hlc Σ}.
 Context `{!wrapperGS Σ}.
 
-(* Context (Hforbid : Forall (fun k => p !! k = None) forbidden_function_names). *)
-
 Notation MLval := ML_lang.val.
-Notation Cval := C_lang.val.
+Notation Cval := C_intf.val.
 
 Implicit Types P : iProp Σ.
 Import mlanguage.
-
-
-(* Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ _ Σ). *)
-(* Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang Σ). *)
-
-(* TODO move store / load somewhere else *)
-Lemma store_to_root E penvC (l:loc) (v v' : lval) w θ :
-  {{{GC θ ∗ l ↦roots v' ∗ ⌜repr_lval θ v w⌝}}}
-     (#l <- w)%E @ penvC; E
-  {{{ RET LitV LitUnit; l ↦roots v ∗ GC θ }}}.
-Proof.
-  iIntros (Φ) "(HGC&Hroots&%Hrepr) HΦ".
-  iNamed "HGC".
-  iPoseProof (ghost_map_lookup with "GCrootsm Hroots") as "%H".
-  iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H.
-  iPoseProof ("HL" with "GCrootspto") as "((%w'&Hown&%Hrepr2) & Hrp)"; iClear "HL".
-  iMod (ghost_map_update with "GCrootsm Hroots") as "(GCrootsm&Hroots)".
-  iApply (wp_store with "Hown").
-  iIntros "!> Hown". iApply "HΦ".
-  iFrame "Hroots".
-  do 9 iExists _. rewrite /named. iFrame.
-  rewrite dom_insert_lookup_L; last done.
-  iSplit.
-  { iPoseProof (big_sepM_insert_delete) as "(_&HR)"; iApply "HR"; iClear "HR".
-    iSplitL "Hown"; last done.
-    iExists w. iFrame. done. }
-  { iPureIntro; split_and!; eauto.
-    intros l' γ [[-> ->]|[Hne HH]]%lookup_insert_Some.
-    2: by eapply Hrootslive.
-    inv_repr_lval. by eapply elem_of_dom_2. }
-Qed.
-
-Lemma load_from_root E penvC (l:loc) (v : lval) dq θ :
-  {{{GC θ ∗ l ↦roots{dq} v}}}
-     ( * #l)%E @ penvC; E
-  {{{ w, RET w; l ↦roots{dq} v ∗ GC θ ∗ ⌜repr_lval θ v w⌝ }}}.
-Proof.
-  iIntros (Φ) "(HGC&Hroot) HΦ".
-  iNamed "HGC".
-  iPoseProof (ghost_map_lookup with "GCrootsm Hroot") as "%H".
-  iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H.
-  iPoseProof ("HL" with "GCrootspto") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
-  iApply (wp_load with "Hown").
-  iIntros "!> Hown". iApply "HΦ".
-  iFrame "Hroot". iSplit; last done.
-  rewrite /GC /named. do 9 iExists _.
-  iPoseProof ("HR" with "[Hown Hrp]") as "Hrootsm"; iClear "HR".
-  { iFrame. iExists w; by iFrame. }
-  iFrame. eauto.
-Qed.
-
 
 Definition prim_is_sound (Hspec : prim -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ) :=
   forall penv E (prm:prim) (ws:list Cval) Ξ Φ,
@@ -164,7 +111,7 @@ Proof.
   iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom".
   1: { iIntros "%H". eapply elem_of_dom in H; destruct H as [k Hk].
        iPoseProof (big_sepM_lookup_acc with "GCrootspto") as "((%ww&Hww&_)&_)".
-       1: apply Hk. iPoseProof (mapsto_ne with "Hpto Hww") as "%Hne". congruence. }
+       1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. }
 
   iApply wp_pre_cases_c_prim; first done.
   iIntros (X Hstep); inversion Hstep; simplify_eq.
@@ -236,7 +183,7 @@ Proof.
   { eexists. eapply mk_modify_block. lia. } 
 
   destruct HGCOK as [HGCL HGCR]. exploit_gmap_inj. repr_lval_inj.
-  iMod (lstore_own_update _ _ _ _ blk' with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
+  iMod (lstore_own_update _ _ _ blk' with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iPoseProof (interp_ML_discarded_locs_pub with "GCσMLv GCχNone") as "%Hpublocs".
   do 3 iModIntro; do 3 iExists _; iSplit.
@@ -414,8 +361,8 @@ Proof.
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ&SIχ)".
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ&SIθ)".
   
-  iMod (lstore_own_insert _ _ γ (Bvblock (Mut, blk)) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
-  iMod (lloc_own_allocate _ _ γ with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
+  iMod (lstore_own_insert _ γ (Bvblock (Mut, blk)) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
+  iMod (lloc_own_allocate _ γ with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
 
   do 3 iModIntro; do 3 iExists _; iSplit.
   1: iPureIntro; apply HX.

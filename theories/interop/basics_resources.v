@@ -1,68 +1,83 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
-From iris.base_logic.lib Require Import ghost_map ghost_var.
+From iris.base_logic.lib Require Import ghost_map ghost_var gen_heap.
+From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
 From melocoton Require Import named_props.
 From melocoton.interop Require Export basics.
 
+Class wrapperBasicsGS Σ := WrapperBasicsGS {
+  wrapperGS_lstoreGS :> ghost_mapG Σ lloc block;
+  wrapperGS_addr_lvalGS :> ghost_mapG Σ addr lval;
+  wrapperGS_lloc_mapGS :> ghost_mapG Σ lloc lloc_visibility;
+  wrapperGS_γζvirt : gname;
+  wrapperGS_γχvirt : gname;
+  wrapperGS_γroots_map : gname;
+}.
+
 Section BasicsResources.
-Context {Σ : gFunctors}.
-Context {llocmapGS: ghost_mapG Σ lloc lloc_visibility}.
-Context {lstoreGS: ghost_mapG Σ lloc block}.
+Context `{!wrapperBasicsGS Σ}.
 
 (* Ghost state for [lloc_map] *)
 
-Definition lloc_own_priv (γGS : gname) (γ : lloc) : iProp Σ :=
-  γ ↪[γGS] LlocPrivate.
+Definition lloc_own_priv (γ : lloc) : iProp Σ :=
+  γ ↪[wrapperGS_γχvirt] LlocPrivate.
 
-Definition lloc_own_pub (γGS : gname) (γ : lloc) (ℓ : loc) : iProp Σ :=
-  γ ↪[γGS]□ LlocPublic ℓ.
+Definition lloc_own_pub (γ : lloc) (ℓ : loc) : iProp Σ :=
+  γ ↪[wrapperGS_γχvirt]□ LlocPublic ℓ.
 
-Instance lloc_own_pub_persistent γGS γ ℓ : Persistent (lloc_own_pub γGS γ ℓ).
+Instance lloc_own_pub_persistent γ ℓ : Persistent (lloc_own_pub γ ℓ).
 Proof using. apply _. Qed.
 
-Definition lloc_own_auth (γGS : gname) (χ : lloc_map) : iProp Σ :=
-  "Hχgmap" ∷ ghost_map_auth γGS 1 χ ∗
-  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γGS γ ℓ).
+Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
+  "Hχgmap" ∷ ghost_map_auth wrapperGS_γχvirt 1 χ ∗
+  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ).
 
-Lemma lloc_own_auth_get_pub_all γGS χ :
-  lloc_own_auth γGS χ -∗
-  [∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γGS γ ℓ.
+(* FIXME: aliased name *)
+(* TODO: custom notation (like l1 ~~ML l2 )? *)
+(* l1 is a location in the ML heap. l2 is a block location.
+   They are similar if identified by χ *)
+Definition block_sim_raw (ℓ : loc) (γ : lloc) : iProp Σ :=
+  lloc_own_pub γ ℓ.
+
+Lemma lloc_own_auth_get_pub_all χ :
+  lloc_own_auth χ -∗
+  [∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ.
 Proof using.
   iNamed 1. iApply "Hχpubs".
 Qed.
 
-Lemma lloc_own_auth_get_pub γGS χ γ ℓ :
+Lemma lloc_own_auth_get_pub χ γ ℓ :
   χ !! γ = Some (LlocPublic ℓ) →
-  lloc_own_auth γGS χ -∗
-  lloc_own_pub γGS γ ℓ.
+  lloc_own_auth χ -∗
+  lloc_own_pub γ ℓ.
 Proof using.
   intros Hγ. iNamed 1.
   iDestruct (big_sepM_lookup with "Hχpubs") as "?"; eauto.
 Qed.
 
-Lemma lloc_own_pub_of γGS χ γ ℓ :
-  lloc_own_auth γGS χ -∗
-  lloc_own_pub γGS γ ℓ -∗
+Lemma lloc_own_pub_of χ γ ℓ :
+  lloc_own_auth χ -∗
+  lloc_own_pub γ ℓ -∗
   ⌜χ !! γ = Some (LlocPublic ℓ)⌝.
 Proof using.
   iIntros "Hχ Hpub". iNamed "Hχ".
   by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
 Qed.
 
-Lemma lloc_own_priv_of γGS χ γ :
-  lloc_own_auth γGS χ -∗
-  lloc_own_priv γGS γ -∗
+Lemma lloc_own_priv_of χ γ :
+  lloc_own_auth χ -∗
+  lloc_own_priv γ -∗
   ⌜χ !! γ = Some LlocPrivate⌝.
 Proof using.
   iIntros "Hχ Hpub". iNamed "Hχ".
   by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
 Qed.
 
-Lemma lloc_own_expose γGS χ γ ℓ :
-  lloc_own_auth γGS χ -∗
-  lloc_own_priv γGS γ ==∗
-  lloc_own_auth γGS (<[γ:=LlocPublic ℓ]> χ) ∗ lloc_own_pub γGS γ ℓ.
+Lemma lloc_own_expose χ γ ℓ :
+  lloc_own_auth χ -∗
+  lloc_own_priv γ ==∗
+  lloc_own_auth (<[γ:=LlocPublic ℓ]> χ) ∗ lloc_own_pub γ ℓ.
 Proof using.
   iIntros "Hχ Hγ".
   iDestruct (lloc_own_priv_of with "Hχ Hγ") as %Hχγ.
@@ -75,10 +90,10 @@ Proof using.
   apply lloc_map_pubs_lookup_None; eauto.
 Qed.
 
-Lemma lloc_own_allocate γGS χ γ:
+Lemma lloc_own_allocate χ γ:
   ⌜χ !! γ = None⌝     -∗
-  lloc_own_auth γGS χ ==∗
-  lloc_own_auth γGS (<[γ:=LlocPrivate]> χ) ∗ lloc_own_priv γGS γ.
+  lloc_own_auth χ ==∗
+  lloc_own_auth (<[γ:=LlocPrivate]> χ) ∗ lloc_own_priv γ.
 Proof using.
   iIntros (Hne) "Hχ".
   iNamed "Hχ".
@@ -90,10 +105,10 @@ Proof using.
   done.
 Qed.
 
-Lemma lloc_own_insert γGS χ γ v:
+Lemma lloc_own_insert χ γ v:
   ⌜χ !! γ = None⌝     -∗
-  lloc_own_auth γGS χ ==∗
-  lloc_own_auth γGS (<[γ:=v]> χ).
+  lloc_own_auth χ ==∗
+  lloc_own_auth (<[γ:=v]> χ).
 Proof using.
   iIntros (Hne) "Hχ".
   iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
@@ -101,10 +116,10 @@ Proof using.
   iMod (lloc_own_expose with "Hχ Hγp") as "(H & _)". rewrite insert_insert; done.
 Qed.
 
-Lemma lloc_own_mono γGS χ1 χ2 : 
+Lemma lloc_own_mono χ1 χ2 :
   lloc_map_mono χ1 χ2  →
-  lloc_own_auth γGS χ1 ==∗
-  lloc_own_auth γGS χ2.
+  lloc_own_auth χ1 ==∗
+  lloc_own_auth χ2.
 Proof.
   intros (Hmono & Hinj).
   pose (χ2 ∖ χ1) as χdiff.
@@ -129,24 +144,24 @@ Qed.
 
 (* Ghost state for [lstore] *)
 
-Definition lstore_own_elem (γGS : gname) (γ : lloc) (dq : dfrac) (b : block) :=
+Definition lstore_own_elem (γ : lloc) (dq : dfrac) (b : block) :=
   match mutability b with
-  | Mut => γ ↪[γGS]{dq} b
-  | Immut => γ ↪[γGS]□ b
+  | Mut => γ ↪[wrapperGS_γζvirt]{dq} b
+  | Immut => γ ↪[wrapperGS_γζvirt]□ b
   end%I.
 
-Definition lstore_own_mut (γGS : gname) (γ : lloc) (dq : dfrac) (b : block) :=
-  (lstore_own_elem γGS γ dq b ∗ ⌜mutability b = Mut⌝)%I.
+Definition lstore_own_mut (γ : lloc) (dq : dfrac) (b : block) :=
+  (lstore_own_elem γ dq b ∗ ⌜mutability b = Mut⌝)%I.
 
-Definition lstore_own_immut (γGS : gname) (γ : lloc) (b : block) :=
-  (lstore_own_elem γGS γ (DfracOwn 1) b ∗ ⌜mutability b = Immut⌝)%I.
+Definition lstore_own_immut (γ : lloc) (b : block) :=
+  (lstore_own_elem γ (DfracOwn 1) b ∗ ⌜mutability b = Immut⌝)%I.
 
-Definition lstore_own_auth (γGS : gname) (ζ : lstore) : iProp Σ :=
-  "Hζgmap" ∷ ghost_map_auth γGS 1 ζ ∗
-  "#Hζimmut" ∷ ([∗ map] γ↦b ∈ (lstore_immut_blocks ζ), lstore_own_immut γGS γ b).
+Definition lstore_own_auth (ζ : lstore) : iProp Σ :=
+  "Hζgmap" ∷ ghost_map_auth wrapperGS_γζvirt 1 ζ ∗
+  "#Hζimmut" ∷ ([∗ map] γ↦b ∈ (lstore_immut_blocks ζ), lstore_own_immut γ b).
 
-Global Instance lstore_own_immut_persistent γGS γ b :
-  Persistent (lstore_own_immut γGS γ b).
+Global Instance lstore_own_immut_persistent γ b :
+  Persistent (lstore_own_immut γ b).
 Proof using.
   unfold Persistent.
   iIntros "[? %H]". unfold lstore_own_immut, lstore_own_elem.
@@ -154,78 +169,78 @@ Proof using.
   iSplit; auto. by iApply persistent.
 Qed.
 
-Lemma lstore_own_elem_to_mut γGS γ dq b :
+Lemma lstore_own_elem_to_mut γ dq b :
   mutability b = Mut →
-  lstore_own_elem γGS γ dq b -∗
-  lstore_own_mut γGS γ dq b.
+  lstore_own_elem γ dq b -∗
+  lstore_own_mut γ dq b.
 Proof using. intros H. rewrite /lstore_own_mut /lstore_own_elem H. eauto. Qed.
 
-Lemma lstore_own_mut_to_elem γGS γ dq b :
-  lstore_own_mut γGS γ dq b -∗
-  lstore_own_elem γGS γ dq b.
+Lemma lstore_own_mut_to_elem γ dq b :
+  lstore_own_mut γ dq b -∗
+  lstore_own_elem γ dq b.
 Proof using. by iIntros "[? _]". Qed.
 
-Lemma lstore_own_elem_to_immut γGS γ dq b :
+Lemma lstore_own_elem_to_immut γ dq b :
   mutability b = Immut →
-  lstore_own_elem γGS γ dq b -∗
-  lstore_own_immut γGS γ b.
+  lstore_own_elem γ dq b -∗
+  lstore_own_immut γ b.
 Proof using. intros H. rewrite /lstore_own_immut /lstore_own_elem H. eauto. Qed.
 
-Lemma lstore_own_immut_to_elem γGS γ b :
-  lstore_own_immut γGS γ b -∗
-  lstore_own_elem γGS γ (DfracOwn 1) b.
+Lemma lstore_own_immut_to_elem γ b :
+  lstore_own_immut γ b -∗
+  lstore_own_elem γ (DfracOwn 1) b.
 Proof using. by iIntros "[? _]". Qed.
 
-Lemma lstore_own_auth_get_immut_all γGS ζ :
-  lstore_own_auth γGS ζ -∗
-  [∗ map] γ↦b ∈ (lstore_immut_blocks ζ), lstore_own_immut γGS γ b.
+Lemma lstore_own_auth_get_immut_all ζ :
+  lstore_own_auth ζ -∗
+  [∗ map] γ↦b ∈ (lstore_immut_blocks ζ), lstore_own_immut γ b.
 Proof using.
   iNamed 1. iApply "Hζimmut".
 Qed.
 
-Lemma lstore_own_auth_get_immut γGS ζ γ b :
+Lemma lstore_own_auth_get_immut ζ γ b :
   ζ !! γ = Some b →
   mutability b = Immut →
-  lstore_own_auth γGS ζ -∗
-  lstore_own_immut γGS γ b.
+  lstore_own_auth ζ -∗
+  lstore_own_immut γ b.
 Proof using.
   intros ? ?. iNamed 1.
   iDestruct (big_sepM_lookup with "Hζimmut") as "?"; eauto.
   by eapply lstore_immut_blocks_lookup_immut.
 Qed.
 
-Lemma lstore_own_elem_of γGS ζ γ dq b :
-  lstore_own_auth γGS ζ -∗
-  lstore_own_elem γGS γ dq b -∗
+Lemma lstore_own_elem_of ζ γ dq b :
+  lstore_own_auth ζ -∗
+  lstore_own_elem γ dq b -∗
   ⌜ζ !! γ = Some b⌝.
 Proof using.
   iNamed 1. iIntros "He".
   destruct (mutability b) eqn:Hmut; rewrite /lstore_own_elem Hmut;
-    by iDestruct (ghost_map_lookup with "Hζgmap He") as %?.
+    by iDestruct (ghost_map_lookup with "Hζgmap He") as "?".
 Qed.
 
-Lemma lstore_own_mut_of γGS ζ γ dq b :
-  lstore_own_auth γGS ζ -∗
-  lstore_own_mut γGS γ dq b -∗
+Lemma lstore_own_mut_of ζ γ dq b :
+  lstore_own_auth ζ -∗
+  lstore_own_mut γ dq b -∗
   ⌜ζ !! γ = Some b ∧ mutability b = Mut⌝.
 Proof using.
   iIntros "Ha [H %]".
   by iDestruct (lstore_own_elem_of with "Ha H") as %?.
 Qed.
 
-Lemma lstore_own_immut_of γGS ζ γ b :
-  lstore_own_auth γGS ζ -∗
-  lstore_own_immut γGS γ b -∗
+Lemma lstore_own_immut_of ζ γ b :
+  lstore_own_auth ζ -∗
+  lstore_own_immut γ b -∗
   ⌜ζ !! γ = Some b ∧ mutability b = Immut⌝.
 Proof using.
   iIntros "Ha [H %]".
   by iDestruct (lstore_own_elem_of with "Ha H") as %?.
 Qed.
 
-Lemma lstore_own_insert γGS ζ γ b :
+Lemma lstore_own_insert ζ γ b :
   ζ !! γ = None →
-  lstore_own_auth γGS ζ ==∗
-  lstore_own_auth γGS (<[γ:=b]> ζ) ∗ lstore_own_elem γGS γ (DfracOwn 1) b.
+  lstore_own_auth ζ ==∗
+  lstore_own_auth (<[γ:=b]> ζ) ∗ lstore_own_elem γ (DfracOwn 1) b.
 Proof using.
   iIntros (Hγ). iNamed 1.
   iMod (ghost_map_insert _ b with "Hζgmap") as "[Hζgmap Helt]"; eauto.
@@ -239,10 +254,10 @@ Proof using.
     iFrame. rewrite /lstore_own_immut /lstore_own_elem Hmut //. eauto. }
 Qed.
 
-Lemma lstore_own_insert_many γGS ζ ζnew :
+Lemma lstore_own_insert_many ζ ζnew :
   ζ ##ₘ ζnew →
-  lstore_own_auth γGS ζ ==∗
-  lstore_own_auth γGS (ζ ∪ ζnew) ∗ [∗ map] γ ↦ b ∈ ζnew, lstore_own_elem γGS γ (DfracOwn 1) b.
+  lstore_own_auth ζ ==∗
+  lstore_own_auth (ζ ∪ ζnew) ∗ [∗ map] γ ↦ b ∈ ζnew, lstore_own_elem γ (DfracOwn 1) b.
 Proof using.
   induction ζnew as [|γ b ζnew Hne IH] using map_ind.
   1: intros _; rewrite map_union_empty; iIntros "H !>"; iPoseProof (bi.emp_sep_1 with "H") as "(Hemp&H)"; iFrame "H"; iApply big_sepM_empty; done.
@@ -259,10 +274,10 @@ Proof using.
   iApply big_sepM_insert; first done. iFrame.
 Qed.
 
-Lemma lstore_own_update γGS ζ γ b b' :
-  lstore_own_auth γGS ζ -∗
-  lstore_own_mut γGS γ (DfracOwn 1) b ==∗
-  lstore_own_auth γGS (<[γ:=b']> ζ) ∗ lstore_own_elem γGS γ (DfracOwn 1) b'.
+Lemma lstore_own_update ζ γ b b' :
+  lstore_own_auth ζ -∗
+  lstore_own_mut γ (DfracOwn 1) b ==∗
+  lstore_own_auth (<[γ:=b']> ζ) ∗ lstore_own_elem γ (DfracOwn 1) b'.
 Proof using.
   iIntros "Ha He". iDestruct (lstore_own_mut_of with "Ha He") as %[? _].
   iNamed "Ha". iDestruct "He" as "[He %Hmut]".
@@ -277,10 +292,10 @@ Proof using.
     rewrite /lstore_own_immut /lstore_own_elem Hmut'; eauto. }
 Qed.
 
-Lemma lstore_own_delete γGS ζ γ b :
-  lstore_own_auth γGS ζ -∗
-  lstore_own_mut γGS γ (DfracOwn 1) b ==∗
-  lstore_own_auth γGS (delete γ ζ).
+Lemma lstore_own_delete ζ γ b :
+  lstore_own_auth ζ -∗
+  lstore_own_mut γ (DfracOwn 1) b ==∗
+  lstore_own_auth (delete γ ζ).
 Proof using.
   iNamed 1. iIntros "[He %Hmut]". rewrite /lstore_own_elem Hmut.
   iMod (ghost_map_delete with "Hζgmap He") as "Hζgmap". iFrame.
@@ -289,3 +304,20 @@ Proof using.
 Qed.
 
 End BasicsResources.
+
+Notation "l ↦fresh{ dq } b" := (lstore_own_mut l dq (Bvblock (Mut, b)) ∗ lloc_own_priv l)%I
+  (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
+Notation "l ↦fresh b" := (l ↦fresh{DfracOwn 1} b)%I
+  (at level 20, format "l  ↦fresh  b") : bi_scope.
+Notation "l ↦mut{ dq } b" := (lstore_own_mut l dq (Bvblock (Mut, b)) ∗ ∃ ll, block_sim_raw ll l)%I
+  (at level 20, format "l  ↦mut{ dq }  b") : bi_scope.
+Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
+  (at level 20, format "l  ↦mut  b") : bi_scope.
+Notation "l ↦imm b" := (lstore_own_immut l (Bvblock (Immut, b)))%I
+  (at level 20, format "l  ↦imm  b") : bi_scope.
+Notation "l ↦roots{ dq } w" := (l ↪[wrapperGS_γroots_map]{dq} w)%I
+  (at level 20, format "l  ↦roots{ dq }  w") : bi_scope.
+Notation "l ↦roots w" := (l ↪[wrapperGS_γroots_map] w)%I
+  (at level 20, format "l  ↦roots  w") : bi_scope.
+Notation "l ↦clos ( f , x , e )" := (lstore_own_immut l (Bclosure f x e))%I
+  (at level 20, format "l  ↦clos  ( f ,  x ,  e )").

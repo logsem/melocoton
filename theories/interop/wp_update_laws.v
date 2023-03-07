@@ -8,7 +8,7 @@ From melocoton.interop Require Import state lang.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_lang Require Import lang lang_instantiation primitive_laws.
+From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import basics basics_resources weakestpre wp_block_sim.
 Import Wrap.
@@ -20,9 +20,6 @@ Context {Σ : gFunctors}.
 Context `{!heapGS_ML Σ, !heapGS_C Σ}.
 Context `{!invGS_gen hlc Σ}.
 Context `{!wrapperGS Σ}.
-
-Notation MLval := ML_lang.val.
-Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
@@ -45,7 +42,7 @@ Proof.
   1: by iApply (block_sim_arr_of_ghost_state with "GCχvirt GCζvirt").
   iAssert (block_sim_raw l ll) as "#Hraw".
   1: by iApply (lloc_own_auth_get_pub with "GCχvirt").
-  iMod (lstore_own_insert _ _ ll (Bvblock (Mut, _)) with "GCζvirt") as "(GCζvirt & Hzz)".
+  iMod (lstore_own_insert _ ll (Bvblock (Mut, _)) with "GCζvirt") as "(GCζvirt & Hzz)".
   1: { eapply map_disjoint_Some_l; done. }
   iDestruct (lstore_own_elem_to_mut with "Hzz") as "Hzz"; first done.
   iModIntro.
@@ -147,7 +144,7 @@ Proof.
   iIntros "(HGC & (Hmtζ & Hmtfresh))". iNamed "HGC".
   iDestruct (lstore_own_mut_of with "GCζvirt Hmtζ") as %[Hζγ _].
   iDestruct (lloc_own_priv_of with "GCχvirt Hmtfresh") as %Hχvirtγ.
-  iMod (lstore_own_update _ _ _ _ (Bvblock (Immut,bb)) with "GCζvirt Hmtζ") as "(GCζvirt & Hmtζ)".
+  iMod (lstore_own_update _ _ _ (Bvblock (Immut,bb)) with "GCζvirt Hmtζ") as "(GCζvirt & Hmtζ)".
   iDestruct (lstore_own_elem_to_immut with "Hmtζ") as "Hmtζ"; first done.
   iModIntro. iFrame "Hmtζ". rewrite /GC /named.
   iExists ζ, (<[γ:=(Bvblock (Immut, bb))]> ζfreeze), ζσ, (<[γ:=(Bvblock (Immut, bb))]> ζvirt).
@@ -165,6 +162,45 @@ Proof.
       apply Hother_blocks; by eapply elem_of_dom_2.
   + eapply is_store_freeze_lloc; eauto.
   + eapply GC_correct_freeze_lloc; eauto.
+Qed.
+
+Lemma update_root θ (l:loc) v E :
+  GC θ ∗ l ↦roots v -∗
+  ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
+    (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots v').
+Proof.
+  iIntros "(HGC & Hroots)".
+  iNamed "HGC".
+  iPoseProof (ghost_map_lookup with "GCrootsm Hroots") as "%H".
+  iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H.
+  iPoseProof ("HL" with "GCrootspto") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
+  iExists _. iFrame "Hown". iSplit; first done. iIntros (v' w') "(Hown' & %Hrepr')".
+  iMod (ghost_map_update with "GCrootsm Hroots") as "(GCrootsm&Hroots)".
+  iModIntro. iFrame "Hroots". do 9 iExists _; rewrite /named. iFrame.
+  rewrite dom_insert_lookup_L; last done.
+  iSplit.
+  { iPoseProof (big_sepM_insert_delete) as "(_&HR)"; iApply "HR"; iClear "HR".
+    iFrame. iExists _. by iFrame. }
+  { iPureIntro; split_and!; eauto.
+    intros l' γ [[-> ->]|[Hne HH]]%lookup_insert_Some.
+    2: by eapply Hrootslive.
+    inv_repr_lval. by eapply elem_of_dom_2. }
+Qed.
+
+Lemma access_root θ (l:loc) dq v :
+  GC θ ∗ l ↦roots{dq} v -∗
+  ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
+      (l ↦C w -∗ GC θ ∗ l ↦roots{dq} v).
+Proof.
+  iIntros "(HGC & Hroot)". iNamed "HGC".
+  iPoseProof (ghost_map_lookup with "GCrootsm Hroot") as "%H".
+  iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H.
+  iPoseProof ("HL" with "GCrootspto") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
+  iExists _. iFrame "Hown". iSplit; first done. iIntros "Hown". iFrame "Hroot".
+  rewrite /GC /named. do 9 iExists _.
+  iPoseProof ("HR" with "[Hown Hrp]") as "Hrootsm"; iClear "HR".
+  { iFrame. iExists w; by iFrame. }
+  iFrame. eauto.
 Qed.
 
 End UpdateLaws.

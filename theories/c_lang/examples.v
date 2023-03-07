@@ -41,7 +41,7 @@ Notation FibSpec name := (λ (s:string) (v:list val) (Φ : (val → iPropI Σ)),
     | _ => ⌜False⌝%I end).
 
 Definition StoreItSpec := λ s v Φ, match (s,v) with
-      ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦ v) ∗ ((l ↦C v') -∗ Φ (#0)))%I
+      ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦C v) ∗ ((l ↦C v') -∗ Φ (#0)))%I
     | _ => ⌜False⌝%I end.
 
 Definition FibLeftSpec := FibSpec "fib_left".

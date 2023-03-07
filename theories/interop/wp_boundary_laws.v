@@ -7,7 +7,7 @@ From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import lang state.
 From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_lang Require Import lang lang_instantiation primitive_laws.
+From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import basics basics_resources weakestpre wp_block_sim wp_utils.
 Import Wrap.
@@ -21,9 +21,6 @@ Context {Σ : gFunctors}.
 Context `{!heapGS_ML Σ, !heapGS_C Σ}.
 Context `{!invGS_gen hlc Σ}.
 Context `{!wrapperGS Σ}.
-
-Notation MLval := ML_lang.val.
-Notation Cval := C_lang.val.
 
 Lemma wrap_interp_c_to_ml w ρc mem θ v lv (X : val → wrapstateML → store → Prop) :
   repr_lval θ lv w →

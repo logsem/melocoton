@@ -4,6 +4,7 @@ From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
 From melocoton.language Require Import language.
+From melocoton.c_interface Require Import defs.
 From melocoton.c_lang Require Export lang metatheory.
 
 Local Notation state := (gmap loc heap_cell).

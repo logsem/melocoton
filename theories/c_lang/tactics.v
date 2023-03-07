@@ -1,4 +1,5 @@
 From stdpp Require Import fin_maps.
+From melocoton.c_interface Require Import defs.
 From melocoton.c_lang Require Export lang_instantiation.
 From melocoton.language Require Export language.
 From iris.prelude Require Import options.

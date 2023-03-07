@@ -5,6 +5,7 @@ From melocoton Require Import named_props.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import lang weakestpre wp_utils wp_update_laws wp_ext_call_laws wp_simulation.
+From melocoton.c_interop Require Import laws.
 From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import lang_instantiation.
 From melocoton.ml_lang Require proofmode.
@@ -43,7 +44,9 @@ Definition swap_pair_ml_spec : @program_specification _ ML_lang _ _ _ _ := (
   λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%V ]⌝ ∗ wp ((v2,v1)%V)
 )%I.
 
-Definition swap_pair_env := (mkPeC swap_pair_mod (proto_prims_in_C ∅ swap_pair_ml_spec)).
+Definition swap_pair_env : language.weakestpre.prog_environ C_lang Σ :=
+  {| penv_prog := swap_pair_mod;
+     penv_proto := (proto_prims_in_C ∅ swap_pair_ml_spec) |}.
 
 Lemma swap_pair_correct E f vs Φ :
     wrap_proto swap_pair_ml_spec f vs Φ
@@ -164,7 +167,7 @@ Proof.
 
   (* free *)
   wp_pures.
-  iAssert ((Loc rr) ↦∗ [Some wlv1'; Some wlv2'])%I with "[Hr1 Hr2]" as "Hrr".
+  iAssert ((Loc rr) ↦C∗ [Some wlv1'; Some wlv2'])%I with "[Hr1 Hr2]" as "Hrr".
   1: cbn; iFrame.
   wp_free.
 

@@ -5,11 +5,11 @@ From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.c_lang Require Import lang lang_instantiation primitive_laws notation.
+From melocoton.c_interface Require Import defs notation.
 From melocoton.interop Require Import basics prims basics_resources state.
 
 Global Notation MLval := ML_lang.val.
-Global Notation Cval := C_lang.val.
+Global Notation Cval := C_intf.val.
 
 Section ChiZetaConstruction.
 

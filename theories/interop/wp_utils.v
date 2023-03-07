@@ -9,17 +9,16 @@ From melocoton.interop Require Export basics_constructions.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_lang Require Import lang lang_instantiation primitive_laws.
+From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import basics prims weakestpre wp_block_sim.
 Import Wrap.
 
 
 Global Notation MLval := ML_lang.val.
-Global Notation Cval := C_lang.val.
+Global Notation Cval := C_intf.val.
 
 
-Notation mkPeC p T := ({| penv_prog := p; penv_proto := T |} : prog_environ C_lang (_ : gFunctors)).
 Notation mkPeML p T := ({| penv_prog := p; penv_proto := T |} : prog_environ ML_lang (_ : gFunctors)).
 Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang (_ : gFunctors)).
 
@@ -64,7 +63,7 @@ Definition proto_int2val : prim_proto := (λ p vl Φ,
    ∃ θ z,
      "HGC" ∷ GC θ ∗
      "->" ∷ ⌜p = Pint2val⌝ ∗
-     "->" ∷ ⌜vl = [C_lang.LitV $ C_lang.LitInt $ z]⌝ ∗
+     "->" ∷ ⌜vl = [C_intf.LitV $ C_intf.LitInt $ z]⌝ ∗
      "Cont" ∷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ Φ w))%I.
 
 Definition proto_val2int : prim_proto := (λ p vl Φ,
@@ -73,52 +72,52 @@ Definition proto_val2int : prim_proto := (λ p vl Φ,
      "->" ∷ ⌜p = Pval2int⌝ ∗
      "->" ∷ ⌜vl = [ w ]⌝ ∗
      "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ ∗
-     "Cont" ∷ (GC θ -∗ Φ (C_lang.LitV $ C_lang.LitInt $ z)))%I.
+     "Cont" ∷ (GC θ -∗ Φ (C_intf.LitV $ C_intf.LitInt $ z)))%I.
 
 Definition proto_registerroot : prim_proto := (λ p vl Φ,
    ∃ θ l v w,
      "HGC" ∷ GC θ ∗
      "->" ∷ ⌜p = Pregisterroot⌝ ∗
-     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
+     "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦C w ∗
      "%Hrepr" ∷ ⌜repr_lval θ v w⌝ ∗
-     "Cont" ∷ (GC θ -∗ l ↦roots v -∗ Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+     "Cont" ∷ (GC θ -∗ l ↦roots v -∗ Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
 
 Definition proto_unregisterroot : prim_proto := (λ p vl Φ,
    ∃ θ l v,
      "HGC" ∷ GC θ ∗
      "->" ∷ ⌜p = Punregisterroot⌝ ∗
-     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitLoc $ l ]⌝ ∗
+     "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦roots v ∗
-     "Cont" ∷ (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+     "Cont" ∷ (∀w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
 Definition proto_modify : prim_proto := (λ p vl Φ,
   ∃ θ w i v' w' γ tg vs,
     "HGC" ∷ GC θ ∗
     "->" ∷ ⌜p = Pmodify⌝ ∗
-    "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i; w' ]⌝ ∗
+    "->" ∷ ⌜vl = [ w; C_intf.LitV $ C_intf.LitInt $ i; w' ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Bvblock (Mut, (tg, vs))) ∗
+    "Hpto" ∷ lstore_own_mut γ (DfracOwn 1) (Bvblock (Mut, (tg, vs))) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ v' w'⌝ ∗
     "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
     "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
     "Cont" ∷ (GC θ -∗
-              lstore_own_mut wrapperGS_γζvirt γ (DfracOwn 1) (Bvblock (Mut, (tg, <[Z.to_nat i:=v']> vs))) -∗
-              Φ (C_lang.LitV $ C_lang.LitInt $ 0)))%I.
+              lstore_own_mut γ (DfracOwn 1) (Bvblock (Mut, (tg, <[Z.to_nat i:=v']> vs))) -∗
+              Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
 
 (* The most general spec, prove stuff for specific block-level pointstos later *)
 Definition proto_readfield : prim_proto := (λ p vl Φ,
    ∃ θ w i γ dq m tg vs,
      "HGC" ∷ GC θ ∗
      "->" ∷ ⌜p = Preadfield⌝ ∗
-     "->" ∷ ⌜vl = [ w; C_lang.LitV $ C_lang.LitInt $ i ]⌝ ∗
+     "->" ∷ ⌜vl = [ w; C_intf.LitV $ C_intf.LitInt $ i ]⌝ ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-     "Hpto" ∷ lstore_own_elem wrapperGS_γζvirt γ dq (Bvblock (m, (tg, vs))) ∗
+     "Hpto" ∷ lstore_own_elem γ dq (Bvblock (m, (tg, vs))) ∗
      "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
      "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
      "Cont" ∷ (∀ v' w', GC θ -∗
-                        lstore_own_elem wrapperGS_γζvirt γ dq (Bvblock (m, (tg, vs))) -∗
+                        lstore_own_elem γ dq (Bvblock (m, (tg, vs))) -∗
                         ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗
                         ⌜repr_lval θ v' w'⌝ -∗
                         Φ w'))%I.
@@ -128,7 +127,7 @@ Definition proto_alloc : prim_proto := (λ p vl Φ,
    ∃ θ tg sz,
      "HGC" ∷ GC θ ∗
      "->" ∷ ⌜p = Palloc⌝ ∗
-     "->" ∷ ⌜vl = [ C_lang.LitV $ C_lang.LitInt $ vblock_tag_as_int $ tg; C_lang.LitV $ C_lang.LitInt $ sz ]⌝ ∗
+     "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitInt $ vblock_tag_as_int $ tg; C_intf.LitV $ C_intf.LitInt $ sz ]⌝ ∗
      "%Hsz" ∷ ⌜0 ≤ sz⌝%Z ∗
      "Cont" ∷ (∀ θ' γ w, GC θ' -∗
                          γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) -∗
@@ -221,7 +220,7 @@ Lemma set_to_none θ mem roots_m privmem :
  -> gen_heap_interp mem
  -∗ ([∗ map] a0↦v0 ∈ roots_m, ∃ w, a0 ↦C{DfracOwn 1} w ∗ ⌜repr_lval θ v0 w⌝)
 ==∗ (gen_heap_interp (privmem ∪ ((λ _ : lval, None) <$> roots_m))
-    ∗[∗ set] a0 ∈ dom roots_m, a0 O↦ None).
+    ∗[∗ set] a0 ∈ dom roots_m, a0 O↦C None).
 Proof.
   intros (mm & Hrepr1 & Hrepr2 & Hrepr3).
   induction Hrepr1 in Hrepr2,Hrepr3,mem,privmem|-*.
@@ -357,7 +356,7 @@ Qed.
 Lemma set_to_some θ mem roots_m privmem :
     repr θ roots_m privmem mem
  -> gen_heap_interp (privmem ∪ ((λ _ : lval, None) <$> roots_m))
- -∗ ([∗ set] a ∈ dom roots_m, a O↦ None)
+ -∗ ([∗ set] a ∈ dom roots_m, a O↦C None)
  ==∗ gen_heap_interp mem
      ∗ ([∗ map] a↦v ∈ roots_m, ∃ w, a ↦C{DfracOwn 1} w ∗ ⌜repr_lval θ v w⌝).
 Proof.

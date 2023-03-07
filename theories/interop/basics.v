@@ -2,14 +2,14 @@ From Coq Require Import ZArith.
 From stdpp Require Import base gmap list.
 From iris.heap_lang Require Export locations.
 From melocoton Require Import commons.
-From melocoton.c_lang Require Import lang.
+From melocoton.c_interface Require Import defs.
 From melocoton.ml_lang Require Import lang.
 
 (* the type of memory addresses used by the C semantics *)
 Notation addr := iris.heap_lang.locations.loc (only parsing).
 (* We call "mem" a C memory and "word" a C value. *)
 Notation memory := (gmap loc heap_cell).
-Notation word := C_lang.val.
+Notation word := C_intf.val.
 (* We call "store" an ML memory and "val" an ML value. *)
 Notation store := (gmap loc (option (list val))).
 Notation val := ML_lang.val.
@@ -238,12 +238,12 @@ Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
 
 (* C representation of block-level values, roots and memory *)
 
-Inductive repr_lval : addr_map → lval → C_lang.val → Prop :=
+Inductive repr_lval : addr_map → lval → C_intf.val → Prop :=
   | repr_lint θ x :
-    repr_lval θ (Lint x) (C_lang.LitV (C_lang.LitInt x))
+    repr_lval θ (Lint x) (C_intf.LitV (C_intf.LitInt x))
   | repr_lloc θ γ a :
     θ !! γ = Some a →
-    repr_lval θ (Lloc γ) (C_lang.LitV (C_lang.LitLoc a)).
+    repr_lval θ (Lloc γ) (C_intf.LitV (C_intf.LitLoc a)).
 
 Inductive repr_roots : addr_map → roots_map → memory → Prop :=
   | repr_roots_emp θ :

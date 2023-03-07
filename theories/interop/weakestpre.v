@@ -8,27 +8,22 @@ From melocoton.interop Require Import lang state.
 From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_lang Require Import lang lang_instantiation primitive_laws.
+From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import basics basics_resources.
 Import Wrap.
 
 Class wrapperGS Σ := WrapperGS {
-  wrapperGS_lstoreGS :> ghost_mapG Σ lloc block;
-  wrapperGS_addr_lvalGS :> ghost_mapG Σ addr lval;
-  wrapperGS_lloc_mapGS :> ghost_mapG Σ lloc lloc_visibility;
+  wrapperGS_basics :> wrapperBasicsGS Σ;
   wrapperGS_locsetGS :> ghost_varG Σ (gsetUR loc);
   wrapperGS_addrmapGS :> ghost_varG Σ (leibnizO addr_map);
   wrapperGS_at_boundary :> ghost_varG Σ (leibnizO bool);
   wrapperGS_var_lstoreGS :> ghost_varG Σ lstore;
   wrapperGS_var_lloc_mapGS :> ghost_varG Σ lloc_map;
   wrapperGS_γζ : gname;
-  wrapperGS_γζvirt : gname;
   wrapperGS_γroots_set : gname;
-  wrapperGS_γroots_map : gname;
   wrapperGS_γθ : gname;
   wrapperGS_γχ : gname;
-  wrapperGS_γχvirt : gname;
   wrapperGS_γat_boundary : gname;
 }.
 
@@ -41,10 +36,9 @@ Context `{!invGS_gen hlc Σ}.
 Context `{!wrapperGS Σ}.
 
 Notation MLval := ML_lang.val.
-Notation Cval := C_lang.val.
+Notation Cval := C_intf.val.
 
 Implicit Types P : iProp Σ.
-
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
     "SIζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
@@ -60,10 +54,10 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "GCχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
   ∗ "GCθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
   ∗ "GCroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots_s
-  ∗ "GCζvirt" ∷ lstore_own_auth wrapperGS_γζvirt ζvirt
+  ∗ "GCζvirt" ∷ lstore_own_auth ζvirt
   ∗ "GCbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) true
   ∗ "(GCσMLv & GCσdom)" ∷ state_interp (σMLvirt : language.language.state ML_lang)
-  ∗ "GCχvirt" ∷ lloc_own_auth wrapperGS_γχvirt χvirt
+  ∗ "GCχvirt" ∷ lloc_own_auth χvirt
   ∗ "GCχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χvirt ζvirt, ℓ ↦M/)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 roots_m
   ∗ "GCrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
@@ -79,19 +73,13 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝ (* TODO redundant? *)
   ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
 
-(* TODO: custom notation (like l1 ~~ML l2 )? *)
-(* l1 is a location in the ML heap. l2 is a block location.
-   They are similar if identified by χ *)
-Definition block_sim_raw (ℓ : loc) (γ : lloc) : iProp Σ :=
-  lloc_own_pub wrapperGS_γχvirt γ ℓ.
-
 Definition GC_token_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) : iProp Σ :=
    "GCζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
  ∗ "GCχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
  ∗ "GCθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅:addr_map)
  ∗ "GCroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots_m)
  ∗ "GCrootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 (roots_m : gmap loc lval)
- ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦ None).
+ ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦C None).
 
 Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
     "SIζ" ∷ ghost_var wrapperGS_γζ (1/2) ζvirt
@@ -99,16 +87,16 @@ Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "SIθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
   ∗ "SIroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
   ∗ "SIbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) false
-  ∗ "SIζvirt" ∷ lstore_own_auth wrapperGS_γζvirt ζvirt
-  ∗ "HσCv" ∷ state_interp (memC ∪ (fmap (fun k => None) roots))
-  ∗ "SIAχ" ∷ lloc_own_auth wrapperGS_γχvirt χ
+  ∗ "SIζvirt" ∷ lstore_own_auth ζvirt
+  ∗ "HσCv" ∷ gen_heap_interp (memC ∪ (fmap (fun k => None) roots))
+  ∗ "SIAχ" ∷ lloc_own_auth χ
   ∗ "SIAχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χ ζvirt, ℓ ↦M/)
   ∗ "SIGCrem" ∷ GC_token_remnant ζvirt χ roots
   ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝
   ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χ⌝
   ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
 
-Definition public_state_interp : memory → iProp Σ := state_interp.
+Definition public_state_interp : memory → iProp Σ := gen_heap_interp.
 Definition private_state_interp : wrapstateC → iProp Σ :=
   (λ ρc, C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc))%I.
 
@@ -154,23 +142,6 @@ Qed.
 
 Context (σ : Wrap.state).
 Notation SI := (weakestpre.state_interp σ).
-
-Notation "l ↦fresh{ dq } b" := (lstore_own_mut wrapperGS_γζvirt l dq (Bvblock (Mut, b)) ∗ lloc_own_priv wrapperGS_γχvirt l)%I
-  (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
-Notation "l ↦fresh b" := (l ↦fresh{DfracOwn 1} b)%I
-  (at level 20, format "l  ↦fresh  b") : bi_scope.
-Notation "l ↦mut{ dq } b" := (lstore_own_mut wrapperGS_γζvirt l dq (Bvblock (Mut, b)) ∗ ∃ ll, block_sim_raw ll l)%I
-  (at level 20, format "l  ↦mut{ dq }  b") : bi_scope.
-Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
-  (at level 20, format "l  ↦mut  b") : bi_scope.
-Notation "l ↦imm b" := (lstore_own_immut wrapperGS_γζvirt l (Bvblock (Immut, b)))%I
-  (at level 20, format "l  ↦imm  b") : bi_scope.
-Notation "l ↦roots{ dq } w" := (l ↪[wrapperGS_γroots_map]{dq} w)%I
-  (at level 20, format "l  ↦roots{ dq }  w") : bi_scope.
-Notation "l ↦roots w" := (l ↪[wrapperGS_γroots_map] w)%I
-  (at level 20, format "l  ↦roots  w") : bi_scope.
-Notation "l ↦clos ( f , x , e )" := (lstore_own_immut wrapperGS_γζvirt l (Bclosure f x e))%I
-  (at level 20, format "l  ↦clos  ( f ,  x ,  e )").
 
 Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
   (ML_lang.LitV (ML_lang.LitInt x)) => ⌜l = (Lint x)⌝
@@ -219,24 +190,6 @@ Proof.
 Qed.
 
 End Embed_logic.
-
-(* reexport notations *)
-Notation "l ↦fresh{ dq } b" := (lstore_own_mut wrapperGS_γζvirt l dq (Bvblock (Mut, b)) ∗ lloc_own_priv wrapperGS_γχvirt l)%I
-  (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
-Notation "l ↦fresh b" := (l ↦fresh{DfracOwn 1} b)%I
-  (at level 20, format "l  ↦fresh  b") : bi_scope.
-Notation "l ↦mut{ dq } b" := (lstore_own_mut wrapperGS_γζvirt l dq (Bvblock (Mut, b)) ∗ ∃ ll, block_sim_raw ll l)%I
-  (at level 20, format "l  ↦mut{ dq }  b") : bi_scope.
-Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
-  (at level 20, format "l  ↦mut  b") : bi_scope.
-Notation "l ↦imm b" := (lstore_own_immut wrapperGS_γζvirt l (Bvblock (Immut, b)))%I
-  (at level 20, format "l  ↦imm  b") : bi_scope.
-Notation "l ↦roots{ dq } w" := (l ↪[wrapperGS_γroots_map]{dq} w)%I
-  (at level 20, format "l  ↦roots{ dq }  w") : bi_scope.
-Notation "l ↦roots w" := (l ↪[wrapperGS_γroots_map] w)%I
-  (at level 20, format "l  ↦roots  w") : bi_scope.
-Notation "l ↦clos ( f , x , e )" := (lstore_own_immut wrapperGS_γζvirt l (Bclosure f x e))%I
-  (at level 20, format "l  ↦clos  ( f ,  x ,  e )").
 
 Ltac SI_GC_agree :=
   iDestruct (ghost_var_agree with "GCζ SIζ") as %?;

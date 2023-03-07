@@ -7,7 +7,7 @@ From melocoton.interop Require Import lang state.
 From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_lang Require Import lang lang_instantiation primitive_laws.
+From melocoton.c_interface Require Import defs.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import basics basics_resources weakestpre.
 Import Wrap.
@@ -16,19 +16,16 @@ Section BlockSimLaws.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
+Context `{!heapGS_ML Σ}.
 Context `{!invGS_gen hlc Σ}.
 Context `{!wrapperGS Σ}.
-
-Notation MLval := ML_lang.val.
-Notation Cval := C_lang.val.
 
 Implicit Types P : iProp Σ.
 
 Lemma block_sim_of_ghost_state (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     lloc_own_auth wrapperGS_γχvirt χvirt
-  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+     lloc_own_auth χvirt
+  -∗ lstore_own_auth ζvirt
   -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
@@ -61,8 +58,8 @@ Qed.
 
 Lemma block_sim_arr_of_ghost_state (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs b :
-     lloc_own_auth wrapperGS_γχvirt χvirt
-  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+     lloc_own_auth χvirt
+  -∗ lstore_own_auth ζvirt
   -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
@@ -79,8 +76,8 @@ Qed.
 
 Lemma block_sim_to_ghost_state  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    v b :
-     lloc_own_auth wrapperGS_γχvirt χvirt
-  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+     lloc_own_auth χvirt
+  -∗ lstore_own_auth ζvirt
   -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
@@ -106,8 +103,8 @@ Qed.
 
 Lemma block_sim_arr_to_ghost_state  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs bb :
-     lloc_own_auth wrapperGS_γχvirt χvirt
-  -∗ lstore_own_auth wrapperGS_γζvirt ζvirt
+     lloc_own_auth χvirt
+  -∗ lstore_own_auth ζvirt
   -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
@@ -125,5 +122,3 @@ Proof.
 Qed.
 
 End BlockSimLaws.
-
-
