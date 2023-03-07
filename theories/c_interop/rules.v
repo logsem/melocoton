@@ -5,7 +5,7 @@ From melocoton.c_interface Require Export resources.
 From melocoton.c_lang Require Import primitive_laws tactics notation proofmode.
 From iris.prelude Require Import options.
 
-(* Derived laws for C<->ML interop.
+(* Derived WP rules for C<->ML interop.
 
    These follow from the generic rules of the wrapper (in interop/) that work
    for any language obeying the C interface (c_interface/) -- specialized to our
