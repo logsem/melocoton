@@ -43,12 +43,12 @@ Definition wrap_proto (T : ML_proto) : C_proto := (λ f ws Φ,
   ∃ θ vs lvs ψ,
     "HGC" ∷ GC θ ∗
     "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
-    "Hsim" ∷ block_sim_arr vs lvs ∗
+    "Hsim" ∷ lvs ~~∗ vs ∗
     "Hproto" ∷ T f vs ψ ∗
     "Cont" ∷ (∀ θ' vret lvret wret,
       GC θ' -∗
       ψ vret -∗
-      block_sim vret lvret -∗
+      lvret ~~ vret -∗
       ⌜repr_lval θ' lvret wret⌝ -∗
       Φ wret)
 )%I.
@@ -143,12 +143,12 @@ Definition proto_callback (E : coPset) T : prim_proto := (λ p vl Φ,
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
     "Hclos" ∷ γ ↦clos (f, x, e) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
-    "Hsim'" ∷ block_sim v' lv' ∗
+    "Hsim'" ∷ lv' ~~ v' ∗
     "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) @ mkPeML ∅ T ; E {{ ψ }} ∗
     "Cont" ∷ (∀ θ' vret lvret wret,
                 GC θ' -∗
                 ψ vret -∗
-                block_sim vret lvret -∗
+                lvret ~~ vret -∗
                 ⌜repr_lval θ' lvret wret⌝ -∗
                 Φ wret))%I.
 

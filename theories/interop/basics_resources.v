@@ -4,6 +4,7 @@ From iris.base_logic.lib Require Import ghost_map ghost_var gen_heap.
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
 From melocoton Require Import named_props.
+From melocoton.ml_lang Require Import lang.
 From melocoton.interop Require Export basics.
 
 Class wrapperBasicsGS Σ := WrapperBasicsGS {
@@ -33,16 +34,12 @@ Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
   "Hχgmap" ∷ ghost_map_auth wrapperGS_γχvirt 1 χ ∗
   "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ).
 
-(* FIXME: aliased name *)
-(* TODO: custom notation (like l1 ~~ML l2 )? *)
-(* l1 is a location in the ML heap. l2 is a block location.
-   They are similar if identified by χ *)
-Definition block_sim_raw (ℓ : loc) (γ : lloc) : iProp Σ :=
-  lloc_own_pub γ ℓ.
+Notation "γ  ~ℓ~  ℓ" := (lloc_own_pub γ ℓ) (at level 20).
+Notation "γ  ~ℓ~/" := (lloc_own_priv γ) (at level 20).
 
 Lemma lloc_own_auth_get_pub_all χ :
   lloc_own_auth χ -∗
-  [∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ.
+  [∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), γ ~ℓ~ ℓ.
 Proof using.
   iNamed 1. iApply "Hχpubs".
 Qed.
@@ -50,7 +47,7 @@ Qed.
 Lemma lloc_own_auth_get_pub χ γ ℓ :
   χ !! γ = Some (LlocPublic ℓ) →
   lloc_own_auth χ -∗
-  lloc_own_pub γ ℓ.
+  γ ~ℓ~ ℓ.
 Proof using.
   intros Hγ. iNamed 1.
   iDestruct (big_sepM_lookup with "Hχpubs") as "?"; eauto.
@@ -58,7 +55,7 @@ Qed.
 
 Lemma lloc_own_pub_of χ γ ℓ :
   lloc_own_auth χ -∗
-  lloc_own_pub γ ℓ -∗
+  γ ~ℓ~ ℓ -∗
   ⌜χ !! γ = Some (LlocPublic ℓ)⌝.
 Proof using.
   iIntros "Hχ Hpub". iNamed "Hχ".
@@ -67,7 +64,7 @@ Qed.
 
 Lemma lloc_own_priv_of χ γ :
   lloc_own_auth χ -∗
-  lloc_own_priv γ -∗
+  γ ~ℓ~/ -∗
   ⌜χ !! γ = Some LlocPrivate⌝.
 Proof using.
   iIntros "Hχ Hpub". iNamed "Hχ".
@@ -76,8 +73,8 @@ Qed.
 
 Lemma lloc_own_expose χ γ ℓ :
   lloc_own_auth χ -∗
-  lloc_own_priv γ ==∗
-  lloc_own_auth (<[γ:=LlocPublic ℓ]> χ) ∗ lloc_own_pub γ ℓ.
+  γ ~ℓ~/ ==∗
+  lloc_own_auth (<[γ:=LlocPublic ℓ]> χ) ∗ γ ~ℓ~ ℓ.
 Proof using.
   iIntros "Hχ Hγ".
   iDestruct (lloc_own_priv_of with "Hχ Hγ") as %Hχγ.
@@ -91,9 +88,9 @@ Proof using.
 Qed.
 
 Lemma lloc_own_allocate χ γ:
-  ⌜χ !! γ = None⌝     -∗
+  ⌜χ !! γ = None⌝ -∗
   lloc_own_auth χ ==∗
-  lloc_own_auth (<[γ:=LlocPrivate]> χ) ∗ lloc_own_priv γ.
+  lloc_own_auth (<[γ:=LlocPrivate]> χ) ∗ γ ~ℓ~/.
 Proof using.
   iIntros (Hne) "Hχ".
   iNamed "Hχ".
@@ -106,7 +103,7 @@ Proof using.
 Qed.
 
 Lemma lloc_own_insert χ γ v:
-  ⌜χ !! γ = None⌝     -∗
+  ⌜χ !! γ = None⌝ -∗
   lloc_own_auth χ ==∗
   lloc_own_auth (<[γ:=v]> χ).
 Proof using.
@@ -303,21 +300,89 @@ Proof using.
   iApply (big_sepM_subseteq with "Hζimmut"). apply delete_subseteq.
 Qed.
 
+(* Vblock points-to *)
+
+Definition lstore_own_vblock_fresh γ dq b : iProp Σ :=
+  lstore_own_mut γ dq (Bvblock (Mut, b)) ∗ γ ~ℓ~/.
+
+Definition lstore_own_vblock_mut γ dq b : iProp Σ :=
+  lstore_own_mut γ dq (Bvblock (Mut, b)) ∗ ∃ ℓ, γ ~ℓ~ ℓ.
+
+Definition lstore_own_vblock_imm γ b : iProp Σ :=
+  lstore_own_immut γ (Bvblock (Immut, b)).
+
+Notation "γ ↦fresh{ dq } b" := (lstore_own_vblock_fresh γ dq b)
+  (at level 20, format "γ  ↦fresh{ dq }  b") : bi_scope.
+Notation "γ ↦fresh b" := (γ ↦fresh{DfracOwn 1} b)%I
+  (at level 20, format "γ  ↦fresh  b") : bi_scope.
+Notation "γ ↦mut{ dq } b" := (lstore_own_vblock_mut γ dq b)
+  (at level 20, format "γ  ↦mut{ dq }  b") : bi_scope.
+Notation "γ ↦mut b" := (γ ↦mut{DfracOwn 1} b)%I
+  (at level 20, format "γ  ↦mut  b") : bi_scope.
+Notation "γ ↦imm b" := (lstore_own_vblock_imm γ b)
+  (at level 20, format "γ  ↦imm  b") : bi_scope.
+
+(* Closure points-to *)
+
+Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
+  (at level 20, format "γ  ↦clos  ( f ,  x ,  e )").
+
+(* Lifting of ~ℓ~ at the level of ML values *)
+
+Fixpoint block_sim (v : val) (l : lval) : iProp Σ := match v with
+  | ML_lang.LitV (ML_lang.LitInt x) => ⌜l = (Lint x)⌝
+  | ML_lang.LitV (ML_lang.LitBool b) => ⌜l = (Lint (if b then 1 else 0))⌝
+  | ML_lang.LitV ML_lang.LitUnit => ⌜l = (Lint 0)⌝
+  | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
+  | ML_lang.PairV v1 v2 => ∃ γ lv1 lv2,
+      ⌜l = (Lloc γ)⌝ ∗
+      γ ↦imm (TagDefault, [lv1;lv2]) ∗
+      block_sim v1 lv1 ∗ block_sim v2 lv2
+  | ML_lang.InjLV v => ∃ γ lv,
+      ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv]) ∗ block_sim v lv
+  | ML_lang.InjRV v => ∃ γ lv,
+      ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv]) ∗ block_sim v lv
+  | ML_lang.RecV f x e => ∃ γ,
+      ⌜l = Lloc γ⌝ ∗ γ ↦clos (f, x, e)
+end.
+
+Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
+
+Global Instance block_sim_pers v l : Persistent (l ~~ v).
+Proof.
+  induction v as [[x|b| |]| | | |] in l|-*; cbn; unshelve eapply (_).
+Qed.
+
+Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=
+  [∗ list] v;l ∈ vs;ls, l ~~ v.
+
+Notation "lvs  ~~∗  vs" := (block_sim_arr vs lvs) (at level 20).
+
+
 End BasicsResources.
 
-Notation "l ↦fresh{ dq } b" := (lstore_own_mut l dq (Bvblock (Mut, b)) ∗ lloc_own_priv l)%I
-  (at level 20, format "l  ↦fresh{ dq }  b") : bi_scope.
-Notation "l ↦fresh b" := (l ↦fresh{DfracOwn 1} b)%I
-  (at level 20, format "l  ↦fresh  b") : bi_scope.
-Notation "l ↦mut{ dq } b" := (lstore_own_mut l dq (Bvblock (Mut, b)) ∗ ∃ ll, block_sim_raw ll l)%I
-  (at level 20, format "l  ↦mut{ dq }  b") : bi_scope.
-Notation "l ↦mut b" := (l ↦mut{DfracOwn 1} b)%I
-  (at level 20, format "l  ↦mut  b") : bi_scope.
-Notation "l ↦imm b" := (lstore_own_immut l (Bvblock (Immut, b)))%I
-  (at level 20, format "l  ↦imm  b") : bi_scope.
-Notation "l ↦roots{ dq } w" := (l ↪[wrapperGS_γroots_map]{dq} w)%I
-  (at level 20, format "l  ↦roots{ dq }  w") : bi_scope.
-Notation "l ↦roots w" := (l ↪[wrapperGS_γroots_map] w)%I
-  (at level 20, format "l  ↦roots  w") : bi_scope.
-Notation "l ↦clos ( f , x , e )" := (lstore_own_immut l (Bclosure f x e))%I
-  (at level 20, format "l  ↦clos  ( f ,  x ,  e )").
+(* Re-export notations *)
+
+Notation "γ  ~ℓ~  ℓ" := (lloc_own_pub γ ℓ) (at level 20).
+Notation "γ  ~ℓ~/" := (lloc_own_priv γ) (at level 20).
+
+Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
+Notation "lvs  ~~∗  vs" := (block_sim_arr vs lvs) (at level 20).
+
+Notation "γ ↦fresh{ dq } b" := (lstore_own_vblock_fresh γ dq b)
+  (at level 20, format "γ  ↦fresh{ dq }  b") : bi_scope.
+Notation "γ ↦fresh b" := (γ ↦fresh{DfracOwn 1} b)%I
+  (at level 20, format "γ  ↦fresh  b") : bi_scope.
+Notation "γ ↦mut{ dq } b" := (lstore_own_vblock_mut γ dq b)
+  (at level 20, format "γ  ↦mut{ dq }  b") : bi_scope.
+Notation "γ ↦mut b" := (γ ↦mut{DfracOwn 1} b)%I
+  (at level 20, format "γ  ↦mut  b") : bi_scope.
+Notation "γ ↦imm b" := (lstore_own_vblock_imm γ b)
+  (at level 20, format "γ  ↦imm  b") : bi_scope.
+Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
+  (at level 20, format "γ  ↦clos  ( f ,  x ,  e )").
+
+Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperGS_γroots_map]{dq} w)%I
+  (at level 20, format "γ  ↦roots{ dq }  w") : bi_scope.
+Notation "γ ↦roots w" := (γ ↪[wrapperGS_γroots_map] w)%I
+  (at level 20, format "γ  ↦roots  w") : bi_scope.

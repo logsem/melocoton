@@ -27,7 +27,7 @@ Import mlanguage.
 Lemma wp_to_val (pe : weakestpre.prog_environ wrap_lang Σ) E v:
     not_at_boundary
  -∗ WP (WrSE (ExprML (ML_lang.Val v))) @ pe; E {{ w,
-      ∃ θ' lv, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ block_sim v lv ∗
+      ∃ θ' lv, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗
       at_boundary wrap_lang }}.
 Proof.
   iIntros "Hnb".
@@ -67,7 +67,7 @@ Lemma wp_simulates (pe : prog_environ ML_lang Σ) E eml Φ :
   -∗ (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ penv_proto pe fn_name vs Φ -∗ False)
   -∗ WP eml @ pe; E {{ Φ }}
   -∗ WP (WrSE (ExprML eml)) @ (wrap_penv pe); E {{ w,
-       ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ block_sim v lv ∗ Φ v ∗
+       ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
        at_boundary wrap_lang }}.
 Proof.
   intros Hpeemp.
@@ -122,7 +122,7 @@ Proof.
     iSplit; first done.
     iSplit; first rewrite /wrap_penv /= lookup_prims_prog_None //.
     iFrame "Hb Hst'".
-    iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ block_sim vret lvret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
+    iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
     iSplitL "HGC HT".
     { rewrite {2}/wrap_penv /wrap_proto /named /=. iExists _, _, _, _.
       iFrame "HGC HT Hblk". iSplit; first done.

@@ -31,7 +31,7 @@ Lemma block_sim_of_ghost_state (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_ma
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
   -∗⌜ζσ ##ₘ ζvirt⌝
   -∗⌜is_val χvirt ζfreeze v b⌝
-  -∗ block_sim v b.
+  -∗ b ~~ v.
 Proof.
   iIntros "Hχ Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
   iDestruct (lstore_own_auth_get_immut_all with "Hζ") as "#Hζimm".
@@ -57,15 +57,15 @@ Proof.
 Qed.
 
 Lemma block_sim_arr_of_ghost_state (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
-   vs b :
+   vs bb :
      lloc_own_auth χvirt
   -∗ lstore_own_auth ζvirt
   -∗⌜ζfreeze = ζσ ∪ ζvirt⌝
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
   -∗⌜ζσ ##ₘ ζvirt⌝
-  -∗⌜Forall2 (is_val χvirt ζfreeze) vs b⌝
-  -∗ block_sim_arr vs b.
+  -∗⌜Forall2 (is_val χvirt ζfreeze) vs bb⌝
+  -∗ bb ~~∗ vs.
 Proof.
   iIntros "Hχ Hζ %Hfreeze %Hstorebl %Hstore %Hdisj %H".
   iApply big_sepL2_forall; iSplit; first (iPureIntro; by eapply Forall2_length).
@@ -82,13 +82,13 @@ Lemma block_sim_to_ghost_state  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_m
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
   -∗⌜ζσ ##ₘ ζvirt⌝
-  -∗ block_sim v b
+  -∗ b ~~ v
   -∗⌜is_val χvirt ζfreeze v b⌝.
 Proof.
   iIntros "Hχ Hζ %Hfreeze %Hstorebl %Hstore %Hdis Hsim".
   iInduction v as [[x|bo| |]| | | |] "IH" forall (b); cbn.
   all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
-  1: {iDestruct "Hsim" as "(%γ & -> & Hsim)". unfold block_sim_raw.
+  1: {iDestruct "Hsim" as "(%γ & -> & Hsim)".
       iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH".
       iPureIntro. econstructor. done. }
   1: iDestruct "Hsim" as "(%γ & -> & Hsim)".
@@ -109,7 +109,7 @@ Lemma block_sim_arr_to_ghost_state  (ζfreeze ζσ ζvirt : lstore) (χvirt : ll
   -∗⌜is_store_blocks χvirt σMLvirt ζσ⌝
   -∗⌜is_store χvirt ζfreeze σMLvirt⌝
   -∗⌜ζσ ##ₘ ζvirt⌝
-  -∗ block_sim_arr vs bb
+  -∗ bb ~~∗ vs
   -∗⌜Forall2 (is_val χvirt ζfreeze) vs bb⌝.
 Proof.
   iIntros "Hχ Hζ %Hfreeze %Hstorebl %Hstore %Hdis Hsim".

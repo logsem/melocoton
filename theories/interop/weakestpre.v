@@ -13,6 +13,8 @@ From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import basics basics_resources.
 Import Wrap.
 
+(* Definition of the wrapper state interpretation and WP instance *)
+
 Class wrapperGS Σ := WrapperGS {
   wrapperGS_basics :> wrapperBasicsGS Σ;
   wrapperGS_locsetGS :> ghost_varG Σ (gsetUR loc);
@@ -27,7 +29,7 @@ Class wrapperGS Σ := WrapperGS {
   wrapperGS_γat_boundary : gname;
 }.
 
-Section Embed_logic.
+Section WrapperWP.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
@@ -143,24 +145,6 @@ Qed.
 Context (σ : Wrap.state).
 Notation SI := (weakestpre.state_interp σ).
 
-Fixpoint block_sim (v : MLval) (l : lval) : iProp Σ := match v with
-  (ML_lang.LitV (ML_lang.LitInt x)) => ⌜l = (Lint x)⌝
-| (ML_lang.LitV (ML_lang.LitBool b)) => ⌜l = (Lint (if b then 1 else 0))⌝
-| (ML_lang.LitV ML_lang.LitUnit) => ⌜l = (Lint 0)⌝
-| (ML_lang.LitV (ML_lang.LitLoc ℓ)) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ block_sim_raw ℓ γ
-| (ML_lang.PairV v1 v2) => ∃ γ lv1 lv2, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv1;lv2]) ∗ block_sim v1 lv1 ∗ block_sim v2 lv2
-| (ML_lang.InjLV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv]) ∗ block_sim v lv
-| (ML_lang.InjRV v) => ∃ γ lv, ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv]) ∗ block_sim v lv 
-| (ML_lang.RecV f x e) => ∃ γ, ⌜l = Lloc γ⌝ ∗ γ ↦clos (f, x, e)
- end.
-
-Global Instance block_sim_pers v l : Persistent (block_sim v l).
-Proof.
-  induction v as [[x|b| |]| | | |] in l|-*; cbn; unshelve eapply (_).
-Qed.
-
-Definition block_sim_arr (vs:list MLval) (ls : list lval) : iProp Σ := [∗ list] v;l ∈ vs;ls, block_sim v l.
-
 Lemma SI_GC_is_in_C {θ} :
   SI -∗ GC θ -∗
   ⌜∃ ρc mem, σ = CState ρc mem⌝.
@@ -189,7 +173,7 @@ Proof.
   iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
 Qed.
 
-End Embed_logic.
+End WrapperWP.
 
 Ltac SI_GC_agree :=
   iDestruct (ghost_var_agree with "GCζ SIζ") as %?;

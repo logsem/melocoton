@@ -25,8 +25,10 @@ Implicit Types P : iProp Σ.
 
 Context (σ : Wrap.state).
 
-Lemma ml_to_mut θ l vs: ⊢ (GC θ ∗ l ↦∗ vs ==∗ GC θ ∗ ∃ b γ, γ ↦mut (TagDefault,b) ∗ block_sim_raw l γ ∗ block_sim_arr vs b)%I.
-Proof.
+Lemma ml_to_mut θ ℓ vs :
+  ⊢ GC θ ∗ ℓ ↦∗ vs ==∗
+    GC θ ∗ ∃ lvs γ, γ ↦mut (TagDefault, lvs) ∗ γ ~ℓ~ ℓ ∗ lvs ~~∗ vs.
+Proof using.
   iIntros "(HGC & Hl)". iNamed "HGC".
   iDestruct (gen_heap_valid with "GCσMLv Hl") as %Hlσ.
   edestruct is_store_blocks_has_loc as (ll & Hlχ & Hllζ);
@@ -36,11 +38,11 @@ Proof.
   assert (ζfreeze !! ll = Some bb) as Hfreezell.
   1: { rewrite Hfreezeeq. by apply lookup_union_Some_l. }
   unfold is_store in Hstore.
-  specialize (Hstore l vs ll bb Hlσ Hlχ Hfreezell) as Hstorel.
+  specialize (Hstore ℓ vs ll bb Hlσ Hlχ Hfreezell) as Hstorel.
   inversion Hstorel; subst vs0 bb.
   iAssert (block_sim_arr vs lvs) as "#Hblock".
   1: by iApply (block_sim_arr_of_ghost_state with "GCχvirt GCζvirt").
-  iAssert (block_sim_raw l ll) as "#Hraw".
+  iAssert (ll ~ℓ~ ℓ) as "#Hraw".
   1: by iApply (lloc_own_auth_get_pub with "GCχvirt").
   iMod (lstore_own_insert _ ll (Bvblock (Mut, _)) with "GCζvirt") as "(GCζvirt & Hzz)".
   1: { eapply map_disjoint_Some_l; done. }
@@ -51,12 +53,12 @@ Proof.
   iSplitR "Hzz".
   { rewrite /GC /named.
     iExists ζ, ζfreeze, (delete ll ζσ), (<[ll:=(Bvblock (Mut, (TagDefault, lvs)))]> ζvirt).
-    iExists χ, χvirt, (<[l:=None]> σMLvirt), roots_s, roots_m. iFrame.
+    iExists χ, χvirt, (<[ℓ:=None]> σMLvirt), roots_s, roots_m. iFrame.
     iSplitL "GCσdom".
     { iApply (dom_auth_dom with "GCσdom").
       rewrite dom_insert_L. eapply elem_of_dom_2 in Hlσ. set_solver. }
     iSplit.
-    { rewrite (pub_locs_in_lstore_insert_lstore_pub _ _ _ l) //.
+    { rewrite (pub_locs_in_lstore_insert_lstore_pub _ _ _ ℓ) //.
       iApply big_sepM_insert; eauto. by iFrame. }
     iPureIntro. split_and!; eauto.
     - symmetry. subst. by apply union_delete_insert.
@@ -67,11 +69,13 @@ Proof.
       1: by eapply elem_of_dom_2.
       apply Hother_blocks; by eapply elem_of_dom_2.
     - eapply is_store_discard_loc; eauto. }
-  { iExists lvs, ll. eauto. }
+  { iExists lvs, ll. iFrame "Hraw Hblock ∗". eauto. }
 Qed.
 
-Lemma mut_to_ml γ vs b θ: ⊢ (GC θ ∗ γ ↦mut (TagDefault,b) ∗ block_sim_arr vs b ==∗ GC θ ∗ ∃ l, l ↦∗ vs ∗ block_sim_raw l γ)%I.
-Proof.
+Lemma mut_to_ml γ vs lvs θ :
+  ⊢ GC θ ∗ γ ↦mut (TagDefault, lvs) ∗ lvs ~~∗ vs ==∗
+    GC θ ∗ ∃ ℓ, ℓ ↦∗ vs ∗ γ ~ℓ~ ℓ.
+Proof using.
   iIntros "(HGC & (Hl & (%ℓ & #Hlℓ)) & #Hsim)". iNamed "HGC".
   iDestruct (block_sim_arr_to_ghost_state with "GCχvirt GCζvirt [] [] [] [] Hsim") as %Hsim.
   1-4: iPureIntro; done.
@@ -86,7 +90,7 @@ Proof.
   iMod (lstore_own_delete with "GCζvirt Hl") as "GCζvirt".
   iModIntro. iSplitR "Hℓ".
   { rewrite /GC /named.
-    iExists ζ, ζfreeze, (<[γ:=(Bvblock (Mut, (TagDefault, b)))]> ζσ), (delete γ ζvirt).
+    iExists ζ, ζfreeze, (<[γ:=(Bvblock (Mut, (TagDefault, lvs)))]> ζσ), (delete γ ζvirt).
     iExists χ, χvirt, (<[ℓ := Some vs]> σMLvirt), roots_s, roots_m. iFrame.
     iSplitL "GCσdom".
     { iApply (dom_auth_dom with "GCσdom").
@@ -105,8 +109,10 @@ Proof.
   { iExists _. eauto. }
 Qed.
 
-Lemma freeze_to_mut γ bb θ: ⊢ (GC θ ∗ γ ↦fresh bb ==∗ GC θ ∗ γ ↦mut bb)%I.
-Proof.
+Lemma freeze_to_mut γ lvs θ :
+  ⊢ GC θ ∗ γ ↦fresh lvs ==∗
+    GC θ ∗ γ ↦mut lvs.
+Proof using.
   iIntros "(HGC & (Hmtζ & Hmtfresh))". iNamed "HGC".
   iDestruct (lstore_own_mut_of with "GCζvirt Hmtζ") as %[Hζγ _].
   pose (fresh_locs (lloc_map_pub_locs χvirt)) as ℓ.
@@ -124,7 +130,8 @@ Proof.
   { eapply map_filter_lookup_None. left. eapply lloc_map_pubs_lookup_None; eauto. }
   iMod (dom_auth_extend _ (<[ ℓ := None ]> σMLvirt) with "GCσdom []") as "GCσdom".
   1: iPureIntro; rewrite dom_insert_L; set_solver.
-  iModIntro. iSplitR "Hℓγ Hmtζ"; last by eauto.
+  iModIntro. iSplitR "Hℓγ Hmtζ".
+  2: { iFrame "Hmtζ". eauto. }
   rewrite /GC /named.
   iExists ζ, ζfreeze, ζσ, ζvirt.
   iExists χ, (<[γ:=LlocPublic ℓ]> χvirt), (<[ℓ:=None]> σMLvirt), roots_s, roots_m.
@@ -139,17 +146,19 @@ Proof.
     eapply expose_llocs_insert; eauto.
 Qed.
 
-Lemma freeze_to_immut γ bb θ: ⊢ (GC θ ∗ γ ↦fresh bb ==∗ GC θ ∗ γ ↦imm bb)%I.
-Proof.
+Lemma freeze_to_immut γ lvs θ :
+  ⊢ GC θ ∗ γ ↦fresh lvs ==∗
+    GC θ ∗ γ ↦imm lvs.
+Proof using.
   iIntros "(HGC & (Hmtζ & Hmtfresh))". iNamed "HGC".
   iDestruct (lstore_own_mut_of with "GCζvirt Hmtζ") as %[Hζγ _].
   iDestruct (lloc_own_priv_of with "GCχvirt Hmtfresh") as %Hχvirtγ.
-  iMod (lstore_own_update _ _ _ (Bvblock (Immut,bb)) with "GCζvirt Hmtζ") as "(GCζvirt & Hmtζ)".
+  iMod (lstore_own_update _ _ _ (Bvblock (Immut, lvs)) with "GCζvirt Hmtζ") as "(GCζvirt & Hmtζ)".
   iDestruct (lstore_own_elem_to_immut with "Hmtζ") as "Hmtζ"; first done.
   iModIntro. iFrame "Hmtζ". rewrite /GC /named.
-  iExists ζ, (<[γ:=(Bvblock (Immut, bb))]> ζfreeze), ζσ, (<[γ:=(Bvblock (Immut, bb))]> ζvirt).
+  iExists ζ, (<[γ:=(Bvblock (Immut, lvs))]> ζfreeze), ζσ, (<[γ:=(Bvblock (Immut, lvs))]> ζvirt).
   iExists χ, χvirt, σMLvirt, roots_s, roots_m. iFrame.
-  assert (Hζγ': ζfreeze !! γ = Some (Bvblock (Mut, bb))).
+  assert (Hζγ': ζfreeze !! γ = Some (Bvblock (Mut, lvs))).
   { subst. rewrite lookup_union_r; eauto. by eapply map_disjoint_Some_l. }
   iSplit.
   { rewrite pub_locs_in_lstore_insert_existing; eauto. by eapply elem_of_dom_2. }
@@ -168,7 +177,7 @@ Lemma update_root θ (l:loc) v E :
   GC θ ∗ l ↦roots v -∗
   ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
     (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots v').
-Proof.
+Proof using.
   iIntros "(HGC & Hroots)".
   iNamed "HGC".
   iPoseProof (ghost_map_lookup with "GCrootsm Hroots") as "%H".
@@ -191,7 +200,7 @@ Lemma access_root θ (l:loc) dq v :
   GC θ ∗ l ↦roots{dq} v -∗
   ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
       (l ↦C w -∗ GC θ ∗ l ↦roots{dq} v).
-Proof.
+Proof using.
   iIntros "(HGC & Hroot)". iNamed "HGC".
   iPoseProof (ghost_map_lookup with "GCrootsm Hroot") as "%H".
   iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H.

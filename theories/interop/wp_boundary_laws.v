@@ -28,7 +28,7 @@ Lemma wrap_interp_c_to_ml w ρc mem θ v lv (X : val → wrapstateML → store �
   wrap_state_interp (Wrap.CState ρc mem) -∗
   GC θ -∗
   at_boundary wrap_lang -∗
-  block_sim v lv
+  lv ~~ v
   ==∗
   ∃ ρml σ,
   ⌜X v ρml σ⌝ ∗
@@ -78,7 +78,7 @@ Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
   wrap_state_interp (Wrap.CState ρc mem) ∗
   at_boundary wrap_lang ∗
   GC (θC ρc) ∗
-  (∃ lvs, block_sim_arr vs lvs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
+  (∃ lvs, lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
 Proof.
   iIntros (Hml_to_c) "Hst Hb".
   iNamed "Hst". iNamed "SIML". iNamed "SIGCrem".
