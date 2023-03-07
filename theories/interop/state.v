@@ -3,16 +3,15 @@ From stdpp Require Import base gmap.
 From melocoton.interop Require Import basics.
 
 (* This defines the wrapper private state. Like the whole wrapper state (see
-   `state` in wrappersem.v), it can be either:
-   - a `wrapstateML` at a boundary when interacting with another ML-like
-     component;
-   - a `wrapstateC` when doing internal steps (ie executing wrapped C code).
+   `state` in lang.v), it can be either:
+   - a `wrapstateML` when doing internal steps (i.e. executing wrapped ML code);
+   - a `wrapstateC` when at a boundary interacting with a C-like component;
 *)
 
 Section wrapperstate.
 
 Record wrapstateC : Type := WrapstateC {
-  (* ML location → logical location *)
+  (* logical location → ML location *)
   χC : lloc_map;
   (* logical (block-level) store *)
   ζC : lstore;
@@ -24,14 +23,14 @@ Record wrapstateC : Type := WrapstateC {
 }.
 
 Record wrapstateML : Type := WrapstateML {
-  (* ML location → logical locations *)
+  (* logical location → ML location *)
   χML : lloc_map;
   (* logical (block level) store *)
   ζML : lstore;
   (* C address → logical location tracked by the root registered at this
      address. *)
   rootsML : roots_map;
-  (* the remaining piece of C store not accessible from ML *)
+  (* the remaining piece of C store not accessible from ML code *)
   privmemML : memory;
 }.
 
