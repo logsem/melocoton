@@ -117,7 +117,7 @@ Lemma lloc_own_mono χ1 χ2 :
   lloc_map_mono χ1 χ2  →
   lloc_own_auth χ1 ==∗
   lloc_own_auth χ2.
-Proof.
+Proof using.
   intros (Hmono & Hinj).
   pose (χ2 ∖ χ1) as χdiff.
   assert (χ1 ##ₘ χdiff) as Hdis by by apply map_disjoint_difference_r.
@@ -349,7 +349,7 @@ end.
 Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
 
 Global Instance block_sim_pers v l : Persistent (l ~~ v).
-Proof.
+Proof using.
   induction v as [[x|b| |]| | | |] in l|-*; cbn; unshelve eapply (_).
 Qed.
 
@@ -358,6 +358,104 @@ Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=
 
 Notation "lvs  ~~∗  vs" := (block_sim_arr vs lvs) (at level 20).
 
+Lemma block_sim_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
+   v b :
+  ζfreeze = ζσ ∪ ζvirt →
+  is_store_blocks χvirt σMLvirt ζσ →
+  is_store χvirt ζfreeze σMLvirt →
+  ζσ ##ₘ ζvirt →
+  is_val χvirt ζfreeze v b →
+  lloc_own_auth χvirt -∗
+  lstore_own_auth ζvirt -∗
+  b ~~ v.
+Proof using.
+  iIntros (Hfreeze Hstorebl Hstore Hdisj H) "Hχ Hζ".
+  iDestruct (lstore_own_auth_get_immut_all with "Hζ") as "#Hζimm".
+  iInduction H as [] "IH" forall "Hζ Hχ"; cbn; try done.
+  1: iExists γ; iSplit; first done.
+  1: by iApply (lloc_own_auth_get_pub with "Hχ").
+  1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
+  3-4: iExists γ, lv; iSplit; first done; iSplit.
+  7: iExists γ; iSplit; first done.
+  1,3,5,7: iApply (big_sepM_lookup with "Hζimm"); try done.
+  5: iSplit.
+  5,7,8: by iApply ("IH" with "[] [] [] Hζ Hχ").
+  5: by iApply ("IH1" with "[] [] [] Hζ Hχ").
+  all: simplify_eq.
+  all: apply lstore_immut_blocks_lookup_immut.
+  all: match goal with H: (_ ∪ _) !! _ = Some _ |- _ =>
+      apply lookup_union_Some in H as [|]; eauto end.
+  all: destruct Hstorebl as [_ Hstorebl2].
+  all: specialize (Hstorebl2 γ) as [Hstorebl2 _].
+  all: destruct Hstorebl2 as (ℓ & Vs & Hχ & Hσml); [by eapply elem_of_dom_2|].
+  all: efeed specialize Hstore; eauto; [eapply lookup_union_Some; by eauto|].
+  all: inversion Hstore.
+Qed.
+
+Lemma block_sim_arr_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
+   vs bb :
+  ζfreeze = ζσ ∪ ζvirt →
+  is_store_blocks χvirt σMLvirt ζσ →
+  is_store χvirt ζfreeze σMLvirt →
+  ζσ ##ₘ ζvirt →
+  Forall2 (is_val χvirt ζfreeze) vs bb →
+  lloc_own_auth χvirt -∗
+  lstore_own_auth ζvirt -∗
+  bb ~~∗ vs.
+Proof.
+  iIntros (Hfreeze Hstorebl Hstore Hdisj H) "Hχ Hζ".
+  iApply big_sepL2_forall; iSplit; first (iPureIntro; by eapply Forall2_length).
+  iIntros "%k %v %l %H1 %H2".
+  iApply (block_sim_of_auth with "Hχ Hζ"); try done.
+  eapply Forall2_lookup_lr; done.
+Qed.
+
+Lemma block_sim_auth_is_val  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
+   v b :
+  ζfreeze = ζσ ∪ ζvirt →
+  is_store_blocks χvirt σMLvirt ζσ →
+  is_store χvirt ζfreeze σMLvirt →
+  ζσ ##ₘ ζvirt →
+  lloc_own_auth χvirt -∗
+  lstore_own_auth ζvirt -∗
+  b ~~ v -∗
+  ⌜is_val χvirt ζfreeze v b⌝.
+Proof using.
+  iIntros (Hfreeze Hstorebl Hstore Hdis) "Hχ Hζ Hsim".
+  iInduction v as [[x|bo| |]| | | |] "IH" forall (b); cbn.
+  all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
+  1: {iDestruct "Hsim" as "(%γ & -> & Hsim)".
+      iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH".
+      iPureIntro. econstructor. done. }
+  1: iDestruct "Hsim" as "(%γ & -> & Hsim)".
+  2: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)";
+     iPoseProof ("IH" with "Hχ Hζ Hlv1") as "%Hr1";
+     iPoseProof ("IH1" with "Hχ Hζ Hlv2") as "%Hr2".
+  3-4: iDestruct "Hsim" as "(%γ & %lv & -> & Hsim & Hlv)";
+       iPoseProof ("IH" with "Hχ Hζ Hlv") as "%Hr".
+  1-4: unshelve iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%HH _]".
+  all: iPureIntro; econstructor; eauto; by simplify_map_eq.
+Qed.
+
+Lemma block_sim_arr_auth_is_val (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
+   vs bb :
+  ζfreeze = ζσ ∪ ζvirt →
+  is_store_blocks χvirt σMLvirt ζσ →
+  is_store χvirt ζfreeze σMLvirt →
+  ζσ ##ₘ ζvirt →
+  lloc_own_auth χvirt -∗
+  lstore_own_auth ζvirt -∗
+  bb ~~∗ vs -∗
+  ⌜Forall2 (is_val χvirt ζfreeze) vs bb⌝.
+Proof using.
+  iIntros (Hfreeze Hstorebl Hstore Hdis) "Hχ Hζ Hsim".
+  iPoseProof (big_sepL2_forall with "Hsim") as "(%Heq & Hsim)".
+  iAssert (⌜(∀ i x y, vs !! i = Some x → bb !! i = Some y → is_val χvirt ζfreeze x y)⌝)%I as "%HF".
+  2: iPureIntro; by apply Forall2_same_length_lookup_2.
+  iIntros (i v b H1 H2).
+  iApply (block_sim_auth_is_val with "Hχ Hζ"); try done.
+  iApply ("Hsim" $! i v b H1 H2).
+Qed.
 
 End BasicsResources.
 

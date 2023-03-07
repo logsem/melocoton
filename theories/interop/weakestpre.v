@@ -10,22 +10,14 @@ From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Import basics basics_resources.
+From melocoton.interop Require Export basics basics_resources gctoken.
 Import Wrap.
 
 (* Definition of the wrapper state interpretation and WP instance *)
 
 Class wrapperGS Σ := WrapperGS {
-  wrapperGS_basics :> wrapperBasicsGS Σ;
-  wrapperGS_locsetGS :> ghost_varG Σ (gsetUR loc);
-  wrapperGS_addrmapGS :> ghost_varG Σ (leibnizO addr_map);
+  wrapperGS_GCtok :> wrapperGCtokGS Σ;
   wrapperGS_at_boundary :> ghost_varG Σ (leibnizO bool);
-  wrapperGS_var_lstoreGS :> ghost_varG Σ lstore;
-  wrapperGS_var_lloc_mapGS :> ghost_varG Σ lloc_map;
-  wrapperGS_γζ : gname;
-  wrapperGS_γroots_set : gname;
-  wrapperGS_γθ : gname;
-  wrapperGS_γχ : gname;
   wrapperGS_γat_boundary : gname;
 }.
 
@@ -47,33 +39,7 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "SIχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
   ∗ "SIroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots
-  ∗ "SIbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) true.
-
-Definition GC (θ : addr_map) : iProp Σ :=
-  ∃ (ζ ζfreeze ζσ ζvirt : lstore) (χ χvirt : lloc_map) (σMLvirt : store)
-    (roots_s : gset addr) (roots_m : gmap addr lval),
-    "GCζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
-  ∗ "GCχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
-  ∗ "GCθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
-  ∗ "GCroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots_s
-  ∗ "GCζvirt" ∷ lstore_own_auth ζvirt
-  ∗ "GCbound" ∷ ghost_var wrapperGS_γat_boundary (1/4) true
-  ∗ "(GCσMLv & GCσdom)" ∷ state_interp (σMLvirt : language.language.state ML_lang)
-  ∗ "GCχvirt" ∷ lloc_own_auth χvirt
-  ∗ "GCχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χvirt ζvirt, ℓ ↦M/)
-  ∗ "GCrootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 roots_m
-  ∗ "GCrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
-  ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
-  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
-  ∗ "%Hfreezeρ" ∷ ⌜freeze_lstore ζ ζfreeze⌝
-  ∗ "%Hfreezeeq" ∷ ⌜ζfreeze = ζσ ∪ ζvirt⌝
-  ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζvirt⌝
-  ∗ "%Hstore_blocks" ∷ ⌜is_store_blocks χvirt σMLvirt ζσ⌝
-  ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χvirt⌝
-  ∗ "%Hstore" ∷ ⌜is_store χvirt ζfreeze σMLvirt⌝
-  ∗ "%Hχvirt" ∷ ⌜expose_llocs χ χvirt⌝
-  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝ (* TODO redundant? *)
-  ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
+  ∗ "SIbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true.
 
 Definition GC_token_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) : iProp Σ :=
    "GCζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
@@ -140,20 +106,8 @@ Next Obligation.
   + iExists _, _. iPureIntro. econstructor.
 Qed.
 
-
-
 Context (σ : Wrap.state).
 Notation SI := (weakestpre.state_interp σ).
-
-Lemma SI_GC_is_in_C {θ} :
-  SI -∗ GC θ -∗
-  ⌜∃ ρc mem, σ = CState ρc mem⌝.
-Proof.
-  destruct σ. 2: iIntros "_ _"; iPureIntro; do 2 eexists; done.
-  iNamed 1. iNamed 1. iNamed "SIML".
-  iPoseProof (ghost_var_agree with "SIbound GCbound") as "%Hc".
-  congruence.
-Qed.
 
 Lemma SI_at_boundary_is_in_C :
   SI -∗ at_boundary wrap_lang -∗

@@ -11,7 +11,7 @@ From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Import basics prims weakestpre wp_block_sim.
+From melocoton.interop Require Import prims weakestpre.
 Import Wrap.
 
 

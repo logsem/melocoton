@@ -1,5 +1,5 @@
 From iris.proofmode Require Import proofmode.
-From melocoton.interop Require Import basics basics_resources weakestpre wp_update_laws.
+From melocoton.interop Require Import basics basics_resources gctoken wp_update_laws.
 From melocoton.ml_lang Require Import primitive_laws.
 From melocoton.c_interface Require Export resources.
 From melocoton.c_lang Require Import primitive_laws tactics notation proofmode.
@@ -16,7 +16,7 @@ Section Laws.
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
 Context `{!heapGS_ML Σ, !heapGS_C Σ, !invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
+Context `{!wrapperGCtokGS Σ}.
 
 Lemma store_to_root E pe (l:loc) (v v' : lval) w θ :
   repr_lval θ v w →

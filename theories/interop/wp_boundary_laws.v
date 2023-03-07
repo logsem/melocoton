@@ -9,7 +9,7 @@ From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Import basics basics_resources weakestpre wp_block_sim wp_utils.
+From melocoton.interop Require Import weakestpre wp_utils.
 Import Wrap.
 
 (* lemmas to switch between the ML<->C state interp at a boundary *)
@@ -39,18 +39,14 @@ Proof.
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
   iAssert (⌜is_val χvirt (ζσ ∪ ζvirt) v lv⌝)%I as "%Hval".
-  by iApply (block_sim_to_ghost_state with "GCχvirt GCζvirt [] [] [] [] Hblk").
+  by iApply (block_sim_auth_is_val with "GCχvirt GCζvirt Hblk").
   iAssert (⌜∀ k lv, roots_m !! k = Some lv →
             ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
   1: { iIntros (kk vv Hroots).
        iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done.
        iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
   apply map_Forall_lookup_2 in Hroots.
-  iMod (ghost_var_update_halves with "Hnb [GCbound SIbound]") as "(Hb & SIbound)".
-  (* Coq fails to infer ghost_var_fractional in time *)
-  1: iPoseProof (@fractional.fractional_merge _ _ _ _ _ _ (ghost_var_fractional _ _)
-         with "GCbound SIbound") as "HH".
-  1: by assert ((1 / 4 + 1 / 4 = 1 / 2)%Qp) as -> by compute_done.
+  iMod (ghost_var_update_halves with "Hnb SIbound") as "(Hb & SIbound)".
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
   iMod (ghost_var_update_halves with "GCζ SIζ") as "(GCζ & SIζ)".
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ & SIχ)".
@@ -86,11 +82,7 @@ Proof.
   destruct HH as (Hmono & Hblocks & Hprivblocks & HζC & Hζdisj &
                     Hstore & Hvals & ? & ? & ? & Hroots & ?).
 
-  iMod (ghost_var_update_halves with "Hb SIbound") as "(Hnb & Hnb2)".
-  1: iPoseProof (@fractional.fractional _ _ (ghost_var_fractional _ _)) as "[HH _]".
-  iDestruct ("HH" with "[Hnb2]") as "(GCbound & SIbound)".
-  1: by assert ((1 / 4 + 1 / 4 = 1 / 2)%Qp) as <- by compute_done.
-  iClear "HH".
+  iMod (ghost_var_update_halves with "Hb SIbound") as "(Hnb & SIbound)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ & GCζ)".
   iMod (ghost_var_update_halves with "SIχ GCχ") as "(SIχ & GCχ)".
   iMod (ghost_var_update_halves with "SIθ GCθ") as "(SIθ & GCθ)".
@@ -101,8 +93,8 @@ Proof.
   assert (ζσ ##ₘ ζnewimm) as Hdisj2 by by eapply is_store_blocks_is_private_blocks_disjoint.
   assert (ζC ρc = ζσ ∪ (ζML ρml ∪ ζnewimm)) as H6B.
   1: { rewrite map_union_assoc. rewrite (map_union_comm ζσ); first done. by symmetry. }
-  iPoseProof (block_sim_arr_of_ghost_state _ _ _ _ _ vs lvs with "SIAχ SIζvirt [] [] [] [] []") as "#Hsim".
-  1-5: iPureIntro. 5: eassumption. 1-3:done. 1: by apply map_disjoint_union_r.
+  iPoseProof (block_sim_arr_of_auth _ _ _ _ _ vs lvs with "SIAχ SIζvirt") as "#Hsim".
+  5: eassumption. 1-3:done. 1: by apply map_disjoint_union_r.
   iMod (set_to_some with "HσCv GCrootspto") as "(HσCv & GCrootspto)"; first done.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.

@@ -1,17 +1,11 @@
 From Coq Require Import ssreflect.
-From stdpp Require Import strings gmap.
-From melocoton Require Import named_props.
-From melocoton.mlanguage Require Import mlanguage.
-From melocoton.language Require Import language weakestpre.
-From melocoton.mlanguage Require Import weakestpre.
-From melocoton.interop Require Import state lang.
-From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
-From iris.algebra Require Import gset gset_bij.
+From stdpp Require Import gmap.
+From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
+From melocoton Require Import named_props.
 From melocoton.c_interface Require Import defs resources.
-From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Import basics basics_resources weakestpre wp_block_sim.
-Import Wrap.
+From melocoton.ml_lang Require Import lang primitive_laws.
+From melocoton.interop Require Import basics basics_resources gctoken.
 
 Section UpdateLaws.
 
@@ -19,11 +13,7 @@ Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
 Context `{!heapGS_ML Σ, !heapGS_C Σ}.
 Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
-
-Implicit Types P : iProp Σ.
-
-Context (σ : Wrap.state).
+Context `{!wrapperGCtokGS Σ}.
 
 Lemma ml_to_mut θ ℓ vs :
   ⊢ GC θ ∗ ℓ ↦∗ vs ==∗
@@ -41,7 +31,7 @@ Proof using.
   specialize (Hstore ℓ vs ll bb Hlσ Hlχ Hfreezell) as Hstorel.
   inversion Hstorel; subst vs0 bb.
   iAssert (block_sim_arr vs lvs) as "#Hblock".
-  1: by iApply (block_sim_arr_of_ghost_state with "GCχvirt GCζvirt").
+  1: by iApply (block_sim_arr_of_auth with "GCχvirt GCζvirt").
   iAssert (ll ~ℓ~ ℓ) as "#Hraw".
   1: by iApply (lloc_own_auth_get_pub with "GCχvirt").
   iMod (lstore_own_insert _ ll (Bvblock (Mut, _)) with "GCζvirt") as "(GCζvirt & Hzz)".
@@ -77,8 +67,8 @@ Lemma mut_to_ml γ vs lvs θ :
     GC θ ∗ ∃ ℓ, ℓ ↦∗ vs ∗ γ ~ℓ~ ℓ.
 Proof using.
   iIntros "(HGC & (Hl & (%ℓ & #Hlℓ)) & #Hsim)". iNamed "HGC".
-  iDestruct (block_sim_arr_to_ghost_state with "GCχvirt GCζvirt [] [] [] [] Hsim") as %Hsim.
-  1-4: iPureIntro; done.
+  iDestruct (block_sim_arr_auth_is_val with "GCχvirt GCζvirt Hsim") as %Hsim;
+    try done.
   iPoseProof (lloc_own_pub_of with "GCχvirt Hlℓ") as "%Hχℓ".
   unfold is_store in Hstore.
   iDestruct (lstore_own_mut_of with "GCζvirt Hl") as %[Hζl _].
