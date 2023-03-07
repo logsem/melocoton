@@ -4,7 +4,7 @@ From iris.prelude Require Import options.
 From melocoton Require Import named_props.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
-From melocoton.interop Require Import lang weakestpre wp_utils wp_update_laws wp_ext_call_laws wp_simulation.
+From melocoton.interop Require Import lang weakestpre update_laws wp_utils wp_ext_call_laws wp_simulation.
 From melocoton.c_interop Require Import rules.
 From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import lang_instantiation.

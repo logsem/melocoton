@@ -1,5 +1,5 @@
 From iris.proofmode Require Import proofmode.
-From melocoton.interop Require Import basics basics_resources gctoken wp_update_laws.
+From melocoton.interop Require Import basics basics_resources gctoken update_laws.
 From melocoton.ml_lang Require Import primitive_laws.
 From melocoton.c_interface Require Export resources.
 From melocoton.c_lang Require Import primitive_laws tactics notation proofmode.
