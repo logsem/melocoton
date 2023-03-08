@@ -59,14 +59,17 @@ Proof using.
       1: by eapply elem_of_dom_2.
       apply Hother_blocks; by eapply elem_of_dom_2.
     - eapply is_store_discard_loc; eauto. }
-  { iExists lvs, ll. iFrame "Hraw Hblock ∗". eauto. }
+  { iExists lvs, ll. iFrame "Hraw Hblock ∗".
+    iApply lstore_own_vblock_M_as_mut; eauto. }
 Qed.
 
 Lemma mut_to_ml γ vs lvs θ :
   ⊢ GC θ ∗ γ ↦mut (TagDefault, lvs) ∗ lvs ~~∗ vs ==∗
     GC θ ∗ ∃ ℓ, ℓ ↦∗ vs ∗ γ ~ℓ~ ℓ.
 Proof using.
-  iIntros "(HGC & (Hl & (%ℓ & #Hlℓ)) & #Hsim)". iNamed "HGC".
+  iIntros "(HGC & Hl & #Hsim)".
+  iDestruct (lstore_own_vblock_M_as_mut with "Hl") as "(Hl & (%ℓ & #Hlℓ))".
+  iNamed "HGC".
   iDestruct (block_sim_arr_auth_is_val with "GCχvirt GCζvirt Hsim") as %Hsim;
     try done.
   iPoseProof (lloc_own_pub_of with "GCχvirt Hlℓ") as "%Hχℓ".
@@ -103,7 +106,9 @@ Lemma freeze_to_mut γ lvs θ :
   ⊢ GC θ ∗ γ ↦fresh lvs ==∗
     GC θ ∗ γ ↦mut lvs.
 Proof using.
-  iIntros "(HGC & (Hmtζ & Hmtfresh))". iNamed "HGC".
+  iIntros "(HGC & Hγ)".
+  iDestruct (lstore_own_vblock_F_as_mut with "Hγ") as "(Hmtζ & Hmtfresh)".
+  iNamed "HGC".
   iDestruct (lstore_own_mut_of with "GCζvirt Hmtζ") as %[Hζγ _].
   pose (fresh_locs (lloc_map_pub_locs χvirt)) as ℓ.
   assert (ℓ ∉ lloc_map_pub_locs χvirt).
@@ -121,7 +126,7 @@ Proof using.
   iMod (dom_auth_extend _ (<[ ℓ := None ]> σMLvirt) with "GCσdom []") as "GCσdom".
   1: iPureIntro; rewrite dom_insert_L; set_solver.
   iModIntro. iSplitR "Hℓγ Hmtζ".
-  2: { iFrame "Hmtζ". eauto. }
+  2: { iApply lstore_own_vblock_M_as_mut. iFrame "Hmtζ". eauto. }
   rewrite /GC /named.
   iExists ζ, ζfreeze, ζσ, ζvirt.
   iExists χ, (<[γ:=LlocPublic ℓ]> χvirt), (<[ℓ:=None]> σMLvirt), roots_s, roots_m.
@@ -140,12 +145,16 @@ Lemma freeze_to_immut γ lvs θ :
   ⊢ GC θ ∗ γ ↦fresh lvs ==∗
     GC θ ∗ γ ↦imm lvs.
 Proof using.
-  iIntros "(HGC & (Hmtζ & Hmtfresh))". iNamed "HGC".
+  iIntros "(HGC & Hγ)".
+  iDestruct (lstore_own_vblock_F_as_mut with "Hγ") as "(Hmtζ & Hmtfresh)".
+  iNamed "HGC".
   iDestruct (lstore_own_mut_of with "GCζvirt Hmtζ") as %[Hζγ _].
   iDestruct (lloc_own_priv_of with "GCχvirt Hmtfresh") as %Hχvirtγ.
   iMod (lstore_own_update _ _ _ (Bvblock (Immut, lvs)) with "GCζvirt Hmtζ") as "(GCζvirt & Hmtζ)".
   iDestruct (lstore_own_elem_to_immut with "Hmtζ") as "Hmtζ"; first done.
-  iModIntro. iFrame "Hmtζ". rewrite /GC /named.
+  iModIntro.
+  iSplitR "Hmtζ"; last by iApply lstore_own_vblock_I_as_imm.
+  rewrite /GC /named.
   iExists ζ, (<[γ:=(Bvblock (Immut, lvs))]> ζfreeze), ζσ, (<[γ:=(Bvblock (Immut, lvs))]> ζvirt).
   iExists χ, χvirt, σMLvirt, roots_s, roots_m. iFrame.
   assert (Hζγ': ζfreeze !! γ = Some (Bvblock (Mut, lvs))).

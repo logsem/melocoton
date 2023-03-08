@@ -10,7 +10,8 @@ From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs notation resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Import basics prims weakestpre wp_utils.
+From melocoton.interop Require Import basics wp_utils.
+From melocoton.interop Require Export prims weakestpre prims_proto.
 Import Wrap.
 
 Section Laws.
@@ -168,6 +169,8 @@ Proof.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
+  iDestruct (lstore_own_vblock_mutable_as_mut with "Hpto") as "(Hpto & Hptoacc)";
+    first done.
   iPoseProof (lstore_own_mut_of with "GCζvirt Hpto") as "%Helem". destruct Helem as [Helem _].
   iAssert ⌜ζC ρc !! γ = Some (Bvblock (Mut, (tg, vs)))⌝%I as "%Helem2".
   1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
@@ -191,7 +194,7 @@ Proof.
   iFrame.
   iApply ("IH" with "[-Hb] Hb").
   change (Z.of_nat 0) with (Z0).
-  iApply ("Cont" with "[-Hpto] [Hpto]").
+  iApply ("Cont" with "[-Hpto Hptoacc] [Hpto Hptoacc]").
   { iExists _, (<[γ:=blk']> (ζσ ∪ ζvirt)), ζσ, (<[γ:=blk']>ζvirt), _, χvirt, σMLvirt.
     iExists _, _. unfold named. iFrame.
     erewrite pub_locs_in_lstore_insert_existing; last by eapply elem_of_dom_2. iFrame.
@@ -223,7 +226,8 @@ Proof.
       { inv_repr_lval. by eapply elem_of_dom_2. }
       { eapply HGCR; eauto. rewrite lookup_union_r //.
         eapply map_disjoint_Some_l; eauto. by constructor. } }
-  { iSplit. inv_modify_block; simplify_map_eq. iFrame. eauto. }
+  {  iApply lstore_own_vblock_mutable_as_mut; eauto. iFrame.
+     iSplit. inv_modify_block; simplify_map_eq. iFrame. eauto. }
 Qed.
 
 Lemma wp_prim_readfield : prim_is_sound proto_readfield.
@@ -232,6 +236,7 @@ Proof.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
+  iDestruct "Hpto" as "(Hpto & Hptoacc)".
   iPoseProof (lstore_own_elem_of with "GCζvirt Hpto") as "%Helem".
   iAssert ⌜∃ m', ζC ρc !! γ = Some (Bvblock (m', (tg, vs)))⌝%I as "%Helem2".
   1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
@@ -259,7 +264,7 @@ Proof.
   { iPureIntro. eapply H; try done. by econstructor. }
   iFrame.
   iApply ("IH" with "[-Hb] Hb").
-  iApply ("Cont" with "[-Hpto] [Hpto] [] []"); try done.
+  iApply ("Cont" with "[-Hpto Hptoacc] [$Hpto $Hptoacc] [] []"); try done; [].
   rewrite /GC /named.
   iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.
   iFrame. iPureIntro; split_and!; eauto. done.

@@ -4,9 +4,10 @@ From melocoton Require Import named_props.
 From iris.base_logic.lib Require Import ghost_map ghost_var.
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
-From melocoton.c_interface Require Import defs resources.
-From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Import basics basics_resources.
+From melocoton.c_interface Require Export defs resources.
+From melocoton.ml_lang Require Import lang_instantiation.
+From melocoton.ml_lang Require Export lang primitive_laws.
+From melocoton.interop Require Import basics_resources.
 
 (* The [GC θ] resource.
 

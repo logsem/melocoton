@@ -72,8 +72,7 @@ Proof.
   wp_extern. cbn.
   iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 5 iRight; iLeft.
   iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC".
-  do 3 (iSplitR; first done). iSplitR.
-  1: iDestruct "Hptpair" as "(HL&HR)"; iApply "HL".
+  do 3 (iSplitR; first done). iFrame "Hptpair".
   do 2 (iSplitR; first done).
   iIntros (v wlv1) "HGC #Helem1". change (Z.to_nat 0) with 0. cbn -[lstore_own_elem].
   iIntros (Heq Hrepr1); injection Heq; intros <-. clear Heq.
@@ -84,8 +83,7 @@ Proof.
   wp_extern. cbn.
   iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 5 iRight; iLeft.
   iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC".
-  do 3 (iSplitR; first done). iSplitR.
-  1: iDestruct "Hptpair" as "(HL&HR)"; iApply "HL".
+  do 3 (iSplitR; first done). iFrame "Hptpair".
   do 2 (iSplitR; first done).
   iIntros (v wlv2) "HGC #Helem2". change (Z.to_nat 1) with 1. cbn -[lstore_own_elem].
   iIntros (Heq Hrepr2); injection Heq; intros <-. clear Heq.
@@ -127,9 +125,8 @@ Proof.
   wp_pures.
   wp_extern. cbn.
   iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 4 iRight; iLeft.
-  iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC".
-  iDestruct "Hnew" as "(Hnew1&Hnew2)". iFrame "Hnew1".
-  do 6 (iSplitR; first done).
+  do 9 iExists _. unfold named. iFrame "HGC Hnew".
+  do 7 (iSplitR; first done).
   iIntros "HGC Hnew1". change (Z.to_nat 1) with 1. cbn.
 
   (* load from root *)
@@ -141,8 +138,8 @@ Proof.
   wp_pures.
   wp_extern. cbn.
   iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 4 iRight; iLeft.
-  iExists _, _, _, _, _, _, _, _. unfold named. iFrame "HGC Hnew1".
-  do 6 (iSplitR; first done).
+  do 9 iExists _. unfold named. iFrame "HGC Hnew1".
+  do 7 (iSplitR; first done).
   iIntros "HGC Hnew1". change (Z.to_nat 0) with 0. cbn.
 
   (* unregisterroot 1 *)
