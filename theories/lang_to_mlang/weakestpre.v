@@ -61,15 +61,12 @@ Proof using.
     iSplitR; first done. iSplitR; first done. iSplitR; first done. iFrame.
     iExists Ξ. iFrame. iNext. iIntros (v) "[Hv _]". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
-    { iPureIntro. eapply reducible_not_val. done. } iSplitR.
-    { iPureIntro. intros (f&vs&C&->&Hno).
-      eapply reducible_call_is_in_prog; try done.
-      by rewrite /to_call to_of_class. }
-    iIntros (X Hstep). inversion Hstep; simplify_eq.
-    destruct H5 as (e2&σ2&Hstep'&HX). 1: done.
-    iMod ("H3" $! σ2 e2 Hstep') as "H3". do 2 iModIntro. iMod "H3" as "(Hσ&HWP)". iModIntro. 
-    do 2 iExists _; iSplit; first done. iFrame.
-    by iApply "IH".
+    { iPureIntro. eapply reducible_not_val. done. }
+    iExists (λ '(e2, σ2), language.prim_step p e σ e2 σ2).
+    iSplit. { iPureIntro. by econstructor. }
+    iIntros (e' σ' Hstep). iMod ("H3" $! _ _ Hstep) as "H3".
+    do 2 iModIntro. iMod "H3" as "[Hσ HWP]". iModIntro.
+    iFrame. by iApply "IH".
 Qed.
 
 (*

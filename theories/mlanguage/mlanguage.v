@@ -26,13 +26,13 @@ Section mlanguage_mixin.
 
     (** Reduction behavior of the special classes of expressions *)
     (** mixin_val_prim_step is not an iff because the backward direction is trivial *)
-    mixin_val_prim_step p v σ X :
-      prim_step p (of_val v, σ) X → False;
+    mixin_val_prim_step p v σ :
+      prim_step p (of_val v, σ) (λ _, False);
     mixin_call_prim_step p e f vs C σ X :
       is_call e f vs C →
         prim_step p (e, σ) X ↔
-        (∀ (fn : func) (e2 : expr),
-          p !! f = Some fn → Some e2 = apply_func fn vs → X (resume_with C e2, σ));
+        (∃ (fn : func) (e2 : expr),
+          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (resume_with C e2, σ));
 
     mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
     mixin_is_call_in_cont e C1 C2 s vv :
@@ -52,14 +52,16 @@ Section mlanguage_mixin.
 
     mixin_prim_step_resume p C e σ X :
       to_val e = None →
-      prim_step p (resume_with C e, σ) X →
-      prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2));
+      prim_step p (e, σ) X →
+      prim_step p (resume_with C e, σ) (λ '(e2, σ2),
+        ∃ e', e2 = resume_with C e' ∧ X (e', σ2));
 
     (* Just a meta-theorem to ensure that there are no cases left to cover.
        Not used in proofs. *)
-    mixin_prim_step_total p e σ :
+    mixin_prim_step_no_NB p e σ X :
       to_val e = None →
-      prim_step p (e, σ) (λ _, True)
+      prim_step p (e, σ) X →
+      ∃ e' σ', X (e', σ');
   }.
 End mlanguage_mixin.
 
@@ -123,14 +125,14 @@ Section mlanguage.
     intros H. enough (Some k1 = Some k2) by congruence.
     rewrite <- !to_of_val. rewrite H. done.
   Qed.
-  Lemma val_prim_step p v σ X :
-    prim_step p (of_val Λ v, σ) X → False.
+  Lemma val_prim_step p v σ :
+    prim_step p (of_val Λ v, σ) (λ _, False).
   Proof. apply mlanguage_mixin. Qed.
   Lemma call_prim_step p e f vs C σ X :
       is_call e f vs C →
         prim_step p (e, σ) X ↔
-        (∀ (fn : func Λ) e2,
-          p !! f = Some fn → Some e2 = apply_func fn vs → X (resume_with C e2, σ)).
+        (∃ (fn : func Λ) e2,
+          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (resume_with C e2, σ)).
   Proof. apply mlanguage_mixin. Qed.
 
   Definition not_is_call e : Prop := ¬ ∃ f vs K, is_call e f vs K.
@@ -203,13 +205,14 @@ Section mlanguage.
   Qed.
 
   Lemma prim_step_resume p C e σ X :
-      to_val e = None →
-      prim_step p (resume_with C e, σ) X →
-      prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2)).
+    to_val e = None →
+    prim_step p (e, σ) X →
+    prim_step p (resume_with C e, σ) (λ '(e2, σ2),
+      ∃ e', e2 = resume_with C e' ∧ X (e', σ2)).
   Proof. apply mlanguage_mixin. Qed.
 
   (* There is no NB *)
-  Lemma prim_step_is_total p e σ : to_val e = None → prim_step p (e,σ) (λ _, True).
+  Lemma prim_step_no_NB p e σ X : to_val e = None → prim_step p (e,σ) X → ∃ e' σ', X (e', σ').
   Proof. apply mlanguage_mixin. Qed.
 
   Class IntoVal (e : expr Λ) (v : val) :=
