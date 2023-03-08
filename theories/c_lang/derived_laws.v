@@ -51,7 +51,7 @@ Qed.
 (** * Rules for accessing array elements *)
 Lemma wp_load_offset s E l dq off vs (v:val) :
   vs !! off = Some (Some v) →
-  {{{ ▷ l ↦C∗{dq} vs }}} * #(l +ₗ off) @ s; E {{{ RET v; l ↦C∗{dq} vs }}}.
+  {{{ ▷ l ↦C∗{dq} vs }}} * #(l +ₗ off) @ s; E {{{ RET v; l ↦C∗{dq} vs }}}%CE.
 Proof.
   iIntros (Hlookup Φ) ">Hl HΦ".
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
@@ -62,7 +62,7 @@ Qed.
 
 Lemma wp_store_offset s E l off vs (v:val) :
   is_Some (vs !! off) →
-  {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ <[off:=Some v]> vs }}}.
+  {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ <[off:=Some v]> vs }}}%CE.
 Proof.
   iIntros ([w Hlookup] Φ) ">Hl HΦ".
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
@@ -71,7 +71,7 @@ Proof.
 Qed.
 
 Lemma wp_store_offset_vec s E l sz (off : fin sz) (vs : vec (option val) sz) (v:val) :
-  {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ vinsert off (Some v) vs }}}.
+  {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ vinsert off (Some v) vs }}}%CE.
 Proof.
   setoid_rewrite vec_to_list_insert. apply wp_store_offset.
   eexists. by apply vlookup_lookup.
@@ -79,7 +79,7 @@ Qed.
 
 
 Lemma wp_free_array s E l vs :
-  {{{ ▷ l ↦C∗ vs }}} free (#l, #(Z.of_nat (length vs))) @ s; E {{{ RET LitV LitUnit; True }}}.
+  {{{ ▷ l ↦C∗ vs }}} free (#l, #(Z.of_nat (length vs))) @ s; E {{{ RET LitV LitUnit; True }}}%CE.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.

@@ -10,7 +10,7 @@ Section examples.
 
 Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
 
-Definition call_inc : expr ML_lang := 
+Definition call_inc : ML_lang.expr :=
   let: "l" := ref (#0 + #0)
   in "l" <- #41 ;; Extern "inc" [Var "l"];; ! "l".
 
@@ -18,7 +18,7 @@ Definition IncrementSpec := λ s v Φ, match (s,v) with
       ("inc", [ #(LitLoc l) ]) => (∃ (z:Z), (l ↦M #z) ∗ ((l ↦M #(z+1)) -∗ Φ #()))%I
     | _ => ⌜False⌝%I end.
 
-Definition inc_impl : expr ML_lang := let: "k" := ! "l" + #1 in "l" <- "k";; #().
+Definition inc_impl : ML_lang.expr := let: "k" := ! "l" + #1 in "l" <- "k";; #().
 Definition inc_func := MlFun [BNamed "l"] inc_impl.
 
 Definition AxiomEnv : prog_environ ML_lang Σ := {|

@@ -22,7 +22,7 @@ Lemma store_to_root E pe (l:loc) (v v' : lval) w θ :
   repr_lval θ v w →
   {{{ GC θ ∗ l ↦roots v' }}}
      (#l <- w)%E @ pe; E
-  {{{ RET LitV LitUnit; GC θ ∗ l ↦roots v }}}.
+  {{{ RET LitV LitUnit; GC θ ∗ l ↦roots v }}}%CE.
 Proof.
   iIntros (Hrepr Φ) "(HGC&Hroot) HΦ".
   iDestruct (update_root with "[$HGC $Hroot]") as (w') "(Hpto & _ & Hupd)".
@@ -35,7 +35,7 @@ Qed.
 Lemma load_from_root E pe (l:loc) (v : lval) dq θ :
   {{{ GC θ ∗ l ↦roots{dq} v }}}
      ( * #l)%E @ pe; E
-  {{{ w, RET w; l ↦roots{dq} v ∗ GC θ ∗ ⌜repr_lval θ v w⌝ }}}.
+  {{{ w, RET w; l ↦roots{dq} v ∗ GC θ ∗ ⌜repr_lval θ v w⌝ }}}%CE.
 Proof.
   iIntros (Φ) "(HGC&Hroot) HΦ".
   iDestruct (access_root with "[$HGC $Hroot]") as (w') "(Hpto & %Hrepr & Hupd)".

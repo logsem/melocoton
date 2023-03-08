@@ -30,12 +30,12 @@ Notation Skip := (App (Val $ LamV BAnon (Val $ LitV LitUnit)) (Val $ LitV LitUni
 
 (* No scope for the values, does not conflict and scope is often not inferred
 properly. *)
-Notation "# l" := (LitV l%Z%V%stdpp) (at level 8, format "# l").
+Notation "# l" := (LitV l%Z%MLV%stdpp) (at level 8, format "# l").
 
 (** Syntax inspired by Coq/Ocaml. Constructions with higher precedence come
     first. *)
-Notation "( e1 , e2 , .. , en )" := (Pair .. (Pair e1 e2) .. en) : expr_scope.
-Notation "( e1 , e2 , .. , en )" := (PairV .. (PairV e1 e2) .. en) : val_scope.
+Notation "( e1 , e2 , .. , en )" := (Pair .. (Pair e1 e2) .. en) : ml_expr_scope.
+Notation "( e1 , e2 , .. , en )" := (PairV .. (PairV e1 e2) .. en) : ml_val_scope.
 
 (*
 Using the '[hv' ']' printing box, we make sure that when the notation for match
@@ -62,83 +62,83 @@ Moreover, if the branches do not fit on a single line, it will be printed as:
 Notation "'match:' e0 'with' 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
   (Match e0 x1%binder e1 x2%binder e2)
   (e0, x1, e1, x2, e2 at level 200,
-   format "'[hv' 'match:'  e0  'with'  '/  ' '[' 'InjL'  x1  =>  '/  ' e1 ']'  '/' '[' |  'InjR'  x2  =>  '/  ' e2 ']'  '/' 'end' ']'") : expr_scope.
+   format "'[hv' 'match:'  e0  'with'  '/  ' '[' 'InjL'  x1  =>  '/  ' e1 ']'  '/' '[' |  'InjR'  x2  =>  '/  ' e2 ']'  '/' 'end' ']'") : ml_expr_scope.
 Notation "'match:' e0 'with' 'InjR' x1 => e1 | 'InjL' x2 => e2 'end'" :=
   (Match e0 x2%binder e2 x1%binder e1)
-  (e0, x1, e1, x2, e2 at level 200, only parsing) : expr_scope.
+  (e0, x1, e1, x2, e2 at level 200, only parsing) : ml_expr_scope.
 
-Notation "()" := LitUnit : val_scope.
-Notation "! e" := (Load e%E) (at level 9, right associativity) : expr_scope.
-Notation "'ref' e" := (Alloc e%E) (at level 10) : expr_scope.
-Notation "- e" := (UnOp MinusUnOp e%E) : expr_scope.
+Notation "()" := LitUnit : ml_val_scope.
+Notation "! e" := (Load e%MLE) (at level 9, right associativity) : ml_expr_scope.
+Notation "'ref' e" := (Alloc e%MLE) (at level 10) : ml_expr_scope.
+Notation "- e" := (UnOp MinusUnOp e%MLE) : ml_expr_scope.
 
-Notation "e1 + e2" := (BinOp PlusOp e1%E e2%E) : expr_scope.
-Notation "e1 - e2" := (BinOp MinusOp e1%E e2%E) : expr_scope.
-Notation "e1 * e2" := (BinOp MultOp e1%E e2%E) : expr_scope.
-Notation "e1 `quot` e2" := (BinOp QuotOp e1%E e2%E) : expr_scope.
-Notation "e1 `rem` e2" := (BinOp RemOp e1%E e2%E) : expr_scope.
-Notation "e1 ≪ e2" := (BinOp ShiftLOp e1%E e2%E) : expr_scope.
-Notation "e1 ≫ e2" := (BinOp ShiftROp e1%E e2%E) : expr_scope.
+Notation "e1 + e2" := (BinOp PlusOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 - e2" := (BinOp MinusOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 * e2" := (BinOp MultOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 `quot` e2" := (BinOp QuotOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 `rem` e2" := (BinOp RemOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 ≪ e2" := (BinOp ShiftLOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 ≫ e2" := (BinOp ShiftROp e1%MLE e2%MLE) : ml_expr_scope.
 
-Notation "e1 ≤ e2" := (BinOp LeOp e1%E e2%E) : expr_scope.
-Notation "e1 < e2" := (BinOp LtOp e1%E e2%E) : expr_scope.
-Notation "e1 = e2" := (BinOp EqOp e1%E e2%E) : expr_scope.
-Notation "e1 ≠ e2" := (UnOp NegOp (BinOp EqOp e1%E e2%E)) : expr_scope.
+Notation "e1 ≤ e2" := (BinOp LeOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 < e2" := (BinOp LtOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 = e2" := (BinOp EqOp e1%MLE e2%MLE) : ml_expr_scope.
+Notation "e1 ≠ e2" := (UnOp NegOp (BinOp EqOp e1%MLE e2%MLE)) : ml_expr_scope.
 
-Notation "~ e" := (UnOp NegOp e%E) (at level 75, right associativity) : expr_scope.
+Notation "~ e" := (UnOp NegOp e%MLE) (at level 75, right associativity) : ml_expr_scope.
 (* The unicode ← is already part of the notation "_ ← _; _" for bind. *)
-Notation "e1 <- e2" := (Store e1%E e2%E) (at level 80) : expr_scope.
+Notation "e1 <- e2" := (Store e1%MLE e2%MLE) (at level 80) : ml_expr_scope.
 
 (* The breaking point '/  ' makes sure that the body of the rec is indented
 by two spaces in case the whole rec does not fit on a single line. *)
-Notation "'rec:' f x := e" := (Rec f%binder x%binder e%E)
+Notation "'rec:' f x := e" := (Rec f%binder x%binder e%MLE)
   (at level 200, f at level 1, x at level 1, e at level 200,
-   format "'[' 'rec:'  f  x  :=  '/  ' e ']'") : expr_scope.
-Notation "'rec:' f x := e" := (RecV f%binder x%binder e%E)
+   format "'[' 'rec:'  f  x  :=  '/  ' e ']'") : ml_expr_scope.
+Notation "'rec:' f x := e" := (RecV f%binder x%binder e%MLE)
   (at level 200, f at level 1, x at level 1, e at level 200,
-   format "'[' 'rec:'  f  x  :=  '/  ' e ']'") : val_scope.
-Notation "'if:' e1 'then' e2 'else' e3" := (If e1%E e2%E e3%E)
-  (at level 200, e1, e2, e3 at level 200) : expr_scope.
+   format "'[' 'rec:'  f  x  :=  '/  ' e ']'") : ml_val_scope.
+Notation "'if:' e1 'then' e2 'else' e3" := (If e1%MLE e2%MLE e3%MLE)
+  (at level 200, e1, e2, e3 at level 200) : ml_expr_scope.
 
 (** Derived notions, in order of declaration. The notations for let and seq
 are stated explicitly instead of relying on the Notations Let and Seq as
 defined above. This is needed because App is now a coercion, and these
 notations are otherwise not pretty printed back accordingly. *)
-Notation "'rec:' f x y .. z := e" := (Rec f%binder x%binder (Lam y%binder .. (Lam z%binder e%E) ..))
+Notation "'rec:' f x y .. z := e" := (Rec f%binder x%binder (Lam y%binder .. (Lam z%binder e%MLE) ..))
   (at level 200, f, x, y, z at level 1, e at level 200,
-   format "'[' 'rec:'  f  x  y  ..  z  :=  '/  ' e ']'") : expr_scope.
-Notation "'rec:' f x y .. z := e" := (RecV f%binder x%binder (Lam y%binder .. (Lam z%binder e%E) ..))
+   format "'[' 'rec:'  f  x  y  ..  z  :=  '/  ' e ']'") : ml_expr_scope.
+Notation "'rec:' f x y .. z := e" := (RecV f%binder x%binder (Lam y%binder .. (Lam z%binder e%MLE) ..))
   (at level 200, f, x, y, z at level 1, e at level 200,
-   format "'[' 'rec:'  f  x  y  ..  z  :=  '/  ' e ']'") : val_scope.
+   format "'[' 'rec:'  f  x  y  ..  z  :=  '/  ' e ']'") : ml_val_scope.
 
 (* The breaking point '/  ' makes sure that the body of the λ: is indented
 by two spaces in case the whole λ: does not fit on a single line. *)
-Notation "λ: x , e" := (Lam x%binder e%E)
+Notation "λ: x , e" := (Lam x%binder e%MLE)
   (at level 200, x at level 1, e at level 200,
-   format "'[' 'λ:'  x ,  '/  ' e ']'") : expr_scope.
-Notation "λ: x y .. z , e" := (Lam x%binder (Lam y%binder .. (Lam z%binder e%E) ..))
+   format "'[' 'λ:'  x ,  '/  ' e ']'") : ml_expr_scope.
+Notation "λ: x y .. z , e" := (Lam x%binder (Lam y%binder .. (Lam z%binder e%MLE) ..))
   (at level 200, x, y, z at level 1, e at level 200,
-   format "'[' 'λ:'  x  y  ..  z ,  '/  ' e ']'") : expr_scope.
+   format "'[' 'λ:'  x  y  ..  z ,  '/  ' e ']'") : ml_expr_scope.
 
-Notation "λ: x , e" := (LamV x%binder e%E)
+Notation "λ: x , e" := (LamV x%binder e%MLE)
   (at level 200, x at level 1, e at level 200,
-   format "'[' 'λ:'  x ,  '/  ' e ']'") : val_scope.
-Notation "λ: x y .. z , e" := (LamV x%binder (Lam y%binder .. (Lam z%binder e%E) .. ))
+   format "'[' 'λ:'  x ,  '/  ' e ']'") : ml_val_scope.
+Notation "λ: x y .. z , e" := (LamV x%binder (Lam y%binder .. (Lam z%binder e%MLE) .. ))
   (at level 200, x, y, z at level 1, e at level 200,
-   format "'[' 'λ:'  x  y  ..  z ,  '/  ' e ']'") : val_scope.
+   format "'[' 'λ:'  x  y  ..  z ,  '/  ' e ']'") : ml_val_scope.
 
-Notation "'let:' x := e1 'in' e2" := (Lam x%binder e2%E e1%E)
+Notation "'let:' x := e1 'in' e2" := (Lam x%binder e2%MLE e1%MLE)
   (at level 200, x at level 1, e1, e2 at level 200,
-   format "'[' 'let:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : expr_scope.
-Notation "e1 ;; e2" := (Lam BAnon e2%E e1%E)
+   format "'[' 'let:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : ml_expr_scope.
+Notation "e1 ;; e2" := (Lam BAnon e2%MLE e1%MLE)
   (at level 100, e2 at level 200,
-   format "'[' '[hv' '[' e1 ']' ;;  ']' '/' e2 ']'") : expr_scope.
+   format "'[' '[hv' '[' e1 ']' ;;  ']' '/' e2 ']'") : ml_expr_scope.
 
 (* Shortcircuit Boolean connectives *)
 Notation "e1 && e2" :=
-  (If e1%E e2%E (LitV (LitBool false))) (only parsing) : expr_scope.
+  (If e1%MLE e2%MLE (LitV (LitBool false))) (only parsing) : ml_expr_scope.
 Notation "e1 || e2" :=
-  (If e1%E (LitV (LitBool true)) e2%E) (only parsing) : expr_scope.
+  (If e1%MLE (LitV (LitBool true)) e2%MLE) (only parsing) : ml_expr_scope.
 
 (** Notations for option *)
 Notation NONE := (InjL (LitV LitUnit)) (only parsing).
@@ -148,35 +148,35 @@ Notation SOMEV x := (InjRV x) (only parsing).
 
 Notation "'match:' e0 'with' 'NONE' => e1 | 'SOME' x => e2 'end'" :=
   (Match e0 BAnon e1 x%binder e2)
-  (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
+  (e0, e1, x, e2 at level 200, only parsing) : ml_expr_scope.
 Notation "'match:' e0 'with' 'SOME' x => e2 | 'NONE' => e1 'end'" :=
   (Match e0 BAnon e1 x%binder e2)
-  (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
+  (e0, e1, x, e2 at level 200, only parsing) : ml_expr_scope.
 
 
-Definition TLam e := ((λ: <>, e%E)%E).
-Definition TLamV v := ((λ: <>, v%V)%V).
-Definition TApp e1 := (App e1%E (#())%V).
-Definition IdFunc e := (((λ: "x", "x"%E)%V e%E)%E).
-Definition Roll e := (IdFunc e%E).
-Definition RollV (v:val) := (v%V).
-Definition Unroll e := (IdFunc e%E).
-Definition Pack (e:expr) := (e%E).
-Definition PackV (v:val) := (v%V).
+Definition TLam e := ((λ: <>, e%MLE)%MLE).
+Definition TLamV v := ((λ: <>, v%MLV)%MLV).
+Definition TApp e1 := (App e1%MLE (#())%MLV).
+Definition IdFunc e := (((λ: "x", "x"%MLE)%MLV e%MLE)%MLE).
+Definition Roll e := (IdFunc e%MLE).
+Definition RollV (v:val) := (v%MLV).
+Definition Unroll e := (IdFunc e%MLE).
+Definition Pack (e:expr) := (e%MLE).
+Definition PackV (v:val) := (v%MLV).
 Definition UnpackIn x e1 e2 := (Let x e1 e2).
 
-Notation "Λ: <> , e" := (TLam e%E)
+Notation "Λ: <> , e" := (TLam e%MLE)
   (at level 200, e at level 200,
-   format "'[' 'Λ:'  '<>' ,  '/  ' e ']'") : expr_scope.
-Notation "roll: e" := (Roll e%E)
+   format "'[' 'Λ:'  '<>' ,  '/  ' e ']'") : ml_expr_scope.
+Notation "roll: e" := (Roll e%MLE)
   (at level 200, e at level 200,
-   format "'[' 'roll:' '/  ' e ']'") : expr_scope.
-Notation "unroll: e" := (Unroll e%E)
+   format "'[' 'roll:' '/  ' e ']'") : ml_expr_scope.
+Notation "unroll: e" := (Unroll e%MLE)
   (at level 200, e at level 200,
-   format "'[' 'unroll:' '/  ' e ']'") : expr_scope.
-Notation "pack: e" := (Pack e%E)
+   format "'[' 'unroll:' '/  ' e ']'") : ml_expr_scope.
+Notation "pack: e" := (Pack e%MLE)
   (at level 200, e at level 200,
-   format "'[' 'pack:' '/  ' e ']'") : expr_scope.
-Notation "'unpack:' x := e1 'in' e2" := (UnpackIn x%binder e2%E e1%E)
+   format "'[' 'pack:' '/  ' e ']'") : ml_expr_scope.
+Notation "'unpack:' x := e1 'in' e2" := (UnpackIn x%binder e2%MLE e1%MLE)
   (at level 200, x at level 1, e1, e2 at level 200,
-   format "'[' 'unpack:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : expr_scope.
+   format "'[' 'unpack:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : ml_expr_scope.

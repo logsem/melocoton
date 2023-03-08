@@ -21,7 +21,7 @@ Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 Context `{!heapGS_C Σ, !heapGS_ML Σ, !invGS_gen hlc Σ, !primitive_laws.heapGS_ML Σ, !wrapperGS Σ}.
 
 
-Definition swap_pair_code (x : expr) : expr := (
+Definition swap_pair_code (x : expr) : expr :=
   let: "lv" := malloc (#2) in 
   ("lv" +ₗ #0 <- (call: &"readfield" with (x, Val #0))) ;;
   ("lv" +ₗ #1 <- (call: &"readfield" with (x, Val #1))) ;;
@@ -33,15 +33,14 @@ Definition swap_pair_code (x : expr) : expr := (
   (call: &"unregisterroot" with ( Var "lv" +ₗ #0 )) ;;
   (call: &"unregisterroot" with ( Var "lv" +ₗ #1 )) ;;
   (free ("lv", #2)) ;;
-  "np"
-)%E.
+  "np".
 
 Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 
 Definition swap_pair_mod : gmap string function := {[ "swap_pair" := swap_pair_func]}.
 
 Definition swap_pair_ml_spec : @program_specification _ ML_lang _ _ _ _ := (
-  λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%V ]⌝ ∗ wp ((v2,v1)%V)
+  λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
 )%I.
 
 Definition swap_pair_env : language.weakestpre.prog_environ C_lang Σ :=
@@ -187,12 +186,12 @@ Import melocoton.ml_lang.proofmode.
 Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !heapGS_ML Σ, !wrapperGS Σ, !linkGS Σ}.
 
 Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) := 
-  (Extern "swap_pair" [ ((#3, (#1, #2)))%E ]).
+  (Extern "swap_pair" [ ((#3, (#1, #2)))%MLE ]).
 
 Definition client_env := {| penv_prog := ∅; penv_proto := swap_pair_ml_spec |} : prog_environ ML_lang Σ.
 Definition client_env_wrapped := (wrap_penv client_env).
 
-Lemma ML_prog_correct_axiomatic E : ⊢ WP swap_pair_client @ client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%V}}.
+Lemma ML_prog_correct_axiomatic E : ⊢ WP swap_pair_client @ client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%MLV}}.
 Proof.
   iStartProof. unfold swap_pair_client. wp_pures.
   wp_extern.

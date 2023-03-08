@@ -34,13 +34,13 @@ Notation "l I↦C{# q } v" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn q) (So
 Notation "l I↦C v" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn 1) (Some v))
   (at level 20, format "l  I↦C  v") : bi_scope.
 
-Notation "l ↦C{ dq } v" := (mapsto (L:=loc) (V:=heap_cell) l dq (Some (Some v%V)))
+Notation "l ↦C{ dq } v" := (mapsto (L:=loc) (V:=heap_cell) l dq (Some (Some v%CV)))
   (at level 20, format "l  ↦C{ dq }  v") : bi_scope.
-Notation "l ↦C□ v" := (mapsto (L:=loc) (V:=heap_cell) l DfracDiscarded (Storing v%V))
+Notation "l ↦C□ v" := (mapsto (L:=loc) (V:=heap_cell) l DfracDiscarded (Storing v%CV))
   (at level 20, format "l  ↦C□  v") : bi_scope.
-Notation "l ↦C{# q } v" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn q) (Storing v%V))
+Notation "l ↦C{# q } v" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn q) (Storing v%CV))
   (at level 20, format "l  ↦C{# q }  v") : bi_scope.
-Notation "l ↦C v" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn 1) (Storing v%V))
+Notation "l ↦C v" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn 1) (Storing v%CV))
   (at level 20, format "l  ↦C  v") : bi_scope.
 Notation "l ↦C{ dq } '?'" := (mapsto (L:=loc) (V:=heap_cell) l dq (Uninitialized))
   (at level 20, format "l  ↦C{ dq }  ?") : bi_scope.

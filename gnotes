@@ -1,0 +1,69 @@
+SL resources that we want
+-------------------------
+types mentionned below are defined in interop/basics.v
+
+
+- ML-like points-to: ℓ ↦∗ML vs
+  where: ℓ : loc, vs : list val
+  with the usual reasoning rules
+
+- C-like points-to: a ↦C w
+  where: a : addr, w : word
+  with the usual reasoning rules
+
+- "block-level" points-to: γ ↦b{ k, tg } lvs
+  where: γ : lloc, k ∈ Fresh | Immut | Mut, tg : tag, blk : list lval
+  and:
+  + if k = Fresh, then k can changed to Immut or Mut with a ghost update
+  + tg cannot change
+  + when k = Immut, the assertion "γ ↦b { Immut, tg } lvs" is persistent
+  + when k = Mut, values in lvs can change (but not the number of values of the list)
+
+- roots points-to: a ↦r lv
+  where: a : addr, lv : lval
+  with the usual reasoning rules
+
+- persistent token mapping a loc to an lloc: LLOC ℓ γ
+  where: ℓ : loc, γ : lloc
+  and where "LLOC ℓ γ" is persistent
+
+- address map token: ADDRMAP θ
+  where: θ : addr_map
+  and where "ADDRMAP θ" represents exclusive knowledge of θ (thus not persistent),
+    represents full knowledge of θ, which can thus be updated arbitrarily
+
+
+Link between the wrapper state and the SL resources
+---------------------------------------------------
+
+- "LLOC ℓ γ" means that χ !! ℓ = Some γ
+  for current χ (χC or χML)
+
+- "ADDRMAP θ" means that the wrapper state in the "wrapstateC" state,
+  and that θC = θ
+
+- "a ↦r lv" means that:
+  + in the "wrapstateML" case: rootsML !! a = Some lv
+  + in the "wrapstateC" case:
+      a ∈ rootsC ∧
+      ownership over the address a in the C memory ∧
+      "repr_lval θC lv w" holds (where w is the word stored at address a in the C memory)
+
+- "a ↦C w": a mapping a:=w in the C memory (main memory in the wrapstateC case),
+  or privmemML in the wrapstateML case
+
+- "ℓ ↦∗ML vs" is ownership over either:
+  + a mapping ℓ:=vs in the main store in the wrapstateML case
+  + a mapping ℓ:=vs in privσC in the wrapstateC case
+  + a mapping γ:=blk in ζC or ζML in the wrapstateC or wrapstateML case respectively,
+    such that:
+      χ !! ℓ = Some γ ∧
+      is_heap_elt χ ζ vs blk
+
+- "γ ↦b {k, tg} lvs" is ownership over either:
+  + a mapping γ:=(m,tg,lvs) in ζC or ζML, where
+    * k=Immut ==> m=Immut
+    * k=Mut   ==> m=Mut
+    * k=Fresh ==> m=Mut ∧ ∄ ℓ, χ !! ℓ = Some γ
+  + a mapping ℓ:=vs in the main store (wrapstateML case) or privσC (wrapstateC case), where
+    is_heap_elt χ ζ vs blk ∧ χ !! ℓ = Some γ

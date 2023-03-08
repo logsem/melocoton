@@ -17,10 +17,10 @@ Fixpoint fib (n:nat) : nat := match n with
       0 => 1
     | S n'' => fib n' + fib n'' end end.
 
-Definition fib_prog name (x:expr) := 
+Definition fib_prog name (x:expr) : expr :=
 (if: "x" < #2 
  then "x"
- else (call: (&name) with ("x" - #1)) + (call: (&name) with ("x" - #2) ))%E.
+ else (call: (&name) with ("x" - #1)) + (call: (&name) with ("x" - #2) )).
 Definition heap_example : expr :=
   let: "x" := malloc (#2) in 
  (call: &"store_it" with (("x" +ₗ #1), call: &"fib_left" with ( Val (#3) )) ;;
@@ -72,7 +72,7 @@ Definition FinalEnv : prog_environ C_lang Σ := {|
 
 (* A simple recursive function *)
 Lemma fib_prog_correct' (n:nat)
-  : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ SimpleEnv; ⊤ {{ v, ⌜v = #(fib n)⌝ }}).
+  : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ SimpleEnv; ⊤ {{ v, ⌜v = #(fib n)⌝ }})%CE.
 Proof.
   iStartProof.
   iLöb as "IH" forall (n).

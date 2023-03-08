@@ -24,10 +24,10 @@ Noteworthy design choices:
   deallocate a hole out of it in the middle.
 *)
 
-Declare Scope expr_scope.
-Declare Scope val_scope.
-Delimit Scope expr_scope with E.
-Delimit Scope val_scope with V.
+Declare Scope ml_expr_scope.
+Declare Scope ml_val_scope.
+Delimit Scope ml_expr_scope with MLE.
+Delimit Scope ml_val_scope with MLV.
 
 Module ML_lang.
 
@@ -133,8 +133,8 @@ Set Elimination Schemes.
 
 
 
-Bind Scope expr_scope with expr.
-Bind Scope val_scope with val.
+Bind Scope ml_expr_scope with expr.
+Bind Scope ml_val_scope with val.
 
 Notation of_val := Val (only parsing).
 

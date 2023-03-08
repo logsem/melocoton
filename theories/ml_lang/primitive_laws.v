@@ -75,13 +75,13 @@ Global Program Instance heapGS_langGS_ML `{heapGS_ML Σ}
     (gen_heap_interp σ ∗ dom_auth σ)%I
 }.
 
-Notation "l ↦M{ dq } v" := (mapsto (L:=loc) (V:=option (list val)) l dq (Some [v%V]))
+Notation "l ↦M{ dq } v" := (mapsto (L:=loc) (V:=option (list val)) l dq (Some [v%MLV]))
   (at level 20, format "l  ↦M{ dq }  v") : bi_scope.
-Notation "l ↦M□ v" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded (Some [v%V]))
+Notation "l ↦M□ v" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded (Some [v%MLV]))
   (at level 20, format "l  ↦M□  v") : bi_scope.
-Notation "l ↦M{# q } v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) (Some [v%V]))
+Notation "l ↦M{# q } v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) (Some [v%MLV]))
   (at level 20, format "l  ↦M{# q }  v") : bi_scope.
-Notation "l ↦M v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) (Some [v%V]))
+Notation "l ↦M v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) (Some [v%MLV]))
   (at level 20, format "l  ↦M  v") : bi_scope.
 
 
@@ -139,9 +139,9 @@ Implicit Types pe : prog_environ ML_lang Σ.
 induction directly, but this demonstrates that we can state the expected
 reasoning principle for recursive functions, without any visible ▷. *)
 Lemma wp_rec_löb pe E f x e Φ Ψ :
-  □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ pe; E {{ Φ }}) -∗
-     ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ pe; E {{ Φ }}) -∗
-  ∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ pe; E {{ Φ }}.
+  □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%MLV v @ pe; E {{ Φ }}) -∗
+     ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e)%MLV e))%MLE @ pe; E {{ Φ }}) -∗
+  ∀ v, Ψ v -∗ WP (rec: f x := e)%MLV v @ pe; E {{ Φ }}.
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
   iApply lifting.wp_pure_step_later; first eauto.

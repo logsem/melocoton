@@ -259,7 +259,7 @@ Section typed_interp.
     iIntros "#IH1 #IH2" (Δ vs) "!# #HΓ #HP /=".
     iApply (interp_expr_bind [AppRCtx _]); first by iApply "IH1". cbn.
     iIntros (v) "#(%τi & %vv & -> & Hv) /=".
-    iApply (wp_bind [AppLCtx _]); first iApply (wp_wand _ _ _ (λ v, ⌜v = (λ: x, env_subst (delete_binder vs x) e2)%V⌝)%I).
+    iApply (wp_bind [AppLCtx _]); first iApply (wp_wand _ _ _ (λ v, ⌜v = (λ: x, env_subst (delete_binder vs x) e2)%MLV⌝)%I).
     1: iApply wp_pure_step_later; first done; iIntros "!>". 1: iApply wp_value; first done; iPureIntro; done.
     iIntros (?) "->". cbn.
     iApply wp_pure_step_later; first done. iIntros "!>". cbn.

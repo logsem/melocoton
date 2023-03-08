@@ -3,8 +3,8 @@ From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
 
-Declare Scope val_scope.
-Delimit Scope val_scope with V.
+Declare Scope c_val_scope.
+Delimit Scope c_val_scope with CV.
 
 Module C_intf.
 
@@ -15,7 +15,7 @@ Inductive base_lit : Set :=
 Inductive val :=
   | LitV (l : base_lit).
 
-Bind Scope val_scope with C_intf.val.
+Bind Scope c_val_scope with C_intf.val.
 
 Global Instance base_lit_eq_dec : EqDecision base_lit.
 Proof. solve_decision. Defined.

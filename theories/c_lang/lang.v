@@ -6,8 +6,8 @@ From iris.prelude Require Import options.
 From melocoton Require Import commons.
 From melocoton.c_interface Require Import defs.
 
-Declare Scope expr_scope.
-Delimit Scope expr_scope with E.
+Declare Scope c_expr_scope.
+Delimit Scope c_expr_scope with CE.
 
 Module C_lang.
 
@@ -180,7 +180,7 @@ Proof.
   apply expr_rect.
 Defined.
 
-Bind Scope expr_scope with expr.
+Bind Scope c_expr_scope with expr.
 
 Inductive function := Fun (b : list binder) (e : expr).
 
