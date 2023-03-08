@@ -53,15 +53,45 @@ Proof using.
     iSplitR; first done. iSplitR; first done. iSplitR; first done. iFrame.
     iExists Ξ. iFrame. iNext. iIntros (v) "[Hv _]". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
-    { iPureIntro. eapply reducible_not_val. done. } iSplitR.
-    { iPureIntro. intros (f&vs&C&->&Hno).
-      eapply reducible_call_is_in_prog; try done.
-      by rewrite /to_call to_of_class. }
-    iIntros (X Hstep). inversion Hstep; simplify_eq.
-    destruct H5 as (e2&σ2&Hstep'&HX). 1: done.
-    iMod ("H3" $! σ2 e2 Hstep') as "H3". do 2 iModIntro. iMod "H3" as "(Hσ&HWP)". iModIntro. 
-    do 2 iExists _; iSplit; first done. iFrame.
-    by iApply "IH".
+    { iPureIntro. eapply reducible_not_val. done. }
+    iExists (λ '(e2, σ2), language.prim_step p e σ e2 σ2).
+    iSplit. { iPureIntro. by econstructor. }
+    iIntros (e' σ' Hstep). iMod ("H3" $! _ _ Hstep) as "H3".
+    do 2 iModIntro. iMod "H3" as "[Hσ HWP]". iModIntro.
+    iFrame. by iApply "IH".
+Qed.
+
+Lemma wp_lang_to_mlang_backwards (e : Λ.(language.expr)) p Ψ E Φ :
+  ⊢ WP e @ ⟪p, Ψ⟫; E {{ Φ }} -∗ WP e @ ⟨p, Ψ⟩; E {{ Φ }}.
+Proof using.
+  iStartProof. iLöb as "IH" forall (e).
+  rewrite {1} @language.weakestpre.wp_unfold /language.weakestpre.wp_pre. simpl.
+  rewrite {1} wp_unfold /mlanguage.weakestpre.wp_pre.
+  iIntros "H" (σ) "Hσ".
+  iMod ("H" $! σ with "[Hσ]") as "[(%x & -> & Hσ & H)|[(%s' & %vv & %K' & %Hcall & %H2 & _ & Hσ & H3)|(%Hval & %Hext & %Hstep & H3)]]"; cbn.
+  - done.
+  - iLeft. iModIntro. iExists x. iFrame. done.
+  - iRight. iLeft. cbn in Hcall. unfold is_call in Hcall. subst e.
+    iModIntro. do 3 iExists _; iSplit; first done.
+    iSplit; first done.
+    iPoseProof "H3" as "(%Ξ & HT & Hr)". iModIntro. iExists Ξ. iFrame.
+    iNext. iIntros (v) "Hv". iApply "IH". iApply "Hr". iFrame.
+  - iRight. iRight. iModIntro.
+    inversion Hstep; simplify_eq.
+    specialize (H3 Hval).
+    iSplit; first done.
+    iIntros (σ' e' Hstep').
+    iMod ("H3" $! _ _ (H5 _ _ Hstep')) as "H3".
+    do 2 iModIntro. iMod "H3" as "[Hσ HWP]". iModIntro.
+    iFrame. by iApply "IH".
+Qed.
+
+Lemma wp_lang_to_mlang_eq e p Ψ E Φ :
+  WP e @ ⟪p, Ψ⟫; E {{ Φ }} ⊣⊢ WP e @ ⟨p, Ψ⟩; E {{ Φ }}.
+Proof.
+  iIntros; iSplit.
+  - iApply wp_lang_to_mlang_backwards.
+  - iApply wp_lang_to_mlang.
 Qed.
 
 Lemma lang_to_mlang_refines E (p : lang_prog Λ) Ψ :
@@ -74,42 +104,15 @@ Proof using.
   iIntros (?) "H". cbn. iFrame.
 Qed.
 
-(*
-Lemma wp_lang_to_mlang_backwards (e : Λ.(language.expr)) pe E Φ :
-  ⊢ WP e @ (penv_to_mlang pe); E {{ Φ }} -∗ WP e @ pe; E {{ Φ }}.
+Lemma lang_to_mlang_refines_rev E (p : lang_prog Λ) Ψ :
+  mprog_proto E p Ψ ⊑ prog_proto E p Ψ.
 Proof using.
-  iStartProof. iLöb as "IH" forall (e). destruct pe as [p T].
-  rewrite {1} @language.weakestpre.wp_unfold /language.weakestpre.wp_pre. simpl.
-  rewrite {1} wp_unfold /mlanguage.weakestpre.wp_pre.
-  iIntros "H" (σ) "Hσ".
-  iMod ("H" $! σ with "[Hσ]") as "[(%x & -> & Hσ & H)|[(%s' & %vv & %K' & %Hcall & %H2 & _ & Hσ & H3)|(%Hred & %Hext & H3)]]"; cbn.
-  - done.
-  - iLeft. iModIntro. iExists x. iFrame. done.
-  - iRight. iLeft. cbn in Hcall. unfold lang_to_mlang.is_call in Hcall. subst e.
-    iModIntro. do 3 iExists _; iSplit; first done.
-    iSplit; first done.
-    iPoseProof "H3" as "(%Ξ & HT & Hr)". iModIntro. iExists Ξ. iFrame.
-    iNext. iIntros (v) "Hv". iApply "IH". iApply "Hr". iFrame.
-  - iRight. iRight. iModIntro.
-    iSplit. {
-    eapply (prim_step_is_total p e σ) in Hred as Hstep.
-    inversion Hstep; simplify_eq. 
-    
-    2: { iPoseProof ("H3" $! (λ _, False) (LiftUbStep _ p e σ _ H4)) as "H3".
-         iAssert (|={E}▷=> False)%I with "[H3]" as "Halmost_false".
-         1: iMod "H3"; do 2 iModIntro; iMod "H3" as "(%&%&[]&_)".
-         Fail iApply "Halmost_false". admit. }
-    iSplit.
-    1: iPureIntro; by do 2 eexists.
-    iIntros (σ3 e3 Hstep2).
-    assert (prim_step p (e, σ) (λ '(e4,σ4), e4=e3 ∧ σ4=σ3)) as HstepW.
-    1: eapply LiftStep; done.
-    iMod ("H3" $! _ HstepW) as "H3". do 2 iModIntro.
-    iMod "H3" as "(%e4&%σ4&(->&->)&(%n0&Hσ)&HWP)". iModIntro.
-    assert (S n = n0) as -> by admit. iFrame.
-    iApply "IH". done.
-Abort.
-
-*)
+  iIntros (? ? ?) "Hproto". rewrite /prog_proto /mprog_proto.
+  destruct (p !! s) as [fn|] eqn:HH; rewrite HH //; [].
+  iDestruct "Hproto" as (? ?) "Hwp". iExists _. iSplit; first done.
+  iNext. iSpecialize ("Hwp" with "[]"); first done.
+  iApply (language.weakestpre.wp_wand with "[Hwp]"); first by iApply wp_lang_to_mlang_backwards.
+  by iIntros (?) "[H _]".
+Qed.
 
 End ToMlang_logic.

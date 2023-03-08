@@ -35,11 +35,12 @@ Local Ltac SI_at_boundary :=
 Lemma wp_pre_cases_c_prim p T wp prm ρc mem E ws Φ :
   prm ≠ Pcallback →
   (∀ e, prm ≠ Pmain e) →
-  (∀ X, ⌜c_prim_step prm ws ρc mem (λ w ρc' mem', X (WrSE (ExprV w), CState ρc' mem'))⌝ -∗
-   |={E}▷=> ∃ w ρc' mem',
-          ⌜X (WrSE (ExprV w), CState ρc' mem')⌝ ∗
-          weakestpre.state_interp (CState ρc' mem') ∗
-          wp E (WrSE (ExprV w)) Φ) -∗
+  (∃ X,
+    ⌜c_prim_step prm ws ρc mem (λ w ρc' mem', X (WrSE (ExprV w), CState ρc' mem'))⌝ ∗
+    (∀ w ρc' mem',
+       ⌜X (WrSE (ExprV w), CState ρc' mem')⌝ ={E}▷=∗
+       weakestpre.state_interp (CState ρc' mem') ∗
+       wp E (WrSE (ExprV w)) Φ)) -∗
   |={E}=> wp_pre_cases p T wp (CState ρc mem) E
     (WrSE (RunPrimitive prm ws))
     Φ.
@@ -47,13 +48,15 @@ Proof using.
   iIntros (Hncb Hnmain) "HWP".
   iModIntro. iRight. iRight.
   iSplit; first done.
-  iSplit. { iPureIntro; intros (f&vs&C&H1&H2'); done. }
-  iIntros (X Hstep); inversion Hstep; simplify_eq; last naive_solver.
-  specialize (H4 _ _ eq_refl).
-  iMod ("HWP" $! X H4) as "HWP". do 2 iModIntro.
-  iMod "HWP" as (w ρc' mem' HX) "(Hσ&HWP)".
-  iModIntro. iExists _, _. iSplit; first done.
-  iFrame.
+  iDestruct "HWP" as (X Hpstep) "HWP".
+  iExists (λ '(e', σ'), X (e', σ') ∧ ∃ w ρc' mem',
+            e' = WrSE (ExprV w) ∧ σ' = CState ρc' mem').
+  iSplit.
+  { iPureIntro. econstructor.
+    eapply c_prim_step_covariant_in_Y; naive_solver. }
+  iIntros (? ? (HX & ? & ? & ? & (-> & ->))).
+  iMod ("HWP" $! _ _ _ HX) as "HWP". do 2 iModIntro.
+  iMod "HWP" as "(Hσ & HWP)". by iFrame.
 Qed.
 
 Lemma int2val_proto_refines E e Ψ : int2val_proto ⊑ mprog_proto E (prims_prog e) Ψ.
@@ -65,11 +68,10 @@ Proof using.
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro. by eapply H. }
-  iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  iExists (λ '(e', σ'), e' = WrSE (ExprV #z) ∧ σ' = CState ρc mem).
+  iSplit. { iPureIntro. econstructor; eauto. }
+  iIntros (? ? ? (? & ?)); simplify_eq.
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" with "[-]"); last done.
   do 9 iExists _; rewrite /named; iFrame. eauto.
@@ -84,10 +86,10 @@ Proof using.
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro. by eapply H. }
+  iExists (λ '(e', σ'), e' = WrSE (ExprV #z) ∧ σ' = CState ρc mem).
+  iSplit. { iPureIntro. econstructor; eauto. }
+  iIntros (? ? ? (? & ?)); simplify_eq.
+  do 3 iModIntro.
   iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" with "[-]").
@@ -107,8 +109,11 @@ Proof using.
        1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. }
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
+  iExists (λ '(e', σ'),
+    e' = WrSE (ExprV #0) ∧
+    σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := {[l]} ∪ rootsC ρc |} mem).
+  iSplit. { iPureIntro. econstructor; eauto. congruence. }
+  iIntros (w' ρc' mem' (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
   iMod (ghost_map_insert with "GCrootsm") as "(GCrootsm&Hres)".
   1: eapply not_elem_of_dom; intros Hc; eapply Hdom; done.
@@ -117,9 +122,7 @@ Proof using.
   iPoseProof ("HR" with "[Hpto GCrootspto]") as "GCrootspto"; first iFrame "GCrootspto".
   iExists w; iFrame; done.
   iClear "HR".
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro. rewrite H2 in Hdom. by eapply H. }
-  iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" with "[-Hres] Hres").
   do 9 iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
@@ -138,16 +141,17 @@ Proof using.
   iPoseProof (ghost_map_lookup with "GCrootsm Hpto") as "%Helem".
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
+  iExists (λ '(e', σ'),
+    e' = WrSE (ExprV #0) ∧
+    σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := rootsC ρc ∖ {[l]} |} mem).
+  iSplit. { iPureIntro. econstructor; eauto. rewrite -H2. by eapply elem_of_dom_2. }
+  iIntros (? ? ? (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
   iMod (ghost_map_delete with "GCrootsm Hpto") as "GCrootsm".
   iPoseProof (big_sepM_delete) as "(HL&_)"; first eapply Helem.
   iPoseProof ("HL" with "GCrootspto") as "((%W&Hpto&%Hw)&GCrootspto)".
   iClear "HL".
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro. eapply H; try done. rewrite -H2. by eapply elem_of_dom_2. }
-  iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" $! W with "[-Hpto] Hpto []"). 2: done.
   do 9 iExists _. iFrame. iPureIntro; split_and!; eauto.
@@ -172,19 +176,21 @@ Proof using.
        specialize (HR _ _ _ Hv Helem) as Hinv. inversion Hinv; subst; done. }
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
   assert (∃ blk', modify_block (Bvblock (Mut, (tg, vs0))) (Z.to_nat i) v' blk')
     as (blk'&Hblk').
-  { eexists. eapply mk_modify_block. lia. } 
+  { eexists. eapply mk_modify_block. lia. }
 
-  destruct HGCOK as [HGCL HGCR]. exploit_gmap_inj. repr_lval_inj.
+  iExists (λ '(e', σ'),
+    e' = WrSE (ExprV #0) ∧
+    σ' = CState {| χC := χC ρc; ζC := <[γ:=blk']> (ζC ρc); θC := θC ρc; rootsC := rootsC ρc |} mem).
+  iSplit. { iPureIntro; econstructor; eauto. }
+  iIntros (? ? ? (? & ?)); simplify_eq.
+
+  destruct HGCOK as [HGCL HGCR].
   iMod (lstore_own_update _ _ _ blk' with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iPoseProof (interp_ML_discarded_locs_pub with "GCσMLv GCχNone") as "%Hpublocs".
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro; by eapply H. }
-  iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).
   iApply ("Cont" with "[-Hpto Hptoacc] [Hpto Hptoacc]").
@@ -250,12 +256,10 @@ Proof using.
        eapply map_disjoint_Some_l; done. }
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
-  inv_repr_lval. exploit_gmap_inj. simplify_eq.
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro. eapply H; try done. by econstructor. }
-  iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  iExists (λ '(e', σ'), e' = WrSE (ExprV w') ∧ σ' = CState ρc mem).
+  iSplit. { iPureIntro; econstructor; eauto. }
+  iIntros (? ? ? (? & ?)); simplify_eq.
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" with "[-Hpto Hptoacc] [$Hpto $Hptoacc] [] []"); try done; [].
   rewrite /GC /named.
@@ -279,14 +283,24 @@ Proof using.
        iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
 
-  iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
   assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
   { eapply GC_correct_transport_rev; last done; done. }
 
-  edestruct H as (γ&?&?&θC'&a&mem'&HγNone&->&->&HGCOK'&Hrepr'&Hrootslive'&Ha&HX).
-  1-7: done. clear H.
+  iApply wp_pre_cases_c_prim; [done..|].
+  iExists (λ '(e', σ'), ∃ γ χC' ζC' θC' (a:loc) mem',
+    χC ρc !! γ = None ∧
+    χC' = <[γ := LlocPrivate]> (χC ρc) ∧
+    ζC' = <[γ := Bvblock (Mut, (tg, repeat (Lint 0) (Z.to_nat sz)))]> (ζC ρc) ∧
+    GC_correct ζC' θC' ∧
+    repr θC' roots_m privmem mem' ∧
+    roots_are_live θC' roots_m ∧
+    θC' !! γ = Some a ∧
+    e' = WrSE (ExprV #a) ∧
+    σ' = CState {| χC := χC'; ζC := ζC'; θC := θC'; rootsC := rootsC ρc |} mem').
+  iSplit. { iPureIntro. econstructor; naive_solver. }
+  iIntros (? ? ? (γ & χC' & ζC' & θC' & a & mem' &
+                  HγNone & -> & -> & HGCOK' & Hrepr' & Hrootslive' & ?)).
+  destruct_and!; simplify_eq.
 
   assert (χvirt !! γ = None) as Hχvirtγ.
   { eapply not_elem_of_dom. destruct Hχvirt as [<- _].
@@ -303,46 +317,6 @@ Proof using.
     intros [HH|HH]%elem_of_union.
     all: eapply elem_of_dom in HH; destruct HH as [v HHv]; congruence. }
 
-(*
-
-  iModIntro. iApply wp_pre_cases_c_prim; [done..|].
-  { destruct (allocate_in_χ_priv_strong (dom (θC ρc)) (χC ρc) (Bvblock (Mut, blk)) Hχinj) as (χC1&γ&HχC1&Hγθ).
-    pose (fresh (map_to_set (fun a b => b) (θC ρc) : gset loc)) as afresh.
-    pose (is_fresh (map_to_set (fun a b => b) (θC ρc) : gset loc)) as Hafresh.
-    do 3 eexists.
-    eapply (PrimAllocS _ tg sz roots_m ρc privmem mem γ afresh mem _ _ (<[γ := afresh]> (θC ρc))). 1,2,3,4: done. 2,3:reflexivity.
-    - destruct HχC1 as (_&(Hdisj&_)). eapply not_elem_of_dom.
-      erewrite dom_singleton_L in Hdisj. eapply disjoint_singleton_r. done.
-    - destruct HGCOK as [HGC1 HGC2]. split.
-      + intros k1 k2 v [[<- <-]|[H1L H1R]]%lookup_insert_Some [[??]|[H3L H3R]]%lookup_insert_Some.
-        1: done.
-        1: exfalso; eapply Hafresh; eapply elem_of_map_to_set;
-           do 2 eexists; split; first eapply H3R; done.
-        1: subst v; exfalso; eapply Hafresh; eapply elem_of_map_to_set;
-           do 2 eexists; split; first eapply H1R; done.
-        1: by eapply HGC1.
-      + rewrite dom_insert_L.
-        intros γ1 blk1 γ' [->%elem_of_singleton|Hin]%elem_of_union [[Heq1 Heq2]%lookup_singleton_Some|[HluN Hlu]]%lookup_union_Some_raw Hγ';
-        eapply elem_of_union.
-        * subst. apply lval_in_vblock in Hγ'.
-          exfalso. eapply elem_of_list_In in Hγ'. eapply repeat_spec in Hγ'. congruence.
-        * rewrite lookup_singleton in HluN. done.
-        * subst γ1 blk1. apply lval_in_vblock in Hγ'.
-          exfalso. eapply elem_of_list_In in Hγ'. eapply repeat_spec in Hγ'. congruence.
-        * right. destruct (Hfreezeρ) as [HHL HHR].
-          destruct ((ζσ ∪ ζvirt) !! γ1) as [blk'|] eqn:Heq.
-          2: { exfalso. eapply not_elem_of_dom in Heq. eapply elem_of_dom_2 in Hlu.
-               rewrite HHL in Hlu; tauto. }
-          eapply HGC2. 1: exact Hin. 1: done.
-          specialize (HHR _ _ _ Hlu Heq). inversion HHR; subst.
-          -- destruct tgvs. eapply lval_in_vblock. eapply lval_in_vblock in Hγ'. done.
-          -- done.
-    - eapply repr_mono. 2: done.
-      eapply insert_subseteq. by eapply not_elem_of_dom.
-    - intros a γ' HH1. rewrite dom_insert_L. eapply elem_of_union_r.
-      eapply Hrootslive. done.
-    - eapply lookup_insert. }
-*)
   assert (freeze_lstore (<[γ := Bvblock (Mut, blk)]> (ζC ρc)) (ζσ ∪ <[γ:=Bvblock (Mut, blk)]> ζvirt)) as Hfreezeρ_new.
   { destruct Hfreezeρ as [HfL HfR]; split.
     - rewrite !dom_insert_L. rewrite dom_union_L in HfL. set_solver+ HfL.
@@ -360,9 +334,7 @@ Proof using.
   iMod (lstore_own_insert _ γ (Bvblock (Mut, blk)) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
   iMod (lloc_own_allocate _ γ with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
 
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  1: iPureIntro; apply HX.
-  iFrame. cbn -[prims_prog].
+  do 3 iModIntro. iFrame. cbn -[prims_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" $! θC' γ with "[-Hbp2 Hbp1] [Hbp2 Hbp1] []"); try done.
@@ -388,7 +360,7 @@ Proof using.
     rewrite lookup_insert_ne in HH3; last done.
     specialize (Hstore ℓ vs γ1 blk1 HH1 HH2 HH3).
     inversion Hstore; subst. econstructor.
-    eapply Forall2_impl; first apply H0.
+    eapply Forall2_impl; first apply H1.
     intros vml vl HH4. eapply is_val_mono. 3: apply HH4.
     + eapply insert_subseteq. done.
     + eapply insert_subseteq. eapply lookup_union_None; done.
@@ -412,15 +384,25 @@ Proof using.
        iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
 
-  iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
   assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
   { eapply GC_correct_transport_rev; last done; done. }
 
-  edestruct H as (γ&id&?&?&θC'&aret&mem'&HγNone&Hidfresh&->&->&
-                  HGCOK'&Hrepr'&Hrootslive'&Ha&HX).
-  1-5: done. clear H.
+  iApply wp_pre_cases_c_prim; [done..|].
+  iExists (λ '(e', σ'), ∃ γ id χC' ζC' θC' (aret:loc) mem',
+      χC ρc !! γ = None ∧
+      (∀ γ' id', χC ρc !! γ' = Some (LlocForeign id') → id' ≠ id) ∧
+      χC' = <[ γ := LlocForeign id ]> (χC ρc) ∧
+      ζC' = <[ γ := Bforeign a ]> (ζC ρc) ∧
+      GC_correct ζC' θC' ∧
+      repr θC' roots_m privmem mem' ∧
+      roots_are_live θC' roots_m ∧
+      θC' !! γ = Some aret ∧
+      e' = WrSE (ExprV (# aret)) ∧
+      σ' = CState (WrapstateC χC' ζC' θC' (rootsC ρc)) mem').
+  iSplit. { iPureIntro. econstructor; naive_solver. }
+  iIntros (? ? ? (γ & id & χC' & ζC' & θC' & aret & mem' &
+                  HγNone & Hidfresh & -> & -> & HGCOK' & Hrepr' & Hrootslive' & ?)).
+  destruct_and!; simplify_eq.
 
   assert (χvirt !! γ = None) as Hχvirtγ.
   { eapply not_elem_of_dom. destruct Hχvirt as [<- _].
@@ -454,9 +436,7 @@ Proof using.
   iMod (lstore_own_insert _ γ (Bforeign a) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
   iMod (lloc_own_allocate_foreign _ γ id with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
 
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  1: iPureIntro; apply HX.
-  iFrame. cbn -[prims_prog].
+  do 3 iModIntro. iFrame. cbn -[prims_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" $! θC' γ with "[-Hbp2 Hbp1] [Hbp2 Hbp1] []"); try done.
@@ -482,7 +462,7 @@ Proof using.
     rewrite lookup_insert_ne in HH3; last done.
     specialize (Hstore ℓ vs γ1 blk1 HH1 HH2 HH3).
     inversion Hstore; subst. econstructor.
-    eapply Forall2_impl; first apply H0.
+    eapply Forall2_impl; first eassumption.
     intros vml vl HH4. eapply is_val_mono. 3: apply HH4.
     + eapply insert_subseteq. done.
     + eapply insert_subseteq. eapply lookup_union_None; done.
@@ -512,12 +492,10 @@ Proof using.
   destruct HGCOK as [HGCL HGCR]. inv_repr_lval.
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-
-  inv_repr_lval. exploit_gmap_inj. simplify_eq.
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro. eapply H; try done. by econstructor. }
-  iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  iExists (λ '(e', σ'), e' = WrSE (ExprV (#a)) ∧ σ' = CState ρc mem).
+  iSplit. { iPureIntro; econstructor; eauto. }
+  iIntros (? ? ? (? & ?)); simplify_eq.
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply ("Cont" with "[-Hpto Hsim] [$Hpto $Hsim]").
   rewrite /GC /named.
@@ -542,14 +520,16 @@ Proof using.
   destruct HGCOK as [HGCL HGCR]. inv_repr_lval.
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
+  iExists (λ '(e', σ'),
+    e' = WrSE (ExprV #0) ∧
+    σ' = CState (WrapstateC (χC ρc) (<[γ:=Bforeign a']> (ζC ρc)) (θC ρc) (rootsC ρc)) mem).
+  iSplit. { iPureIntro; econstructor; eauto. }
+  iIntros (? ? ? (? & ?)); simplify_eq.
 
   iMod (lstore_own_update _ _ _ (Bforeign a') with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iPoseProof (interp_ML_discarded_locs_pub with "GCσMLv GCχNone") as "%Hpublocs".
-  do 3 iModIntro; do 3 iExists _; iSplit.
-  { iPureIntro; eapply H; eauto. }
-  iFrame. cbn -[prims_prog] in *.
+  do 3 iModIntro. iFrame. cbn -[prims_prog] in *.
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).

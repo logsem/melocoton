@@ -36,27 +36,21 @@ Proof using.
   iDestruct (SI_not_at_boundary_is_in_ML with "SI Hnb") as "%H"; destruct H as (ρml & σ & ->).
   iModIntro. iRight. iRight.
   iSplit; first done.
-  iSplit. { iPureIntro. intros (f&vs&C&Hc&Hno); cbv in Hc; done. }
 
-  iAssert ⌜∃ w ρc mem, ml_to_c [v] ρml σ [w] ρc mem⌝%I
-    as "%Hprog".
+  iAssert (⌜ml_to_c [v] ρml σ (λ ws ρc mem, ml_to_c_core [v] ρml σ ws ρc mem)⌝)%I as "%Hprog".
   { iNamed "SI". iNamed "SIML".
     iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as "%H". iPureIntro.
-    destruct (ml_to_c_exists [v] ρml σ) as (ws & ρc & mem & Hml_to_c); auto; [].
-       assert (Hlen: length ws = 1) by
-         (erewrite <-(ml_to_c_words_length [v] _ _ ws); eauto).
-       destruct ws as [| ? [|]]; try (cbn in Hlen; congruence).
-       by do 3 eexists. }
+    split_and!; eauto. }
 
-  iIntros (X Hstep).
-  inversion Hstep; simplify_eq. clear H2 H4. rename H5 into Hret.
-  edestruct Hret as (w&ρc&mem&Hmlc&HX). 1-3:done.
+  iExists (λ '(e', σ'), ∃ w ρc mem,
+    ml_to_c_core [v] ρml σ [w] ρc mem ∧
+    e' = WrSE (ExprV w) ∧ σ' = CState ρc mem).
+  iSplit. { iPureIntro. eapply ValS; naive_solver. }
 
-  cbn in * |-; simplify_eq.
+  iIntros (? ? (w & ρc & mem & Hcore & -> & ->)).
   iMod (wrap_interp_ml_to_c with "SI Hnb") as "(SI & Hb & HGC & (%lvs & Hsim & %Hrepr))";
     first done.
-  do 3 iModIntro. do 2 iExists _. iSplit; first done. iFrame "SI".
-  iApply weakestpre.wp_value'.
+  do 3 iModIntro. iFrame "SI". iApply weakestpre.wp_value'.
   iDestruct (big_sepL2_cons_inv_l with "Hsim") as "(% & % & -> & Hsim & _)".
   iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
@@ -97,20 +91,23 @@ Proof.
 
     iModIntro. iRight; iRight.
     iSplit; first done.
-    iSplit. { iPureIntro. intros (?&?&?&?&?). done. }
-
-    iIntros (X Hstep) "!>!>".
-    inversion Hstep; simplify_eq. clear H2 H5. rename H4 into Hcall.
-    edestruct Hcall as (ws & ρc & mem & ? & ?).
-    1: done.
-    1: done.
-    1: by rewrite /= lookup_prims_prog_None //.
-    { destruct (ml_to_c_exists vs ρml σ) as (ws & ρc & mem & ?); eauto. }
+    iExists (λ '(e', σ'), ∃ ws ρc mem,
+      ml_to_c_core vs ρml σ ws ρc mem ∧
+      e' = WrE (Wrap.ExprCall fn_name ws) [K'] ∧
+      σ' = CState ρc mem).
+    iSplit.
+    { iPureIntro.
+      eapply MakeCallS with (YC := (λ ws ρc mem, ml_to_c_core vs ρml σ ws ρc mem)); eauto.
+      { done. }
+      { rewrite /= lookup_prims_prog_None //. }
+      { split_and!; eauto. }
+      { intros. do 3 eexists. split_and!; eauto. } }
+    iIntros (? ? (ws & ρc & mem & Hcore & -> & ->)).
     iMod (wrap_interp_ml_to_c with "[- Hnb Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
       first done.
     { rewrite /wrap_state_interp /ML_state_interp /named.
       iSplitL "Hσ"; first by iFrame. by iFrame. }
-    iModIntro. iExists _, _. iSplit; first done. iFrame "Hσ".
+    do 3 iModIntro. iFrame "Hσ".
 
     (* step done; make an external call in the wrapper *)
 
@@ -132,16 +129,18 @@ Proof.
     (* extcall done; take an administrative step for the call return *)
 
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-    iIntros (st') "Hst' !>". clear dependent ρc' mem' X.
+    iIntros (st') "Hst' !>". clear dependent ρc' mem'.
     iDestruct (SI_at_boundary_is_in_C with "Hst' Hb") as %(ρc'&mem'&->). simpl.
     iRight; iRight. iSplit; first done.
-    iSplit. { iPureIntro. intros (?&?&?&?&?). done. }
-    iIntros (X Hstep). inversion Hstep; simplify_eq.
-    specialize (H7 _ _ eq_refl).
-    iMod (wrap_interp_c_to_ml with "Hst' HGC Hb Hsim") as "HH";
-      [ done | done | ].
-    iDestruct "HH" as "(%ρml' & %σ' & %HX & Hst & Hnb)".
-    do 3 iModIntro. iExists _, _. iSplit; first done. iFrame "Hst".
+
+    iDestruct (wrap_interp_c_to_ml with "Hst' HGC Hb Hsim") as (ρml' σ' Hc_to_ml) "HH";
+      first done.
+    iExists (λ '(e2, σ2),
+      e2 = WrSE (ExprML (language.fill K' (Val vret))) ∧
+      σ2 = MLState ρml' σ').
+    iSplit. { iPureIntro. eapply RetS; eauto. }
+    iIntros (? ? (-> & ->)). iMod "HH" as "[Hst' Hnb]".
+    do 3 iModIntro. iFrame "Hst'".
 
     (* continue execution using IH *)
 
@@ -149,25 +148,20 @@ Proof.
 
   (* step *)
   + iDestruct "HWP" as "(%Hred & HWP)".
-    iModIntro. iRight. iRight. iSplit; last iSplit.
-    1: done.
-    1: iPureIntro; intros (f&vs&K&H1&H2); done.
-    iIntros (X Hstep). inversion Hstep; simplify_eq.
-    clear H4 H5. clear Hstep. rename H2 into Hstep'.
-    edestruct Hstep' as (eml' & σ' & Hstep & ?).
-    * done.
-    * by eapply reducible_not_val.
-    * intros (f&vs&K&H). rewrite /lang.Wrap.is_ML_call in H.
-      subst eml. eapply reducible_call_is_in_prog in Hred; first done.
-      rewrite /to_call to_of_class //.
-    * done.
-    * iMod ("HWP" $! _ _ Hstep) as "HWP".
-      do 2 iModIntro. iMod "HWP" as "(HσC & HWP')".
-      iModIntro. iExists _, _. iSplitR; first by iPureIntro.
-      iSplitR "HWP' Hnb".
-      { rewrite /weakestpre.state_interp /= /named.
-        iSplitL "HσC"; by iFrame.  }
-      iApply ("IH" with "Hnb HWP'").
+    iModIntro. iRight. iRight. iSplit; first done.
+    iExists (λ '(e2, σ2), ∃ eml' σ',
+      language.language.prim_step ∅ eml σ eml' σ' ∧
+      e2 = WrSE (ExprML eml') ∧ σ2 = MLState ρml σ').
+    iSplit.
+    { iPureIntro. eapply StepMLS; eauto.
+      by eapply reducible_not_val. }
+    iIntros (? ? (e' & σ' & Hstep & -> & ->)).
+    iMod ("HWP" $! _ _ Hstep) as "HWP".
+    do 2 iModIntro. iMod "HWP" as "(HσC & HWP')".
+    iModIntro. iSplitR "HWP' Hnb".
+    { rewrite /weakestpre.state_interp /= /named.
+      iSplitL "HσC"; by iFrame. }
+    iApply ("IH" with "Hnb HWP'").
 Qed.
 
 Lemma callback_proto_refines E emain Ψ :
@@ -189,17 +183,16 @@ Proof using.
     eapply freeze_lstore_lookup_bclosure; first done.
     eapply lookup_union_Some_r; eauto. }
 
+  iDestruct (wrap_interp_c_to_ml with "Hst HGC Hb Hsim'") as (ρml' σ' Hc_to_ml) "HH";
+    first done.
   iModIntro.
   iRight; iRight. iSplit; first done.
-  iSplit. { iPureIntro; intros (f'&vs'&C'&H1&H2); done. }
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-  1: specialize (H4 _ _ eq_refl); by inversion H4.
-  specialize (H3 _ _ _ _ _ _ _ _ eq_refl eq_refl Hreprw Hγ).
-  iMod (wrap_interp_c_to_ml with "Hst HGC Hb Hsim'") as "HH"; [done|done|].
-  iDestruct "HH" as "(%ρml & %σ & % & Hst & Hnb)".
-
-  do 3 iModIntro. iExists _, _. iSplit; first done. iFrame "Hst".
-
+  iExists (λ '(e2, σ2),
+    e2 = WrSE (ExprML (App (Val (RecV f x e)) (Val v'))) ∧
+    σ2 = MLState ρml' σ').
+  iSplit. { iPureIntro. eapply CallbackS; eauto. }
+  iIntros (? ? (-> & ->)). iMod "HH" as "(Hst & Hnb)".
+  do 3 iModIntro. iFrame "Hst".
   iApply (weakestpre.wp_wand with "[-Cont Hclos]").
   { by iApply (wp_simulates with "Hnb [WPcallback]"). }
   cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & $)".
@@ -228,12 +221,12 @@ Proof using.
 
   iModIntro.
   iRight; iRight. iSplit; first done.
-  iSplit. { iPureIntro; intros (f'&vs'&C'&H1&H2); done. }
-  iIntros (X Hstep); inversion Hstep; simplify_eq.
-  1: specialize (H4 _ _ eq_refl); by inversion H4.
-  specialize (H4 mem eq_refl eq_refl).
-
-  do 3 iModIntro. iExists _, _. iSplit; first done.
+  iExists (λ '(e2, σ2),
+    e2 = WrSE (ExprML emain) ∧
+    σ2 = MLState {| χML := ∅; ζML := ∅; rootsML := ∅ |} ∅).
+  iSplit. { iPureIntro. eapply MainS; eauto. }
+  iIntros (? ? (-> & ->)).
+  do 3 iModIntro.
   rewrite /weakestpre.state_interp /= /named.
   rewrite /ML_state_interp /= /named.
   rewrite /public_state_interp.
