@@ -107,7 +107,7 @@ Section typed_interp.
     1: iDestruct "Hv" as "%"; iDestruct "Hw" as "%"; simplify_eq/=.
     2,3: iDestruct "Hv" as (v1) "%"; iDestruct "Hw" as (v2) "%"; simplify_eq/=.
     4: iDestruct "Hv" as (v1) "[% #H1]"; iDestruct "Hw" as (v2) "[% #H2]"; simplify_eq/=.
-    all: iApply wp_pure_step_later; first by left.
+    all: iApply wp_pure_step_later; first by eauto.
     all: iIntros "!>"; iApply wp_value; first done.
     all: by iExists _.
   Qed.

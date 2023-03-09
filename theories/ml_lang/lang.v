@@ -35,7 +35,7 @@ Module ML_lang.
 
 Inductive base_lit : Set :=
   | LitInt (n : Z) | LitBool (b : bool) | LitUnit
-  | LitLoc (l : loc) .
+  | LitLoc (l : loc).
 Inductive un_op : Set :=
   | NegOp | MinusUnOp.
 Inductive bin_op : Set :=
@@ -194,32 +194,72 @@ Qed.
 Local Notation to_val e :=
   (match to_class_ML e with Some (ExprVal v) => Some v | _ => None end).
 
-(** Unboxed values are
-  * locations
-  * integers
-  * booleans
-  * unit
+(** - Int-like values are represented as integers at runtime:
+      integers, booleans, unit.
 
-Ignoring (as usual) the fact that we have to fit the infinite Z/loc into 61
-bits, this means every value is machine-word-sized and can hence be atomically
-read and written.  Also notice that the sets of boxed and unboxed values are
-disjoint. *)
-Definition val_is_unboxed (v : val) : Prop :=
+    - Other (non int-like) values are represented as pointers to a block
+      at runtime (locations, closures, pairs, variants).
+
+    We only allow comparing values of different shapes when they can be
+    distinguished at runtime according to their representation. For instance,
+    comparing booleans and integers is disallowed since they end up represented
+    the same at runtime.
+
+    Furthermore, we restrict ourselves to comparing "immediate" values, i.e.
+    we don't allow recursively comparing structured values such as pairs or
+    variants.
+*)
+
+Definition val_is_intlike (v : val) : Prop :=
   match v with
-  | LitV _ => True
+  | LitV (LitInt _) | LitV (LitBool _) | LitV LitUnit => True
   | _ => False
   end.
 
-Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v).
-Proof. destruct v as [ | | | [] | [] ]; simpl; exact (decide _). Defined.
+Global Instance val_is_intlike_dec v : Decision (val_is_intlike v).
+Proof.
+  destruct v as [ v | | | |];
+    try (right; intros HH; by inversion HH).
+  destruct v; last by (right; intros HH; inversion HH).
+  all: by left.
+Defined.
 
-(** We just compare the word-sized representation of two values, without looking
-into boxed data.  This works out fine if at least one of the to-be-compared
-values is unboxed (exploiting the fact that an unboxed and a boxed value can
-never be equal because these are disjoint sets). *)
-Definition vals_compare_safe (vl v1 : val) : Prop :=
-  val_is_unboxed vl ∨ val_is_unboxed v1.
-Global Arguments vals_compare_safe !_ !_ /.
+Inductive vals_compare_safe : val → val → Prop :=
+| vals_compare_intlike_pointerlike v1 v2 :
+  (  val_is_intlike v1 ∧ ¬ val_is_intlike v2) ∨
+  (¬ val_is_intlike v1 ∧   val_is_intlike v2) →
+  vals_compare_safe v1 v2
+| vals_compare_int n1 n2 :
+  vals_compare_safe (LitV (LitInt n1)) (LitV (LitInt n2))
+| vals_compare_bool b1 b2 :
+  vals_compare_safe (LitV (LitBool b1)) (LitV (LitBool b2))
+| vals_compare_unit :
+  vals_compare_safe (LitV LitUnit) (LitV LitUnit)
+| vals_compare_loc l1 l2 :
+  vals_compare_safe (LitV (LitLoc l1)) (LitV (LitLoc l2)).
+
+Global Hint Resolve vals_compare_int : core.
+Global Hint Resolve vals_compare_bool : core.
+Global Hint Resolve vals_compare_unit : core.
+Global Hint Resolve vals_compare_loc : core.
+
+Global Instance vals_compare_safe_dec v1 v2 : Decision (vals_compare_safe v1 v2).
+Proof.
+  destruct (decide (val_is_intlike v1)) as [Hi1|Hni1];
+  destruct (decide (val_is_intlike v2)) as [Hi2|Hni2];
+    try (left; eapply vals_compare_intlike_pointerlike; by eauto).
+  { destruct v1 as [l1| | | | ]; try by inversion Hi1.
+    destruct v2 as [l2| | | |]; try by inversion Hi2.
+    destruct l1; try (by inversion Hi1);
+    destruct l2; try (by inversion Hi2).
+    all: try (left; by constructor).
+    all: right; intros HH; inversion HH; naive_solver. }
+  { destruct v1 as [l1| | | | ]; destruct v2 as [l2| | | |];
+       try (right; intros HH; inversion HH; naive_solver).
+    destruct l1; try (exfalso; apply Hni1; by constructor).
+    destruct l2; try (exfalso; apply Hni2; by constructor).
+    left; eapply vals_compare_loc. }
+Defined.
 
 Local Notation state := (gmap loc (option (list val))).
 
