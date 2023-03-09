@@ -65,29 +65,23 @@ Inductive split_state : state → public_state → private_state → Prop :=
 
 Implicit Types X : expr * state → Prop.
 
-Definition ml_to_c
+Definition ml_to_c_core
   (vs : list val) (ρml : wrapstateML) (σ : store)
-  (Y : list word → wrapstateC → memory → Prop)
+  (ws : list word) (ρc : wrapstateC) (mem : memory)
 : Prop :=
-
-  lloc_map_inj (χML ρml) ∧
-  dom (ζML ρml) ⊆ dom (χML ρml) ∧
-  map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)) ∧
-  dom (privmemML ρml) ## dom (rootsML ρml) ∧
-
-  ∀ (ζσ ζnewimm : lstore) (lvs : list lval) ws ρc mem,
+  ∃ (ζσ ζnewimm : lstore) (lvs : list lval),
     (* Demonically get a new extended map χC. New bindings in χC correspond to
        new locations in the ML heap (e.g. allocated by ML). *)
-    lloc_map_mono (χML ρml) (χC ρc) →
+    lloc_map_mono (χML ρml) (χC ρc) ∧
     (* The extended χC binds γs for all locations ℓ in σ; the ℓs that are mapped
        to [Some ...] in σ make up the domain of a map ζσ (whose contents are
        also chosen demonically). In other words, ζσ has exactly one block for
        each location in σ that is mapped to [Some ...]. *)
-    is_store_blocks (χC ρc) σ ζσ →
+    is_store_blocks (χC ρc) σ ζσ ∧
     (* Representing the contents of the new ML heap may also require some new
        immutable blocks, which we represent in ζnewimm. The address of blocks
        in ζnewimm is LlocPrivate. *)
-    is_private_blocks (χC ρc) ζnewimm →
+    is_private_blocks (χC ρc) ζnewimm ∧
     (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
        into a lstore) + ζnewimm (new immutable blocks allocated from ML). These
        three parts must be disjoint. (ζσ and ζnewimm are disjoint by
@@ -95,81 +89,45 @@ Definition ml_to_c
        allocated in C but not yet shared with the ML code, or mutable blocks
        exposed to ML but whose ownership was kept on the C side (and thus
        correspond to a [None] in σ). *)
-    ζC ρc = ζML ρml ∪ ζσ ∪ ζnewimm →
-    ζML ρml ##ₘ (ζσ ∪ ζnewimm) →
+    ζC ρc = ζML ρml ∪ ζσ ∪ ζnewimm ∧
+    ζML ρml ##ₘ (ζσ ∪ ζnewimm) ∧
     (* Taken together, the contents of the new lloc_map χC and new lstore ζC
        must represent the contents of σ. (This further constraints the demonic
        choice of ζσ and ζnewimm.) *)
-    is_store (χC ρc) (ζC ρc) σ →
+    is_store (χC ρc) (ζC ρc) σ ∧
     (* Demonically pick block-level values lvs that represent the arguments vs. *)
-    Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs →
+    Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
     (* Demonically pick an addr_map θC satisfying the GC_correct property. *)
-    GC_correct (ζC ρc) (θC ρc) →
+    GC_correct (ζC ρc) (θC ρc) ∧
     (* Rooted values must additionally be live in θC. *)
-    roots_are_live (θC ρc) (rootsML ρml) →
+    roots_are_live (θC ρc) (rootsML ρml) ∧
     (* Pick C-level words that are live and represent the arguments of the
        function. (repr_lval on a location entails that it is live.) *)
-    Forall2 (repr_lval (θC ρc)) lvs ws →
+    Forall2 (repr_lval (θC ρc)) lvs ws ∧
     (* Pick C memory (mem) that represents the roots (through θC) + the
        remaining private C memory. *)
-    rootsC ρc = dom (rootsML ρml) →
-    repr (θC ρc) (rootsML ρml) (privmemML ρml) mem →
+    rootsC ρc = dom (rootsML ρml) ∧
+    repr (θC ρc) (rootsML ρml) (privmemML ρml) mem.
+
+Definition ml_to_c
+  (vs : list val) (ρml : wrapstateML) (σ : store)
+  (Y : list word → wrapstateC → memory → Prop)
+: Prop :=
+  lloc_map_inj (χML ρml) ∧
+  dom (ζML ρml) ⊆ dom (χML ρml) ∧
+  map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)) ∧
+  dom (privmemML ρml) ## dom (rootsML ρml) ∧
+  ∀ ws ρc mem,
+    ml_to_c_core vs ρml σ ws ρc mem →
     Y ws ρc mem.
-
-(* TODO: move *)
-Lemma find_repr_lval_vv θ v :
-   (forall γ, Lloc γ = v → γ ∈ dom θ)
- → exists l, repr_lval θ v l.
-Proof.
-  intros H. destruct v as [z|a].
-  - eexists; by econstructor.
-  - destruct (θ !! a) as [va|] eqn:Heq.
-    2: eapply not_elem_of_dom in Heq; exfalso; apply Heq; apply H; done.
-    eexists; econstructor; apply Heq.
-Qed.
-
-Lemma find_repr_lval_vs θ vs :
-   (forall γ, Lloc γ ∈ vs → γ ∈ dom θ)
- → exists ls, Forall2 (repr_lval θ) vs ls.
-Proof.
-  intros H; induction vs as [|v vs IH] in H|-*.
-  - exists nil. econstructor.
-  - destruct IH as [ls IH]; first (intros γ Hγ; eapply H; right; done).
-    destruct (find_repr_lval_vv θ v) as [l Hl].
-    1: intros γ <-; apply H; by left.
-    eexists. econstructor; done.
-Qed.
-
-Lemma find_repr_roots θ roots privmem :
-   roots_are_live θ roots
- → dom privmem ## dom roots
- → exists mem, repr θ roots privmem mem.
-Proof.
-  revert privmem. unfold repr.
-  induction roots as [|l a roots_m Hin IH] using map_ind; intros privmem Hlive Hdisj.
-  - exists privmem, ∅. split_and!.
-    + econstructor.
-    + eapply map_disjoint_empty_r.
-    + by rewrite map_empty_union.
-  - destruct (IH privmem) as (mem1 & memr1 & Hrepr1 & Hdisj1 & Heq1).
-    1: { intros a1 w1 H1; eapply Hlive; rewrite lookup_insert_ne; first done.
-         intros ->; rewrite Hin in H1; congruence. }
-    1: rewrite dom_insert_L in Hdisj; set_solver.
-    destruct (find_repr_lval_vv θ a) as (w & Hw).
-    1: intros γ <-; eapply Hlive; apply lookup_insert.
-    exists (<[l:=Storing w]> mem1), (<[l:=Storing w]> memr1). split_and!.
-    + econstructor. 1: done. 1:done. 2: erewrite <- repr_roots_dom; last apply Hrepr1. all: by eapply not_elem_of_dom.
-    + apply map_disjoint_dom in Hdisj1. apply map_disjoint_dom.
-      rewrite dom_insert_L. rewrite dom_insert_L in Hdisj. set_solver.
-    + erewrite Heq1. now rewrite insert_union_l.
-Qed.
 
 Lemma ml_to_c_words_length vs ρml σ Y :
   ml_to_c vs ρml σ Y →
   ml_to_c vs ρml σ (λ ws ρc mem, Y ws ρc mem ∧ length ws = length vs).
 Proof.
   intros (?&?&?&?&HY). split_and!; eauto; [].
-  intros. split; first eauto.
+  intros * (?&?&?&?). destruct_and!. split.
+  { eapply HY; unfold ml_to_c_core; naive_solver. }
   repeat match goal with H : _ |- _ => apply Forall2_length in H end.
   lia.
 Qed.
@@ -206,7 +164,7 @@ Proof.
   destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
 
   eexists ws, (WrapstateC χ2 ζC θC _), mem. unfold ml_to_c; cbn.
-  eapply (HY ζσ (ζσimm ∪ ζimm) lvs); try done; cbn.
+  eapply HY. exists ζσ, (ζσimm ∪ ζimm), lvs; split_and!; try done; cbn.
   { eapply extended_to_trans; done. }
   { destruct Hstorebl as [HL HR]; split.
     { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. }

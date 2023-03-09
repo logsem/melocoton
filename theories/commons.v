@@ -26,7 +26,7 @@ Proof.
 Qed.
 
 Ltac exploit_gmap_inj :=
-  repeat match goal with
+  progress repeat match goal with
   | Hinj : gmap_inj ?m,
     H1 : ?m !! _ = Some ?v,
     H2 : ?m !! _ = Some ?v |- _ =>

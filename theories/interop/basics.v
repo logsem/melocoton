@@ -919,13 +919,19 @@ Proof.
   eapply H3. 1: exact HH1. 1: done. eapply lval_in_vblock. done.
 Qed.
 
+Lemma GC_correct_gmap_inj ζ θ :
+  GC_correct ζ θ →
+  gmap_inj θ.
+Proof. intros H; apply H. Qed.
+Global Hint Resolve GC_correct_gmap_inj : core.
+
 (******************************************************************************)
 (* auxiliary hints & tactics *)
 
 Global Hint Constructors repr_lval : core.
 
 Ltac inv_repr_lval :=
-  repeat match goal with
+  progress repeat match goal with
   | H : repr_lval _ (Lloc _) _ |- _ =>
       inversion H; subst; clear H
   | H : repr_lval _ (Lint _) _ |- _ =>
@@ -939,7 +945,7 @@ Ltac inv_modify_block :=
   end.
 
 Ltac repr_lval_inj :=
-  repeat match goal with
+  progress repeat match goal with
   | Hinj : gmap_inj ?θ,
     Hr1 : repr_lval ?θ ?v ?w,
     Hr2 : repr_lval ?θ ?v' ?w |- _ =>

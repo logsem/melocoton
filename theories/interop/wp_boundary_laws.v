@@ -22,20 +22,17 @@ Context `{!heapGS_ML Σ, !heapGS_C Σ}.
 Context `{!invGS_gen hlc Σ}.
 Context `{!wrapperGS Σ}.
 
-Lemma wrap_interp_c_to_ml w ρc mem θ v lv (X : val → wrapstateML → store → Prop) :
+Lemma wrap_interp_c_to_ml w ρc mem θ v lv :
   repr_lval θ lv w →
-  c_to_ml w ρc mem X →
   wrap_state_interp (Wrap.CState ρc mem) -∗
   GC θ -∗
   at_boundary wrap_lang -∗
-  lv ~~ v
-  ==∗
+  lv ~~ v -∗
   ∃ ρml σ,
-  ⌜X v ρml σ⌝ ∗
-  wrap_state_interp (Wrap.MLState ρml σ) ∗
-  not_at_boundary.
-Proof.
-  iIntros (Hlv Hc_to_ml) "Hσ HGC Hnb #Hblk".
+  ⌜c_to_ml w ρc mem v ρml σ⌝ ∗
+  |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
+Proof using.
+  iIntros (Hlv) "Hσ HGC Hnb #Hblk".
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
   iAssert (⌜is_val χvirt (ζσ ∪ ζvirt) v lv⌝)%I as "%Hval".
@@ -46,18 +43,21 @@ Proof.
        iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done.
        iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
   apply map_Forall_lookup_2 in Hroots.
-  iMod (ghost_var_update_halves with "Hnb SIbound") as "(Hb & SIbound)".
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
+
+  iExists (WrapstateML _ _ _ _), _. iSplit.
+  { iPureIntro. unfold c_to_ml. cbn.
+    eexists σMLvirt, _, _, (ζσ ∪ ζvirt), ζσ. split_and!; eauto.
+    by rewrite map_union_comm. }
+
+  iMod (ghost_var_update_halves with "Hnb SIbound") as "(Hb & SIbound)".
   iMod (ghost_var_update_halves with "GCζ SIζ") as "(GCζ & SIζ)".
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ & SIχ)".
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ & SIθ)".
   iMod (ghost_var_update_halves with "GCroots SIroots") as "(GCroots & SIroots)".
   iMod (set_to_none with "HσC GCrootspto") as "(HσC & GCrootspto)"; first done.
 
-  iModIntro. iExists _, _. iSplit.
-  { iPureIntro. eapply (Hc_to_ml σMLvirt _ _ (ζσ ∪ ζvirt) ζσ χvirt ζvirt roots_m privmem).
-    all: try done. by rewrite map_union_comm. }
-  iSplitR "SIbound"; last by iFrame "SIbound".
+  iModIntro. iSplitR "SIbound"; last by iFrame "SIbound".
   rewrite /= /named. iFrame "GCσMLv GCσdom".
   unfold private_state_interp, ML_state_interp, GC_token_remnant, named; cbn.
   iFrame. iPureIntro; split_and!.
@@ -67,7 +67,7 @@ Proof.
 Qed.
 
 Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
-  ml_to_c vs ρml σ ws ρc mem →
+  ml_to_c_core vs ρml σ ws ρc mem →
   wrap_state_interp (Wrap.MLState ρml σ) -∗
   not_at_boundary
   ==∗
@@ -75,13 +75,13 @@ Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
   at_boundary wrap_lang ∗
   GC (θC ρc) ∗
   (∃ lvs, lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
-Proof.
+Proof using.
   iIntros (Hml_to_c) "Hst Hb".
-  iNamed "Hst". iNamed "SIML". iNamed "SIGCrem".
   destruct Hml_to_c as (ζσ & ζnewimm & lvs & HH).
   destruct HH as (Hmono & Hblocks & Hprivblocks & HζC & Hζdisj &
                     Hstore & Hvals & ? & ? & ? & Hroots & ?).
 
+  iNamed "Hst". iNamed "SIML". iNamed "SIGCrem".
   iMod (ghost_var_update_halves with "Hb SIbound") as "(Hnb & SIbound)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ & GCζ)".
   iMod (ghost_var_update_halves with "SIχ GCχ") as "(SIχ & GCχ)".
