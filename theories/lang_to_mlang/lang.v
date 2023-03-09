@@ -56,7 +56,6 @@ Section ToMlang.
     - intros e C1 C2 s vv Heq. rewrite /is_call -fill_comp. by f_equal.
     - intros e C. apply fill_val.
     - intros e C1 C2. apply fill_comp.
-    - by intros e s1 s2 f1 f2 C1 C2 -> (->&->&->)%call_call_in_ctx.
     - intros p C e σ X Hnv. inversion 1; simplify_eq. econstructor.
       { intros ?. eapply reducible_fill; eauto. }
       intros e2 σ2 Hstep. eapply fill_step_inv in Hstep as (?&?&?); eauto.

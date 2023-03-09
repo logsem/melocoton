@@ -181,7 +181,6 @@ Section Linking.
     - intros [] C [v Hv]; cbn in Hv. repeat case_match; simplify_eq.
       apply app_eq_nil in H0 as [-> ->]. done.
     - intros [] C1 C2. rewrite /= app_assoc //.
-    - intros e s1 s2 f1 f2 C1 C2 -> H; unfold is_call in H; simplify_eq. done.
     - intros p C [es eC] σ X Hnv. inversion 1; simplify_eq.
       1,2: econstructor; eauto; intros; eexists (LkE _ _); by eauto. (* StepS *)
       { eapply MakeCall1S; eauto; eexists (LkE _ _); split; eauto;

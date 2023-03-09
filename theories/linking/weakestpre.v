@@ -349,42 +349,6 @@ Proof using.
   iApply ("Hwp" with "HΞ Hb Hb1").
 Qed.
 
-(*
-Lemma link_step_call_ext_1_inv pe1 pe2 pe e C f vs σ1 pubσ privσ1 privσ2 X :
-  is_link_environ pe1 pe2 pe →
-  penv_prog pe1 !! f = None →
-  prim_step (penv_prog pe) (LkSE (Link.Expr1 e), Link.St1 σ1 privσ2) X →
-  split_state σ1 pubσ privσ1 →
-  is_call e f vs C →
-  X (Link.LkE (Link.ExprCall f vs) [inl C], Link.St pubσ privσ1 privσ2).
-Proof.
-  intros Hlink Heq Hstep Hsplit Hcall; inversion Hstep; simplify_eq /=.
-  { exfalso. eapply call_prim_step in H5 as (?&?&?&?&?); eauto.
-    rewrite is_link_prog proj1_prog_union in H; first by simplify_map_eq.
-    apply Hlink. }
-  { destruct (is_call_unique _ _ _ _ _ _ _ Hcall H3) as (?&?&?);
-      simplify_eq.
-
-
-  eapply H5; try done.
-  rewrite is_link_prog proj1_prog_union; first done. apply Hlink.
-Qed.
-
-
-Lemma link_step_call_ext_2_inv pe1 pe2 pe e C f vs σ2 pubσ privσ1 privσ2 X :
-  is_link_environ pe1 pe2 pe →
-  penv_prog pe2 !! f = None →
-  prim_step (penv_prog pe) (LkSE (Link.Expr2 e), Link.St2 privσ1 σ2) X →
-  split_state σ2 pubσ privσ2 →
-  is_call e f vs C →
-  X (Link.LkE (Link.ExprCall f vs) [inr C], Link.St pubσ privσ1 privσ2).
-Proof.
-  intros Hlink Heq; inversion 1; simplify_eq /=; intros Hsplit Hiscall.
-  eapply H5; try done.
-  rewrite is_link_prog proj2_prog_union; first done. apply Hlink.
-Qed.
-*)
-
 Lemma wp_link_run_mut pe1 pe2 pe E :
   is_link_environ pe1 pe2 pe →
   ⊢ □ (

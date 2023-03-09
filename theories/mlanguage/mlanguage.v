@@ -42,11 +42,6 @@ Section mlanguage_mixin.
     mixin_resume_compose e C1 C2 :
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e;
 
-    mixin_is_call_unique e s1 s2 f1 f2 C1 C2 :
-      is_call e s1 f1 C1 →
-      is_call e s2 f2 C2 →
-      s1 = s2 ∧ f1 = f2 ∧ C1 = C2;
-
     mixin_prim_step_resume p C e σ X :
       to_val e = None →
       prim_step p (e, σ) X →
@@ -162,18 +157,6 @@ Section mlanguage.
   Lemma resume_compose e C1 C2 :
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e.
   Proof. apply mlanguage_mixin. Qed.
-
-  Lemma is_call_unique e s1 s2 f1 f2 C1 C2 :
-      is_call e s1 f1 C1 →
-      is_call e s2 f2 C2 →
-      s1 = s2 ∧ f1 = f2 ∧ C1 = C2.
-  Proof. apply mlanguage_mixin. Qed.
-
-  Lemma is_call_not_ext p e f vs C F : p !! f = Some F → is_call e f vs C → not_is_ext_call p e.
-  Proof.
-    intros H Hc (f'&vs'&C'&Hc2&H').
-    destruct (is_call_unique _ _ _ _ _ _ _ Hc Hc2) as (->&->&->); congruence.
-  Qed.
 
   Lemma prim_step_resume p C e σ X :
     to_val e = None →

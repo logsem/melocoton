@@ -444,7 +444,6 @@ Proof using.
     apply app_eq_nil in H0 as (->&->); done.
   - intros [] C1 C2.
     rewrite /resume_with /comp_cont app_assoc //.
-  - intros e ?????? -> H. cbv in H; by simplify_eq.
   - intros p C [es eC] σ X Hnv. inversion 1; simplify_eq.
     all: try (econstructor; eauto; naive_solver).
     + econstructor; eauto. rewrite -/app. eexists (WrE _ _); eauto.
