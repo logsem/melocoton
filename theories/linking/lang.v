@@ -178,8 +178,6 @@ Section Linking.
         econstructor; eauto.
     - intros e [v Hv] f vs C ->. done.
     - intros ? C1 C2 s vv ->. cbn. done.
-    - intros [se ec] C1 C2 s vv Hv Hc. rewrite /is_call /resume_with in Hc.
-      simplify_eq. eexists; repeat split; done.
     - intros [] C [v Hv]; cbn in Hv. repeat case_match; simplify_eq.
       apply app_eq_nil in H0 as [-> ->]. done.
     - intros [] C1 C2. rewrite /= app_assoc //.

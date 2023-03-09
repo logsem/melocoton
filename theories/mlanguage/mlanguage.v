@@ -37,9 +37,6 @@ Section mlanguage_mixin.
     mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
     mixin_is_call_in_cont e C1 C2 s vv :
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2);
-    mixin_is_call_in_cont_inv e C1 C2 s vv :
-      to_val e = None → is_call (resume_with C1 e) s vv C2 →
-      ∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C';
 
     mixin_resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e);
     mixin_resume_compose e C1 C2 :
@@ -151,32 +148,6 @@ Section mlanguage.
   Lemma is_call_in_cont e C1 C2 s vv :
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2).
   Proof. apply mlanguage_mixin. Qed.
-
-  Lemma is_call_in_cont_inv e C1 C2 s vv :
-      to_val e = None → is_call (resume_with C1 e) s vv C2 →
-      ∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C'.
-  Proof. apply mlanguage_mixin. Qed.
-
-  Lemma is_call_in_cont_iff e C1 C2 s vv :
-    (∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C') ↔ (is_call (resume_with C1 e) s vv C2 ∧ to_val e = None).
-  Proof.
-    split.
-    - intros (C' & Hcall & ->); split. 2: by eapply is_val_not_call_2.
-      by eapply is_call_in_cont.
-    - intros [H1 H2]; eapply is_call_in_cont_inv; done.
-  Qed.
-
-  Lemma is_not_call_resume_with e C : to_val e = None → not_is_call e → not_is_call (resume_with C e).
-  Proof.
-    intros Hnv H (f&vs&K&Hc). destruct (is_call_in_cont_inv _ _ _ _ _ Hnv Hc) as (C'&HH&->).
-    eapply H; by do 3 eexists.
-  Qed.
-
-  Lemma is_not_ext_call_resume_with p e C : to_val e = None → not_is_ext_call p e → not_is_ext_call p (resume_with C e).
-  Proof.
-    intros Hnv H (f&vs&K&Hc&Hp). destruct (is_call_in_cont_inv _ _ _ _ _ Hnv Hc) as (C'&HH&->).
-    eapply H; by do 3 eexists.
-  Qed.
 
   Lemma resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e).
   Proof. apply mlanguage_mixin. Qed.

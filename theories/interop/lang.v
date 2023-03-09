@@ -439,9 +439,6 @@ Proof using.
     + intros (?&?&?&?&?); eapply ExprCallS; simplify_eq; eauto.
   - by intros e [v Hv] f vs C ->.
   - by intros e C1 C2 s vv ->.
-  - intros [] C1 C2 s vv Hv Hcall; cbn in *.
-    rewrite /is_call /resume_with in Hcall; simplify_eq.
-    by eexists.
   - intros [] C [v Hv]. rewrite /to_val /resume_with in Hv.
     repeat case_match; try congruence.
     apply app_eq_nil in H0 as (->&->); done.
