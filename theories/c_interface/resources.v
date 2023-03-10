@@ -1,5 +1,5 @@
 From iris.bi Require Import lib.fractional.
-From iris.base_logic.lib Require Export gen_heap gen_inv_heap fancy_updates.
+From transfinite.base_logic.lib Require Export gen_heap gen_inv_heap fancy_updates.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs.
 From iris.prelude Require Import options.
@@ -7,8 +7,8 @@ From iris.prelude Require Import options.
 (** Separation logic resources for the C heap *)
 
 Class heapGS_C Σ := HeapGS {
-  heapGS_gen_heapGS :> gen_heapGS loc heap_cell Σ;
-  heapGS_inv_heapGS :> inv_heapGS loc heap_cell Σ;
+  heapGS_gen_heapGS :> gen_heapG loc heap_cell Σ;
+  heapGS_inv_heapGS :> inv_heapG loc heap_cell Σ;
 }.
 
 (** Since we use an [option val] instance of [gen_heap], we need to overwrite
@@ -101,7 +101,7 @@ Notation "l ↦C∗ vs" := (array l (DfracOwn 1) vs)
 (** Points-to laws *)
 
 Section Laws.
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
+Context `{!heapGS_C Σ, !invG Σ}.
 
 (** We need to adjust the [gen_heap] and [gen_inv_heap] lemmas because of our
 value type being [option val]. *)

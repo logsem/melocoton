@@ -158,11 +158,10 @@ Proof. done. Qed.
 step in the type class resolution since [named name P] unfolds to just [P].
 Instead we register a hint that only applies when the goal contains [named]. *)
 Global Hint Extern 0 (MakeMonPredAt _ (named _ _) _) => apply make_monPred_at_named : typeclass_instances.
-
 (** tc_is_inhabited succeeds if P is an inhabited typeclass and fails otherwise.
 *)
 Ltac tc_is_inhabited P :=
-  first [ let _ := constr:(ltac:(iSolveTC) : P) in idtac
+  first [ let _ := constr:(ltac:(tc_solve) : P) in idtac
         | fail 1 "could not satisfy" P ].
 
 Ltac iDeex_one H :=
@@ -227,8 +226,8 @@ Qed.
 Local Ltac iNameIntuitionistic i i' :=
   eapply (tac_name_intuitionistic _ i i' _ _ _ _ _);
   [ reduction.pm_reflexivity
-  | iSolveTC
-  | simpl; iSolveTC
+  | tc_solve
+  | simpl; tc_solve
   | reduction.pm_reduce
   ].
 

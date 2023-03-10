@@ -1,5 +1,7 @@
 From stdpp Require Import relations strings gmap.
-From iris.base_logic.lib Require Import own.
+From transfinite.stepindex Require Export ordinals existential_properties utils.
+Global Existing Instance ordI.
+From transfinite.base_logic.lib Require Import own.
 From iris.algebra Require Import ofe.
 From iris.algebra Require Import auth excl excl_auth gmap.
 From iris.proofmode Require Import tactics.
@@ -113,6 +115,7 @@ Proof.
   iIntros "H1 H2". iDestruct (own_op with "[$H1 $H2]") as "H".
   iDestruct (own_valid with "H") as %HH%excl_auth_agree. done.
 Qed.
+
 
 Lemma excl_auth_upd `{!inG Σ (excl_authR (leibnizO A))} γ (x y z: A):
   own γ (◯E (x:leibnizO A)) -∗ own γ (●E (y:leibnizO A)) ==∗

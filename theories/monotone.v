@@ -1,6 +1,8 @@
 (* from https://github.com/amintimany/monotone *)
 From iris.algebra Require Export cmra auth.
-From iris.base_logic Require Import base_logic.
+From transfinite.base_logic Require Import base_logic.
+From transfinite.stepindex Require Export ordinals existential_properties utils.
+Global Existing Instance ordI.
 Local Arguments validN _ _ _ !_ /.
 Local Arguments valid _ _  !_ /.
 Local Arguments op _ _ _ !_ /.
@@ -82,9 +84,9 @@ Proof.
 Qed.
 
 Instance monotone_validN_ne n :
-  Proper (dist n ==> impl) (@validN (monotone R) _ n).
+  Proper (dist n ==> impl) (@validN _ (monotone R) _ n).
 Proof. intros x y ?; rewrite /impl; auto. Qed.
-Instance monotone_validN_proper n : Proper (equiv ==> iff) (@validN (monotone R) _ n).
+Instance monotone_validN_proper n : Proper (equiv ==> iff) (@validN _ (monotone R) _ n).
 Proof. move=> x y /equiv_dist H; auto. Qed.
 
 Instance monotone_op_ne' x : NonExpansive (op x).
@@ -160,7 +162,7 @@ Qed.
 
 Lemma principal_inj_general a b :
   principal R a ≡ principal R b → R a a → R a b.
-Proof. intros Hab; apply (principal_injN_general 0); eauto. Qed.
+Proof. intros Hab; apply (principal_injN_general (@index_zero _)); eauto. Qed.
 
 Global Instance principal_injN_general' `{!Reflexive R} n :
   Inj (λ a b, R a b ∧ R b a) (dist n) (principal R).
@@ -171,7 +173,7 @@ Qed.
 Global Instance principal_inj_general' `{!Reflexive R} :
   Inj (λ a b, R a b ∧ R b a) (≡) (principal R).
 Proof.
-  intros x y Hxy; specialize (Hxy 0); eapply principal_injN_general'; eauto.
+  intros x y Hxy; specialize (Hxy (@index_zero _)); eapply principal_injN_general'; eauto.
 Qed.
 
 Global Instance principal_injN `{!Reflexive R} {Has : AntiSymm (≡) R} n :
@@ -214,7 +216,7 @@ Qed.
 
 Lemma principal_op_R a b x :
   R a a → principal R a ⋅ x ≡ principal R b → R a b.
-Proof. intros ? ?; eapply (principal_op_RN 0); eauto. Qed.
+Proof. intros ? ?; eapply (principal_op_RN (@index_zero _)); eauto. Qed.
 
 Lemma principal_op_R' `{!Reflexive R} a b x :
   principal R a ⋅ x ≡ principal R b → R a b.
@@ -239,7 +241,7 @@ Proof.
 Qed.
 
 (** Internalized properties *)
-Lemma monotone_equivI `{!(∀ n : nat, Proper (dist n ==> dist n ==> iff) R)}
+Lemma monotone_equivI `{!(∀ n : _, Proper (dist n ==> dist n ==> iff) R)}
       `{!Reflexive R} `{!AntiSymm (≡) R} {M} a b :
   principal R a ≡ principal R b ⊣⊢ (a ≡ b : uPred M).
 Proof.

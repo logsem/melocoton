@@ -98,10 +98,10 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
     reshape_expr e ltac:(fun K e' =>
       unify e' efoc;
       eapply (tac_wp_pure _ _ _ _ K e');
-      [iSolveTC                       (* PureExec *)
+      [tc_solve                       (* PureExec *)
       |try solve_vals_compare_safe; try eauto (* The pure condition for PureExec --
             handles trivial goals, including [vals_compare_safe] *)
-      |iSolveTC                       (* IntoLaters *)
+      |tc_solve                       (* IntoLaters *)
       |wp_finish                      (* new goal *)
       ])
     || fail "wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
@@ -328,7 +328,7 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_wp_Malloc _ _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
-        [idtac|iSolveTC
+        [idtac|tc_solve
          |finish ()]
     in (process_array ())
   | _ => fail "wp_alloc: not a 'wp'"
@@ -349,12 +349,12 @@ Tactic Notation "wp_free" :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ _ K));
-        [iSolveTC
+        [tc_solve
         |solve_mapsto ()
         |pm_reduce; wp_finish]
       |reshape_expr e ltac:(fun K e' => eapply (tac_wp_freeN _ _ _ _ _ K));
         [idtac
-        |iSolveTC
+        |tc_solve
         |solve_array_mapsto ()
         |pm_reduce; wp_finish]; [try done|idtac]
       |fail 1 "wp_free: cannot find 'Free' in" e]
@@ -371,7 +371,7 @@ Tactic Notation "wp_load" :=
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load _ _ _ _ _ K))
       |fail 1 "wp_load: cannot find 'Load' in" e];
-    [iSolveTC
+    [tc_solve
     |solve_mapsto ()
     |wp_finish]
   | _ => fail "wp_load: not a 'wp'"
@@ -387,7 +387,7 @@ Tactic Notation "wp_store" :=
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_store _ _ _ _ _ K))
       |fail 1 "wp_store: cannot find 'Store' in" e];
-    [iSolveTC
+    [tc_solve
     |solve_mapsto ()
     |pm_reduce; first [wp_seq|wp_finish]]
   | _ => fail "wp_store: not a 'wp'"
