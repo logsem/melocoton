@@ -23,7 +23,7 @@ Definition code2 : list instr := [
 ].
 
 Section specs.
-Context `{!minilangGS hlc Σ}.
+Context `{!minilangG hlc Σ}.
 
 Definition penv1 : prog_environ mini_lang Σ := {|
   penv_prog := {[ "main" := E code1 ]};
@@ -93,8 +93,8 @@ Qed.
 End specs.
 
 Section linking.
-Context `{!minilangGS hlc Σ}.
-Context `{!linkGS Σ}.
+Context `{!minilangG hlc Σ}.
+Context `{!linkG Σ}.
 
 Definition penv : prog_environ (link_lang mini_lang mini_lang) Σ := {|
   penv_prog := {[ "main" := inl (E code1); "f" := inr (E code2) ]};

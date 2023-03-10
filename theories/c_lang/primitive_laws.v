@@ -10,13 +10,13 @@ From melocoton.c_lang Require Export class_instances.
 From melocoton.c_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 
-Global Program Instance heapGS_langGS_C `{heapGS_C Σ}
-      : langGS val C_lang Σ := {
+Global Program Instance heapG_langG_C `{heapG_C Σ}
+      : langG val C_lang Σ := {
   state_interp σ := gen_heap_interp σ
 }.
 
 Section lifting.
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
+Context `{!heapG_C Σ, !invG Σ}.
 Context {p:prog_environ C_lang Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.

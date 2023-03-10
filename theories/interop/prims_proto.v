@@ -9,9 +9,9 @@ Section PrimsProto.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGCtokGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperGCtokG Σ}.
 
 (* XXX? *)
 Notation mkPeML p T := ({| penv_prog := p; penv_proto := T |} : prog_environ ML_lang (_ : gFunctors)).

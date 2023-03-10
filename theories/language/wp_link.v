@@ -9,7 +9,7 @@ Import uPred.
 
 
 Section wp.
-Context `{!langGS val Λ Σ, !invGS_gen hlc Σ}.
+Context `{!langG val Λ Σ, !invG Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.

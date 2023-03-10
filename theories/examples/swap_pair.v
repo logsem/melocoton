@@ -18,7 +18,7 @@ Section C_prog.
 Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
 
-Context `{!heapGS_C Σ, !heapGS_ML Σ, !invGS_gen hlc Σ, !primitive_laws.heapGS_ML Σ, !wrapperGS Σ}.
+Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
 
 Definition swap_pair_code (x : expr) : expr :=
@@ -183,7 +183,7 @@ Section ML_prog.
 Import melocoton.c_lang.primitive_laws.
 Import melocoton.ml_lang.proofmode.
 
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !heapGS_ML Σ, !wrapperGS Σ, !linkGS Σ}.
+Context `{!heapG_C Σ, !invG Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ}.
 
 Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) := 
   (Extern "swap_pair" [ ((#3, (#1, #2)))%MLE ]).

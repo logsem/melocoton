@@ -10,26 +10,26 @@ From melocoton.ml_lang Require Export class_instances.
 From melocoton.ml_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 From melocoton Require Import monotone.
-Search "view" "GS".
+Search "view" "G".
 
-Class heapGS_ML Σ := HeapGS_ML {
-  heapGS_gen_heapGS :> gen_heapGS loc (option (list val)) Σ;
-  heapGS_inv_heapGS :> inv_heapGS loc (option (list val)) Σ;
+Class heapG_ML Σ := HeapG_ML {
+  heapG_gen_heapG :> gen_heapG loc (option (list val)) Σ;
+  heapG_inv_heapG :> inv_heapG loc (option (list val)) Σ;
   (* TODO: is this still needed? *)
-  heapGS_store_domain : inG Σ (viewUR (@auth_view_rel (@monotoneUR (leibnizO (gset loc)) subseteq)));
-  heapGS_store_domain_name : gname
+  heapG_store_domain : inG Σ (viewUR (@auth_view_rel (@monotoneUR (leibnizO (gset loc)) subseteq)));
+  heapG_store_domain_name : gname
 }.
 
 Local Notation state := (gmap loc (option (list val))).
 
 Section DomAuth.
-  Context `{!heapGS_ML Σ}.
+  Context `{!heapG_ML Σ}.
 
   Definition dom_auth (σ : state) : iProp Σ :=
-    (@own _ _ heapGS_store_domain heapGS_store_domain_name (@auth_auth (@monotoneUR (leibnizO (gset loc)) subseteq) (DfracOwn (pos_to_Qp 1)) (principal subseteq (dom σ))))%I.
+    (@own _ _ heapG_store_domain heapG_store_domain_name (@auth_auth (@monotoneUR (leibnizO (gset loc)) subseteq) (DfracOwn (pos_to_Qp 1)) (principal subseteq (dom σ))))%I.
 
   Definition dom_part (σ : gset loc) : iProp Σ := 
-    (@own _ _ heapGS_store_domain heapGS_store_domain_name (@auth_frag (@monotoneUR (leibnizO (gset loc)) subseteq) (principal subseteq (σ))))%I.
+    (@own _ _ heapG_store_domain heapG_store_domain_name (@auth_frag (@monotoneUR (leibnizO (gset loc)) subseteq) (principal subseteq (σ))))%I.
 
   Global Instance subseteq_preorder : PreOrder (subseteq : gset loc -> gset loc -> Prop).
   Proof. repeat split; eauto. intros a b c; set_solver. Qed.
@@ -69,8 +69,8 @@ Section DomAuth.
 
 End DomAuth.
 
-Global Program Instance heapGS_langGS_ML `{heapGS_ML Σ}
-      : langGS val ML_lang Σ := {
+Global Program Instance heapG_langG_ML `{heapG_ML Σ}
+      : langG val ML_lang Σ := {
   state_interp σ :=
     (gen_heap_interp σ ∗ dom_auth σ)%I
 }.
@@ -108,7 +108,7 @@ Notation "l ↦∗ vs" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1)
 make setoid rewriting in the predicate [I] work we need actual definitions
 here. *)
 Section definitions.
-  Context `{!heapGS_ML Σ}.
+  Context `{!heapG_ML Σ}.
   Definition inv_mapsto_own (l : loc) (vs : option (list val)) (I : option (list val) → Prop) : iProp Σ :=
     inv_mapsto_own l vs I.
   Definition inv_mapsto (l : loc) (I : option (list val) → Prop) : iProp Σ :=
@@ -126,7 +126,7 @@ Notation "l ↦∗_ I vs" := (inv_mapsto_own l vs I%stdpp%type)
   (at level 20, I at level 9, format "l  ↦∗_ I  vs") : bi_scope.
 
 Section lifting.
-Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
+Context `{!heapG_ML Σ, !invG Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.

@@ -13,7 +13,7 @@ Inductive link_state_case :=
 
 Canonical Structure link_state_caseO := leibnizO link_state_case.
 
-Class linkGS Σ := LinkGS {
+Class linkG Σ := LinkG {
   linkG_inG :> inG Σ (excl_authR (leibnizO link_state_case));
   linkG_γ : gname;
 }.
@@ -23,15 +23,15 @@ Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
 Context {val pubstate : Type}.
 Context (Λ1 Λ2 : mlanguage val).
-Context `{!linkGS Σ}.
-Context `{!mlangGS val Σ Λ1}.
-Context `{!mlangGS val Σ Λ2}.
-Context `{!invGS_gen hlc Σ}.
+Context `{!linkG Σ}.
+Context `{!mlangG val Σ Λ1}.
+Context `{!mlangG val Σ Λ2}.
+Context `{!invG Σ}.
 Context (public_state_interp : pubstate → iProp Σ).
 Context `{!linkable Λ1 pubstate}.
 Context `{!linkable Λ2 pubstate}.
-Context `{!linkableGS Λ1 public_state_interp}.
-Context `{!linkableGS Λ2 public_state_interp}.
+Context `{!linkableG Λ1 public_state_interp}.
+Context `{!linkableG Λ2 public_state_interp}.
 
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
@@ -100,12 +100,12 @@ Proof using.
   all: by iDestruct (excl_auth_eq with "Hb Hb'") as %?.
 Qed.
 
-Global Program Instance link_mlangGS : mlangGS val Σ (link_lang Λ1 Λ2) := {
+Global Program Instance link_mlangG : mlangG val Σ (link_lang Λ1 Λ2) := {
   state_interp := link_state_interp;
   at_boundary := link_in_state Boundary;
 }.
 
-Global Program Instance link_linkableGS : linkableGS (link_lang Λ1 Λ2) public_state_interp := {
+Global Program Instance link_linkableG : linkableG (link_lang Λ1 Λ2) public_state_interp := {
   private_state_interp := (λ '(privσ1, privσ2),
     own linkG_γ (●E Boundary) ∗
     private_state_interp privσ1 ∗ private_state_interp privσ2)%I;

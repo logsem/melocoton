@@ -15,8 +15,8 @@ Section Laws.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ, !invGS_gen hlc Σ}.
-Context `{!wrapperGCtokGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ, !invG Σ}.
+Context `{!wrapperGCtokG Σ}.
 
 Lemma store_to_root E pe (l:loc) (v v' : lval) w θ :
   repr_lval θ v w →

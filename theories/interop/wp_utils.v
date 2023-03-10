@@ -26,9 +26,9 @@ Section Utils.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperG Σ}.
 
 Implicit Types P : iProp Σ.
 Import mlanguage.

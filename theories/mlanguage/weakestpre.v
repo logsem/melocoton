@@ -15,15 +15,15 @@ Import uPred.
    - with the property that splitting/joining the state allows splitting/joining
      the state interpretations accordingly.
 *)
-Class mlangGS (val : Type) (Σ : gFunctors) (Λ : mlanguage val) :=
-MlangGS {
+Class mlangG (val : Type) (Σ : gFunctors) (Λ : mlanguage val) :=
+MlangG {
   state_interp : state Λ → iProp Σ;
   at_boundary : iProp Σ;
 }.
 
 Arguments at_boundary {_ _} Λ {_}.
 
-Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
+Definition wp_pre_cases `{!invG Σ, !mlangG val Σ Λ}
     (p : mixin_prog Λ.(func))
     (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
@@ -38,7 +38,7 @@ Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
        ∀ e' σ', ⌜X (e', σ')⌝ ={E}▷=∗ state_interp σ' ∗ wp E e' Φ)
   )%I.
 
-Definition wp_pre `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
+Definition wp_pre `{!invG Σ, !mlangG val Σ Λ}
     (p : mixin_prog Λ.(func))
     (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
@@ -46,7 +46,7 @@ Definition wp_pre `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
   (∀ σ, state_interp σ ={E}=∗ wp_pre_cases p T wp σ E e Φ)%I.
 
 Local Instance wp_pre_contractive
-      `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
+      `{!invG Σ, !mlangG val Σ Λ}
       {p:mixin_prog Λ.(func)} T :
   Contractive (wp_pre p T).
 Proof.
@@ -62,19 +62,19 @@ Global Arguments penv_prog {_ _ _} _.
 Global Arguments penv_proto {_ _ _} _.
 
 Local Definition wp_def
-      `{!invGS_gen hlc Σ, !mlangGS val Σ Λ} :
+      `{!invG Σ, !mlangG val Σ Λ} :
   Wp (iProp Σ) (expr Λ) (val) (prog_environ Λ Σ) :=
   λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {hlc Σ _ val Λ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!invGS_gen hlc Σ, !mlangGS val Σ Λ} :
+Local Lemma wp_unseal `{!invG Σ, !mlangG val Σ Λ} :
   wp = @wp_def hlc Σ _ val Λ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}.
+Context `{!invG Σ, !mlangG val Σ Λ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -345,7 +345,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}.
+  Context `{!invG Σ, !mlangG val Σ Λ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.
@@ -377,11 +377,11 @@ Section proofmode_classes.
 End proofmode_classes.
 
 
-Class linkableGS
+Class linkableG
   {val pubstate} (Λ : mlanguage val)
-  `{!mlangGS val Σ Λ, !linkable Λ pubstate}
+  `{!mlangG val Σ Λ, !linkable Λ pubstate}
   (public_state_interp : pubstate → iProp Σ)
-:= LinkableGS {
+:= LinkableG {
   private_state_interp : private_state → iProp Σ;
 
   state_interp_split σ pubσ privσ :

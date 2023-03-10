@@ -18,9 +18,9 @@ Section BoundaryLaws.
 
 Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperG Σ}.
 
 Lemma wrap_interp_c_to_ml w ρc mem θ v lv :
   repr_lval θ lv w →

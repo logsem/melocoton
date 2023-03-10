@@ -16,29 +16,29 @@ Canonical Structure gsetlocO := leibnizO (gset loc).
 
 Notation locs_subset := ((⊆) : relation (leibnizO (gset loc))).
 
-Class minilangGS hlc Σ := HeapGS {
-  heapGS_invGS :> invGS_gen hlc Σ;
-  heapGS_gen_heapGS :> gen_heapGS loc nat Σ;
-  heapGS_acc_name : gname;
-  heapGS_accGS :> inG Σ (excl_authR (leibnizO nat));
-  heapGS_available_name : gname;
-  heapGS_availableGS :> inG Σ (excl_authR (leibnizO coPset));
-  heapGS_locsGS :> inG Σ (authUR (monotoneUR locs_subset));
-  heapGS_locs_name : gname;
+Class minilangG hlc Σ := HeapG {
+  heapG_invG :> invG Σ;
+  heapG_gen_heapG :> gen_heapG loc nat Σ;
+  heapG_acc_name : gname;
+  heapG_accG :> inG Σ (excl_authR (leibnizO nat));
+  heapG_available_name : gname;
+  heapG_availableG :> inG Σ (excl_authR (leibnizO coPset));
+  heapG_locsG :> inG Σ (authUR (monotoneUR locs_subset));
+  heapG_locs_name : gname;
 }.
 
 Section ghost_state_defs.
-Context `{!minilangGS hlc Σ}.
+Context `{!minilangG hlc Σ}.
 
 Definition available_auth (locs : gset loc) : iProp Σ :=
   ∃ (available:coPset),
-    own heapGS_available_name (●E available) ∗
+    own heapG_available_name (●E available) ∗
     ⌜∀ ℓ, ℓ ∈ locs → (Pos.of_nat ℓ) ∉ available⌝.
 
 Definition locs_auth (s : gset loc) : iProp Σ :=
-  own heapGS_locs_name (● (principal locs_subset s)).
+  own heapG_locs_name (● (principal locs_subset s)).
 Definition locs_atleast (s : gset loc) : iProp Σ :=
-  own heapGS_locs_name (◯ (principal locs_subset s)).
+  own heapG_locs_name (◯ (principal locs_subset s)).
 Global Instance locs_atleast_persistent s : Persistent (locs_atleast s).
 Proof. apply _. Qed.
 Lemma locs_atleast_sub s s' :
@@ -52,21 +52,21 @@ Qed.
 Definition minilang_pub_interp (st : gmap loc nat * nat) : iProp Σ :=
   let '(σ, n) := st in
   gen_heap_interp σ ∗
-  own heapGS_acc_name (●E n) ∗
+  own heapG_acc_name (●E n) ∗
   available_auth (dom σ) ∗
   locs_auth (dom σ).
 
-Global Program Instance minilangGS_mlangGS : mlangGS unit Σ mini_lang := {
+Global Program Instance minilangG_mlangG : mlangG unit Σ mini_lang := {
   state_interp '(σ, acc) :=
     (gen_heap_interp σ ∗
-     own heapGS_acc_name (●E acc) ∗
+     own heapG_acc_name (●E acc) ∗
      available_auth (dom σ) ∗
      locs_auth (dom σ))%I;
   at_boundary := True%I;
 }.
 
-Global Program Instance minilangGS_linkableGS :
-  linkableGS mini_lang minilang_pub_interp := {
+Global Program Instance minilangG_linkableG :
+  linkableG mini_lang minilang_pub_interp := {
   private_state_interp locs :=
     locs_atleast locs;
 }.
@@ -90,9 +90,9 @@ Next Obligation.
 Qed.
 
 Definition acc_frag (n:nat) : iProp Σ :=
-  own heapGS_acc_name (◯E n).
+  own heapG_acc_name (◯E n).
 Definition available_frag (avail:coPset) : iProp Σ :=
-  own heapGS_available_name (◯E avail).
+  own heapG_available_name (◯E avail).
 Definition loc_frag ℓ : iProp Σ :=
   locs_atleast {[ ℓ ]}.
 
@@ -111,7 +111,7 @@ Notation "'REGISTERED' ℓ" := (loc_frag ℓ)
   (at level 20, format "REGISTERED  ℓ") : bi_scope.
 
 Section lifting.
-Context `{!minilangGS hlc Σ}.
+Context `{!minilangG hlc Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : unit → iProp Σ.
 Implicit Types σ : state.

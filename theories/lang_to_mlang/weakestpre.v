@@ -11,21 +11,21 @@ Context {hlc : has_lc}.
 Context {Σ : gFunctors}.
 Context {val : Type}.
 Context (Λ: language val).
-Context `{!language.weakestpre.langGS val Λ Σ, !invGS_gen hlc Σ}.
+Context `{!language.weakestpre.langG val Λ Σ, !invG Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Global Program Instance lang_to_mlang_mlangGS :
-  mlanguage.weakestpre.mlangGS val Σ (lang_to_mlang Λ)
+Global Program Instance lang_to_mlang_mlangG :
+  mlanguage.weakestpre.mlangG val Σ (lang_to_mlang Λ)
 := {
   state_interp := language.weakestpre.state_interp;
   at_boundary := True%I;
 }.
 
-Global Program Instance lang_to_mlang_linkableGS :
-  (@linkableGS _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
+Global Program Instance lang_to_mlang_linkableG :
+  (@linkableG _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
 := {
   private_state_interp := (λ _, True)%I;
 }. 
