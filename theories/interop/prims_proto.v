@@ -93,6 +93,38 @@ Definition proto_alloc : prim_proto := (λ p vl Φ,
                          ⌜repr_lval θ' (Lloc γ) w⌝ -∗
                          Φ w))%I.
 
+Definition proto_alloc_foreign : prim_proto := (λ p vl Φ,
+  ∃ θ a,
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜p = Pallocforeign⌝ ∗
+    "->" ∷ ⌜vl = [ C_intf.LitV (C_intf.LitLoc a) ]⌝ ∗
+    "Cont" ∷ (∀ θ' γ w, GC θ' -∗
+                        γ ↦foreign a -∗
+                        ⌜repr_lval θ' (Lloc γ) w⌝ -∗
+                        Φ w))%I.
+
+Definition proto_write_foreign : prim_proto := (λ p vl Φ,
+  ∃ θ γ w a a',
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜p = Pwriteforeign⌝ ∗
+    "->" ∷ ⌜vl = [ w; C_intf.LitV (C_intf.LitLoc a') ]⌝ ∗
+    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+    "Hpto" ∷ γ ↦foreign a ∗
+    "Cont" ∷ (GC θ -∗
+              γ ↦foreign a' -∗
+              Φ (C_intf.LitV (C_intf.LitInt 0))))%I.
+
+Definition proto_read_foreign : prim_proto := (λ p vl Φ,
+  ∃ θ γ w a,
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜p = Preadforeign⌝ ∗
+    "->" ∷ ⌜vl = [ w ]⌝ ∗
+    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+    "Hpto" ∷ γ ↦foreign a ∗
+    "Cont" ∷ (GC θ -∗
+              γ ↦foreign a -∗
+              Φ (C_intf.LitV (C_intf.LitLoc a))))%I.
+
 Definition proto_callback (E : coPset) (T : ML_proto) : prim_proto := (λ p vl Φ,
   ∃ θ w γ w' lv' v' f x e ψ,
     "HGC" ∷ GC θ ∗

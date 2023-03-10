@@ -4,6 +4,7 @@ From stdpp Require Import base strings gmap.
 Inductive prim :=
   | Palloc | Pregisterroot | Punregisterroot
   | Pmodify | Preadfield | Pval2int | Pint2val
+  | Pallocforeign | Pwriteforeign | Preadforeign
   | Pcallback.
 
 Inductive is_prim : string → prim → Prop :=
@@ -14,6 +15,9 @@ Inductive is_prim : string → prim → Prop :=
   | readfield_is_prim : is_prim "readfield" Preadfield
   | val2int_is_prim : is_prim "val2int" Pval2int
   | int2val_is_prim : is_prim "int2val" Pint2val
+  | allocforeign_is_prim : is_prim "alloc_foreign" Pallocforeign
+  | writeforeign_is_prim : is_prim "write_foreign" Pwriteforeign
+  | readforeign_is_prim : is_prim "read_foreign" Preadforeign
   | callback_is_prim : is_prim "callback" Pcallback.
 
 Global Hint Constructors is_prim : core.
@@ -54,6 +58,9 @@ Proof.
   destruct (decide (s = "readfield")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "val2int")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "int2val")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "alloc_foreign")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "write_foreign")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "read_foreign")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "callback")) as [->|]. left; eexists; constructor.
   right. by intros [? H]; inversion H.
 Qed.
@@ -67,14 +74,17 @@ Definition prims_prog : gmap string prim :=
       ("readfield", Preadfield);
       ("val2int", Pval2int);
       ("int2val", Pint2val);
+      ("alloc_foreign", Pallocforeign);
+      ("write_foreign", Pwriteforeign);
+      ("read_foreign", Preadforeign);
       ("callback", Pcallback)
   ].
 
 Lemma lookup_prims_prog_Some s p :
   prims_prog !! s = Some p ↔ is_prim s p.
 Proof.
-  rewrite /prims_prog /=. split.
-  { intros H.
+  rewrite /prims_prog. split.
+  { cbn. intros H.
     destruct (decide (s = "alloc")) as [->|]; simplify_map_eq; first constructor.
     destruct (decide (s = "registerroot")) as [->|]; simplify_map_eq; first constructor.
     destruct (decide (s = "unregisterroot")) as [->|]; simplify_map_eq; first constructor.
@@ -82,6 +92,9 @@ Proof.
     destruct (decide (s = "readfield")) as [->|]; simplify_map_eq; first constructor.
     destruct (decide (s = "val2int")) as [->|]; simplify_map_eq; first constructor.
     destruct (decide (s = "int2val")) as [->|]; simplify_map_eq; first constructor.
+    destruct (decide (s = "alloc_foreign")) as [->|]; simplify_map_eq; first constructor.
+    destruct (decide (s = "write_foreign")) as [->|]; simplify_map_eq; first constructor.
+    destruct (decide (s = "read_foreign")) as [->|]; simplify_map_eq; first constructor.
     destruct (decide (s = "callback")) as [->|]; simplify_map_eq; first constructor.
   }
   { inversion 1; by simplify_map_eq. }

@@ -24,20 +24,29 @@ Context `{!wrapperBasicsGS Σ}.
 Definition lloc_own_priv (γ : lloc) : iProp Σ :=
   γ ↪[wrapperGS_γχvirt] LlocPrivate.
 
+Definition lloc_own_foreign (γ : lloc) (id : nat) : iProp Σ :=
+  γ ↪[wrapperGS_γχvirt]□ (LlocForeign id).
+
 Definition lloc_own_pub (γ : lloc) (ℓ : loc) : iProp Σ :=
   γ ↪[wrapperGS_γχvirt]□ LlocPublic ℓ.
 
 Instance lloc_own_pub_persistent γ ℓ : Persistent (lloc_own_pub γ ℓ).
 Proof using. apply _. Qed.
 
+Instance lloc_own_foreign_persistent γ id : Persistent (lloc_own_foreign γ id).
+Proof using. apply _. Qed.
+
 Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
   "Hχgmap" ∷ ghost_map_auth wrapperGS_γχvirt 1 χ ∗
-  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ).
+  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ) ∗
+  "Hχforeign" ∷ ([∗ map] γ↦id ∈ (lloc_map_foreign χ), lloc_own_foreign γ id).
 
 Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
 Notation "γ ~ℓ~/" := (lloc_own_priv γ)
   (at level 20, format "γ  ~ℓ~/").
+Notation "γ ~foreign~ id" := (lloc_own_foreign γ id)
+  (at level 20, format "γ  ~foreign~  id").
 
 Lemma lloc_own_auth_get_pub_all χ :
   lloc_own_auth χ -∗
@@ -53,6 +62,15 @@ Lemma lloc_own_auth_get_pub χ γ ℓ :
 Proof using.
   intros Hγ. iNamed 1.
   iDestruct (big_sepM_lookup with "Hχpubs") as "?"; eauto.
+Qed.
+
+Lemma lloc_own_auth_get_foreign χ γ id :
+  χ !! γ = Some (LlocForeign id) →
+  lloc_own_auth χ -∗
+  γ ~foreign~ id.
+Proof using.
+  intros Hγ. iNamed 1.
+  iApply (big_sepM_lookup with "Hχforeign"); eauto.
 Qed.
 
 Lemma lloc_own_pub_of χ γ ℓ :
@@ -73,6 +91,15 @@ Proof using.
   by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
 Qed.
 
+Lemma lloc_own_foreign_of χ γ id :
+  lloc_own_auth χ -∗
+  γ ~foreign~ id -∗
+  ⌜χ !! γ = Some (LlocForeign id)⌝.
+Proof using.
+  iIntros "Hχ Hfor". iNamed "Hχ".
+  by iDestruct (ghost_map_lookup with "Hχgmap Hfor") as %?.
+Qed.
+
 Lemma lloc_own_expose χ γ ℓ :
   lloc_own_auth χ -∗
   γ ~ℓ~/ ==∗
@@ -83,10 +110,14 @@ Proof using.
   iNamed "Hχ".
   iMod (ghost_map_update with "Hχgmap Hγ") as "[$ Hγ]".
   iMod (ghost_map_elem_persist with "Hγ") as "#Hγ".
-  iFrame "Hγ". iModIntro.
-  rewrite lloc_map_pubs_insert_pub.
-  iApply big_sepM_insert; eauto.
-  apply lloc_map_pubs_lookup_None; eauto.
+  iFrame "Hγ". iModIntro. rewrite /named.
+  iSplitL "Hχpubs".
+  { rewrite lloc_map_pubs_insert_pub.
+    iApply big_sepM_insert; eauto.
+    apply lloc_map_pubs_lookup_None; eauto. }
+  { rewrite lloc_map_foreign_insert_pub delete_notin //.
+    destruct (lloc_map_foreign χ !! γ) eqn:Heq; try done.
+    apply lloc_map_foreign_lookup_Some in Heq; congruence. }
 Qed.
 
 Lemma lloc_own_allocate χ γ:
@@ -99,9 +130,34 @@ Proof using.
   iMod (ghost_map_insert with "Hχgmap") as "[Hχmap Hγ]"; first done.
   iModIntro. iSplitR "Hγ"; last done.
   iSplitL "Hχmap"; first done. unfold named.
-  rewrite lloc_map_pubs_insert_priv delete_notin.
-  2: destruct (lloc_map_pubs χ !! γ) eqn:Heq; try done; apply lloc_map_pubs_lookup_Some in Heq; congruence.
-  done.
+  iSplitL "Hχpubs".
+  { rewrite lloc_map_pubs_insert_priv delete_notin.
+    2: destruct (lloc_map_pubs χ !! γ) eqn:Heq; try done; apply lloc_map_pubs_lookup_Some in Heq; congruence.
+    done. }
+  { rewrite lloc_map_foreign_insert_priv delete_notin //.
+    destruct (lloc_map_foreign χ !! γ) eqn:Heq; try done.
+    apply lloc_map_foreign_lookup_Some in Heq; congruence. }
+Qed.
+
+Lemma lloc_own_allocate_foreign χ γ id:
+  ⌜χ !! γ = None⌝ -∗
+  lloc_own_auth χ ==∗
+  lloc_own_auth (<[γ:=LlocForeign id]> χ) ∗ γ ~foreign~ id.
+Proof using.
+  iIntros (Hne) "Hχ".
+  iNamed "Hχ".
+  iMod (ghost_map_insert _ (LlocForeign id) with "Hχgmap") as "[Hχmap Hγ]"; first done.
+  iMod (ghost_map_elem_persist with "Hγ") as "#Hγ".
+  iModIntro. iSplitR "Hγ"; last by iApply "Hγ".
+  iSplitL "Hχmap"; first done. unfold named.
+  iSplitL "Hχpubs".
+  { rewrite lloc_map_pubs_insert_foreign delete_notin.
+    2: destruct (lloc_map_pubs χ !! γ) eqn:Heq; try done; apply lloc_map_pubs_lookup_Some in Heq; congruence.
+    done. }
+  { rewrite lloc_map_foreign_insert_foreign.
+    iApply big_sepM_insert; eauto.
+    destruct (lloc_map_foreign χ !! γ) eqn:Heq; try done.
+    apply lloc_map_foreign_lookup_Some in Heq; congruence. }
 Qed.
 
 Lemma lloc_own_insert χ γ v:
@@ -110,9 +166,14 @@ Lemma lloc_own_insert χ γ v:
   lloc_own_auth (<[γ:=v]> χ).
 Proof using.
   iIntros (Hne) "Hχ".
-  iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
-  destruct v as [l|]; last by iModIntro.
-  iMod (lloc_own_expose with "Hχ Hγp") as "(H & _)". rewrite insert_insert; done.
+  destruct v as [l| |].
+  { iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
+    iMod (lloc_own_expose with "Hχ Hγp") as "(H & _)".
+    rewrite insert_insert; done. }
+  { iMod (lloc_own_allocate_foreign with "[] Hχ") as "(Hχ & Hγ)"; first done.
+    by iModIntro. }
+  { iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
+    by iModIntro. }
 Qed.
 
 Lemma lloc_own_mono χ1 χ2 :
@@ -390,6 +451,16 @@ Notation "γ ↦imm b" := (γ ↦vblk[I]{DfracOwn 1} b)%I
 Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
   (at level 20, format "γ  ↦clos  ( f ,  x ,  e )") : bi_scope.
 
+(* Foreign block points-to *)
+
+Definition lstore_own_foreign γ dq (addr : loc) : iProp Σ :=
+  lstore_own_mut γ dq (Bforeign addr) ∗ γ ~ℓ~/.
+
+Notation "γ ↦foreign{ dq } a" := (lstore_own_foreign γ dq a)%I
+  (at level 20, format "γ  ↦foreign{ dq }  a") : bi_scope.
+Notation "γ ↦foreign a" := (γ ↦foreign{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreign  a") : bi_scope.
+
 (* Lifting of ~ℓ~ at the level of ML values *)
 
 Fixpoint block_sim (v : val) (l : lval) : iProp Σ := match v with
@@ -397,6 +468,7 @@ Fixpoint block_sim (v : val) (l : lval) : iProp Σ := match v with
   | ML_lang.LitV (ML_lang.LitBool b) => ⌜l = (Lint (if b then 1 else 0))⌝
   | ML_lang.LitV ML_lang.LitUnit => ⌜l = (Lint 0)⌝
   | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
+  | ML_lang.LitV (ML_lang.LitForeign id) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ γ ~foreign~ id
   | ML_lang.PairV v1 v2 => ∃ γ lv1 lv2,
       ⌜l = (Lloc γ)⌝ ∗
       γ ↦imm (TagDefault, [lv1;lv2]) ∗
@@ -413,7 +485,7 @@ Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
 
 Global Instance block_sim_pers v l : Persistent (l ~~ v).
 Proof using.
-  induction v as [[x|b| |]| | | |] in l|-*; cbn; unshelve eapply (_).
+  induction v as [[x|b| | |]| | | |] in l|-*; cbn; unshelve eapply (_).
 Qed.
 
 Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=
@@ -440,6 +512,8 @@ Proof using.
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
   3-4: iExists γ, lv; iSplit; first done; iSplit.
   7: iExists γ; iSplit; first done.
+  8: iExists γ; iSplit; first done.
+  8: by iApply (lloc_own_auth_get_foreign with "Hχ").
   1,3,5,7:
     try iApply lstore_own_vblock_I_as_imm;
     iApply (big_sepM_lookup with "Hζimm"); try done.
@@ -487,11 +561,14 @@ Lemma block_sim_auth_is_val  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map)
   ⌜is_val χvirt ζfreeze v b⌝.
 Proof using.
   iIntros (Hfreeze Hstorebl Hstore Hdis) "Hχ Hζ Hsim".
-  iInduction v as [[x|bo| |]| | | |] "IH" forall (b); cbn.
+  iInduction v as [[x|bo| | |]| | | |] "IH" forall (b); cbn.
   all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
   1: {iDestruct "Hsim" as "(%γ & -> & Hsim)".
       iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH".
       iPureIntro. econstructor. done. }
+  1: { iDestruct "Hsim" as "(%γ & -> & Hsim)".
+       iPoseProof (lloc_own_foreign_of with "Hχ Hsim") as "%HH".
+       iPureIntro. econstructor. done. }
   1: iDestruct "Hsim" as "(%γ & -> & Hsim)".
   2: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)";
      iPoseProof ("IH" with "Hχ Hζ Hlv1") as "%Hr1";
@@ -555,6 +632,11 @@ Notation "γ ↦imm b" := (γ ↦vblk[I]{DfracOwn 1} b)%I
 
 Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
   (at level 20, format "γ  ↦clos  ( f ,  x ,  e )") : bi_scope.
+
+Notation "γ ↦foreign{ dq } a" := (lstore_own_foreign γ dq a)%I
+  (at level 20, format "γ  ↦foreign{ dq }  a") : bi_scope.
+Notation "γ ↦foreign a" := (γ ↦foreign{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreign  a") : bi_scope.
 
 Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperGS_γroots_map]{dq} w)%I
   (at level 20, format "γ  ↦roots{ dq }  w") : bi_scope.
