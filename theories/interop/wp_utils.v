@@ -330,7 +330,7 @@ Proof.
     { intros γ; destruct (HR γ) as [HRL HRH]; split.
        1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); exists ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2.
        intros (ℓ & Vs & H1 & H2). apply HRH. exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (γ2 & Hγ2).
-       enough (γ2 = γ) as -> by done. eapply Hext2. 2: done. eapply lookup_weaken; first done; eapply Hext2. } }
+       enough (γ2 = γ) as -> by done. eapply Hext2. 2,3: done. eapply lookup_weaken; first done; eapply Hext2. } }
   { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken.
     1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. }
   { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.

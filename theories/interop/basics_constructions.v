@@ -13,36 +13,43 @@ Global Notation Cval := C_intf.val.
 
 Section ChiZetaConstruction.
 
-Definition lookup_reversed (χ : lloc_map) ℓ := {γ | χ !! γ = Some (LlocPublic ℓ)}.
+Definition lookup_reversed `{Countable A} {B} (m : gmap A B) (b : B) :=
+  { a | m !! a = Some b }.
 
-Definition find_in_χ (χ:lloc_map) ℓ : sum (lookup_reversed χ ℓ) (lookup_reversed χ ℓ -> False).
+Definition find_in_reverse `{Countable A} `{EqDecision B} (m : gmap A B) (b : B) :
+  sum (lookup_reversed m b) (lookup_reversed m b → False).
 Proof.
-  pose (map_to_set (fun γ ll => match ll with LlocPrivate => None | LlocPublic ℓ' => if decide (ℓ' = ℓ) then Some γ else None end) χ : gset _) as Hset.
-  epose (filter (fun k => is_Some (k)) Hset) as Hset2.
+  pose (map_to_set (fun a b' => if decide (b' = b) then Some a else None) m : gset _) as Hset.
+  epose (filter (fun k => is_Some k) Hset) as Hset2.
   destruct (elements Hset2) as [|[γ|] ?] eqn:Heq.
-  - right. intros (γ & Hγ).
+  - right. intros (a & Ha).
     apply elements_empty_inv in Heq. apply gset_leibniz in Heq.
-    eapply filter_empty_not_elem_of_L. 2: apply Heq. 1: apply _.
+    eapply filter_empty_not_elem_of_L.
+    2: apply Heq. 1: apply _.
     2: eapply elem_of_map_to_set.
-    2: exists γ, (LlocPublic ℓ); split; done.
+    2: exists a, b; split; done.
     rewrite decide_True; done. Unshelve. all: apply _.
   - left. exists γ.
-    assert (Some γ ∈ Hset2).
+    assert (Some γ ∈ Hset2) as Hin.
     1: eapply elem_of_elements; rewrite Heq; left.
-    eapply elem_of_filter in H. destruct H as [_ H].
-    eapply elem_of_map_to_set in H.
-    destruct H as (i & ll & H1 & H2).
-    destruct ll; try congruence.
-    destruct decide; try congruence.
-  - exfalso. assert (None ∈ Hset2).
+    eapply elem_of_filter in Hin. destruct Hin as [_ Hin].
+    eapply elem_of_map_to_set in Hin.
+    destruct Hin as (i & b' & H1 & H2).
+    destruct decide; congruence.
+  - exfalso. assert (None ∈ Hset2) as Hin.
     + eapply elem_of_elements. rewrite Heq. left.
-    + apply elem_of_filter in H. destruct H as [[? Hc]?]. congruence.
-Defined.
+    + apply elem_of_filter in Hin. destruct Hin as [[? Hc]?]. congruence.
+Qed.
 
-Lemma ensure_in_χ_pub χ ℓ : lloc_map_inj χ → exists χ' γ, lloc_map_mono χ χ' ∧ χ' !! γ = Some (LlocPublic ℓ) ∧ ∀ γ' r, γ' ≠ γ → χ' !! γ' = r → χ !! γ' = r.
+Lemma ensure_in_χ_pub χ ℓ :
+  lloc_map_inj χ →
+  ∃ χ' γ,
+    lloc_map_mono χ χ' ∧
+    χ' !! γ = Some (LlocPublic ℓ) ∧
+    (∀ γ' r, γ' ≠ γ → χ' !! γ' = r → χ !! γ' = r).
 Proof.
   intros Hinj.
-  destruct (find_in_χ χ ℓ) as [[γ Hgam]|Hnot].
+  destruct (find_in_reverse χ (LlocPublic ℓ)) as [[γ Hgam]|Hnot].
   1: exists χ, γ; done.
   eexists (<[fresh (dom χ) := LlocPublic ℓ]> χ), _.
   erewrite lookup_insert; split_and!. 2: done.
@@ -52,7 +59,28 @@ Proof.
   intros γ1 γ2 ℓ' [[? ?]|[? ?]]%lookup_insert_Some [[? ?]|[? ?]]%lookup_insert_Some; subst.
   1: done.
   3: by eapply Hinj.
-  all: exfalso; eapply Hnot; eexists _; erewrite H0, H2; done.
+  all: intros _; exfalso; apply Hnot; eexists; eauto.
+Qed.
+
+Lemma ensure_in_χ_foreign χ id :
+  lloc_map_inj χ →
+  ∃ χ' γ,
+    lloc_map_mono χ χ' ∧
+    χ' !! γ = Some (LlocForeign id) ∧
+    (∀ γ' r, γ' ≠ γ → χ' !! γ' = r → χ !! γ' = r).
+Proof.
+  intros Hinj.
+  destruct (find_in_reverse χ (LlocForeign id)) as [[γ Hgam]|Hnot].
+  1: exists χ, γ; done.
+  eexists (<[fresh (dom χ) := LlocForeign id]> χ), _.
+  erewrite lookup_insert; split_and!. 2: done.
+  2: intros γ' r Hne H1; by rewrite lookup_insert_ne in H1.
+  split.
+  1: eapply insert_subseteq, not_elem_of_dom, is_fresh.
+  intros γ1 γ2 ℓ' [[? ?]|[? ?]]%lookup_insert_Some [[? ?]|[? ?]]%lookup_insert_Some; subst.
+  1: done.
+  3: by eapply Hinj.
+  all: intros _; exfalso; apply Hnot; eexists; eauto.
 Qed.
 
 Definition extended_to (χold : lloc_map) (ζ : lstore) (χnew : lloc_map) :=
@@ -159,10 +187,13 @@ Lemma deserialize_ML_value χMLold v :
     extended_to χMLold ζimm χC
   ∧ is_val χC ζimm v lv.
 Proof.
-  induction v as [[x|bo| |ℓ]| |v1 IHv1 v2 IHv2|v IHv|v IHv] in χMLold|-*; intros Hinj.
+  induction v as [[x|bo| |ℓ|]| |v1 IHv1 v2 IHv2|v IHv|v IHv] in χMLold|-*; intros Hinj.
   1-3: eexists χMLold, ∅, _; split_and!; [by eapply extended_to_refl | econstructor ].
   - destruct (ensure_in_χ_pub χMLold ℓ) as (χ' & γ & Hχ' & Hγ & _); first done.
     exists χ', ∅, (Lloc γ); (split_and!; last by econstructor).
+    by eapply extended_to_mono.
+  - destruct (ensure_in_χ_foreign χMLold id) as (χ' & γ & Hχ' & Hid & _); first done.
+    exists χ', ∅, (Lloc γ); split_and!; last by econstructor.
     by eapply extended_to_mono.
   - destruct (allocate_in_χ_priv χMLold (Bclosure f x e)) as (χ & γ & Hextend); first done.
     eexists _, _, (Lloc γ). split; eauto. econstructor. by simplify_map_eq.
@@ -332,10 +363,11 @@ Proof.
       rewrite lookup_insert in H1. injection H1; intros ->.
       by eapply is_heap_elt_weaken_2.
     + eapply lookup_insert_Some in H1. destruct H1 as [[-> H]|[Hne1 H1]].
-      1: {exfalso. apply Hne. eapply HH1. 2: done. eapply lookup_weaken; first done. apply Hext2. }
+      1: {exfalso. apply Hne. eapply HH1. 2,3: done. eapply lookup_weaken; first done. apply Hext2. }
       assert (χ0 !! γ' = Some (LlocPublic ℓ')) as H2'.
       1: {destruct Hstbl as [HHL HHR]. destruct (HHL ℓ') as (gg&Hgg); first by eapply elem_of_dom_2.
-          rewrite <- Hgg; f_equal. eapply HH1. 1: done. eapply lookup_weaken; first done. etransitivity; last eapply Hext2; eapply Hχ1. }
+          rewrite <- Hgg; f_equal. eapply HH1. 1,3: done. eapply lookup_weaken; first done.
+          etransitivity; last eapply Hext2; eapply Hχ1. }
       eapply is_heap_elt_weaken.
       1: eapply Hstore. 1: done. 3: etransitivity; first eapply Hχ1; last apply Hext2.
       2: erewrite lookup_union_l; first done. 1: done.
@@ -439,15 +471,18 @@ Lemma collect_dom_θ_block (θdom : gset lloc) (blk : block) :
   exists θdom' : gset lloc,
     ∀ γ, lval_in_block blk (Lloc γ) ∨ γ ∈ θdom ↔ γ ∈ θdom'.
 Proof.
-  destruct blk as [[m [tg vs]]|]; last first.
-  { (* Bclosure *)
-    exists θdom. intros γ. split; eauto. intros [H|]; auto.
-    by inversion H. }
+  destruct blk as [[m [tg vs]]| |].
   { (* Bvblock *)
     destruct (collect_dom_θ_vs θdom vs) as (θdom' & H).
     exists θdom'. intros γ. split.
     - intros [HH|]; first inversion HH; subst; apply H; eauto.
     - intros [?|?]%H; eauto. left; by constructor. }
+  { (* Bclosure *)
+    exists θdom. intros γ. split; eauto. intros [H|]; auto.
+    by inversion H. }
+  { (* Bforeign *)
+    exists θdom. intros γ. split; eauto. intros [H|]; auto.
+    by inversion H. }
 Qed.
 
 Lemma collect_dom_θ_ζ_blocks (θdom : gset lloc) (ζ : lstore) :

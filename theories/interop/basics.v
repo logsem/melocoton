@@ -67,7 +67,8 @@ Inductive vblock_tag :=
 (* Possible tags for blocks in the general case. *)
 Inductive tag : Type :=
   | TagVblock (vtg : vblock_tag)
-  | TagClosure.
+  | TagClosure
+  | TagForeign.
 
 Definition vblock_tag_as_int (vtg : vblock_tag) : Z :=
   match vtg with
@@ -79,6 +80,7 @@ Definition tag_as_int (tg : tag) : Z :=
   match tg with
   | TagVblock vtg => vblock_tag_as_int vtg
   | TagClosure => 247
+  | TagForeign => 255
   end.
 
 Global Instance vblock_tag_as_int_inj : Inj (=) (=) vblock_tag_as_int.
@@ -89,7 +91,7 @@ Qed.
 Global Instance tag_as_int_inj : Inj (=) (=) tag_as_int.
 Proof using.
   intros t t'.
-  destruct t as [vt|]; destruct t' as [vt'|];
+  destruct t as [vt| |]; destruct t' as [vt'| |];
     try destruct vt; try destruct vt';
     by inversion 1.
 Qed.
@@ -101,7 +103,9 @@ Notation vblock :=
 (* a block in the block-level store *)
 Inductive block :=
   | Bvblock (vblk : vblock)
-  | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr).
+  | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr)
+  (* A limited form of OCaml's "custom blocks", storing a single C pointer *)
+  | Bforeign (ptr : loc).
 
 Definition vblock_mutability (vb: vblock) : ismut :=
   let '(i,_) := vb in i.
@@ -110,6 +114,7 @@ Definition mutability (b: block) : ismut :=
   match b with
   | Bvblock vblk => vblock_mutability vblk
   | Bclosure _ _ _ => Immut
+  | Bforeign _ => Mut
   end.
 
 Inductive lval_in_block : block → lval → Prop :=
@@ -131,6 +136,7 @@ Implicit Type ζ : lstore.
    block-level heap (case [LlocPrivate]). *)
 Inductive lloc_visibility :=
   | LlocPublic (ℓ : loc)
+  | LlocForeign (id : nat)
   | LlocPrivate.
 
 (* An [lloc_map] maps a block location to its visibility status *)
@@ -151,13 +157,15 @@ Notation roots_map := (gmap addr lval).
 
 
 (*************
-   lloc_map injectivity: lloc_maps are always injective wrt public locs
+   lloc_map injectivity: lloc_maps are always injective wrt public locs and
+   foreign ids
 *)
 
 Definition lloc_map_inj χ :=
-  ∀ γ1 γ2 ℓ,
-    χ !! γ1 = Some (LlocPublic ℓ) →
-    χ !! γ2 = Some (LlocPublic ℓ) →
+  ∀ γ1 γ2 vis,
+    χ !! γ1 = Some vis →
+    χ !! γ2 = Some vis →
+    vis ≠ LlocPrivate →
     γ1 = γ2.
 
 (************
@@ -297,7 +305,11 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
   (* closures *)
   | is_val_closure χ ζ γ f x e :
     ζ !! γ = Some (Bclosure f x e) →
-    is_val χ ζ (ML_lang.RecV f x e) (Lloc γ).
+    is_val χ ζ (ML_lang.RecV f x e) (Lloc γ)
+  (* foreign blocks *)
+  | is_val_foreign χ ζ γ id :
+    χ !! γ = Some (LlocForeign id) →
+    is_val χ ζ (ML_lang.LitV (ML_lang.LitForeign id)) (Lloc γ).
 
 (* Elements of the ML store are lists of values representing refs and arrays;
    they correspond to a mutable block with the default tag. *)
@@ -318,11 +330,20 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
 (******************************************************************************)
 (* auxiliary definitions and lemmas *)
 
+Global Hint Resolve freeze_block_refl : core.
+Global Hint Resolve expose_lloc_refl : core.
+
 Global Instance ismut_eqdecision : EqDecision ismut.
 Proof. intros [] []; solve_decision. Qed.
 
+Global Instance lloc_visibility_eqdecision : EqDecision lloc_visibility.
+Proof. intros [] []; solve_decision. Qed.
+
 Definition lloc_map_pubs (χ : lloc_map) : gmap lloc loc :=
-  omap (λ vis, match vis with LlocPublic ℓ => Some ℓ | LlocPrivate => None end) χ.
+  omap (λ vis, match vis with LlocPublic ℓ => Some ℓ | _ => None end) χ.
+
+Definition lloc_map_foreign (χ : lloc_map) : gmap lloc nat :=
+  omap (λ vis, match vis with LlocForeign id => Some id | _ => None end) χ.
 
 Definition lloc_map_pub_locs (χ : lloc_map) : gset loc :=
   list_to_set ((map_to_list (lloc_map_pubs χ)).*2).
@@ -351,7 +372,10 @@ Proof. apply lloc_map_pubs_lookup_Some. Qed.
 Global Hint Resolve lloc_map_pubs_lookup_Some_2 : core.
 
 Lemma lloc_map_pubs_lookup_None χ γ :
-  lloc_map_pubs χ !! γ = None ↔ χ !! γ = None ∨ χ !! γ = Some LlocPrivate.
+  lloc_map_pubs χ !! γ = None ↔
+  χ !! γ = None ∨
+  χ !! γ = Some LlocPrivate ∨
+  ∃ id, χ !! γ = Some (LlocForeign id).
 Proof.
   rewrite /lloc_map_pubs lookup_omap.
   destruct (χ !! γ) as [[]|]; naive_solver.
@@ -363,6 +387,10 @@ Proof. rewrite /lloc_map_pubs omap_insert //. Qed.
 
 Lemma lloc_map_pubs_insert_priv χ γ :
   lloc_map_pubs (<[γ:=LlocPrivate]> χ) = delete γ (lloc_map_pubs χ).
+Proof. rewrite /lloc_map_pubs omap_insert //. Qed.
+
+Lemma lloc_map_pubs_insert_foreign χ γ id :
+  lloc_map_pubs (<[γ:=LlocForeign id]> χ) = delete γ (lloc_map_pubs χ).
 Proof. rewrite /lloc_map_pubs omap_insert //. Qed.
 
 Lemma elem_of_lloc_map_pub_locs ℓ χ :
@@ -379,6 +407,35 @@ Lemma elem_of_lloc_map_pub_locs_1 ℓ γ χ :
 Proof. intros HH. apply elem_of_lloc_map_pub_locs. eauto. Qed.
 Global Hint Resolve elem_of_lloc_map_pub_locs_1 : core.
 
+Lemma lloc_map_foreign_lookup_Some χ γ id :
+  lloc_map_foreign χ !! γ = Some id ↔ χ !! γ = Some (LlocForeign id).
+Proof.
+  rewrite /lloc_map_foreign lookup_omap.
+  destruct (χ !! γ) as [[]|]; naive_solver.
+Qed.
+
+Lemma lloc_map_foreign_lookup_Some_1 χ γ id :
+  lloc_map_foreign χ !! γ = Some id → χ !! γ = Some (LlocForeign id).
+Proof. apply lloc_map_foreign_lookup_Some. Qed.
+Global Hint Resolve lloc_map_foreign_lookup_Some_1 : core.
+
+Lemma lloc_map_foreign_lookup_Some_2 χ γ ℓ :
+  χ !! γ = Some (LlocForeign ℓ) → lloc_map_foreign χ !! γ = Some ℓ.
+Proof. apply lloc_map_foreign_lookup_Some. Qed.
+Global Hint Resolve lloc_map_foreign_lookup_Some_2 : core.
+
+Lemma lloc_map_foreign_insert_pub χ γ ℓ :
+  lloc_map_foreign (<[γ:=LlocPublic ℓ]> χ) = delete γ (lloc_map_foreign χ).
+Proof. rewrite /lloc_map_foreign omap_insert //. Qed.
+
+Lemma lloc_map_foreign_insert_priv χ γ :
+  lloc_map_foreign (<[γ:=LlocPrivate]> χ) = delete γ (lloc_map_foreign χ).
+Proof. rewrite /lloc_map_foreign omap_insert //. Qed.
+
+Lemma lloc_map_foreign_insert_foreign χ γ id :
+  lloc_map_foreign (<[γ:=LlocForeign id]> χ) = <[γ := id]> (lloc_map_foreign χ).
+Proof. rewrite /lloc_map_foreign omap_insert //. Qed.
+
 Lemma pub_locs_in_lstore_lookup χ ζ γ ℓ :
   γ ∈ dom ζ
 → χ !! γ = Some (LlocPublic ℓ)
@@ -388,7 +445,6 @@ Proof.
   erewrite map_filter_lookup_Some_2. 3: done. 1: done.
   erewrite lloc_map_pubs_lookup_Some_2; done.
 Qed.
-
 
 Lemma pub_locs_in_lstore_lookup_notin χ ζ γ :
   ζ !! γ = None →
@@ -460,6 +516,17 @@ Proof.
   done.
 Qed.
 
+Lemma pub_locs_in_lstore_alloc_foreign χ ζ γ id a:
+  χ !! γ = None →
+  pub_locs_in_lstore (<[γ:=LlocForeign id]> χ) (<[γ:=Bforeign a]>ζ) = pub_locs_in_lstore χ ζ.
+Proof.
+  intros Hγ. rewrite /pub_locs_in_lstore lloc_map_pubs_insert_foreign delete_notin.
+  2: { apply lloc_map_pubs_lookup_None. eauto. }
+  apply map_filter_strong_ext_1.
+  intros γ' ℓ. rewrite dom_insert_L lloc_map_pubs_lookup_Some.
+  rewrite elem_of_union elem_of_singleton. naive_solver.
+Qed.
+
 Lemma pub_locs_in_lstore_insert_priv_store χ ζ ζ2 :
   is_private_blocks χ ζ2 →
   pub_locs_in_lstore χ (ζ ∪ ζ2) = pub_locs_in_lstore χ ζ.
@@ -507,12 +574,13 @@ Lemma lstore_immut_blocks_lookup_Some ζ γ b :
   lstore_immut_blocks ζ !! γ = Some b ↔ ζ !! γ = Some b ∧ mutability b = Immut.
 Proof.
   rewrite /lstore_immut_blocks map_filter_lookup /=.
-  set X := (ζ !! γ). destruct (ζ !! γ) as [[[i' ?]|]|] eqn:HH; subst X; cbn;
+  set X := (ζ !! γ). destruct (ζ !! γ) as [[[i' ?]| |]|] eqn:HH; subst X; cbn;
       try naive_solver.
   { destruct (decide (i' = Immut)); subst.
     { rewrite option_guard_True //. naive_solver. }
     { rewrite option_guard_False //. naive_solver. } }
   { rewrite option_guard_True //. naive_solver. }
+  { rewrite option_guard_False //. naive_solver. }
 Qed.
 
 Lemma lstore_immut_blocks_lookup_notin ζ γ :
@@ -573,16 +641,36 @@ Proof.
   1: by etransitivity. done.
 Qed.
 
+Lemma lloc_map_inj_insert χ vis γ :
+  lloc_map_inj χ →
+  (∀ γ' vis', vis ≠ LlocPrivate → χ !! γ' = Some vis' → vis' ≠ vis) →
+  lloc_map_inj (<[γ := vis]> χ).
+Proof.
+  intros Hinj Hid γ1 γ2 vis' H1 H2 Hvis'.
+  destruct (decide (γ1 = γ2)); auto. exfalso.
+  destruct (decide (γ = γ1)) as [<-|]; simplify_map_eq; first naive_solver.
+  destruct (decide (γ = γ2)) as [<-|]; simplify_map_eq; naive_solver.
+Qed.
+
 Lemma lloc_map_inj_insert_pub χ ℓ γ :
   lloc_map_inj χ →
   ℓ ∉ lloc_map_pub_locs χ →
   lloc_map_inj (<[γ := LlocPublic ℓ]> χ).
 Proof.
-  intros Hinj Hℓ γ1 γ2 ℓ' H1 H2.
-  destruct (decide (γ1 = γ2)); auto. exfalso.
-  destruct (decide (γ = γ1)) as [<-|]; simplify_map_eq; eauto.
-  destruct (decide (γ = γ2)) as [<-|]; simplify_map_eq; eauto.
+  intros ? Hℓ. apply lloc_map_inj_insert; eauto.
+  intros ? ? _ ? ->. apply Hℓ. apply elem_of_lloc_map_pub_locs; eauto.
 Qed.
+
+Lemma lloc_map_inj_insert_priv χ γ :
+  lloc_map_inj χ →
+  lloc_map_inj (<[γ := LlocPrivate]> χ).
+Proof. intros. apply lloc_map_inj_insert; eauto. Qed.
+
+Lemma lloc_map_inj_insert_foreign χ id γ :
+  lloc_map_inj χ →
+  (∀ γ' id', χ !! γ' = Some (LlocForeign id') → id' ≠ id) →
+  lloc_map_inj (<[γ := LlocForeign id]> χ).
+Proof. intros. apply lloc_map_inj_insert; naive_solver. Qed.
 
 Lemma expose_llocs_inj χ1 χ2 :
   expose_llocs χ1 χ2 →
@@ -618,6 +706,20 @@ Proof.
     destruct (decide (γ = γ')) as [<-|]; simplify_map_eq; econstructor; eauto.
 Qed.
 
+Lemma expose_llocs_insert_both χ χ' γ vis vis' :
+  expose_llocs χ χ' →
+  χ !! γ = None →
+  (∀ γ' vis'', vis' ≠ LlocPrivate → χ' !! γ' = Some vis'' → vis'' ≠ vis') →
+  expose_lloc vis vis' →
+  expose_llocs (<[γ:=vis]> χ) (<[γ:=vis']> χ').
+Proof.
+  intros (Hdom & Hinj & Hexp) Hγ Hvis. repeat split.
+  { rewrite !dom_insert_L Hdom //. }
+  { by apply lloc_map_inj_insert. }
+  { intros γ0 vis1 vis2 ?%lookup_insert_Some ?%lookup_insert_Some.
+    destruct_or!; destruct_and!; simplify_eq; eauto. }
+Qed.
+
 Lemma is_val_mono χ χL ζ ζL x y :
   χ ⊆ χL → ζ ⊆ ζL →
   is_val χ ζ x y →
@@ -633,11 +735,16 @@ Lemma is_val_expose_llocs χ χ' ζ v lv :
   is_val χ' ζ v lv.
 Proof.
   intros He. induction 1 in χ',He; econstructor; eauto.
-  destruct He as (Hdom & Hinj & He).
-  destruct (χ' !! γ) eqn:HH.
-  2: { exfalso. apply not_elem_of_dom_2 in HH. rewrite -Hdom in HH.
-       apply not_elem_of_dom_1 in HH. naive_solver. }
-  specialize (He _ _ _ ltac:(eassumption) HH). inversion He; auto.
+  { destruct He as (Hdom & Hinj & He).
+    destruct (χ' !! γ) eqn:HH.
+    2: { exfalso. apply not_elem_of_dom_2 in HH. rewrite -Hdom in HH.
+         apply not_elem_of_dom_1 in HH. naive_solver. }
+    specialize (He _ _ _ ltac:(eassumption) HH). inversion He; auto. }
+  { destruct He as (Hdom & Hinj & He).
+    destruct (χ' !! γ) eqn:HH.
+    2: { exfalso. apply not_elem_of_dom_2 in HH. rewrite -Hdom in HH.
+         apply not_elem_of_dom_1 in HH. naive_solver. }
+    specialize (He _ _ _ ltac:(eassumption) HH). inversion He; auto. }
 Qed.
 
 Lemma is_val_insert_immut χ ζ γ bb bb2 x y :
@@ -648,7 +755,7 @@ Lemma is_val_insert_immut χ ζ γ bb bb2 x y :
 Proof.
   intros H1 H2; induction 1; econstructor; eauto.
   all: rewrite lookup_insert_ne; first done.
-  all: intros ->; destruct bb2 as [[mut [? ?]]|]; cbn in *.
+  all: intros ->; destruct bb2 as [[mut [? ?]]| |]; cbn in *.
   all: congruence.
 Qed.
 
@@ -697,10 +804,10 @@ Proof.
   { rewrite dom_delete_L elem_of_difference. split.
     { intros [Hγ' _]. apply Hs2 in Hγ' as (ℓ'' & ? & Hχℓ'' & ?).
       do 2 eexists. split; eauto. rewrite lookup_insert_ne //.
-      intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ''). }
+      intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ'' ltac:(done)). }
     { intros (ℓ' & Vs' & Hχℓ' & Hσℓ').
       rewrite lookup_insert_ne in Hσℓ'.
-      2: { intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ'). }
+      2: { intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ' ltac:(done)). }
       split; [| set_solver]. apply Hs2. do 2 eexists. split; eauto. } }
 Qed.
 
@@ -746,7 +853,7 @@ Lemma is_store_restore_loc χ ζ σ ℓ γ Vs blk :
 Proof.
   intros Hstore Hχinj Hχℓ Hζγ Hblk ℓ1 vs1 γ1 bl1 Hs1 Hs2 Hs3.
   destruct (decide (ℓ = ℓ1)) as [<- | Hne].
-  * specialize (Hχinj _ _ _ Hχℓ Hs2). by simplify_map_eq.
+  * specialize (Hχinj _ _ _ Hχℓ Hs2 ltac:(done)). by simplify_map_eq.
   * rewrite lookup_insert_ne in Hs1; last done. eapply Hstore; done.
 Qed.
 
@@ -841,15 +948,25 @@ Proof.
     * rewrite lookup_insert_ne in H2; last done. by eapply HR.
 Qed.
 
+Lemma freeze_lstore_lookup_backwards ζ ζ' γ blk' :
+  freeze_lstore ζ ζ' →
+  ζ' !! γ = Some blk' →
+  ∃ blk, freeze_block blk blk' ∧ ζ !! γ = Some blk.
+Proof.
+  intros [HL HR] Hγ.
+  destruct (ζ !! γ) eqn:Hγ'; eauto.
+  apply elem_of_dom_2 in Hγ. apply not_elem_of_dom in Hγ'. congruence.
+Qed.
+
 Lemma freeze_lstore_lookup_bclosure ζ ζ' γ f x e :
   freeze_lstore ζ ζ' →
   ζ' !! γ = Some (Bclosure f x e) →
   ζ !! γ = Some (Bclosure f x e).
 Proof.
-  intros [HL HR] Hγ.
-  destruct (ζ !! γ) eqn:Hγ'.
-  2: { apply elem_of_dom_2 in Hγ. apply not_elem_of_dom in Hγ'. congruence. }
-  specialize (HR _ _ _ Hγ' Hγ). by inversion HR.
+  intros Hfreeze Hζ'.
+  eapply freeze_lstore_lookup_backwards in Hfreeze as (? & Hfrz & ?);
+    eauto.
+  by inversion Hfrz; simplify_eq.
 Qed.
 
 Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.

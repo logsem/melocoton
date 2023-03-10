@@ -15,6 +15,7 @@ Global Instance pretty_base_lit : Pretty base_lit :=
        | LitBool b => if b then "true" else "false"
        | LitUnit => "()"
        | LitLoc l => "(loc " +:+ pretty l +:+ ")"
+       | LitForeign n => "(foreign " +:+ pretty n +:+ ")"
        end.
 
 Global Instance pretty_binder : Pretty binder :=

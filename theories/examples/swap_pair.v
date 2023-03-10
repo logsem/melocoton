@@ -109,7 +109,7 @@ Proof.
   (* alloc *)
   wp_pures.
   wp_extern. cbn.
-  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 6 iRight.
+  iModIntro. (iExists _; iSplit; first (iPureIntro; econstructor)). iLeft. do 6 iRight; iLeft.
   iExists _, TagDefault, _. unfold named. iFrame "HGC".
   do 3 (iSplitR; first done).
   iIntros (θ' γnew wnew) "HGC Hnew %Hreprnew".
@@ -276,10 +276,3 @@ End ML_prog.
 Check @linked_prog_correct_overall.
 Print Assumptions linked_prog_correct_overall.
 *)
-
-
-
-
-
-
-

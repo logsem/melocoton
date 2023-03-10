@@ -35,7 +35,8 @@ Module ML_lang.
 
 Inductive base_lit : Set :=
   | LitInt (n : Z) | LitBool (b : bool) | LitUnit
-  | LitLoc (l : loc).
+  | LitLoc (l : loc)
+  | LitForeign (id : nat).
 Inductive un_op : Set :=
   | NegOp | MinusUnOp.
 Inductive bin_op : Set :=
@@ -220,7 +221,7 @@ Global Instance val_is_intlike_dec v : Decision (val_is_intlike v).
 Proof.
   destruct v as [ v | | | |];
     try (right; intros HH; by inversion HH).
-  destruct v; last by (right; intros HH; inversion HH).
+  destruct v; try by (right; intros HH; inversion HH).
   all: by left.
 Defined.
 
@@ -257,7 +258,9 @@ Proof.
   { destruct v1 as [l1| | | | ]; destruct v2 as [l2| | | |];
        try (right; intros HH; inversion HH; naive_solver).
     destruct l1; try (exfalso; apply Hni1; by constructor).
+    2: right; intros HH; inversion HH; naive_solver.
     destruct l2; try (exfalso; apply Hni2; by constructor).
+    2: right; intros HH; inversion HH; naive_solver.
     left; eapply vals_compare_loc. }
 Defined.
 
@@ -383,15 +386,17 @@ Defined.
 Global Instance base_lit_countable : Countable base_lit.
 Proof.
  refine (inj_countable' (λ l, match l with
-  | LitInt n => (inl (inl n))
-  | LitBool b => (inl (inr b))
-  | LitUnit => (inr (inl ()))
-  | LitLoc l => (inr (inr l))
+  | LitInt n => inl (inl (inl n))
+  | LitBool b => inl (inl (inr b))
+  | LitUnit => inl (inr (inl ()))
+  | LitLoc l => inl (inr (inr l))
+  | LitForeign n => inr n
   end) (λ l, match l with
-  | (inl (inl n)) => LitInt n
-  | (inl (inr b)) => LitBool b
-  | (inr (inl ())) => LitUnit
-  | (inr (inr l)) => LitLoc l
+  | inl (inl (inl n)) => LitInt n
+  | inl (inl (inr b)) => LitBool b
+  | inl (inr (inl ())) => LitUnit
+  | inl (inr (inr l)) => LitLoc l
+  | inr n => LitForeign n
   end) _); by intros [].
 Qed.
 Global Instance un_op_finite : Countable un_op.
