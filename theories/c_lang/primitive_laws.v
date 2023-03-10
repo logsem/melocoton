@@ -3,7 +3,7 @@ the Iris lifting lemmas. *)
 
 From iris.proofmode Require Import proofmode.
 From iris.bi.lib Require Import fractional.
-From iris.base_logic.lib Require Export gen_heap proph_map gen_inv_heap.
+From transfinite.base_logic.lib Require Export gen_heap proph_map gen_inv_heap.
 From melocoton.language Require Export weakestpre lifting.
 From melocoton.c_interface Require Export resources.
 From melocoton.c_lang Require Export class_instances.

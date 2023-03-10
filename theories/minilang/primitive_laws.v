@@ -1,8 +1,8 @@
 From stdpp Require Import gmap coPset.
 From iris.proofmode Require Import proofmode.
 From iris.bi.lib Require Import fractional.
-From iris.base_logic.lib Require Import mono_nat.
-From iris.base_logic.lib Require Export gen_heap.
+From transfinite.base_logic.lib Require Import mono_nat.
+From transfinite.base_logic.lib Require Export gen_heap.
 From iris.algebra.lib Require Import excl_auth gmap_view.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre lifting.

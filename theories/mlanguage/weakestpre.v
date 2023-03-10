@@ -1,5 +1,5 @@
 From iris.proofmode Require Import base proofmode classes.
-From iris.base_logic.lib Require Export fancy_updates.
+From transfinite.base_logic.lib Require Export fancy_updates.
 From melocoton.mlanguage Require Export mlanguage.
 From melocoton Require Import multirelations.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not

@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
 From melocoton Require Import named_props.
-From iris.base_logic.lib Require Import ghost_map ghost_var.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Export defs resources.

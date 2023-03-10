@@ -3,8 +3,8 @@ the Iris lifting lemmas. *)
 
 From iris.proofmode Require Import proofmode.
 From iris.bi.lib Require Import fractional.
-From iris.base_logic.lib Require Import mono_nat.
-From iris.base_logic.lib Require Export gen_heap gen_inv_heap.
+From transfinite.base_logic.lib Require Import mono_nat.
+From transfinite.base_logic.lib Require Export gen_heap gen_inv_heap.
 From melocoton.language Require Export weakestpre lifting.
 From melocoton.ml_lang Require Export class_instances.
 From melocoton.ml_lang Require Import tactics notation.
