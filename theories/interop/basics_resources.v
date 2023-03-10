@@ -454,7 +454,7 @@ Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
 (* Foreign block points-to *)
 
 Definition lstore_own_foreign γ dq (addr : loc) : iProp Σ :=
-  lstore_own_mut γ dq (Bforeign addr) ∗ γ ~ℓ~/.
+  lstore_own_mut γ dq (Bforeign addr) ∗ ∃ id, γ ~foreign~ id.
 
 Notation "γ ↦foreign{ dq } a" := (lstore_own_foreign γ dq a)%I
   (at level 20, format "γ  ↦foreign{ dq }  a") : bi_scope.

@@ -145,7 +145,9 @@ Definition proto_callback (E : coPset) (T : ML_proto) : prim_proto := (λ p vl �
 (* non-callbacks primitives *)
 Definition proto_base_prims : prim_proto := (λ p vl Φ,
     proto_int2val p vl Φ ∨ proto_val2int p vl Φ ∨ proto_registerroot p vl Φ ∨ proto_unregisterroot p vl Φ
-  ∨ proto_modify p vl Φ ∨ proto_readfield p vl Φ ∨ proto_alloc p vl Φ)%I.
+  ∨ proto_modify p vl Φ ∨ proto_readfield p vl Φ ∨ proto_alloc p vl Φ
+  ∨ proto_alloc_foreign p vl Φ ∨ proto_write_foreign p vl Φ ∨ proto_read_foreign p vl Φ
+)%I.
 
 Definition proto_prims E T : prim_proto := (λ p vl Φ,
   proto_base_prims p vl Φ ∨ proto_callback E T p vl Φ)%I.

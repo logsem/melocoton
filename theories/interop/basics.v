@@ -330,6 +330,9 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
 (******************************************************************************)
 (* auxiliary definitions and lemmas *)
 
+Global Hint Resolve freeze_block_refl : core.
+Global Hint Resolve expose_lloc_refl : core.
+
 Global Instance ismut_eqdecision : EqDecision ismut.
 Proof. intros [] []; solve_decision. Qed.
 
@@ -513,6 +516,17 @@ Proof.
   done.
 Qed.
 
+Lemma pub_locs_in_lstore_alloc_foreign χ ζ γ id a:
+  χ !! γ = None →
+  pub_locs_in_lstore (<[γ:=LlocForeign id]> χ) (<[γ:=Bforeign a]>ζ) = pub_locs_in_lstore χ ζ.
+Proof.
+  intros Hγ. rewrite /pub_locs_in_lstore lloc_map_pubs_insert_foreign delete_notin.
+  2: { apply lloc_map_pubs_lookup_None. eauto. }
+  apply map_filter_strong_ext_1.
+  intros γ' ℓ. rewrite dom_insert_L lloc_map_pubs_lookup_Some.
+  rewrite elem_of_union elem_of_singleton. naive_solver.
+Qed.
+
 Lemma pub_locs_in_lstore_insert_priv_store χ ζ ζ2 :
   is_private_blocks χ ζ2 →
   pub_locs_in_lstore χ (ζ ∪ ζ2) = pub_locs_in_lstore χ ζ.
@@ -627,16 +641,36 @@ Proof.
   1: by etransitivity. done.
 Qed.
 
+Lemma lloc_map_inj_insert χ vis γ :
+  lloc_map_inj χ →
+  (∀ γ' vis', vis ≠ LlocPrivate → χ !! γ' = Some vis' → vis' ≠ vis) →
+  lloc_map_inj (<[γ := vis]> χ).
+Proof.
+  intros Hinj Hid γ1 γ2 vis' H1 H2 Hvis'.
+  destruct (decide (γ1 = γ2)); auto. exfalso.
+  destruct (decide (γ = γ1)) as [<-|]; simplify_map_eq; first naive_solver.
+  destruct (decide (γ = γ2)) as [<-|]; simplify_map_eq; naive_solver.
+Qed.
+
 Lemma lloc_map_inj_insert_pub χ ℓ γ :
   lloc_map_inj χ →
   ℓ ∉ lloc_map_pub_locs χ →
   lloc_map_inj (<[γ := LlocPublic ℓ]> χ).
 Proof.
-  intros Hinj Hℓ γ1 γ2 vis H1 H2 Hvis.
-  destruct (decide (γ1 = γ2)); auto. exfalso.
-  destruct (decide (γ = γ1)) as [<-|]; simplify_map_eq; eauto.
-  destruct (decide (γ = γ2)) as [<-|]; simplify_map_eq; eauto.
+  intros ? Hℓ. apply lloc_map_inj_insert; eauto.
+  intros ? ? _ ? ->. apply Hℓ. apply elem_of_lloc_map_pub_locs; eauto.
 Qed.
+
+Lemma lloc_map_inj_insert_priv χ γ :
+  lloc_map_inj χ →
+  lloc_map_inj (<[γ := LlocPrivate]> χ).
+Proof. intros. apply lloc_map_inj_insert; eauto. Qed.
+
+Lemma lloc_map_inj_insert_foreign χ id γ :
+  lloc_map_inj χ →
+  (∀ γ' id', χ !! γ' = Some (LlocForeign id') → id' ≠ id) →
+  lloc_map_inj (<[γ := LlocForeign id]> χ).
+Proof. intros. apply lloc_map_inj_insert; naive_solver. Qed.
 
 Lemma expose_llocs_inj χ1 χ2 :
   expose_llocs χ1 χ2 →
@@ -670,6 +704,20 @@ Proof.
   - eapply lloc_map_inj_insert_pub; eauto.
   - intros γ' vis1 vis2 H1 H2.
     destruct (decide (γ = γ')) as [<-|]; simplify_map_eq; econstructor; eauto.
+Qed.
+
+Lemma expose_llocs_insert_both χ χ' γ vis vis' :
+  expose_llocs χ χ' →
+  χ !! γ = None →
+  (∀ γ' vis'', vis' ≠ LlocPrivate → χ' !! γ' = Some vis'' → vis'' ≠ vis') →
+  expose_lloc vis vis' →
+  expose_llocs (<[γ:=vis]> χ) (<[γ:=vis']> χ').
+Proof.
+  intros (Hdom & Hinj & Hexp) Hγ Hvis. repeat split.
+  { rewrite !dom_insert_L Hdom //. }
+  { by apply lloc_map_inj_insert. }
+  { intros γ0 vis1 vis2 ?%lookup_insert_Some ?%lookup_insert_Some.
+    destruct_or!; destruct_and!; simplify_eq; eauto. }
 Qed.
 
 Lemma is_val_mono χ χL ζ ζL x y :
@@ -900,15 +948,25 @@ Proof.
     * rewrite lookup_insert_ne in H2; last done. by eapply HR.
 Qed.
 
+Lemma freeze_lstore_lookup_backwards ζ ζ' γ blk' :
+  freeze_lstore ζ ζ' →
+  ζ' !! γ = Some blk' →
+  ∃ blk, freeze_block blk blk' ∧ ζ !! γ = Some blk.
+Proof.
+  intros [HL HR] Hγ.
+  destruct (ζ !! γ) eqn:Hγ'; eauto.
+  apply elem_of_dom_2 in Hγ. apply not_elem_of_dom in Hγ'. congruence.
+Qed.
+
 Lemma freeze_lstore_lookup_bclosure ζ ζ' γ f x e :
   freeze_lstore ζ ζ' →
   ζ' !! γ = Some (Bclosure f x e) →
   ζ !! γ = Some (Bclosure f x e).
 Proof.
-  intros [HL HR] Hγ.
-  destruct (ζ !! γ) eqn:Hγ'.
-  2: { apply elem_of_dom_2 in Hγ. apply not_elem_of_dom in Hγ'. congruence. }
-  specialize (HR _ _ _ Hγ' Hγ). by inversion HR.
+  intros Hfreeze Hζ'.
+  eapply freeze_lstore_lookup_backwards in Hfreeze as (? & Hfrz & ?);
+    eauto.
+  by inversion Hfrz; simplify_eq.
 Qed.
 
 Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.
