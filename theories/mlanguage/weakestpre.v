@@ -15,15 +15,15 @@ Import uPred.
    - with the property that splitting/joining the state allows splitting/joining
      the state interpretations accordingly.
 *)
-Class mlangG (val : Type) (Σ : gFunctors) (Λ : mlanguage val) :=
+Class mlangG {SI:indexT} (val : Type) (Σ : gFunctors) (Λ : mlanguage val) :=
 MlangG {
   state_interp : state Λ → iProp Σ;
   at_boundary : iProp Σ;
 }.
 
-Arguments at_boundary {_ _} Λ {_}.
+Arguments at_boundary {_ _ _} Λ {_}.
 
-Definition wp_pre_cases `{!invG Σ, !mlangG val Σ Λ}
+Definition wp_pre_cases `{SI:indexT, !invG Σ, !mlangG val Σ Λ}
     (p : mixin_prog Λ.(func))
     (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
@@ -38,7 +38,7 @@ Definition wp_pre_cases `{!invG Σ, !mlangG val Σ Λ}
        ∀ e' σ', ⌜X (e', σ')⌝ ={E}▷=∗ state_interp σ' ∗ wp E e' Φ)
   )%I.
 
-Definition wp_pre `{!invG Σ, !mlangG val Σ Λ}
+Definition wp_pre `{SI:indexT, !invG Σ, !mlangG val Σ Λ}
     (p : mixin_prog Λ.(func))
     (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
@@ -46,7 +46,7 @@ Definition wp_pre `{!invG Σ, !mlangG val Σ Λ}
   (∀ σ, state_interp σ ={E}=∗ wp_pre_cases p T wp σ E e Φ)%I.
 
 Local Instance wp_pre_contractive
-      `{!invG Σ, !mlangG val Σ Λ}
+      `{SI:indexT, !invG Σ, !mlangG val Σ Λ}
       {p:mixin_prog Λ.(func)} T :
   Contractive (wp_pre p T).
 Proof.
@@ -54,27 +54,27 @@ Proof.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Record prog_environ {val} (Λ : mlanguage val) Σ := Penv {
+Record prog_environ {SI:indexT} {val} (Λ : mlanguage val) Σ := Penv {
   penv_prog : gmap string Λ.(func);
   penv_proto : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ;
 }.
-Global Arguments penv_prog {_ _ _} _.
-Global Arguments penv_proto {_ _ _} _.
+Global Arguments penv_prog {_ _ _ _} _.
+Global Arguments penv_proto {_ _ _ _} _.
 
 Local Definition wp_def
-      `{!invG Σ, !mlangG val Σ Λ} :
+      `{SI:indexT, !invG Σ, !mlangG val Σ Λ} :
   Wp (iProp Σ) (expr Λ) (val) (prog_environ Λ Σ) :=
   λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {hlc Σ _ val Λ _}.
+Global Arguments wp' {SI Σ _ val Λ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!invG Σ, !mlangG val Σ Λ} :
-  wp = @wp_def hlc Σ _ val Λ _.
+Local Lemma wp_unseal `{SI:indexT, !invG Σ, !mlangG val Σ Λ} :
+  wp = @wp_def SI Σ _ val Λ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!invG Σ, !mlangG val Σ Λ}.
+Context `{SI:indexT, !invG Σ, !mlangG val Σ Λ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -92,14 +92,15 @@ Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre pe.(penv_prog) pe.(penv
 Global Instance wp_ne pe E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) pe E e).
 Proof.
-  revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
+  revert e. induction (index_lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /wp_pre_cases /=.
   do 16 f_equiv. 1: do 3 f_equiv.
   all: f_contractive.
   1: do 1 f_equiv.
   1: intros r; f_equiv.
   2: do 2 f_equiv.
-  all: apply IH; eauto; intros k; eapply dist_le', HΦ; lia.
+  all: apply IH; eauto; intros k; eapply dist_le', HΦ; eauto.
+  all: by eapply index_lt_le_subrel.
 Qed.
 Global Instance wp_proper pe E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) pe E e).
@@ -345,7 +346,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!invG Σ, !mlangG val Σ Λ}.
+  Context `{SI:indexT, !invG Σ, !mlangG val Σ Λ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.
@@ -378,7 +379,7 @@ End proofmode_classes.
 
 
 Class linkableG
-  {val pubstate} (Λ : mlanguage val)
+  {SI:indexT} {val pubstate} (Λ : mlanguage val)
   `{!mlangG val Σ Λ, !linkable Λ pubstate}
   (public_state_interp : pubstate → iProp Σ)
 := LinkableG {

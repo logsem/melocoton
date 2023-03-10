@@ -6,7 +6,7 @@ From melocoton.language Require Export weakestpre.
 From iris.prelude Require Import options.
 
 Section lifting.
-Context `{!langG val Λ Σ, !invG Σ}.
+Context `{SI:indexT, !langG val Λ Σ, !invG Σ}.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types s : prog_environ Λ Σ.
 Implicit Types v : val.
@@ -133,7 +133,7 @@ Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} s E e1 e2 φ n Φ :
 Proof.
   iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl.
-  { iMod lc_zero as "Hz". by iApply "Hwp". }
+  { by iApply "Hwp". }
   iApply wp_lift_pure_det_step_no_fork.
   - intros σ. specialize (Hsafe σ). destruct s; eauto using reducible_not_val.
   - done.

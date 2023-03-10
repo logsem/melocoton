@@ -1,6 +1,4 @@
 From stdpp Require Import relations strings gmap.
-From transfinite.stepindex Require Export ordinals existential_properties utils.
-Global Existing Instance ordI.
 From transfinite.base_logic.lib Require Import own.
 From iris.algebra Require Import ofe.
 From iris.algebra Require Import auth excl excl_auth gmap.
@@ -109,7 +107,7 @@ Section language_commons.
   | ExprCall (fn_name : string) (arg : list val) : mixin_expr_class.
 End language_commons.
 
-Lemma excl_auth_eq A `{inG Σ (excl_authR (leibnizO A))} γ (x y: A):
+Lemma excl_auth_eq A `{indexT} `{inG Σ (excl_authR (leibnizO A))} γ (x y: A):
   own γ (◯E (x:leibnizO A)) -∗ own γ (●E (y:leibnizO A)) -∗ ⌜x = y⌝.
 Proof.
   iIntros "H1 H2". iDestruct (own_op with "[$H1 $H2]") as "H".
@@ -117,7 +115,7 @@ Proof.
 Qed.
 
 
-Lemma excl_auth_upd `{!inG Σ (excl_authR (leibnizO A))} γ (x y z: A):
+Lemma excl_auth_upd `{indexT} `{!inG Σ (excl_authR (leibnizO A))} γ (x y z: A):
   own γ (◯E (x:leibnizO A)) -∗ own γ (●E (y:leibnizO A)) ==∗
   own γ (◯E (z:leibnizO A)) ∗ own γ (●E (z:leibnizO A)).
 Proof.
@@ -126,7 +124,7 @@ Proof.
   1: by apply excl_auth_update. iModIntro. iFrame.
 Qed.
 
-Lemma excl_auth_alloc A `{inG Σ (excl_authR (leibnizO A))} (x: A):
+Lemma excl_auth_alloc A `{indexT} `{inG Σ (excl_authR (leibnizO A))} (x: A):
   ⊢ |==> ∃ γ, own γ (◯E (x:leibnizO A)) ∗ own γ (●E (x:leibnizO A)).
 Proof.
   iIntros.
