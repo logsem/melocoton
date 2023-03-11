@@ -544,4 +544,9 @@ Section proofmode_classes.
     by rewrite /ElimModal intuitionistically_if_elim
       fupd_frame_r wand_elim_r fupd_wp.
   Qed.
+
+  Global Instance add_modal_fupd_wp s E e P Φ :
+    AddModal (|={E}=> P) P (WP e @ s; E {{ Φ }}).
+  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_wp. Qed.
+
 End proofmode_classes.

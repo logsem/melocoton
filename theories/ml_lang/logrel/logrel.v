@@ -3,24 +3,29 @@ From melocoton.ml_lang.logrel Require Export persistent_pred typing iterup.
 From melocoton.ml_lang Require Export proofmode.
 From melocoton.ml_lang Require Export lang notation metatheory.
 From iris.algebra Require Import list gmap big_op.
-From iris.base_logic Require Import invariants.
+From iris.base_logic.lib Require Import na_invariants.
 From iris.prelude Require Import options.
 From melocoton.language Require Export weakestpre.
 From Autosubst Require Export Autosubst.
 Import uPred.
 
-Definition logN : namespace := nroot .@ "logN".
-
 (** interp : is a unary logical relation. *)
+
+Class logrel_na_invs Σ := {
+  logrel_na_invG :> na_invG Σ;
+  logrel_nais : na_inv_pool_name;
+}.
+
+Notation na_tok := (na_own logrel_nais ⊤).
+
 Section logrel.
-  Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
+  Context `{!heapGS_ML Σ, !invGS_gen hlc Σ, !logrel_na_invs Σ}.
   Notation D := (persistent_predO val (iPropI Σ)).
   Implicit Types τi : D.
   Implicit Types Δ : listO D.
   Implicit Types interp : listO D -n> D.
 
   Local Arguments ofe_car !_.
-
 
   Context (T : prog_environ ML_lang Σ).
   Notation "'WP' e {{ Φ } }" := (wp T ⊤ e%E Φ)
@@ -57,14 +62,15 @@ Section logrel.
   Program Definition interp_arrow
       (interp1 interp2 : listO D -n> D) : listO D -n> D :=
     λne Δ,
-    PersPred (λ w, □ ∀ v, interp1 Δ v →
-                        WP App (of_val w) (of_val v) {{ interp2 Δ }})%I.
+    PersPred (λ w, □ ∀ v, interp1 Δ v → na_tok -∗
+                        WP App (of_val w) (of_val v) {{ λ v, interp2 Δ v ∗ na_tok }})%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
   Program Definition interp_forall
       (interp : listO D -n> D) : listO D -n> D :=
     λne Δ,
-    PersPred (λ w, □ ∀ τi : D, WP TApp (of_val w) {{ interp (τi :: Δ) }})%I.
+    PersPred (λ w, □ ∀ τi : D,
+      na_tok -∗ WP TApp (of_val w) {{ λ v, interp (τi :: Δ) v ∗ na_tok }})%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
   Program Definition interp_exist (interp : listO D -n> D) : listO D -n> D :=
@@ -89,14 +95,14 @@ Section logrel.
     intros interp n Δ1 Δ2 HΔ; apply fixpoint_ne => τi w. solve_proper.
   Qed.
 
-  Program Definition interp_ref_inv (l : loc) : D -n> iPropO Σ := λne τi,
-    (∃ v, l ↦M v ∗ τi v)%I.
+  Program Definition interp_array_inv (l : loc) : D -n> iPropO Σ := λne τi,
+    (∃ vs, l ↦∗ vs ∗ [∗ list] v∈vs, τi v)%I.
   Solve Obligations with solve_proper.
 
-  Program Definition interp_ref (interp : listO D -n> D) : listO D -n> D :=
+  Program Definition interp_array (interp : listO D -n> D) : listO D -n> D :=
     λne Δ,
     PersPred (λ w, ∃ (l:loc), ⌜w = # l⌝ ∧
-                      inv (logN .@ l) (interp_ref_inv l (interp Δ)))%I.
+                      na_inv logrel_nais (nroot .@ l) (interp_array_inv l (interp Δ)))%I.
   Solve Obligations with solve_proper.
 
   Fixpoint interp (τ : type) : listO D -n> D :=
@@ -111,7 +117,7 @@ Section logrel.
     | TForall τ' => interp_forall (interp τ')
     | TExist τ' => interp_exist (interp τ')
     | TRec τ' => interp_rec (interp τ')
-    | Tref τ' => interp_ref (interp τ')
+    | TArray τ' => interp_array (interp τ')
     end.
   Notation "⟦ τ ⟧" := (interp τ).
 
@@ -128,7 +134,7 @@ Section logrel.
      functions to be well-typed. *)
   Definition program_spec_satisfied
     (Tshould : program_specification) : iProp Σ := 
-    □ ∀ s vv Φ, Tshould s vv Φ -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v}}.
+    □ ∀ s vv Φ, Tshould s vv Φ -∗ na_tok -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v ∗ na_tok}}.
 
   Definition interp_prog_env (p_types : gmap string program_type) (Δ : listO D) : iProp Σ :=
     ([∗ map] s↦τ ∈ p_types, program_spec_satisfied (interp_prog_type Δ s τ))%I.
@@ -140,7 +146,7 @@ Section logrel.
   Proof. eapply big_sepM_persistent. intros k x; apply prog_spec_sat_pers. Qed.
 
   Definition interp_expr (τ : type) (Δ : listO D) (e : expr ML_lang) : iProp Σ :=
-    WP e {{ ⟦ τ ⟧ Δ }}%I.
+    na_tok -∗ WP e {{ λ v, ⟦ τ ⟧ Δ v ∗ na_tok }}%I.
 
   Global Instance interp_env_base_persistent Δ Γ vs :
   TCForall Persistent (zip_with (λ τ, ⟦ τ ⟧ Δ) Γ vs).

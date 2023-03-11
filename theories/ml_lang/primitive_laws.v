@@ -238,7 +238,7 @@ Lemma wp_allocN pe E v n :
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "(Hσ & Hdom)". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
-  iIntros (v2 σ2 Hstep). inv_head_step. iModIntro.
+  iIntros (v2 σ2 Hstep). inv_head_step; last lia. iModIntro.
   iMod (gen_heap_alloc _ l (Some (replicate (Z.to_nat n) v)) with "Hσ") as "(Hσ & Hl & Hm)".
   { by apply not_elem_of_dom. }
   iMod (dom_auth_extend with "Hdom []") as "Hdom"; last first.
@@ -256,6 +256,22 @@ Proof.
   iIntros (HΦ) "_ HΦ". by iApply wp_allocN.
 Qed.
 
+Lemma wp_allocN_wrong_size pe E v n :
+  (n < 0)%Z →
+  {{{ True }}} AllocN (Val $ LitV $ LitInt n) (Val v) @ pe; E
+  {{{ RET v; False }}}.
+Proof.
+  iIntros (Hn Φ) "_ HΦ". iLöb as "IH".
+  iApply wp_lift_step_fupd; first done.
+  iIntros (σ1) "Hσ !>". iSplit.
+  { iPureIntro. eapply head_prim_reducible. eexists _, _.
+    by eapply AllocNWrongSizeS. }
+  iIntros (v2 σ2 Hstep).
+  eapply head_reducible_prim_step in Hstep; first (inv_head_step; first lia).
+  2: { eexists _, _. by eapply AllocNWrongSizeS. }
+  do 4 iModIntro. iFrame. by iApply "IH".
+Qed.
+
 Lemma wp_loadN pe E l i dq vs v :
   (0 ≤ i)%Z →
   vs !! Z.to_nat i = Some v →
@@ -271,10 +287,10 @@ Proof.
   by iApply "HΦ".
 Qed.
 
-Lemma wp_loadN_oob pe E l i dq vs v :
+Lemma wp_loadN_oob pe E l i dq vs :
   (i < 0 ∨ length vs ≤ i)%Z →
   {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) @ pe; E
-  {{{ RET v; False }}}.
+  {{{ v, RET v; False }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
@@ -314,10 +330,10 @@ Proof.
   iApply dom_auth_dom; last done. rewrite dom_insert_L. eapply elem_of_dom_2 in H; set_solver.
 Qed.
 
-Lemma wp_storeN_oob pe E l i vs v w :
+Lemma wp_storeN_oob pe E l i vs w :
   (i < 0 ∨ length vs ≤ i)%Z →
   {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) @ pe; E
-  {{{ RET v; False }}}.
+  {{{ v, RET v; False }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
