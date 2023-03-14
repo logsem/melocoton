@@ -7,7 +7,7 @@ From melocoton.lang_to_mlang Require Import lang.
 From iris.proofmode Require Import proofmode.
 
 Section ToMlang_logic.
-Context {hlc : has_lc}.
+Context `{SI:indexT}.
 Context {Σ : gFunctors}.
 Context {val : Type}.
 Context (Λ: language val).
@@ -25,7 +25,7 @@ Global Program Instance lang_to_mlang_mlangG :
 }.
 
 Global Program Instance lang_to_mlang_linkableG :
-  (@linkableG _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
+  (@linkableG _ _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
 := {
   private_state_interp := (λ _, True)%I;
 }. 

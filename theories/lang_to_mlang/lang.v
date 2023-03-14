@@ -3,6 +3,7 @@ From stdpp Require Import strings gmap.
 From melocoton.mlanguage Require Import mlanguage.
 (* From melocoton.interop Require Import linking. *)
 From melocoton.language Require Import language.
+From iris.algebra Require Import stepindex.
 
 Section ToMlang.
   Context {val : Type}.
@@ -69,7 +70,7 @@ Section ToMlang.
   Inductive lang_to_mlang_split_state : Λ.(state) → Λ.(state) → unit → Prop :=
     split_state_refl σ : lang_to_mlang_split_state σ σ ().
 
-  Global Program Instance lang_to_mlang_linkable : linkable lang_to_mlang Λ.(state) := {
+  Global Program Instance lang_to_mlang_linkable `{SI:indexT} : linkable lang_to_mlang Λ.(state) := {
     linking.private_state := unit;
     linking.split_state := lang_to_mlang_split_state;
   }.

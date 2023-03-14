@@ -11,15 +11,15 @@ From iris.proofmode Require Import proofmode.
 Inductive link_state_case :=
   Boundary | In1 | In2.
 
-Canonical Structure link_state_caseO := leibnizO link_state_case.
+Canonical Structure link_state_caseO `{SI: indexT} := leibnizO link_state_case.
 
-Class linkG Σ := LinkG {
+Class linkG `{SI: indexT} Σ := LinkG {
   linkG_inG :> inG Σ (excl_authR (leibnizO link_state_case));
   linkG_γ : gname;
 }.
 
 Section Linking_logic.
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
 Context {val pubstate : Type}.
 Context (Λ1 Λ2 : mlanguage val).
@@ -403,7 +403,7 @@ Proof using.
 
       { (* call to a function of pe2 *)
         assert (penv_prog pe !! f = Some (inr fn2)) as Hpef.
-        { rewrite is_link_prog lookup_union_r lookup_fmap. by rewrite Hf2. by rewrite Hf. }
+        { rewrite is_link_prog lookup_union_r lookup_fmap; first by rewrite Hf2. by rewrite Hf. }
 
         (* administrative step CallS: Link.ExprCall ~> LinkRunFunction *)
         iApply wp_link_call; first done.
@@ -491,7 +491,7 @@ Proof using.
 
       { (* call to a function of pe1 *)
         assert (penv_prog pe !! f = Some (inl fn1)) as Hpef.
-        { rewrite is_link_prog lookup_union_l lookup_fmap. by rewrite Hf1. by rewrite Hf. }
+        { rewrite is_link_prog lookup_union_l lookup_fmap; first by rewrite Hf1. by rewrite Hf. }
 
         (* administrative step CallS: Link.ExprCall ~> LinkRunFunction *)
         iApply wp_link_call; first done.
