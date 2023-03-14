@@ -16,7 +16,7 @@ Import Wrap.
 
 Section BoundaryLaws.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.
@@ -36,7 +36,7 @@ Proof using.
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
   iAssert (⌜is_val χvirt (ζσ ∪ ζvirt) v lv⌝)%I as "%Hval".
-  by iApply (block_sim_auth_is_val with "GCχvirt GCζvirt Hblk").
+  1: by iApply (block_sim_auth_is_val with "GCχvirt GCζvirt Hblk").
   iAssert (⌜∀ k lv, roots_m !! k = Some lv →
             ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
   1: { iIntros (kk vv Hroots).

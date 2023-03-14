@@ -7,7 +7,7 @@ From melocoton.interop Require Import basics_resources gctoken prims.
 
 Section PrimsProto.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.

@@ -7,7 +7,7 @@ From melocoton Require Import named_props.
 From melocoton.ml_lang Require Import lang.
 From melocoton.interop Require Export basics.
 
-Class wrapperBasicsG Σ := WrapperBasicsG {
+Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
   wrapperG_lstoreG :> ghost_mapG Σ lloc block;
   wrapperG_addr_lvalG :> ghost_mapG Σ addr lval;
   wrapperG_lloc_mapG :> ghost_mapG Σ lloc lloc_visibility;
@@ -17,6 +17,7 @@ Class wrapperBasicsG Σ := WrapperBasicsG {
 }.
 
 Section BasicsResources.
+Context `{SI: indexT}.
 Context `{!wrapperBasicsG Σ}.
 
 (* Ghost state for [lloc_map] *)

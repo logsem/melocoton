@@ -22,7 +22,7 @@ From melocoton.interop Require Import basics_resources.
    the wrapper WP and state interp.
  *)
 
-Class wrapperGCtokG Σ := WrapperGCtokG {
+Class wrapperGCtokG `{SI: indexT} Σ := WrapperGCtokG {
   wrapperG_basics :> wrapperBasicsG Σ;
   wrapperG_locsetG :> ghost_varG Σ (gsetUR loc);
   wrapperG_addrmapG :> ghost_varG Σ (leibnizO addr_map);
@@ -35,7 +35,7 @@ Class wrapperGCtokG Σ := WrapperGCtokG {
 }.
 
 Section GCtoken.
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!wrapperGCtokG Σ}.

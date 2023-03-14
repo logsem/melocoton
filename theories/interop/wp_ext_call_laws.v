@@ -16,7 +16,7 @@ Import Wrap.
 
 Section Laws.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.
@@ -127,7 +127,7 @@ Proof using.
   iPoseProof (big_sepM_insert) as "(_&HR)".
   1: eapply not_elem_of_dom; intros Hc; eapply Hdom; done.
   iPoseProof ("HR" with "[Hpto GCrootspto]") as "GCrootspto"; first iFrame "GCrootspto".
-  iExists w; iFrame; done.
+  1: iExists w; iFrame; done.
   iClear "HR".
   do 3 iModIntro. iFrame.
   iApply ("IH" with "[-Hb] Hb").
@@ -229,10 +229,10 @@ Proof using.
       apply lval_in_vblock, list_insert_lookup_inv in Hlloc as [HLL|HRR];
         simplify_map_eq.
       { inv_repr_lval. by eapply elem_of_dom_2. }
-      { eapply HGCR; eauto. rewrite lookup_union_r //.
-        eapply map_disjoint_Some_l; eauto. by constructor. } }
+      { eapply HGCR; eauto. 1: rewrite lookup_union_r //.
+        1: eapply map_disjoint_Some_l; eauto. by constructor. } }
   {  iApply lstore_own_vblock_mutable_as_mut; eauto. iFrame.
-     iSplit. inv_modify_block; simplify_map_eq. iFrame. eauto. }
+     iSplit. 1: inv_modify_block; simplify_map_eq. 1: iFrame. eauto. }
 Qed.
 
 Lemma wp_prim_readfield : prim_is_sound proto_readfield.

@@ -15,7 +15,7 @@ Import Wrap.
 
 (* Definition of the wrapper state interpretation and WP instance *)
 
-Class wrapperG Σ := WrapperG {
+Class wrapperG `{SI: indexT} Σ := WrapperG {
   wrapperG_GCtok :> wrapperGCtokG Σ;
   wrapperG_at_boundary :> ghost_varG Σ (leibnizO bool);
   wrapperG_γat_boundary : gname;
@@ -23,7 +23,7 @@ Class wrapperG Σ := WrapperG {
 
 Section WrapperWP.
 
-Context {hlc : has_lc}.
+Context `{SIdx: indexT}.
 Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.

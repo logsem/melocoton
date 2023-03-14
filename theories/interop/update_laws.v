@@ -9,7 +9,7 @@ From melocoton.interop Require Import basics basics_resources gctoken.
 
 Section UpdateLaws.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.
