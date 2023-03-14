@@ -1,8 +1,6 @@
 (* from https://github.com/amintimany/monotone *)
 From iris.algebra Require Export cmra auth.
 From transfinite.base_logic Require Import base_logic.
-From transfinite.stepindex Require Export ordinals existential_properties utils.
-Global Existing Instance ordI.
 Local Arguments validN _ _ _ !_ /.
 Local Arguments valid _ _  !_ /.
 Local Arguments op _ _ _ !_ /.
@@ -17,6 +15,7 @@ Definition principal {A : Type} (R : relation A) (a : A) :
 
 Section monotone.
 Local Set Default Proof Using "Type".
+Context `{SI: indexT}.
 Context {A : ofe} {R : relation A}.
 Implicit Types a b : A.
 Implicit Types x y : monotone R.
@@ -300,9 +299,9 @@ Qed.
 
 End monotone.
 
-Arguments monotoneC {_} _.
-Arguments monotoneR {_} _.
-Arguments monotoneUR {_} _.
+Arguments monotoneC {_ _} _.
+Arguments monotoneR {_ _} _.
+Arguments monotoneUR {_ _} _.
 
 
 (** Having an instance of this class for a relation R allows almost
