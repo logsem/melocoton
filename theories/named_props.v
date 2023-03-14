@@ -1,6 +1,6 @@
 (* vendored from https://github.com/tchajed/iris-named-props *)
 From iris.proofmode Require Import string_ident.
-From iris.proofmode Require Import tactics environments intro_patterns monpred.
+From iris.proofmode Require Import tactics environments intro_patterns (*monpred*).
 
 Set Default Proof Using "Type".
 
@@ -52,6 +52,7 @@ a coercion to the carrier of [PROP]. *)
 Definition named {A} (name: string) (P: A): A := P.
 
 Section named.
+  Context `{SI: indexT}.
   Context {PROP:bi}.
 
   Theorem to_named name (P: PROP) : P -∗ named name P.
@@ -133,22 +134,23 @@ Ltac iDeex :=
 
 (** [IsExistential] identifies propositions that should be destructed as
 existentials by [iDeex]. *)
-Class IsExistential {PROP:bi} (P: PROP) := is_existential {}.
-Global Arguments is_existential {PROP P} : assert.
-Global Instance is_existential_exist {PROP:bi} {A} (Φ: A → PROP) :
+Class IsExistential `{SI: indexT} {PROP:bi} (P: PROP) := is_existential {}.
+Global Arguments is_existential {SI PROP P} : assert.
+Global Instance is_existential_exist `{SI: indexT} {PROP:bi} {A} (Φ: A → PROP) :
   IsExistential (bi_exist Φ).
 Proof. Qed.
 
 (** [IsSplittable] identifies separating conjunction-like propositions that
 should be split by [iNamed] as it traverses a proposition for named conjuncts.
 *)
-Class IsSplittable {PROP:bi} (P: PROP) := is_splittable {}.
-Global Arguments IsSplittable {_} _%I : assert.
-Global Arguments is_splittable {PROP P} : assert.
-Global Instance is_splittable_sep {PROP:bi} (P Q: PROP) :
+Class IsSplittable `{SI: indexT} {PROP:bi} (P: PROP) := is_splittable {}.
+Global Arguments IsSplittable {_ _} _%I : assert.
+Global Arguments is_splittable {SI PROP P} : assert.
+Global Instance is_splittable_sep `{SI: indexT} {PROP:bi} (P Q: PROP) :
   IsSplittable (P ∗ Q).
 Proof. Qed.
 
+(*
 Lemma make_monPred_at_named {I : biIndex} {PROP : bi} name (i : I) (P : monPred I PROP) (𝓟 : PROP) :
   MakeMonPredAt i P 𝓟 →
   MakeMonPredAt i (named name P) (named name 𝓟).
@@ -158,6 +160,9 @@ Proof. done. Qed.
 step in the type class resolution since [named name P] unfolds to just [P].
 Instead we register a hint that only applies when the goal contains [named]. *)
 Global Hint Extern 0 (MakeMonPredAt _ (named _ _) _) => apply make_monPred_at_named : typeclass_instances.
+*)
+
+
 (** tc_is_inhabited succeeds if P is an inhabited typeclass and fails otherwise.
 *)
 Ltac tc_is_inhabited P :=
@@ -179,7 +184,7 @@ of the binder and repeats while the goal is an existential *)
 Ltac iDeexHyp H :=
   iDeex_one H; repeat iDeex_one H.
 
-Lemma tac_name_replace {PROP:bi} (i: ident) Δ p (P: PROP) Q name :
+Lemma tac_name_replace `{SI: indexT} {PROP:bi} (i: ident) Δ p (P: PROP) Q name :
   envs_lookup i Δ = Some (p, named name P) →
   match envs_simple_replace i p (Esnoc Enil (INamed name) P) Δ with
   | Some Δ' => envs_entails Δ' Q
@@ -199,7 +204,7 @@ Local Ltac iNameReplace i name :=
     end
   ].
 
-Lemma tac_name_intuitionistic {PROP:bi} Δ i i' p (P P' Q: PROP) name :
+Lemma tac_name_intuitionistic `{SI: indexT} {PROP:bi} Δ i i' p (P P' Q: PROP) name :
   envs_lookup i Δ = Some (p, named name P) →
   IntoPersistent p P P' →
   (if p then TCTrue else TCOr (Affine P) (Absorbing Q)) →
