@@ -379,7 +379,7 @@ End proofmode_classes.
 
 
 Class linkableG
-  {SI:indexT} {val pubstate} (Λ : mlanguage val)
+  `{SI:indexT} {val pubstate} (Λ : mlanguage val)
   `{!mlangG val Σ Λ, !linkable Λ pubstate}
   (public_state_interp : pubstate → iProp Σ)
 := LinkableG {

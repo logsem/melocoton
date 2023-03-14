@@ -69,7 +69,6 @@ Global Existing Instance wp'.
 Local Lemma wp_unseal `{SI:indexT, !langG val Λ Σ, !invG Σ} : wp = @wp_def SI val Λ Σ _ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
-
 Definition wp_func `{!indexT, !langG val Λ Σ, !invG Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
   match apply_func F vv with
     Some e' => |={E}=> ▷ |={E}=> wp' pe E e' Φ

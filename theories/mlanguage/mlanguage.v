@@ -184,11 +184,11 @@ Section mlanguage.
 End mlanguage.
 
 (* discrete OFE instance for expr *)
-Definition exprO `{indexT} {val} {Λ : mlanguage val} := leibnizO (expr Λ).
-Global Instance expr_equiv `{indexT} {val} {Λ : mlanguage val} : Equiv (expr Λ). apply exprO. Defined.
+Definition exprO `{SI: indexT} {val} {Λ : mlanguage val} := leibnizO (expr Λ).
+Global Instance expr_equiv `{SI: indexT} {val} {Λ : mlanguage val} : Equiv (expr Λ). apply exprO. Defined.
 
 
-Class linkable `{indexT} {val} (Λ : mlanguage val) (public_state : Type) := Linkable {
+Class linkable {val} (Λ : mlanguage val) (public_state : Type) := Linkable {
   private_state : Type;
   split_state : Λ.(state) → public_state → private_state → Prop
 }.
