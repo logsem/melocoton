@@ -1,5 +1,5 @@
 From iris.proofmode Require Import base proofmode classes.
-From iris.base_logic.lib Require Export fancy_updates.
+From transfinite.base_logic.lib Require Export fancy_updates.
 From melocoton.language Require Export language.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not
    get pretty-printed correctly. *)
@@ -7,21 +7,22 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-(* armael: the unbundling of [irisGS_gen] here and in mlanguage (a priori
+(* armael: the unbundling of [irisG_gen] here and in mlanguage (a priori
    required to ensure that the same instance is used across different languages)
    might produce large Coq terms and cause performance issues. If this happens
    we may need to revisit this design choice. *)
 
-Class langGS
+Class langG
+  {SI : indexT}
   (val : Type)
-  (Λ : language val) (Σ : gFunctors) := LangGS {
+  (Λ : language val) (Σ : gFunctors) := LangG {
   (** The state interpretation is an invariant that should hold in
       between each step of reduction. *)
   state_interp : state Λ → iProp Σ;
 }.
-Global Arguments LangGS {val Λ Σ}.
+Global Arguments LangG {SI val Λ Σ}.
 
-Definition wp_pre `{!langGS val Λ Σ, !invGS_gen hlc Σ}
+Definition wp_pre `{!indexT, !langG val Λ Σ, !invG Σ}
     (p:mixin_prog Λ.(func))
     (T: string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
     (wp : coPset -d>
@@ -41,34 +42,34 @@ Definition wp_pre `{!langGS val Λ Σ, !invGS_gen hlc Σ}
            ∀ σ' e', ⌜prim_step p e σ e' σ'⌝ -∗  |={E}=> ▷ |={E}=>
                     (state_interp σ' ∗ wp E e' Φ)))))%I.
 
-Local Instance wp_pre_contractive `{!langGS val Λ Σ, !invGS_gen hlc Σ}
+Local Instance wp_pre_contractive `{!indexT, !langG val Λ Σ, !invG Σ}
      {p:mixin_prog Λ.(func)} T : Contractive (wp_pre p T).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
 
-Definition program_specification `{!langGS val Λ Σ, !invGS_gen hlc Σ} :=
+Definition program_specification `{!indexT, !langG val Λ Σ, !invG Σ} :=
   string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Record prog_environ {val} (Λ : language val) Σ := {
+Record prog_environ `{indexT} {val} (Λ : language val) Σ := {
   penv_prog : gmap string Λ.(func);
   penv_proto : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ;
 }.
-Global Arguments penv_prog {_ _ _} _.
-Global Arguments penv_proto {_ _ _} _.
+Global Arguments penv_prog {_ _ _ _} _.
+Global Arguments penv_proto {_ _ _ _} _.
 
-Local Definition wp_def `{!langGS val Λ Σ, !invGS_gen hlc Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ Σ) :=
+Local Definition wp_def `{SI:indexT, !langG val Λ Σ, !invG Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ Σ) :=
   λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {val Λ Σ _ hlc _}.
+Global Arguments wp' {SI val Λ Σ _ _}.
 Global Existing Instance wp'.
 
-Local Lemma wp_unseal `{!langGS val Λ Σ, !invGS_gen hlc Σ} : wp = @wp_def val Λ Σ _ hlc _.
+Local Lemma wp_unseal `{SI:indexT, !langG val Λ Σ, !invG Σ} : wp = @wp_def SI val Λ Σ _ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
-Definition wp_func `{!langGS val Λ Σ, !invGS_gen hlc Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
+Definition wp_func `{!indexT, !langG val Λ Σ, !invG Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
   match apply_func F vv with
     Some e' => |={E}=> ▷ |={E}=> wp' pe E e' Φ
   | None => ⌜False⌝%I end.
@@ -80,7 +81,7 @@ Notation "'WPFun' F 'with' args @ s ; E {{ v , Q } }" := (wp_func F args%V s E (
    format "'[hv' 'WPFun'  F  'with'  args  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
 
-Definition wp_for_call `{!langGS val Λ Σ, !invGS_gen hlc Σ} (F:string) (vv : list val) pe E Φ : iProp Σ :=
+Definition wp_for_call `{!indexT, !langG val Λ Σ, !invG Σ} (F:string) (vv : list val) pe E Φ : iProp Σ :=
   match penv_prog pe !! F with
   | Some F => wp_func F vv pe E Φ
   | None => ⌜False⌝%I end.
@@ -93,7 +94,7 @@ Notation "'WPCall' F 'with' args @ s ; E {{ v , Q } }" := (wp_for_call F args%V 
 
 
 Section wp.
-Context `{!langGS val Λ Σ, !invGS_gen hlc Σ}.
+Context `{SI:indexT, !langG val Λ Σ, !invG Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -109,14 +110,15 @@ Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre pe.(penv_prog) pe.(penv
 Global Instance wp_ne pe E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) pe E e).
 Proof.
-  revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
+  revert e. induction (index_lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
   do 13 f_equiv. 1: do 6 f_equiv.
   all: f_contractive.
   all: f_equiv.
   all: f_equiv.
   1: f_equiv.
-  all: apply IH; eauto; intros k; eapply dist_le', HΦ; lia.
+  all: apply IH; eauto; intros k; eapply dist_le', HΦ; eauto.
+  all: by eapply index_lt_le_subrel.
 Qed.
 Global Instance wp_proper pe E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) pe E e).
@@ -517,7 +519,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!langGS val Λ Σ, !invGS_gen hlc Σ}.
+  Context `{!indexT, !langG val Λ Σ, !invG Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.

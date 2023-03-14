@@ -26,40 +26,34 @@ Section mlanguage_mixin.
 
     (** Reduction behavior of the special classes of expressions *)
     (** mixin_val_prim_step is not an iff because the backward direction is trivial *)
-    mixin_val_prim_step p v σ X :
-      prim_step p (of_val v, σ) X → False;
+    mixin_val_prim_step p v σ :
+      prim_step p (of_val v, σ) (λ _, False);
     mixin_call_prim_step p e f vs C σ X :
       is_call e f vs C →
         prim_step p (e, σ) X ↔
-        (∀ (fn : func) (e2 : expr),
-          p !! f = Some fn → Some e2 = apply_func fn vs → X (resume_with C e2, σ));
+        (∃ (fn : func) (e2 : expr),
+          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (resume_with C e2, σ));
 
     mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
     mixin_is_call_in_cont e C1 C2 s vv :
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2);
-    mixin_is_call_in_cont_inv e C1 C2 s vv :
-      to_val e = None → is_call (resume_with C1 e) s vv C2 →
-      ∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C';
 
     mixin_resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e);
     mixin_resume_compose e C1 C2 :
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e;
 
-    mixin_is_call_unique e s1 s2 f1 f2 C1 C2 :
-      is_call e s1 f1 C1 →
-      is_call e s2 f2 C2 →
-      s1 = s2 ∧ f1 = f2 ∧ C1 = C2;
-
     mixin_prim_step_resume p C e σ X :
       to_val e = None →
-      prim_step p (resume_with C e, σ) X →
-      prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2));
+      prim_step p (e, σ) X →
+      prim_step p (resume_with C e, σ) (λ '(e2, σ2),
+        ∃ e', e2 = resume_with C e' ∧ X (e', σ2));
 
     (* Just a meta-theorem to ensure that there are no cases left to cover.
        Not used in proofs. *)
-    mixin_prim_step_total p e σ :
+    mixin_prim_step_no_NB p e σ X :
       to_val e = None →
-      prim_step p (e, σ) (λ _, True)
+      prim_step p (e, σ) X →
+      ∃ e' σ', X (e', σ');
   }.
 End mlanguage_mixin.
 
@@ -123,14 +117,14 @@ Section mlanguage.
     intros H. enough (Some k1 = Some k2) by congruence.
     rewrite <- !to_of_val. rewrite H. done.
   Qed.
-  Lemma val_prim_step p v σ X :
-    prim_step p (of_val Λ v, σ) X → False.
+  Lemma val_prim_step p v σ :
+    prim_step p (of_val Λ v, σ) (λ _, False).
   Proof. apply mlanguage_mixin. Qed.
   Lemma call_prim_step p e f vs C σ X :
       is_call e f vs C →
         prim_step p (e, σ) X ↔
-        (∀ (fn : func Λ) e2,
-          p !! f = Some fn → Some e2 = apply_func fn vs → X (resume_with C e2, σ)).
+        (∃ (fn : func Λ) e2,
+          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (resume_with C e2, σ)).
   Proof. apply mlanguage_mixin. Qed.
 
   Definition not_is_call e : Prop := ¬ ∃ f vs K, is_call e f vs K.
@@ -150,32 +144,6 @@ Section mlanguage.
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2).
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma is_call_in_cont_inv e C1 C2 s vv :
-      to_val e = None → is_call (resume_with C1 e) s vv C2 →
-      ∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C'.
-  Proof. apply mlanguage_mixin. Qed.
-
-  Lemma is_call_in_cont_iff e C1 C2 s vv :
-    (∃ C', is_call e s vv C' ∧ C2 = compose_cont C1 C') ↔ (is_call (resume_with C1 e) s vv C2 ∧ to_val e = None).
-  Proof.
-    split.
-    - intros (C' & Hcall & ->); split. 2: by eapply is_val_not_call_2.
-      by eapply is_call_in_cont.
-    - intros [H1 H2]; eapply is_call_in_cont_inv; done.
-  Qed.
-
-  Lemma is_not_call_resume_with e C : to_val e = None → not_is_call e → not_is_call (resume_with C e).
-  Proof.
-    intros Hnv H (f&vs&K&Hc). destruct (is_call_in_cont_inv _ _ _ _ _ Hnv Hc) as (C'&HH&->).
-    eapply H; by do 3 eexists.
-  Qed.
-
-  Lemma is_not_ext_call_resume_with p e C : to_val e = None → not_is_ext_call p e → not_is_ext_call p (resume_with C e).
-  Proof.
-    intros Hnv H (f&vs&K&Hc&Hp). destruct (is_call_in_cont_inv _ _ _ _ _ Hnv Hc) as (C'&HH&->).
-    eapply H; by do 3 eexists.
-  Qed.
-
   Lemma resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e).
   Proof. apply mlanguage_mixin. Qed.
 
@@ -190,26 +158,15 @@ Section mlanguage.
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e.
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma is_call_unique e s1 s2 f1 f2 C1 C2 :
-      is_call e s1 f1 C1 →
-      is_call e s2 f2 C2 →
-      s1 = s2 ∧ f1 = f2 ∧ C1 = C2.
-  Proof. apply mlanguage_mixin. Qed.
-
-  Lemma is_call_not_ext p e f vs C F : p !! f = Some F → is_call e f vs C → not_is_ext_call p e.
-  Proof.
-    intros H Hc (f'&vs'&C'&Hc2&H').
-    destruct (is_call_unique _ _ _ _ _ _ _ Hc Hc2) as (->&->&->); congruence.
-  Qed.
-
   Lemma prim_step_resume p C e σ X :
-      to_val e = None →
-      prim_step p (resume_with C e, σ) X →
-      prim_step p (e, σ) (λ '(e2, σ2), X (resume_with C e2, σ2)).
+    to_val e = None →
+    prim_step p (e, σ) X →
+    prim_step p (resume_with C e, σ) (λ '(e2, σ2),
+      ∃ e', e2 = resume_with C e' ∧ X (e', σ2)).
   Proof. apply mlanguage_mixin. Qed.
 
   (* There is no NB *)
-  Lemma prim_step_is_total p e σ : to_val e = None → prim_step p (e,σ) (λ _, True).
+  Lemma prim_step_no_NB p e σ X : to_val e = None → prim_step p (e,σ) X → ∃ e' σ', X (e', σ').
   Proof. apply mlanguage_mixin. Qed.
 
   Class IntoVal (e : expr Λ) (v : val) :=
@@ -227,8 +184,8 @@ Section mlanguage.
 End mlanguage.
 
 (* discrete OFE instance for expr *)
-Definition exprO {val} {Λ : mlanguage val} := leibnizO (expr Λ).
-Global Instance expr_equiv {val} {Λ : mlanguage val} : Equiv (expr Λ). apply exprO. Defined.
+Definition exprO `{SI: indexT} {val} {Λ : mlanguage val} := leibnizO (expr Λ).
+Global Instance expr_equiv `{SI: indexT} {val} {Λ : mlanguage val} : Equiv (expr Λ). apply exprO. Defined.
 
 
 Class linkable {val} (Λ : mlanguage val) (public_state : Type) := Linkable {

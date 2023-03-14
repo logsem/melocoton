@@ -5,7 +5,7 @@ From melocoton.ml_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 
-Lemma tac_wp_expr_eval `{!heapGS_ML Σ, !invGS_gen hlc Σ} Δ s E Φ e e' :
+Lemma tac_wp_expr_eval `{!heapG_ML Σ, !invG Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
@@ -35,7 +35,7 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
   end.
 Ltac wp_expr_simpl := wp_expr_eval solve_lookup_fixed.
 
-Lemma tac_wp_pure `{!heapGS_ML Σ, !invGS_gen hlc Σ} Δ Δ' s E K e1 e2 φ n Φ :
+Lemma tac_wp_pure `{!heapG_ML Σ, !invG Σ} Δ Δ' s E K e1 e2 φ n Φ :
   PureExec φ n (penv_prog s) e1 e2 →
   φ →
   MaybeIntoLaterNEnvs n Δ Δ' →
@@ -49,11 +49,11 @@ Lemma tac_wp_pure `{!heapGS_ML Σ, !invGS_gen hlc Σ} Δ Δ' s E K e1 e2 φ n Φ
  Qed.
 
 
-Lemma tac_wp_value_nofupd `{!heapGS_ML Σ, !invGS_gen hlc Σ} Δ s E Φ v :
+Lemma tac_wp_value_nofupd `{!heapG_ML Σ, !invG Σ} Δ s E Φ v :
   envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by apply wp_value. Qed.
 
-Lemma tac_wp_value `{!heapGS_ML Σ, !invGS_gen hlc Σ} Δ s E (Φ : val → iPropI Σ) v :
+Lemma tac_wp_value `{!heapG_ML Σ, !invG Σ} Δ s E (Φ : val → iPropI Σ) v :
   envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 
@@ -98,10 +98,10 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
     reshape_expr e ltac:(fun K e' =>
       unify e' efoc;
       eapply (tac_wp_pure _ _ _ _ K e');
-      [iSolveTC                       (* PureExec *)
+      [tc_solve                       (* PureExec *)
       |try solve_vals_compare_safe; try eauto (* The pure condition for PureExec --
             handles trivial goals, including [vals_compare_safe] *)
-      |iSolveTC                       (* IntoLaters *)
+      |tc_solve                       (* IntoLaters *)
       |wp_finish                      (* new goal *)
       ])
     || fail "wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
@@ -146,7 +146,7 @@ Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
 
 
-Lemma tac_wp_call `{!heapGS_ML Σ, !invGS_gen hlc Σ} Δ s E Φ fn vv e1 :
+Lemma tac_wp_call `{!heapG_ML Σ, !invG Σ} Δ s E Φ fn vv e1 :
   (e1 = of_class _ (ExprCall fn vv)) →
   envs_entails Δ (WPCall fn with vv @ s; E {{ Φ }}) →
   envs_entails Δ (WP e1 @ s; E {{ Φ }}).
@@ -183,7 +183,7 @@ Tactic Notation "wp_extern" :=
 
 
 
-Lemma tac_wp_bind `{!heapGS_ML Σ, !invGS_gen hlc Σ} K Δ s E Φ e f :
+Lemma tac_wp_bind `{!heapG_ML Σ, !invG Σ} K Δ s E Φ e f :
   f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
   envs_entails Δ (WP e @ s; E {{ v, WP f (Val v) @ s; E {{ Φ }} }})%I →
   envs_entails Δ (WP fill K e @ s; E {{ Φ }}).
@@ -209,7 +209,7 @@ Tactic Notation "wp_bind" open_constr(efoc) :=
 
 (** Heap tactics *)
 Section heap.
-Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
+Context `{!heapG_ML Σ, !invG Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types Δ : envs (uPredI (iResUR Σ)).
@@ -388,14 +388,14 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloc _ _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
-        [iSolveTC
+        [tc_solve
         |finish ()]
     in
     let process_array _ :=
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_wp_allocN _ _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'AllocN' in" e];
-        [idtac|iSolveTC
+        [idtac|tc_solve
          |finish ()]
     in (process_single ()) || (process_array ())
   | _ => fail "wp_alloc: not a 'wp'"
@@ -418,7 +418,7 @@ Tactic Notation "wp_load" :=
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load _ _ _ _ _ K))
         |fail 1 "wp_load: cannot find 'Load' in" e];
-      [iSolveTC
+      [tc_solve
       |solve_mapsto_single ()
       |wp_finish]
     in
@@ -426,7 +426,7 @@ Tactic Notation "wp_load" :=
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_loadN _ _ _ _ _ K))
         |fail 1 "wp_load: cannot find 'LoadN' in" e];
-      [iSolveTC
+      [tc_solve
       | |
       | solve_mapsto_array ()
       |wp_finish]
@@ -449,7 +449,7 @@ Tactic Notation "wp_store" :=
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_store _ _ _ _ _ K))
         |fail 1 "wp_store: cannot find 'Store' in" e];
-      [iSolveTC
+      [tc_solve
       |solve_mapsto_single ()
       |pm_reduce; first [wp_seq|wp_finish]]
     in
@@ -457,7 +457,7 @@ Tactic Notation "wp_store" :=
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_storeN _ _ _ _ _ K))
         | fail 1 "wp_store: cannot find 'StoreN' in" e];
-      [iSolveTC
+      [tc_solve
       |solve_mapsto_array ()
       |
       |pm_reduce; first [wp_seq|wp_finish]]
@@ -475,7 +475,7 @@ Tactic Notation "wp_length" :=
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_length _ _ _ _ _ K))
       |fail 1 "wp_load: cannot find 'Length' in" e];
-    [iSolveTC
+    [tc_solve
     |solve_mapsto ()
     |wp_finish]
   | _ => fail "wp_length: not a 'wp'"

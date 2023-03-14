@@ -1,5 +1,5 @@
 From stdpp Require Import relations strings gmap.
-From iris.base_logic.lib Require Import own.
+From transfinite.base_logic.lib Require Import own.
 From iris.algebra Require Import ofe.
 From iris.algebra Require Import auth excl excl_auth gmap.
 From iris.proofmode Require Import tactics.
@@ -26,7 +26,7 @@ Proof.
 Qed.
 
 Ltac exploit_gmap_inj :=
-  repeat match goal with
+  progress repeat match goal with
   | Hinj : gmap_inj ?m,
     H1 : ?m !! _ = Some ?v,
     H2 : ?m !! _ = Some ?v |- _ =>
@@ -107,14 +107,15 @@ Section language_commons.
   | ExprCall (fn_name : string) (arg : list val) : mixin_expr_class.
 End language_commons.
 
-Lemma excl_auth_eq A `{inG Σ (excl_authR (leibnizO A))} γ (x y: A):
+Lemma excl_auth_eq A `{indexT} `{inG Σ (excl_authR (leibnizO A))} γ (x y: A):
   own γ (◯E (x:leibnizO A)) -∗ own γ (●E (y:leibnizO A)) -∗ ⌜x = y⌝.
 Proof.
   iIntros "H1 H2". iDestruct (own_op with "[$H1 $H2]") as "H".
   iDestruct (own_valid with "H") as %HH%excl_auth_agree. done.
 Qed.
 
-Lemma excl_auth_upd `{!inG Σ (excl_authR (leibnizO A))} γ (x y z: A):
+
+Lemma excl_auth_upd `{indexT} `{!inG Σ (excl_authR (leibnizO A))} γ (x y z: A):
   own γ (◯E (x:leibnizO A)) -∗ own γ (●E (y:leibnizO A)) ==∗
   own γ (◯E (z:leibnizO A)) ∗ own γ (●E (z:leibnizO A)).
 Proof.
@@ -123,7 +124,7 @@ Proof.
   1: by apply excl_auth_update. iModIntro. iFrame.
 Qed.
 
-Lemma excl_auth_alloc A `{inG Σ (excl_authR (leibnizO A))} (x: A):
+Lemma excl_auth_alloc A `{indexT} `{inG Σ (excl_authR (leibnizO A))} (x: A):
   ⊢ |==> ∃ γ, own γ (◯E (x:leibnizO A)) ∗ own γ (●E (x:leibnizO A)).
 Proof.
   iIntros.

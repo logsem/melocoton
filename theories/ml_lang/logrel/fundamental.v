@@ -5,13 +5,14 @@ From melocoton.ml_lang.logrel Require Export logrel typing.
 From Autosubst Require Export Autosubst.
 From iris.prelude Require Import options.
 
-Definition log_typed `{!heapGS_ML Σ, !invGS_gen hlc Σ, !logrel_na_invs Σ} {p:prog_environ ML_lang Σ} (P : program_env) (Γ : gmap string type) (e : expr) (τ : type) : iProp Σ :=
+
+Definition log_typed `{!heapG_ML Σ, !invG Σ, !logrel_na_invs Σ} {p:prog_environ ML_lang Σ} (P : program_env) (Γ : gmap string type) (e : expr) (τ : type) : iProp Σ :=
   □ ∀ Δ vs, ⟦ Γ ⟧* p Δ vs -∗ ⟦ P ⟧ₚ* p Δ -∗ ⟦ τ ⟧ₑ p Δ (env_subst vs e).
 Notation "P  ;;  Γ  ⊨  e  :  τ" := (log_typed P Γ e τ) (at level 74, Γ, e, τ at next level).
 
 
 Section typed_interp.
-  Context `{!heapGS_ML Σ, !invGS_gen hlc Σ, !logrel_na_invs Σ}.
+  Context `{!heapG_ML Σ, !invG Σ, !logrel_na_invs Σ}.
   Context {p:prog_environ ML_lang Σ}.
   Notation D := (persistent_predO val (iPropI Σ)).
 

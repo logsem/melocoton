@@ -15,7 +15,8 @@ From iris.prelude Require Import options.
 lead to overlapping instances. *)
 
 Section lifting.
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
+Context {SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ}.
 Context {p:program}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.

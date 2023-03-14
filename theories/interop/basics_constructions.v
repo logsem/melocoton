@@ -312,7 +312,7 @@ Proof.
     assert (dom (<[γ:=lvs]> ζσ ∪ ζi0) ⊆ dom χ1) as Hsub3.
     { rewrite dom_union_L. eapply union_subseteq. split.
       * rewrite dom_insert_L. apply union_subseteq. split.
-        eapply singleton_subseteq_l; first by eapply elem_of_dom_2.
+        1: eapply singleton_subseteq_l; first by eapply elem_of_dom_2.
         eapply elem_of_subseteq; intros k Hk.
         destruct Hstbl as (HH1&HH2). apply HH2 in Hk. destruct Hk as (?&?&H1&H2).
         eapply elem_of_dom_2. eapply lookup_weaken; first apply H1.
@@ -404,8 +404,9 @@ Proof.
   - intros ℓ vs γ b He1 He2 He3.
     eapply is_heap_elt_weaken. 1: eapply HA3; try done. 2: done.
     + rewrite <- map_union_assoc in He3. eapply lookup_union_Some in He3; destruct He3; try done.
-      destruct (HA2) as [HL HR]. destruct (HR γ) as [HRL HRR]. eapply elem_of_dom in HRR. destruct HRR as [vv Hvv].
+      destruct (HA2) as [HL HR]. destruct (HR γ) as [HRL HRR]. eapply elem_of_dom in HRR.
       2: do 2 eexists; done.
+      destruct HRR as [vv Hvv].
       exfalso. erewrite map_disjoint_Some_r in H; try congruence. 1: done.
       erewrite lookup_union_Some_l; last done; first done.
     + erewrite <- map_union_assoc. eapply map_union_subseteq_r. done.
@@ -511,3 +512,50 @@ Proof.
 Qed.
 
 End ThetaConstruction.
+
+Lemma find_repr_lval_vv θ v :
+   (forall γ, Lloc γ = v → γ ∈ dom θ)
+ → exists l, repr_lval θ v l.
+Proof.
+  intros H. destruct v as [z|a].
+  - eexists; by econstructor.
+  - destruct (θ !! a) as [va|] eqn:Heq.
+    2: eapply not_elem_of_dom in Heq; exfalso; apply Heq; apply H; done.
+    eexists; econstructor; apply Heq.
+Qed.
+
+Lemma find_repr_lval_vs θ vs :
+   (forall γ, Lloc γ ∈ vs → γ ∈ dom θ)
+ → exists ls, Forall2 (repr_lval θ) vs ls.
+Proof.
+  intros H; induction vs as [|v vs IH] in H|-*.
+  - exists nil. econstructor.
+  - destruct IH as [ls IH]; first (intros γ Hγ; eapply H; right; done).
+    destruct (find_repr_lval_vv θ v) as [l Hl].
+    1: intros γ <-; apply H; by left.
+    eexists. econstructor; done.
+Qed.
+
+Lemma find_repr_roots θ roots privmem :
+   roots_are_live θ roots
+ → dom privmem ## dom roots
+ → exists mem, repr θ roots privmem mem.
+Proof.
+  revert privmem. unfold repr.
+  induction roots as [|l a roots_m Hin IH] using map_ind; intros privmem Hlive Hdisj.
+  - exists privmem, ∅. split_and!.
+    + econstructor.
+    + eapply map_disjoint_empty_r.
+    + by rewrite map_empty_union.
+  - destruct (IH privmem) as (mem1 & memr1 & Hrepr1 & Hdisj1 & Heq1).
+    1: { intros a1 w1 H1; eapply Hlive; rewrite lookup_insert_ne; first done.
+         intros ->; rewrite Hin in H1; congruence. }
+    1: rewrite dom_insert_L in Hdisj; set_solver.
+    destruct (find_repr_lval_vv θ a) as (w & Hw).
+    1: intros γ <-; eapply Hlive; apply lookup_insert.
+    exists (<[l:=Storing w]> mem1), (<[l:=Storing w]> memr1). split_and!.
+    + econstructor. 1: done. 1:done. 2: erewrite <- repr_roots_dom; last apply Hrepr1. all: by eapply not_elem_of_dom.
+    + apply map_disjoint_dom in Hdisj1. apply map_disjoint_dom.
+      rewrite dom_insert_L. rewrite dom_insert_L in Hdisj. set_solver.
+    + erewrite Heq1. now rewrite insert_union_l.
+Qed.

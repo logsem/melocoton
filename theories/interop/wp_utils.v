@@ -6,7 +6,7 @@ From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import state lang basics_resources.
 From melocoton.interop Require Export basics_constructions.
-From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
@@ -24,11 +24,11 @@ Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T 
 
 Section Utils.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperG Σ}.
 
 Implicit Types P : iProp Σ.
 Import mlanguage.
@@ -88,7 +88,7 @@ Proof.
     assert (memr !! l = None) as HNone1.
     1: apply not_elem_of_dom; erewrite <- repr_roots_dom; last done; by eapply not_elem_of_dom.
     assert (privmem !! l = None) as Hnone2.
-    rewrite <- (lookup_union_r memr privmem); try done; rewrite <- Hunion; by apply lookup_delete.
+    1: rewrite <- (lookup_union_r memr privmem); try done; rewrite <- Hunion; by apply lookup_delete.
     eexists privmem, (<[l:=Storing w]> memr). split_and!.
     * econstructor; try done; by eapply not_elem_of_dom.
     * by apply map_disjoint_insert_r.
@@ -156,9 +156,9 @@ Proof.
     + symmetry. eapply not_elem_of_dom. rewrite <- Hr2. by eapply not_elem_of_dom. }
   assert (p1 = p2) as ->.
   { eapply map_eq_iff. intros i. destruct (p1 !! i) as [v|] eqn:Heq.
-    + eapply elem_of_dom_2 in Heq as Hdom. eapply lookup_union_Some_r in Heq.
-      erewrite <- Hu1 in Heq. erewrite <- Heq. erewrite Hu2.
-      eapply lookup_union_r. 2: done.
+    + eapply elem_of_dom_2 in Heq as Hdom. eapply lookup_union_Some_r in Heq. 2: done.
+      erewrite <- Hu1 in Heq. erewrite <- Heq. erewrite Hu2;
+      eapply lookup_union_r.
       eapply not_elem_of_dom. eapply map_disjoint_dom in Hd1. set_solver.
     + destruct (mem !! i) as [v'|] eqn:Heqmem.
       * pose proof Heqmem as Heq2. rewrite Hu1 in Heqmem.
@@ -185,54 +185,6 @@ Proof.
       1: done.
       by exists ww.
 Qed.
-
-Lemma find_repr_lval_vv θ v : 
-   (forall γ, Lloc γ = v → γ ∈ dom θ)
- → exists l, repr_lval θ v l.
-Proof.
-  intros H. destruct v as [z|a].
-  - eexists; by econstructor.
-  - destruct (θ !! a) as [va|] eqn:Heq.
-    2: eapply not_elem_of_dom in Heq; exfalso; apply Heq; apply H; done.
-    eexists; econstructor; apply Heq.
-Qed.
-
-Lemma find_repr_lval_vs θ vs : 
-   (forall γ, Lloc γ ∈ vs → γ ∈ dom θ)
- → exists ls, Forall2 (repr_lval θ) vs ls.
-Proof.
-  intros H; induction vs as [|v vs IH] in H|-*.
-  - exists nil. econstructor.
-  - destruct IH as [ls IH]; first (intros γ Hγ; eapply H; right; done).
-    destruct (find_repr_lval_vv θ v) as [l Hl].
-    1: intros γ <-; apply H; by left.
-    eexists. econstructor; done.
-Qed.
-
-Lemma find_repr_roots θ roots privmem : 
-   roots_are_live θ roots
- → dom privmem ## dom roots
- → exists mem, repr θ roots privmem mem.
-Proof.
-  revert privmem. unfold repr.
-  induction roots as [|l a roots_m Hin IH] using map_ind; intros privmem Hlive Hdisj.
-  - exists privmem, ∅. split_and!.
-    + econstructor.
-    + eapply map_disjoint_empty_r.
-    + by rewrite map_empty_union.
-  - destruct (IH privmem) as (mem1 & memr1 & Hrepr1 & Hdisj1 & Heq1).
-    1: { intros a1 w1 H1; eapply Hlive; rewrite lookup_insert_ne; first done.
-         intros ->; rewrite Hin in H1; congruence. }
-    1: rewrite dom_insert_L in Hdisj; set_solver.
-    destruct (find_repr_lval_vv θ a) as (w & Hw).
-    1: intros γ <-; eapply Hlive; apply lookup_insert.
-    exists (<[l:=Storing w]> mem1), (<[l:=Storing w]> memr1). split_and!.
-    + econstructor. 1: done. 1:done. 2: erewrite <- repr_roots_dom; last apply Hrepr1. all: by eapply not_elem_of_dom.
-    + apply map_disjoint_dom in Hdisj1. apply map_disjoint_dom.
-      rewrite dom_insert_L. rewrite dom_insert_L in Hdisj. set_solver.
-    + erewrite Heq1. now rewrite insert_union_l.
-Qed.
-
 
 Lemma set_to_some θ mem roots_m privmem :
     repr θ roots_m privmem mem
@@ -285,67 +237,3 @@ Proof.
 Qed.
 
 End Utils.
-
-
-(* XXX this should perhaps be moved someplace else? *)
-Lemma ml_to_c_exists vs ρml σ :
-  lloc_map_inj (χML ρml) →
-  dom (ζML ρml) ⊆ dom (χML ρml) →
-  map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)) →
-  dom (privmemML ρml) ## dom (rootsML ρml) →
-  ∃ ws ρc mem, ml_to_c vs ρml σ ws ρc mem.
-Proof.
-  intros Hχinj Hζdom Hpublocs Hprivmem.
-  destruct (deserialize_ML_heap_extra (ζML ρml) (χML ρml) σ) as (χ1 & ζσ & ζσimm & Hext & Hstorebl & Hdisj & Hstore).
-  1: done.
-  1: done.
-  1: done.
-  destruct (deserialize_ML_values χ1 vs) as (χ2 & ζimm & lvs & Hext2 & Hvs).
-  1: apply Hext.
-
-  assert (ζML ρml ∪ ζσ ∪ ζσimm ##ₘ ζimm) as Hdis1.
-  1: { eapply map_disjoint_dom. eapply disjoint_weaken. 1: eapply Hext2. 2: done.
-       rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset.
-       rewrite dom_union_L. eapply union_subseteq; split.
-       1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext.
-       intros γ Hγ. destruct Hstorebl as [_ HR]. apply HR in Hγ. destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. }
-
-  pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC.
-
-  destruct (collect_dom_θ_ζ ∅ ζC) as (θdom1 & Hθdom1).
-  destruct (collect_dom_θ_vs θdom1 lvs) as (θdom2 & Hθdom2).
-  destruct (collect_dom_θ_roots θdom2 (rootsML ρml)) as (θdom3 & Hθdom3).
-  destruct (injectivify_map θdom3) as (θC & Hdom & Hinj).
-  destruct (find_repr_lval_vs θC lvs) as (ws & Hws).
-  1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done.
-  assert (roots_are_live θC (rootsML ρml)) as Hrootslive.
-  1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. }
-  destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
-
-  eexists ws, (WrapstateC χ2 ζC θC _), mem. unfold ml_to_c; cbn.
-  exists ζσ, (ζσimm ∪ ζimm), lvs. split_and!; try done.
-  { eapply extended_to_trans; done. }
-  { destruct Hstorebl as [HL HR]; split.
-    { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. }
-    { intros γ; destruct (HR γ) as [HRL HRH]; split.
-       1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); exists ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2.
-       intros (ℓ & Vs & H1 & H2). apply HRH. exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (γ2 & Hγ2).
-       enough (γ2 = γ) as -> by done. eapply Hext2. 2: done. eapply lookup_weaken; first done; eapply Hext2. } }
-  { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken.
-    1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. }
-  { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.
-    eapply map_disjoint_dom, disjoint_weaken; first eapply map_disjoint_dom, Hdis1; try done.
-    erewrite ! dom_union_L; set_solver. }
-  { intros ℓ vs' γ b H1 H2 H3. unfold ζC in *. rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3.
-    apply lookup_union_Some_inv_l in H3.
-    2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence.
-    eapply is_heap_elt_weaken. 1: eapply Hstore; try done.
-    2: apply Hext2.
-    + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv]; first by eapply elem_of_dom_2.
-      rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done.
-    + eapply map_union_subseteq_l. }
-  { eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono; last done; first done.
-    unfold ζC. rewrite ! map_union_assoc. eapply map_union_subseteq_r. done. }
-  { split; first done. subst θdom3. intros γ blk γ' _ H2 H3.
-    apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 2 eexists; done. }
-Qed.

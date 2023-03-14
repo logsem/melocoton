@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import gmap.
-From iris.base_logic.lib Require Import ghost_map ghost_var.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton Require Import named_props.
 From melocoton.c_interface Require Import defs resources.
@@ -9,11 +9,11 @@ From melocoton.interop Require Import basics basics_resources gctoken.
 
 Section UpdateLaws.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGCtokGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperGCtokG Σ}.
 
 Lemma ml_to_mut θ ℓ vs :
   ⊢ GC θ ∗ ℓ ↦∗ vs ==∗
