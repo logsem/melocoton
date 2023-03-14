@@ -2,7 +2,6 @@ From stdpp Require Export binders strings countable gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
-From melocoton Require Import commons.
 
 Declare Scope c_val_scope.
 Delimit Scope c_val_scope with CV.
@@ -44,7 +43,7 @@ Proof.
 Qed.
 
 Global Instance val_inhabited : Inhabited val := populate (LitV (LitInt 0)).
-Canonical Structure valO := leibnizO val.
+Canonical Structure valO {SI:indexT} := leibnizO val.
 
 Definition LitBool (b : bool) : base_lit := LitInt (if b then 1%Z else 0%Z).
 Definition LitUnit : base_lit := LitInt 0.
@@ -62,7 +61,7 @@ Notation c_state := (gmap loc (option (option val))).
 Global Instance state_inhabited : Inhabited c_state :=
   populate inhabitant.
 
-Canonical Structure stateO := leibnizO c_state.
+Canonical Structure stateO {SI:indexT} := leibnizO c_state.
 
 (* Contiguous regions in the heap, i.e. arrays *)
 

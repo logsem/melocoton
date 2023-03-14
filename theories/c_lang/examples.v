@@ -8,7 +8,7 @@ Import uPred.
 
 (** Heap tactics *)
 Section examples.
-
+Context {SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
  
 Fixpoint fib (n:nat) : nat := match n with
@@ -21,6 +21,12 @@ Definition fib_prog name (x:expr) : expr :=
 (if: "x" < #2 
  then "x"
  else (call: (&name) with ("x" - #1)) + (call: (&name) with ("x" - #2) )).
+
+Definition heap_example : expr :=
+  let: "x" := malloc (#2) in 
+  free ("x" +ₗ #1, #1).
+
+(*
 Definition heap_example : expr :=
   let: "x" := malloc (#2) in 
  (call: &"store_it" with (("x" +ₗ #1), call: &"fib_left" with ( Val (#3) )) ;;
@@ -28,7 +34,7 @@ Definition heap_example : expr :=
   let: "y" := *("x" +ₗ #1) in
   free ("x" +ₗ #1, #1) ;;
   *"x" + "y").
-
+*)
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram fname cname : gmap string function :=
   insert fname (fib_func cname) ∅.
@@ -98,6 +104,14 @@ Proof.
   wp_alloc l as "Hl"; first lia. change (Z.to_nat 2) with 2.
   destruct l as [l]. cbn. unfold loc_add; cbn.
   iDestruct "Hl" as "(Hl0 & Hl1 & _)".
+  do 2 wp_pure _.
+  change (l + 1)%Z with (l + 1%nat)%Z.
+
+  iAssert (▷ (Loc (l + 1%nat) I↦C None))%I  with "[Hl1]" as "HHH".
+  1: done.
+  
+  mwp_free.
+  wp_free.
   do 2 wp_pure _.
   wp_bind (FunCall _ _).
   change 3 with (Z.of_nat 3).

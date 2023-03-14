@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 
 (** Separation logic resources for the C heap *)
 
-Class heapG_C Σ := HeapG {
+Class heapG_C {SI:indexT} Σ := HeapG {
   heapG_gen_heapG :> gen_heapG loc heap_cell Σ;
   heapG_inv_heapG :> inv_heapG loc heap_cell Σ;
 }.
@@ -55,6 +55,7 @@ Notation "l ↦C '?'" := (mapsto (L:=loc) (V:=heap_cell) l (DfracOwn 1) (Uniniti
 make setoid rewriting in the predicate [I] work we need actual definitions
 here. *)
 Section definitions.
+  Context {SI:indexT}.
   Context `{!heapG_C Σ}.
 
   Definition from_storing (I : val → Prop) (Puninit Pfree : Prop) (k : heap_cell) :=
@@ -83,7 +84,7 @@ Notation "l ↦C_ I v" := (inv_mapsto_own l v I%stdpp%type)
 (** The [array] connective is a version of [mapsto] that works
     with lists of values. *)
 
-Definition array `{!heapG_C Σ} (l : loc) (dq : dfrac) (vs : list (option val)) : iProp Σ :=
+Definition array {SI:indexT} `{!heapG_C Σ} (l : loc) (dq : dfrac) (vs : list (option val)) : iProp Σ :=
   [∗ list] i ↦ v ∈ vs, (l +ₗ i) I↦C{dq} v.
 
 (** FIXME: Refactor these notations using custom entries once Coq bug #13654
@@ -101,6 +102,7 @@ Notation "l ↦C∗ vs" := (array l (DfracOwn 1) vs)
 (** Points-to laws *)
 
 Section Laws.
+Context {SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 
 (** We need to adjust the [gen_heap] and [gen_inv_heap] lemmas because of our
