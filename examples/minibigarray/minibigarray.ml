@@ -22,8 +22,9 @@ external buffer_hash : buffer -> int (* length *) -> (int, unit) Result.t (* has
 type t = { buf : buffer; len : int }
 
 let init f len =
-  let buf = buffer_init f len in
-  { buf; len }
+  if len < 0 then raise (Failure "len")
+  else let buf = buffer_init f len in
+      { buf; len }
 
 let free ba =
   buffer_free ba.buf

@@ -11,4 +11,9 @@ let () =
   begin match Ba.hash ba with
   | Ok h -> Printf.printf "hash> %d\n" h
   | Error () -> Printf.printf "<deallocated>\n"
+  end;
+  Ba.free ba;
+  begin match Ba.hash ba with
+  | Ok h -> Printf.printf "hash> %d\n" h
+  | Error () -> Printf.printf "<deallocated>\n"
   end

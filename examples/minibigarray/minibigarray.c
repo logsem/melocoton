@@ -26,35 +26,35 @@ value caml_miniba_init(value clos, value len)
   int sz = Int_val(len); // val2int
 
   // allocate the C buffer
-  char* buf = malloc(sz);
+  unsigned char* buf = malloc(sz);
 
   // initialize it by invoking the callback
   value byte;
   for (int i = 0; i < sz; i++) {
     byte = caml_callback(clos, Val_int(i) /* int2val */);
-    buf[i] = (char)Int_val(byte); //val2int
+    buf[i] = Int_val(byte); //val2int
   }
 
   // allocate the foreign block holding the C pointer to the buffer
   value fblock = caml_alloc_custom(&ops, sizeof(char*), 0, 1); // allocforeign
-  *((char**)Data_custom_val(fblock)) = buf; // writeforeign
+  *((void**)Data_custom_val(fblock)) = buf; // writeforeign
 
   CAMLreturn(fblock); // unregisterroot(&clos); return fblock;
 }
 
 value caml_miniba_free(value fblock)
 {
-  char* buf = *((char**)Data_custom_val(fblock)); // readforeign
-  // write NULL in the foreign block to mark it as deallocated
-  *((char**)Data_custom_val(fblock)) = NULL; // writeforeign
+  void** bufp = Data_custom_val(fblock); // readforeign
   // free the underlying C buffer
-  free(buf);
+  if (*bufp != NULL) free(*bufp);
+  // write NULL in the foreign block to mark it as deallocated
+  *bufp = NULL; // writeforeign
 
   return Val_unit;
 }
 
 // function coming from a pre-existing C library
-int myhash(char* data, int sz) {
+int myhash(unsigned char* data, int sz) {
   // do something smarter here...
   int hash = 0;
   for (int i = 0; i < sz; i++)
@@ -65,21 +65,21 @@ int myhash(char* data, int sz) {
 
 value caml_miniba_hash(value fblock, value len)
 {
-  char* buf = *((char**)Data_custom_val(fblock)); // readforeign
+  void** bufp = Data_custom_val(fblock); // readforeign
 
   value ret;
 
   // Check that the underlying C buffer has not been deallocated
-  if (buf != NULL) {
+  if (*bufp != NULL) {
     // call myhash on the C buffer
-    int hash = myhash(buf, Int_val(len) /* val2int */);
+    int hash = myhash(*bufp, Int_val(len) /* val2int */);
     // return Ok(hash)
     ret = caml_alloc(1 /* size */, 0 /* tag */); // alloc
     Store_field(ret, 0, Val_int(hash) /* int2val */); // modify
   } else {
     // return Error ().
     ret = caml_alloc(1 /* size */, 1 /* tag */); // alloc
-    Store_field(ret, 0, Val_int(0)); // modify
+    Store_field(ret, 0, Val_unit); // modify
   }
 
   return ret;
