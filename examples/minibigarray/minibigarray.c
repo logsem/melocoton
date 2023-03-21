@@ -70,18 +70,16 @@ value caml_miniba_hash(value fblock, value len)
   value ret;
 
   // Check that the underlying C buffer has not been deallocated
-  if (buf == NULL) {
-    // return None.
-    // in OCaml, None corresponds to 0.
-    // TODO: what is the representation of option in our miniML language?
-    ret = Val_int(0); // int2val
-  } else {
+  if (buf != NULL) {
     // call myhash on the C buffer
     int hash = myhash(buf, Int_val(len) /* val2int */);
-    // return Some(hash)
-    // in OCaml, this is implemented by a structured block containing the hash
+    // return Ok(hash)
     ret = caml_alloc(1 /* size */, 0 /* tag */); // alloc
     Store_field(ret, 0, Val_int(hash) /* int2val */); // modify
+  } else {
+    // return Error ().
+    ret = caml_alloc(1 /* size */, 1 /* tag */); // alloc
+    Store_field(ret, 0, Val_int(0)); // modify
   }
 
   return ret;

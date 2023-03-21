@@ -10,7 +10,7 @@ external buffer_init : (int (* index *) -> int (* byte *)) -> int (* length *) -
 external buffer_free : buffer -> unit
   = "caml_miniba_free"
 
-external buffer_hash : buffer -> int (* length *) -> int option (* hash *)
+external buffer_hash : buffer -> int (* length *) -> (int, unit) Result.t (* hash or error *)
   = "caml_miniba_hash"
 
 
