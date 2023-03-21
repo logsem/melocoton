@@ -377,7 +377,7 @@ Qed.
 Lemma wp_extern' pe n vv E Φ :
      ⌜penv_prog pe !! n = None⌝
   -∗ (|={E}=> penv_proto pe n vv Φ)
-  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{ Φ }}.
 Proof.
   iIntros (Hlookup) "HT".
   rewrite !wp_unfold /wp_pre /=.
@@ -393,8 +393,8 @@ Qed.
 
 Lemma wp_extern K pe n vv E Φ :
      ⌜penv_prog pe !! n = None⌝
-  -∗ (|={E}=> penv_proto pe n vv (λ v, WP fill K (of_class Λ (ExprVal v)) @ pe; E {{ v', Φ v' }}))
-  -∗ WP fill K (of_class _ (ExprCall n vv)) @ pe ; E {{v, Φ v}}.
+  -∗ (|={E}=> penv_proto pe n vv (λ v, WP fill K (of_class Λ (ExprVal v)) @ pe; E {{ Φ }}))
+  -∗ WP fill K (of_class _ (ExprCall n vv)) @ pe ; E {{ Φ }}.
 Proof.
   iIntros (Hlookup) "HT".
   iApply wp_bind.
@@ -406,8 +406,8 @@ Qed.
 
 Lemma prove_wp_fun' pe funn body' vv E Φ :
     ⌜apply_func funn vv = Some body'⌝
-  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
-  -∗ WPFun funn with vv @ pe ; E {{v, Φ v}}.
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{ Φ }})
+  -∗ WPFun funn with vv @ pe ; E {{ Φ }}.
 Proof.
   iIntros (Happly) "Hcont". unfold wp_func.
   rewrite Happly. iApply "Hcont".
@@ -416,8 +416,8 @@ Qed.
 Lemma wp_call'' pe n funn body' vv E Φ :
      ⌜penv_prog pe !! n = Some funn⌝
   -∗ ⌜apply_func funn vv = Some body'⌝
-  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
-  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{ Φ }})
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{ Φ }}.
 Proof.
   iIntros (Hlookup Happly) "Hcont".
   rewrite (wp_unfold _ _ (of_class Λ (ExprCall n vv))) /wp_pre /=.
@@ -435,8 +435,8 @@ Qed.
 
 Lemma wp_call' pe n F vv E Φ :
   ⌜penv_prog pe !! n = Some F⌝
-  -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
-  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
+  -∗ (WPFun F with vv @ pe ; E {{ Φ }})
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{ Φ }}.
 Proof.
   iIntros (HeqF) "HFun".
   unfold wp_func.
@@ -445,8 +445,8 @@ Proof.
 Qed.
 
 Lemma wp_call pe n vv E Φ :
-    (WPCall n with vv @ pe ; E {{v, Φ v}})
-  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{v, Φ v}}.
+    (WPCall n with vv @ pe ; E {{ Φ }})
+  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{ Φ }}.
 Proof.
   iIntros "Hcall". unfold wp_for_call.
   destruct (penv_prog pe !! n) as [F|] eqn:Heq; eauto.
@@ -454,7 +454,7 @@ Proof.
 Qed.
 
 Lemma wp_call_fun pe n vv E Φ :
-  (WPCall n with vv @ pe ; E {{v, Φ v}}) ⊣⊢ (∃ F, WPFun F with vv @ pe ; E {{v, Φ v}} ∗ ⌜penv_prog pe !! n = Some F ⌝).
+  (WPCall n with vv @ pe ; E {{ Φ }}) ⊣⊢ (∃ F, WPFun F with vv @ pe ; E {{ Φ }} ∗ ⌜penv_prog pe !! n = Some F ⌝).
 Proof.
    unfold wp_for_call. iSplit.
   - iIntros "H". destruct (penv_prog pe !! n); eauto.
@@ -464,8 +464,8 @@ Qed.
 Lemma prove_wp_call' pe n F body' vv E Φ :
      ⌜penv_prog pe !! n = Some F⌝
   -∗ ⌜apply_func F vv = Some body'⌝
-  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{v, Φ v}})
-  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
+  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{ Φ }})
+  -∗ (WPCall n with vv @ pe ; E {{ Φ }}).
 Proof.
    unfold wp_for_call, wp_func. iIntros "-> -> H".
    iMod "H". iModIntro. iNext. iMod "H". iModIntro. done.
@@ -474,8 +474,8 @@ Qed.
 Lemma prove_wp_call pe n F body' vv E Φ :
      ⌜penv_prog pe !! n = Some F⌝
   -∗ ⌜apply_func F vv = Some body'⌝
-  -∗ (WP body' @ pe ; E {{v, Φ v}})
-  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
+  -∗ (WP body' @ pe ; E {{ Φ }})
+  -∗ (WPCall n with vv @ pe ; E {{ Φ }}).
 Proof.
    iIntros "%H1 %H2 H". iApply (prove_wp_call'). 1-2: iPureIntro; done.
    do 3 iModIntro. done.
@@ -483,16 +483,16 @@ Qed.
 
 Lemma prove_wp_call_wp_fun pe n F vv E Φ :
      ⌜penv_prog pe !! n = Some F⌝
-  -∗ (WPFun F with vv @ pe ; E {{v, Φ v}})
-  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}).
+  -∗ (WPFun F with vv @ pe ; E {{ Φ }})
+  -∗ (WPCall n with vv @ pe ; E {{ Φ }}).
 Proof.
    iIntros "%H1 H". iApply (wp_call_fun). iExists F. by iFrame.
 Qed.
 
 Lemma prove_wp_fun pe n F vv E Φ :
      ⌜penv_prog pe !! n = Some F⌝
-  -∗ (WPCall n with vv @ pe ; E {{v, Φ v}}) 
-  -∗ (WPFun F with vv @ pe ; E {{v, Φ v}}).
+  -∗ (WPCall n with vv @ pe ; E {{ Φ }})
+  -∗ (WPFun F with vv @ pe ; E {{ Φ }}).
 Proof.
    iIntros "%H1 H". iPoseProof (wp_call_fun with "H") as "(%F' & H & %HF)".
    assert (F = F') as -> by congruence. done.

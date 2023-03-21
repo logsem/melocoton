@@ -126,7 +126,7 @@ Proof.
     iSplitL "HGC HT".
     { rewrite {2}/wrap_penv /wrap_proto /named /=. iExists _, _, _, _.
       iFrame "HGC HT Hblk". iSplit; first done.
-      iIntros (? ? ? ?) "? ? ? %". iExists _, _, _. by iFrame. }
+      iIntros "!>" (? ? ? ?) "? ? ? %". iExists _, _, _. by iFrame. }
     iNext. iIntros (wret) "((%θ' & %vret & %lvret & HGC & HΞ & Hsim & %) & Hb)".
 
     (* extcall done; take an administrative step for the call return *)

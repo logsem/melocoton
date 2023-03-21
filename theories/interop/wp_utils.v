@@ -45,7 +45,7 @@ Definition wrap_proto (T : ML_proto) : C_proto := (λ f ws Φ,
     "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
     "Hsim" ∷ lvs ~~∗ vs ∗
     "Hproto" ∷ T f vs ψ ∗
-    "Cont" ∷ (∀ θ' vret lvret wret,
+    "Cont" ∷ ▷ (∀ θ' vret lvret wret,
       GC θ' -∗
       ψ vret -∗
       lvret ~~ vret -∗
