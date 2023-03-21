@@ -1,0 +1,3 @@
+(library
+  (name minibigarray)
+  (foreign_stubs (language c) (names minibigarray)))
