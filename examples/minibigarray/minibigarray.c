@@ -44,12 +44,11 @@ value caml_miniba_init(value clos, value len)
 
 value caml_miniba_free(value fblock)
 {
-  // free the underlying C buffer
   char* buf = *((char**)Data_custom_val(fblock)); // readforeign
-  free(buf);
-
   // write NULL in the foreign block to mark it as deallocated
   *((char**)Data_custom_val(fblock)) = NULL; // writeforeign
+  // free the underlying C buffer
+  free(buf);
 
   return Val_unit;
 }
