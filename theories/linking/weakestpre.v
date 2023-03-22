@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
-From iris.algebra.lib Require Import excl_auth.
+From iris.base_logic.lib Require Import ghost_var.
 From melocoton.linking Require Import lang.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre.
@@ -11,10 +11,8 @@ From iris.proofmode Require Import proofmode.
 Inductive link_state_case :=
   Boundary | In1 | In2.
 
-Canonical Structure link_state_caseO := leibnizO link_state_case.
-
 Class linkGS Σ := LinkGS {
-  linkG_inG :> inG Σ (excl_authR (leibnizO link_state_case));
+  linkG_inG :> ghost_varG Σ link_state_case;
   linkG_γ : gname;
 }.
 
@@ -38,24 +36,23 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-(* ToDo: use ghost variables *)
 Definition link_state_interp (st : (link_lang Λ1 Λ2).(state)) : iProp Σ :=
   match st with
   | Link.St pubσ privσ1 privσ2 =>
-      own linkG_γ (●E Boundary) ∗
+      ghost_var linkG_γ (1/2) Boundary ∗
       public_state_interp pubσ ∗
       private_state_interp privσ1 ∗
       private_state_interp privσ2
   | Link.St1 σ1 privσ2 =>
-      own linkG_γ (●E In1) ∗
+      ghost_var linkG_γ (1/2) In1 ∗
       state_interp σ1 ∗ private_state_interp privσ2
   | Link.St2 privσ1 σ2 =>
-      own linkG_γ (●E In2) ∗
+      ghost_var linkG_γ (1/2) In2 ∗
       private_state_interp privσ1 ∗ state_interp σ2
   end.
 
-Definition link_state_frag case : iProp Σ :=
-  own linkG_γ (◯E case).
+Definition link_state_frag (case : link_state_case) : iProp Σ :=
+  ghost_var linkG_γ (1/2) case.
 
 Definition link_in_state case : iProp Σ :=
   link_state_frag case ∗
@@ -66,11 +63,11 @@ Definition link_in_state case : iProp Σ :=
   end.
 
 Lemma link_state_update case case' :
-  own linkG_γ (●E case) -∗ link_state_frag case ==∗
-  own linkG_γ (●E case') ∗ link_state_frag case'.
+  ghost_var linkG_γ (1/2) case -∗ link_state_frag case ==∗
+  ghost_var linkG_γ (1/2) case' ∗ link_state_frag case'.
 Proof using.
   iIntros "Haa Haf". unfold link_state_frag.
-  iMod (excl_auth_upd with "Haf Haa") as "[? ?]". by iFrame.
+  iMod (ghost_var_update_halves with "Haf Haa") as "[? ?]". by iFrame.
 Qed.
 
 Lemma link_at_boundary st :
@@ -79,7 +76,7 @@ Lemma link_at_boundary st :
 Proof using.
   iIntros "Hst Hb". destruct st; eauto.
   all: iDestruct "Hst" as "(Hb' & _)".
-  all: by iDestruct (excl_auth_eq with "Hb Hb'") as %?.
+  all: by iDestruct (ghost_var_agree with "Hb Hb'") as %?.
 Qed.
 
 Lemma link_at_in1 st :
@@ -88,7 +85,7 @@ Lemma link_at_in1 st :
 Proof using.
   iIntros "Hst Hb". destruct st; eauto.
   all: iDestruct "Hst" as "(Hb' & ?)".
-  all: by iDestruct (excl_auth_eq with "Hb Hb'") as %?.
+  all: by iDestruct (ghost_var_agree with "Hb Hb'") as %?.
 Qed.
 
 Lemma link_at_in2 st :
@@ -97,7 +94,7 @@ Lemma link_at_in2 st :
 Proof using.
   iIntros "Hst Hb". destruct st; eauto.
   all: iDestruct "Hst" as "(Hb' & ?)".
-  all: by iDestruct (excl_auth_eq with "Hb Hb'") as %?.
+  all: by iDestruct (ghost_var_agree with "Hb Hb'") as %?.
 Qed.
 
 Global Program Instance link_mlangGS : mlangGS val Σ (link_lang Λ1 Λ2) := {
@@ -107,7 +104,7 @@ Global Program Instance link_mlangGS : mlangGS val Σ (link_lang Λ1 Λ2) := {
 
 Global Program Instance link_linkableGS : linkableGS (link_lang Λ1 Λ2) public_state_interp := {
   private_state_interp := (λ '(privσ1, privσ2),
-    own linkG_γ (●E Boundary) ∗
+    ghost_var linkG_γ (1/2) Boundary ∗
     private_state_interp privσ1 ∗ private_state_interp privσ2)%I;
 }.
 Next Obligation.
@@ -222,7 +219,7 @@ Proof using.
   iMod (link_state_update _ In1 with "Hob Hb") as "(Hob & Hb)".
   iModIntro. iExists _, _. iSplitR; first by eauto. iFrame.
   iDestruct ("Hwpcall" with "Hb1") as "Hwpcall".
-  by iApply ("Hwp" with "[] Hwpcall Hb").
+  by iApply ("Hwp" with "[] Hwpcall Hob").
 Qed.
 
 Lemma wp_link_run_function_2 pe1 pe2 pe E k1 k fn arg fname Φ Ξ :
@@ -251,7 +248,7 @@ Proof using.
   iMod (link_state_update _ In2 with "Hob Hb") as "(Hob & Hb)".
   iModIntro. iExists _, _. iSplitR; first by eauto. iFrame.
   iDestruct ("Hwpcall" with "Hb2") as "Hwpcall".
-  by iApply ("Hwp" with "[] Hwpcall Hb").
+  by iApply ("Hwp" with "[] Hwpcall Hob").
 Qed.
 
 Lemma wp_link_retval_1 (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k1 v Φ :
