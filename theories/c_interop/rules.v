@@ -49,8 +49,8 @@ Qed.
 (* Calling to runtime primitives *)
 
 (* TODO: move / refactor / merge with the other penv combinators *)
-Definition penv_with_prims E (pe : language.weakestpre.prog_environ C_lang Σ) (T : ML_proto Σ) :
-  language.weakestpre.prog_environ C_lang Σ
+Definition penv_with_prims E (pe : language.progenv.prog_environ C_lang Σ) (T : ML_proto Σ) :
+  language.progenv.prog_environ C_lang Σ
   :=
   {| penv_prog := filter (λ '(s, _), ¬ is_prim_name s) (penv_prog pe);
      penv_proto := (λ f vs Φ, proto_prims_in_C E T f vs Φ ∨ penv_proto pe f vs Φ)%I; |}.

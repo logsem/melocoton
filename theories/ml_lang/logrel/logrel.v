@@ -126,14 +126,14 @@ Section logrel.
     ([∗ map] x↦τ;v ∈ Γ;vs, ⟦ τ ⟧ Δ v)%I.
   Notation "⟦ Γ ⟧*" := (interp_env Γ).
 
-  Definition interp_prog_type (Δ : listO D) s (t : program_type) : program_specification := match t with FunType tl tr =>
+  Definition interp_prog_type (Δ : listO D) s (t : program_type) : protocol val Σ := match t with FunType tl tr =>
     (λ s' vv Φ, ⌜s = s'⌝ ∗ ([∗ list] k↦τ;v ∈ tl;vv, ⟦ τ ⟧ Δ v) ∗ (∀ vr, ⟦ tr ⟧ Δ vr -∗ Φ vr))%I end.
 
   (* Compare with language/wp_link.v
      The difference between this and program_fulfills is that we allow axiomatically specified
      functions to be well-typed. *)
   Definition program_spec_satisfied
-    (Tshould : program_specification) : iProp Σ := 
+    (Tshould : protocol val Σ) : iProp Σ :=
     □ ∀ s vv Φ, Tshould s vv Φ -∗ na_tok -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v ∗ na_tok}}.
 
   Definition interp_prog_env (p_types : gmap string program_type) (Δ : listO D) : iProp Σ :=

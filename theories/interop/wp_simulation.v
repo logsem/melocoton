@@ -24,7 +24,7 @@ Context `{!wrapperGS Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma wp_to_val (pe : weakestpre.prog_environ wrap_lang Σ) E v:
+Lemma wp_to_val (pe : progenv.prog_environ wrap_lang Σ) E v:
     not_at_boundary
  -∗ WP (WrSE (ExprML (ML_lang.Val v))) @ pe; E {{ w,
       ∃ θ' lv, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗
@@ -61,16 +61,14 @@ Proof.
   iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
-Lemma wp_simulates (pe : prog_environ ML_lang Σ) E eml Φ :
-  penv_prog pe = ∅ → (* XXX *)
+Lemma wp_simulates (T : ML_proto Σ) E eml Φ :
      not_at_boundary
-  -∗ (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ penv_proto pe fn_name vs Φ -∗ False)
-  -∗ WP eml @ pe; E {{ Φ }}
-  -∗ WP (WrSE (ExprML eml)) @ (wrap_penv pe); E {{ w,
+  -∗ (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ T fn_name vs Φ -∗ False)
+  -∗ WP eml @ ⟨ ∅, T ⟩; E {{ Φ }}
+  -∗ WP (WrSE (ExprML eml)) @ ⟪ prims_prog, wrap_proto T ⟫; E {{ w,
        ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
        at_boundary wrap_lang }}.
 Proof.
-  intros Hpeemp.
   iLöb as "IH" forall (eml).
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   rewrite wp_unfold. rewrite /wp_pre.
@@ -81,7 +79,7 @@ Proof.
   iMod ("HWP" $! σ with "[$HσML $HσMLdom]") as "[HWP|[HWP|HWP]]".
   (* value *)
   + iDestruct "HWP" as "(%x & -> & Hσ & Hret)".
-    iPoseProof (wp_to_val (wrap_penv pe) E x with "Hnb") as "Hwp".
+    iPoseProof (wp_to_val _ E x with "Hnb") as "Hwp".
     iDestruct (weakestpre.wp_strong_mono_post with "[Hret] Hwp") as "Hwp";
       last first.
     { rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -104,7 +102,7 @@ Proof.
     edestruct Hcall as (ws & ρc & mem & ? & ?).
     1: done.
     1: done.
-    1: rewrite /wrap_penv /= lookup_prims_prog_None //.
+    1: by rewrite /= lookup_prims_prog_None //.
     { destruct (ml_to_c_exists vs ρml σ) as (ws & ρc & mem & ?); eauto. }
     iMod (wrap_interp_ml_to_c with "[- Hnb Hnprim Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
       first done.
@@ -120,11 +118,11 @@ Proof.
 
     iModIntro. iRight; iLeft. iExists fn_name, ws, [K'].
     iSplit; first done.
-    iSplit; first rewrite /wrap_penv /= lookup_prims_prog_None //.
+    iSplit; first by rewrite /= lookup_prims_prog_None //.
     iFrame "Hb Hst'".
     iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
     iSplitL "HGC HT".
-    { rewrite {2}/wrap_penv /wrap_proto /named /=. iExists _, _, _, _.
+    { rewrite /wrap_proto /named /=. iExists _, _, _, _.
       iFrame "HGC HT Hblk". iSplit; first done.
       iIntros "!>" (? ? ? ?) "? ? ? %". iExists _, _, _. by iFrame. }
     iNext. iIntros (wret) "((%θ' & %vret & %lvret & HGC & HΞ & Hsim & %) & Hb)".
@@ -152,7 +150,6 @@ Proof.
     iModIntro. iRight. iRight. iSplit; last iSplit.
     1: done.
     1: iPureIntro; intros (f&vs&K&H1&H2); done.
-    rewrite Hpeemp in Hred |- *.
     iIntros (X Hstep). inversion Hstep; simplify_eq.
     clear H4 H5. clear Hstep. rename H2 into Hstep'.
     edestruct Hstep' as (eml' & σ' & Hstep & ?).
@@ -171,15 +168,14 @@ Proof.
       iApply ("IH" with "Hnb Hnprim HWP'").
 Qed.
 
-Lemma wp_base_primitives (pe : prog_environ ML_lang Σ) prim ws E Φ :
-  penv_prog pe = ∅ → (* XXX *)
-  (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ penv_proto pe fn_name vs Φ -∗ False) -∗
-  proto_prim prim E (penv_proto pe) ws Φ -∗
+Lemma wp_primitive (T : ML_proto Σ) prim ws E Φ :
+  (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ T fn_name vs Φ -∗ False) -∗
+  proto_prim prim E T ws Φ -∗
   at_boundary wrap_lang -∗
-  WP (WrSE (RunPrimitive prim ws)) @ (wrap_penv pe); E {{ w,
+  WP (WrSE (RunPrimitive prim ws)) @ ⟪ prims_prog, wrap_proto T ⟫; E {{ w,
     at_boundary wrap_lang ∗ Φ w }}.
 Proof.
-  iIntros (Hpeemp) "Hnprims Hproto Hb".
+  iIntros "Hnprims Hproto Hb".
   destruct (decide (prim = Pcallback)) as [->|]; last first.
   { (* base primitives *)
     iApply (wp_base_prims with "Hb Hproto"); first done.
@@ -213,8 +209,7 @@ Proof.
     do 3 iModIntro. iExists _, _. iSplit; first done. iFrame "Hst".
 
     iApply (weakestpre.wp_wand with "[-Cont Hclos]").
-    { iApply (wp_simulates with "Hnb Hnprims [WPcallback]"); try done.
-      destruct pe; cbn in Hpeemp |- *. rewrite Hpeemp. iApply "WPcallback". }
+    { by iApply (wp_simulates with "Hnb Hnprims [WPcallback]"). }
     cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & $)".
     iApply ("Cont" with "[$] [$] [$]"); eauto. }
 Qed.

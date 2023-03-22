@@ -130,3 +130,6 @@ Proof.
   iMod (own_alloc (●E (x:leibnizO A) ⋅ ◯E (x:leibnizO A))) as (γ) "[? ?]".
   1: by apply excl_auth_valid. iModIntro. iExists _. iFrame.
 Qed.
+
+Notation protocol val Σ :=
+  (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ).

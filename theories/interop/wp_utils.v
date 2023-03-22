@@ -49,12 +49,6 @@ Definition wrap_proto (T : ML_proto) : C_proto := (λ f ws Φ,
       Φ wret)
 )%I.
 
-Definition wrap_penv (pe : prog_environ ML_lang Σ) :
-  mlanguage.weakestpre.prog_environ wrap_lang Σ
-:=
-  ⟪ prims_prog, wrap_proto (penv_proto pe) ⟫.
-
-
 Section RootsRepr.
 
 (* We can decompose mem, the C heap, into a privmem, which is everything but the roots, and a memr, which are just the rooted cells *)

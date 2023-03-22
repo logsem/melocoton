@@ -10,6 +10,7 @@ From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import lang_instantiation.
 From melocoton.ml_lang Require proofmode.
 From melocoton.c_lang Require notation proofmode.
+From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 
@@ -39,11 +40,11 @@ Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 
 Definition swap_pair_mod : gmap string function := {[ "swap_pair" := swap_pair_func ]}.
 
-Definition swap_pair_ml_spec : @program_specification _ ML_lang _ _ _ _ := (
+Definition swap_pair_ml_spec : protocol ML_lang.val Σ := (
   λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
 )%I.
 
-Definition swap_pair_env : language.weakestpre.prog_environ C_lang Σ :=
+Definition swap_pair_env : language.progenv.prog_environ C_lang Σ :=
   ⟨ swap_pair_mod, (proto_prims_in_C ∅ swap_pair_ml_spec) ⟩.
 
 Lemma swap_pair_correct E f vs Φ :
@@ -188,7 +189,7 @@ Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) :=
   (Extern "swap_pair" [ ((#3, (#1, #2)))%MLE ]).
 
 Definition client_env : prog_environ ML_lang Σ := ⟨ ∅, swap_pair_ml_spec ⟩.
-Definition client_env_wrapped := (wrap_penv client_env).
+Definition client_env_wrapped := ⟪ prims_prog, wrap_proto swap_pair_ml_spec ⟫.
 
 Lemma ML_prog_correct_axiomatic E : ⊢ WP swap_pair_client @ client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%MLV}}.
 Proof.
@@ -236,8 +237,7 @@ Proof.
     iExists _; iSplit; first done.
     iApply bi.later_intro.
     iIntros "Hb". iApply (@wp_wand with "[Hb Hproto]");
-    first iApply (wp_base_primitives with "[] [Hproto]").
-    + done.
+    first iApply (wp_primitive with "[] [Hproto]").
     + iIntros (fn_name vs' Φ' Hprims) "HH".
       cbn. iDestruct "HH" as "(%&%&->&_)". inversion Hprims. inversion H. 
     + cbn. iDestruct "Hproto" as "(%pr&%HH1&HH2)".

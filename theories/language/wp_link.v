@@ -1,5 +1,6 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
+From melocoton Require Import commons.
 From melocoton.language Require Export language weakestpre.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not
    get pretty-printed correctly. *)
@@ -20,23 +21,23 @@ Implicit Types pe : prog_environ Λ Σ.
 
 
 Definition program_fulfills
-  (Tin : program_specification) (p : mixin_prog (func Λ)) (Tshould : program_specification) : iProp Σ := 
+  (Tin : protocol val Σ) (p : mixin_prog (func Λ)) (Tshould : protocol val Σ) : iProp Σ :=
   ∀ s vv Φ, Tshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ ⟨p, Tin⟩; ⊤ {{v, Φ v}}.
 
 Definition env_fulfills
-  (p:prog_environ Λ Σ) (Tshould : program_specification) := program_fulfills p.(penv_proto) p.(penv_prog) Tshould.
+  (p:prog_environ Λ Σ) (Tshould : protocol val Σ) := program_fulfills p.(penv_proto) p.(penv_prog) Tshould.
 
 Notation "Tin '|-' p '::' Tshould" := (program_fulfills Tin p Tshould) (at level 25, p, Tshould at level 26) : bi_scope.
 
-Definition spec_union (p1 p2 : program_specification) : program_specification := 
+Definition spec_union (p1 p2 : protocol val Σ) : protocol val Σ :=
   λ s vv Φ, (p1 s vv Φ ∨ p2 s vv Φ)%I.
-Definition spec_inters (p1 p2 : program_specification) : program_specification := 
+Definition spec_inters (p1 p2 : protocol val Σ) : protocol val Σ :=
   λ s vv Φ, (p1 s vv Φ ∧ p2 s vv Φ)%I.
 
 Notation prog := (gmap string (Λ.(func))).
 
 
-Class can_link (T1 T2 Taxiom Tres : program_specification) (p1 p2 p3 : prog) : Prop := {
+Class can_link (T1 T2 Taxiom Tres : protocol val Σ) (p1 p2 p3 : prog) : Prop := {
   p1_p2_disjoint : dom p1 ## dom p2;
   Tres_is_union : ⊢ (∀ s vv Φ, Tres s vv Φ -∗ (spec_union T1 T2) s vv Φ)%I;
   Taxiom_is_axiomatic : ⊢ (∀ s vv Φ, Taxiom s vv Φ -∗ ⌜s ∉ dom p3⌝)%I;
@@ -50,9 +51,9 @@ Definition pairwise {X} (A:list X) (T : X -> X -> Prop) :=
       (Some a, Some b) => T a b
      | _ => True end.
 
-Definition spec_union_list (P : list program_specification) : program_specification := 
+Definition spec_union_list (P : list (protocol val Σ)) : protocol val Σ :=
   λ s vv Φ, (∃ i, match nth_error P i with Some pp => pp s vv Φ | _ => ⌜False⌝ end)%I.
-Definition spec_union_list_except k (P : list program_specification) : program_specification := 
+Definition spec_union_list_except k (P : list (protocol val Σ)) : protocol val Σ :=
   λ s vv Φ, (∃ i, ⌜i <> k⌝ ∗ match nth_error P i with Some pp => pp s vv Φ | _ => ⌜False⌝ end)%I.
 
 Fixpoint union_map_list (P : list prog) : prog := match P with
@@ -110,8 +111,8 @@ Proof.
 Qed.
 
 Class can_link_all 
-    (Taxiom Tres : program_specification) (pres : prog)
-    (A : list (prod program_specification prog)) := {
+    (Taxiom Tres : protocol val Σ) (pres : prog)
+    (A : list (prod (protocol val Σ) prog)) := {
   all_disjoint : pairwise (map snd A) (fun p1 p2 => dom p1 ## dom p2);
   Tres_is_big_union : ⊢ (∀ s vv Φ, Tres s vv Φ -∗ (spec_union_list (map fst A)) s vv Φ)%I;
   Taxiom_is_axiomatic_all : ⊢ (∀ s vv Φ, Taxiom s vv Φ -∗ ⌜s ∉ dom pres⌝)%I;

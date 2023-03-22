@@ -41,9 +41,9 @@ Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constru
    there as a canonical structure. *)
 Local Canonical Structure lang_to_mlang_mlang : mlanguage val := lang_to_mlang Λ.
 
-Definition penv_to_mlang (pe : language.weakestpre.prog_environ Λ Σ) :
-  mlanguage.weakestpre.prog_environ (lang_to_mlang Λ) Σ
-:= ⟪ pe.(language.weakestpre.penv_prog), pe.(language.weakestpre.penv_proto) ⟫.
+Definition penv_to_mlang (pe : language.progenv.prog_environ Λ Σ) :
+  mlanguage.progenv.prog_environ (lang_to_mlang Λ) Σ
+:= ⟪ pe.(language.progenv.penv_prog), pe.(language.progenv.penv_proto) ⟫.
 
 Lemma wp_lang_to_mlang (e : Λ.(language.expr)) pe E Φ :
   ⊢ WP e @ pe; E {{ Φ }} -∗ WP e @ (penv_to_mlang pe); E {{ Φ }}.

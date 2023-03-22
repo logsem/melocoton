@@ -1,6 +1,6 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
-From melocoton.mlanguage Require Export mlanguage.
+From melocoton.mlanguage Require Export mlanguage progenv.
 From melocoton Require Import multirelations.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not
    get pretty-printed correctly. *)
@@ -53,16 +53,6 @@ Proof.
   rewrite /wp_pre /wp_pre_cases /= => n wp wp' Hwp E e1 Φ. cbn in Hwp.
   repeat (f_contractive || f_equiv || apply Hwp || intros ?).
 Qed.
-
-Record prog_environ {val} (Λ : mlanguage val) Σ := Penv {
-  penv_prog : gmap string Λ.(func);
-  penv_proto : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ;
-}.
-Global Arguments Penv {_ _ _} _ _.
-Global Arguments penv_prog {_ _ _} _.
-Global Arguments penv_proto {_ _ _} _.
-
-Notation "⟪ p , T ⟫" := (Penv p T : prog_environ _ _).
 
 Local Definition wp_def
       `{!invGS_gen hlc Σ, !mlangGS val Σ Λ} :
