@@ -25,7 +25,7 @@ Arguments at_boundary {_ _} Λ {_}.
 
 Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
     (p : mixin_prog Λ.(func))
-    (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
+    (T : protocol val Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
     state Λ -d> coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ σ E e Φ,
   (
@@ -40,7 +40,7 @@ Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
 
 Definition wp_pre `{!invGS_gen hlc Σ, !mlangGS val Σ Λ}
     (p : mixin_prog Λ.(func))
-    (T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)
+    (T : protocol val Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ E e Φ,
   (∀ σ, state_interp σ ={E}=∗ wp_pre_cases p T wp σ E e Φ)%I.
@@ -72,7 +72,7 @@ Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
-Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
+Implicit Types T : protocol val Σ.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types pe : prog_environ Λ Σ.
 Implicit Types X : expr Λ * state Λ → Prop.

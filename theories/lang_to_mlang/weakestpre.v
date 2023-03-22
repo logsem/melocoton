@@ -15,7 +15,7 @@ Context `{!language.weakestpre.langGS val Λ Σ, !invGS_gen hlc Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
-Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
+Implicit Types T : protocol val Σ.
 
 Global Program Instance lang_to_mlang_mlangGS :
   mlanguage.weakestpre.mlangGS val Σ (lang_to_mlang Λ)

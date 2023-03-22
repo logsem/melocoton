@@ -88,7 +88,7 @@ Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
-Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
+Implicit Types T : protocol val Σ.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types pe : prog_environ Λ Σ.
 

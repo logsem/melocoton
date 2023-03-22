@@ -34,7 +34,7 @@ Context `{!linkableGS Λ2 public_state_interp}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
-Implicit Types T : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
+Implicit Types T : protocol val Σ.
 
 Definition link_state_interp (st : (link_lang Λ1 Λ2).(state)) : iProp Σ :=
   match st with
