@@ -12,3 +12,6 @@ Inductive mixin_expr_class {val} :=
 
 Notation protocol val Σ :=
   (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ).
+
+Global Instance protocol_bottom val Σ : Bottom (protocol val Σ) :=
+  (λ _ _ _, False%I).

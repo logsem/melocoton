@@ -90,8 +90,7 @@ Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
 Context `{!linkGS Σ}.
 
 Definition penv : prog_environ (link_lang C_mlang C_mlang) Σ :=
-  ⟪ {[ "is_even" := inl is_even_func; "is_odd" := inr is_odd_func ]},
-    (λ _ _ _, False)%I ⟫.
+  ⟪ {[ "is_even" := inl is_even_func; "is_odd" := inr is_odd_func ]}, ⊥ ⟫.
 
 Instance penv_is_link : is_link_environ (penv_to_mlang even_env) (penv_to_mlang odd_env) penv.
 Proof.

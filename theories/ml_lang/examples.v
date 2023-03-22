@@ -37,10 +37,8 @@ Proof.
   wp_pures. wp_load. iModIntro. done.
 Qed.
 
-Definition EmptySpec : (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ) := λ _ _ _, ⌜False⌝%I.
-
 Definition SpecifiedEnv : prog_environ ML_lang Σ :=
-  ⟨ {[ "inc" := inc_func ]}, EmptySpec ⟩.
+  ⟨ {[ "inc" := inc_func ]}, ⊥ ⟩.
 
 Lemma inc_correct l (z:Z)
  : ⊢ l ↦M #z -∗ (WP Extern "inc" [ Val #l ] @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}})%I.
@@ -49,7 +47,7 @@ Proof.
   wp_load. wp_pures. wp_store. iModIntro. iSplitL; done.
 Qed.
 
-Lemma left_correct : ⊢ env_fulfills AxiomEnv EmptySpec.
+Lemma left_correct : ⊢ env_fulfills AxiomEnv ⊥.
 Proof.
   iStartProof. iIntros (s vv Φ []).
 Qed.
@@ -87,8 +85,8 @@ Proof.
 Qed.
 
 
-Instance example_can_link : can_link EmptySpec IncrementSpec EmptySpec IncrementSpec
-         ∅ (<[ "inc" := inc_func ]> ∅) (<[ "inc" := inc_func ]> ∅).
+Instance example_can_link : can_link ⊥ IncrementSpec ⊥ IncrementSpec
+         ∅ ({[ "inc" := inc_func ]}) ({[ "inc" := inc_func ]}).
 Proof. split.
   - set_solver.
   - iIntros (s vv Φ) "Hvv". iRight. done.

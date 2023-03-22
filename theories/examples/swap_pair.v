@@ -216,8 +216,7 @@ Proof.
 Qed.
 
 Definition linked_env : prog_environ combined_lang Σ :=
-  ⟪ fmap inl prims.prims_prog ∪ fmap inr swap_pair_mod,
-    λ _ _ _, ⌜False⌝%I ⟫.
+  ⟪ fmap inl prims.prims_prog ∪ fmap inr swap_pair_mod, ⊥ ⟫.
 
 Lemma is_linkable_swap_pair : is_link_environ client_env_wrapped swap_pair_env_lifted linked_env.
 Proof.
