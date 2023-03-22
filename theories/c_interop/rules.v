@@ -66,8 +66,8 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros H; apply H. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. iLeft. rewrite /proto_int2val /named. iExists _, _. iFrame.
-  do 2 (iSplit; first by eauto). iIntros "!>" (?) "HGC %".
+  rewrite /= /proto_int2val /named. iExists _, _. iFrame.
+  iSplit; first by eauto. iIntros "!>" (?) "HGC %".
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
@@ -82,8 +82,8 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros H; apply H. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. iRight; iLeft. rewrite /proto_val2int /named. iExists _, _, _. iFrame.
-  do 3 (iSplit; first by eauto). iIntros "!> HGC".
+  rewrite /= /proto_val2int /named. iExists _, _, _. iFrame.
+  do 2 (iSplit; first by eauto). iIntros "!> HGC".
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
@@ -99,9 +99,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros H; apply H. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 2 iRight; iLeft. rewrite /proto_registerroot /named.
+  rewrite /= /proto_registerroot /named.
   iExists _, _, _, _. iFrame.
-  do 3 (iSplit; first by eauto). iIntros "!> ? ?".
+  do 2 (iSplit; first by eauto). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 
@@ -116,9 +116,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros H; apply H. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 3 iRight; iLeft. rewrite /proto_unregisterroot /named.
+  rewrite /= /proto_unregisterroot /named.
   iExists _, _, _. iFrame.
-  do 2 (iSplit; first by eauto). iIntros "!>" (?) "? ? %".
+  iSplit; first by eauto. iIntros "!>" (?) "? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -137,9 +137,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros HH; apply HH. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 4 iRight; iLeft. rewrite /proto_modify /named.
+  rewrite /= /proto_modify /named.
   do 9 iExists _. iFrame.
-  do 7 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 6 (iSplit; first by eauto with lia). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -159,9 +159,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros HH; apply HH. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 5 iRight; iLeft. rewrite /proto_readfield /named.
+  rewrite /= /proto_readfield /named.
   do 8 iExists _. iFrame.
-  do 5 (iSplit; first by eauto with lia). iIntros "!>" (? ?) "? ?".
+  do 4 (iSplit; first by eauto with lia). iIntros "!>" (? ?) "? ?".
   iIntros (? ?).
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
@@ -181,9 +181,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros HH; apply HH. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 6 iRight; iLeft. rewrite /proto_alloc /named.
+  rewrite /= /proto_alloc /named.
   do 3 iExists _. iFrame. subst.
-  do 3 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "? ? %".
+  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -200,9 +200,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros HH; apply HH. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 7 iRight; iLeft. rewrite /proto_alloc_foreign /named.
+  rewrite /= /proto_alloc_foreign /named.
   do 2 iExists _. iFrame.
-  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "? ? %".
+  iSplit; first by eauto with lia. iIntros "!>" (? ? ?) "? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -218,9 +218,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros HH; apply HH. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 8 iRight; iLeft. rewrite /proto_write_foreign /named.
+  rewrite /= /proto_write_foreign /named.
   do 5 iExists _. iFrame.
-  do 3 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 2 (iSplit; first by eauto with lia). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -236,9 +236,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros HH; apply HH. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iLeft. do 9 iRight. rewrite /proto_read_foreign /named.
+  rewrite /= /proto_read_foreign /named.
   do 4 iExists _. iFrame.
-  do 3 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 2 (iSplit; first by eauto with lia). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -263,9 +263,9 @@ Proof.
   { cbn. apply map_filter_lookup_None_2. right.
     intros _ _. intros HH; apply HH. eexists; constructor. }
   iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  iRight. rewrite /proto_callback /named.
+  rewrite /= /proto_callback /named.
   do 10 iExists _. iFrame.
-  do 4 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
+  do 3 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 

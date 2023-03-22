@@ -17,44 +17,39 @@ Context `{!wrapperGCtokGS Σ}.
 Notation C_proto := (string -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 Notation ML_proto := (string -d> list ML_lang.val -d> (ML_lang.val -d> iPropO Σ) -d> iPropO Σ).
 
-Local Notation prim_proto := (prim -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
+Local Notation prim_proto := (list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 
-Definition proto_int2val : prim_proto := (λ p vl Φ,
+Definition proto_int2val : prim_proto := (λ vl Φ,
    ∃ θ z,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜p = Pint2val⌝ ∗
      "->" ∷ ⌜vl = [C_intf.LitV $ C_intf.LitInt $ z]⌝ ∗
      "Cont" ∷ ▷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ Φ w))%I.
 
-Definition proto_val2int : prim_proto := (λ p vl Φ,
+Definition proto_val2int : prim_proto := (λ vl Φ,
    ∃ θ w z,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜p = Pval2int⌝ ∗
      "->" ∷ ⌜vl = [ w ]⌝ ∗
      "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ ∗
      "Cont" ∷ ▷ (GC θ -∗ Φ (C_intf.LitV $ C_intf.LitInt $ z)))%I.
 
-Definition proto_registerroot : prim_proto := (λ p vl Φ,
+Definition proto_registerroot : prim_proto := (λ vl Φ,
    ∃ θ l v w,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜p = Pregisterroot⌝ ∗
      "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦C w ∗
      "%Hrepr" ∷ ⌜repr_lval θ v w⌝ ∗
      "Cont" ∷ ▷ (GC θ -∗ l ↦roots v -∗ Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
 
-Definition proto_unregisterroot : prim_proto := (λ p vl Φ,
+Definition proto_unregisterroot : prim_proto := (λ vl Φ,
    ∃ θ l v,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜p = Punregisterroot⌝ ∗
      "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦roots v ∗
      "Cont" ∷ ▷ (∀ w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
 
-Definition proto_modify : prim_proto := (λ p vl Φ,
+Definition proto_modify : prim_proto := (λ vl Φ,
   ∃ θ w i v' w' γ mut tg vs,
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜p = Pmodify⌝ ∗
     "->" ∷ ⌜vl = [ w; C_intf.LitV $ C_intf.LitInt $ i; w' ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
     "%Hptomut" ∷ ⌜vblock_access_le M mut⌝ ∗
@@ -66,10 +61,9 @@ Definition proto_modify : prim_proto := (λ p vl Φ,
                  γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) -∗
                  Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
 
-Definition proto_readfield : prim_proto := (λ p vl Φ,
+Definition proto_readfield : prim_proto := (λ vl Φ,
    ∃ θ w i γ dq m tg vs,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜p = Preadfield⌝ ∗
      "->" ∷ ⌜vl = [ w; C_intf.LitV $ C_intf.LitInt $ i ]⌝ ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
      "Hpto" ∷ γ ↦vblk[m]{dq} (tg, vs) ∗
@@ -81,10 +75,9 @@ Definition proto_readfield : prim_proto := (λ p vl Φ,
                            ⌜repr_lval θ v' w'⌝ -∗
                            Φ w'))%I.
 
-Definition proto_alloc : prim_proto := (λ p vl Φ,
+Definition proto_alloc : prim_proto := (λ vl Φ,
    ∃ θ tg sz,
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜p = Palloc⌝ ∗
      "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitInt $ vblock_tag_as_int $ tg; C_intf.LitV $ C_intf.LitInt $ sz ]⌝ ∗
      "%Hsz" ∷ ⌜0 ≤ sz⌝%Z ∗
      "Cont" ∷ ▷ (∀ θ' γ w, GC θ' -∗
@@ -92,20 +85,18 @@ Definition proto_alloc : prim_proto := (λ p vl Φ,
                             ⌜repr_lval θ' (Lloc γ) w⌝ -∗
                             Φ w))%I.
 
-Definition proto_alloc_foreign : prim_proto := (λ p vl Φ,
+Definition proto_alloc_foreign : prim_proto := (λ vl Φ,
   ∃ θ a,
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜p = Pallocforeign⌝ ∗
     "->" ∷ ⌜vl = [ C_intf.LitV (C_intf.LitLoc a) ]⌝ ∗
     "Cont" ∷ ▷ (∀ θ' γ w, GC θ' -∗
                            γ ↦foreign a -∗
                            ⌜repr_lval θ' (Lloc γ) w⌝ -∗
                            Φ w))%I.
 
-Definition proto_write_foreign : prim_proto := (λ p vl Φ,
+Definition proto_write_foreign : prim_proto := (λ vl Φ,
   ∃ θ γ w a a',
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜p = Pwriteforeign⌝ ∗
     "->" ∷ ⌜vl = [ w; C_intf.LitV (C_intf.LitLoc a') ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
     "Hpto" ∷ γ ↦foreign a ∗
@@ -113,10 +104,9 @@ Definition proto_write_foreign : prim_proto := (λ p vl Φ,
                  γ ↦foreign a' -∗
                  Φ (C_intf.LitV (C_intf.LitInt 0))))%I.
 
-Definition proto_read_foreign : prim_proto := (λ p vl Φ,
+Definition proto_read_foreign : prim_proto := (λ vl Φ,
   ∃ θ γ w a,
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜p = Preadforeign⌝ ∗
     "->" ∷ ⌜vl = [ w ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
     "Hpto" ∷ γ ↦foreign a ∗
@@ -124,10 +114,9 @@ Definition proto_read_foreign : prim_proto := (λ p vl Φ,
                  γ ↦foreign a -∗
                  Φ (C_intf.LitV (C_intf.LitLoc a))))%I.
 
-Definition proto_callback (E : coPset) (T : ML_proto) : prim_proto := (λ p vl Φ,
+Definition proto_callback E (T : ML_proto) : prim_proto := (λ vl Φ,
   ∃ θ w γ w' lv' v' f x e ψ,
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜p = Pcallback⌝ ∗
     "->" ∷ ⌜vl = [ w; w' ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
     "Hclos" ∷ γ ↦clos (f, x, e) ∗
@@ -141,35 +130,37 @@ Definition proto_callback (E : coPset) (T : ML_proto) : prim_proto := (λ p vl �
                    ⌜repr_lval θ' lvret wret⌝ -∗
                    Φ wret))%I.
 
-(* non-callbacks primitives *)
-Definition proto_base_prims : prim_proto := (λ p vl Φ,
-    proto_int2val p vl Φ ∨ proto_val2int p vl Φ ∨ proto_registerroot p vl Φ ∨ proto_unregisterroot p vl Φ
-  ∨ proto_modify p vl Φ ∨ proto_readfield p vl Φ ∨ proto_alloc p vl Φ
-  ∨ proto_alloc_foreign p vl Φ ∨ proto_write_foreign p vl Φ ∨ proto_read_foreign p vl Φ
+Definition proto_prim (p : prim) E (T : ML_proto) : prim_proto :=
+  match p with
+  | Pint2val => proto_int2val
+  | Pval2int => proto_val2int
+  | Pregisterroot => proto_registerroot
+  | Punregisterroot => proto_unregisterroot
+  | Pmodify => proto_modify
+  | Preadfield => proto_readfield
+  | Palloc => proto_alloc
+  | Pallocforeign => proto_alloc_foreign
+  | Pwriteforeign => proto_write_foreign
+  | Preadforeign => proto_read_foreign
+  | Pcallback => proto_callback E T
+  end.
+
+Definition proto_prims_in_C E (T : ML_proto) : C_proto := (λ f vs Φ,
+  ∃ p, ⌜is_prim f p⌝ ∗ proto_prim p E T vs Φ
 )%I.
 
-Definition proto_prims E T : prim_proto := (λ p vl Φ,
-  proto_base_prims p vl Φ ∨ proto_callback E T p vl Φ)%I.
-
-Lemma proto_prims_mask_mono E1 E2 T : E1 ⊆ E2 →
-  ∀ p vl Φ, proto_prims E1 T p vl Φ -∗ proto_prims E2 T p vl Φ.
-Proof.
-  iIntros (H p vl Φ) "[HL|HR]".
-  1: by iLeft.
-  iNamed "HR". iRight.
-  do 10 iExists _; unfold named.
-  iFrame. do 4 (iSplit; first done).
+Lemma proto_prim_mask_mono E1 E2 T : E1 ⊆ E2 →
+  ∀ p vl Φ, proto_prim p E1 T vl Φ -∗ proto_prim p E2 T vl Φ.
+Proof using.
+  iIntros (H p vl Φ) "H". destruct p; try done.
+  iNamed "H". do 10 iExists _; unfold named.
+  iFrame. do 3 (iSplit; first done).
   iNext. iApply @wp_mask_mono. 1: done.
   iFrame.
 Qed.
 
-Definition proto_prims_in_C E (T : ML_proto) : C_proto := (λ f vs Φ,
-  ∃ p, ⌜is_prim f p⌝ ∗ proto_prims E T p vs Φ
-)%I.
-
 End PrimsProto.
 
 (* TODO: move? *)
-Notation prim_proto Σ := (prim -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 Notation C_proto Σ := (string -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 Notation ML_proto Σ := (string -d> list ML_lang.val -d> (ML_lang.val -d> iPropO Σ) -d> iPropO Σ).

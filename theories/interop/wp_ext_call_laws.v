@@ -28,10 +28,10 @@ Notation Cval := C_intf.val.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Definition prim_is_sound (Hspec : prim -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ) :=
-  forall penv E (prm:prim) (ws:list Cval) Ξ Φ,
+Definition prim_is_sound (prm : prim) (Hspec : list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ) :=
+  forall penv E (ws:list Cval) Ξ Φ,
     at_boundary wrap_lang
- -∗ Hspec prm ws Ξ
+ -∗ Hspec ws Ξ
  -∗ ▷ (∀ r, Ξ r -∗ at_boundary wrap_lang -∗
             WP (WrSE (ExprV r)) @ penv; E {{ Φ }})
  -∗ WP (WrSE (RunPrimitive prm ws)) @ penv; E {{ Φ }}.
@@ -64,9 +64,9 @@ Proof.
   iFrame.
 Qed.
 
-Lemma wp_prim_int2val : prim_is_sound proto_int2val.
+Lemma wp_prim_int2val : prim_is_sound Pint2val proto_int2val.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ". cbn.
   SI_at_boundary. iNamed "HT".
@@ -83,9 +83,9 @@ Proof.
   do 9 iExists _; rewrite /named; iFrame. eauto.
 Qed.
 
-Lemma wp_prim_val2int : prim_is_sound proto_val2int.
+Lemma wp_prim_val2int : prim_is_sound Pval2int proto_val2int.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ". cbn.
   SI_at_boundary. iNamed "HT".
@@ -102,9 +102,9 @@ Proof.
   do 9 iExists _; rewrite /named; iFrame. eauto.
 Qed.
 
-Lemma wp_prim_registerroot : prim_is_sound proto_registerroot.
+Lemma wp_prim_registerroot : prim_is_sound Pregisterroot proto_registerroot.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ". cbn.
   SI_at_boundary. iNamed "HT".
@@ -136,9 +136,9 @@ Proof.
     inv_repr_lval. by eapply elem_of_dom_2.
 Qed.
 
-Lemma wp_prim_unregisterroot : prim_is_sound proto_unregisterroot.
+Lemma wp_prim_unregisterroot : prim_is_sound Punregisterroot proto_unregisterroot.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ". cbn.
   SI_at_boundary. iNamed "HT".
@@ -163,9 +163,9 @@ Proof.
   - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
 Qed.
 
-Lemma wp_prim_modify : prim_is_sound proto_modify.
+Lemma wp_prim_modify : prim_is_sound Pmodify proto_modify.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
@@ -230,9 +230,9 @@ Proof.
      iSplit. inv_modify_block; simplify_map_eq. iFrame. eauto. }
 Qed.
 
-Lemma wp_prim_readfield : prim_is_sound proto_readfield.
+Lemma wp_prim_readfield : prim_is_sound Preadfield proto_readfield.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
@@ -270,9 +270,9 @@ Proof.
 Qed.
 
 
-Lemma wp_prim_alloc : prim_is_sound proto_alloc.
+Lemma wp_prim_alloc : prim_is_sound Palloc proto_alloc.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
@@ -402,9 +402,9 @@ Proof.
 Qed.
 
 (* TODO: refactor to share proof with wp_prim_alloc *)
-Lemma wp_prim_alloc_foreign : prim_is_sound proto_alloc_foreign.
+Lemma wp_prim_alloc_foreign : prim_is_sound Pallocforeign proto_alloc_foreign.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
@@ -498,9 +498,9 @@ Proof.
   - eapply GC_correct_transport; done.
 Qed.
 
-Lemma wp_prim_read_foreign : prim_is_sound proto_read_foreign.
+Lemma wp_prim_read_foreign : prim_is_sound Preadforeign proto_read_foreign.
 Proof.
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
@@ -526,10 +526,10 @@ Proof.
   iFrame. iPureIntro; split_and!; eauto. done.
 Qed.
 
-Lemma wp_prim_write_foreign : prim_is_sound proto_write_foreign.
+Lemma wp_prim_write_foreign : prim_is_sound Pwriteforeign proto_write_foreign.
 Proof.
   (* TODO: refactor to share lemmas with prim_modify *)
-  intros pe E prm vv Ξ Φ.
+  intros pe E vv Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
   SI_at_boundary. iNamed "HT". iNamed "HGC". SI_GC_agree.
@@ -583,25 +583,27 @@ Proof.
 Qed.
 
 Ltac solve_ext_call H := 
-    iPoseProof (H with "Hb H [IH]") as "Hwp"; [
+    iPoseProof (H with "Hb HT [IH]") as "Hwp"; [
      iIntros "!> %r HΞ Hb"; iApply ("IH" with "HΞ Hb")
     | rewrite weakestpre.wp_unfold; rewrite /weakestpre.wp_pre;
       iApply ("Hwp" $! (CState _ _));
       iSplitL "HσC"; first iFrame; iFrame ].
 
-Lemma wp_base_prims : prim_is_sound proto_base_prims.
-Proof.
-  intros pe E prm vv Ξ Φ.
+Lemma wp_base_prims (p : prim) E T :
+  p ≠ Pcallback →
+  prim_is_sound p (proto_prim p E T).
+Proof using.
+  intros ? pe vv ? Ξ Φ.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb HT IH %σ Hσ".
-  SI_at_boundary. cbn. iDestruct "HT" as "[H|[H|[H|[H|[H|[H|[H|[H|[H|H]]]]]]]]]".
-  - solve_ext_call wp_prim_int2val.
-  - solve_ext_call wp_prim_val2int.
+  SI_at_boundary. cbn. (destruct p; last by congruence).
+  - solve_ext_call wp_prim_alloc.
   - solve_ext_call wp_prim_registerroot.
   - solve_ext_call wp_prim_unregisterroot.
   - solve_ext_call wp_prim_modify.
   - solve_ext_call wp_prim_readfield.
-  - solve_ext_call wp_prim_alloc.
+  - solve_ext_call wp_prim_val2int.
+  - solve_ext_call wp_prim_int2val.
   - solve_ext_call wp_prim_alloc_foreign.
   - solve_ext_call wp_prim_write_foreign.
   - solve_ext_call wp_prim_read_foreign.

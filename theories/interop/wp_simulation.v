@@ -174,18 +174,19 @@ Qed.
 Lemma wp_base_primitives (pe : prog_environ ML_lang Σ) prim ws E Φ :
   penv_prog pe = ∅ → (* XXX *)
   (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ penv_proto pe fn_name vs Φ -∗ False) -∗
-  proto_prims E (penv_proto pe) prim ws Φ -∗
+  proto_prim prim E (penv_proto pe) ws Φ -∗
   at_boundary wrap_lang -∗
   WP (WrSE (RunPrimitive prim ws)) @ (wrap_penv pe); E {{ w,
     at_boundary wrap_lang ∗ Φ w }}.
 Proof.
-  iIntros (Hpeemp) "Hnprims [Hproto|Hcallback] Hb".
+  iIntros (Hpeemp) "Hnprims Hproto Hb".
+  destruct (decide (prim = Pcallback)) as [->|]; last first.
   { (* base primitives *)
-    iApply (wp_base_prims with "Hb Hproto").
+    iApply (wp_base_prims with "Hb Hproto"); first done.
     iIntros "!>" (?) "? ?". iApply weakestpre.wp_value; first done.
     iFrame. }
   { (* callbacks *)
-    iNamed "Hcallback".
+    iNamed "Hproto".
 
     rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
     iIntros (st) "Hst".
