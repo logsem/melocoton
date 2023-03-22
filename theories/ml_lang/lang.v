@@ -2,7 +2,7 @@ From stdpp Require Export binders strings.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.program_logic Require ectxi_language.
-From melocoton Require Import commons.
+From melocoton Require Import stdpp_extra language_commons.
 From melocoton.ml_lang Require Export locoff.
 From iris.prelude Require Import options.
 

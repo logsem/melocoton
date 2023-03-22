@@ -1,7 +1,7 @@
 From stdpp Require Import relations strings gmap.
 From iris.algebra Require Import ofe.
 From iris.prelude Require Import options.
-From melocoton Require Export multirelations commons.
+From melocoton Require Export multirelations language_commons.
 
 Section mlanguage_mixin.
   Context {expr val func state cont : Type}.

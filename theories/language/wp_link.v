@@ -1,6 +1,6 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
-From melocoton Require Import commons.
+From melocoton Require Import stdpp_extra language_commons.
 From melocoton.language Require Export language weakestpre.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not
    get pretty-printed correctly. *)

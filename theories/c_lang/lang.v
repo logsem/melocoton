@@ -3,7 +3,7 @@ From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
 From iris.prelude Require Import options.
-From melocoton Require Import commons.
+From melocoton Require Import stdpp_extra language_commons.
 From melocoton.c_interface Require Import defs.
 
 Declare Scope c_expr_scope.

@@ -1,5 +1,5 @@
 From stdpp Require Import base strings list gmap.
-From melocoton Require Import multirelations.
+From melocoton Require Import multirelations stdpp_extra.
 From melocoton.language Require Import language.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_interface Require Import defs.
@@ -368,7 +368,7 @@ Qed.
 Hint Resolve c_prim_step_total : core.
 
 Local Definition is_ML_call (e : ML_lang.expr) fn_name vs K :=
-  e = language.fill K (of_class _ (commons.ExprCall fn_name vs)).
+  e = language.fill K (of_class _ (language_commons.ExprCall fn_name vs)).
 
 Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   | StepMLS eml ρ K X :

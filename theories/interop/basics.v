@@ -1,7 +1,7 @@
 From Coq Require Import ZArith.
 From stdpp Require Import base gmap list.
 From iris.heap_lang Require Export locations.
-From melocoton Require Import commons.
+From melocoton Require Import stdpp_extra language_commons.
 From melocoton.c_interface Require Import defs.
 From melocoton.ml_lang Require Import lang.
 
