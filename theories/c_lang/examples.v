@@ -31,7 +31,7 @@ Definition heap_example : expr :=
 
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram fname cname : gmap string function :=
-  insert fname (fib_func cname) ∅.
+  {[ fname := fib_func cname ]}.
 
 
 
@@ -47,28 +47,23 @@ Definition StoreItSpec := λ s v Φ, match (s,v) with
 Definition FibLeftSpec := FibSpec "fib_left".
 Definition FibRightSpec := FibSpec "fib_right".
 
-Definition SimpleEnv : prog_environ C_lang Σ := {|
-  penv_prog := exampleProgram "fib_impl" "fib_impl";
-  penv_proto := StoreItSpec;
-|}.
+Definition SimpleEnv : prog_environ C_lang Σ :=
+  ⟨ exampleProgram "fib_impl" "fib_impl", StoreItSpec ⟩.
 
 Definition FinalSpec := spec_union (FibLeftSpec) FibRightSpec.
 
 
-Definition LeftEnv : prog_environ C_lang Σ := {|
-  penv_prog := exampleProgram "fib_left" "fib_right"; (* function called fib_left calls fib_right *)
-  penv_proto := spec_union FibRightSpec StoreItSpec;
-|}.
+Definition LeftEnv : prog_environ C_lang Σ :=
+  ⟨ exampleProgram "fib_left" "fib_right", (* function called fib_left calls fib_right *)
+    spec_union FibRightSpec StoreItSpec ⟩.
 
-Definition RightEnv : prog_environ C_lang Σ := {|
-  penv_prog := exampleProgram "fib_right" "fib_left"; (* function called fib_right calls fib_left *)
-  penv_proto := spec_union FibLeftSpec StoreItSpec;
-|}.
+Definition RightEnv : prog_environ C_lang Σ :=
+  ⟨ exampleProgram "fib_right" "fib_left", (* function called fib_right calls fib_left *)
+    spec_union FibLeftSpec StoreItSpec ⟩.
 
-Definition FinalEnv : prog_environ C_lang Σ := {|
-  penv_prog := insert "fib_right" (fib_func "fib_left") (insert "fib_left" (fib_func "fib_right") ∅);
-  penv_proto := StoreItSpec;
-|}.
+Definition FinalEnv : prog_environ C_lang Σ :=
+  ⟨ {[ "fib_right" := fib_func "fib_left"; "fib_left" := fib_func "fib_right" ]},
+    StoreItSpec ⟩.
 
 (* A simple recursive function *)
 Lemma fib_prog_correct' (n:nat)
@@ -79,7 +74,7 @@ Proof.
   wp_pures.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
-    assert (n=0 \/ n=1) as [-> | ->] by lia; done.
+    assert (n=0 ∨ n=1) as [-> | ->] by lia; done.
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
     wp_apply wp_wand.
     { assert ((n-1)%Z=(n-1)%nat) as -> by lia. iApply "IH". }

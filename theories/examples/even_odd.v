@@ -32,15 +32,11 @@ Definition is_even_proto fn vs Φ : iProp Σ :=
   ⌜fn = "is_even"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
   Φ (# (Z.even x)).
 
-Definition even_env : prog_environ C_lang Σ := {|
-  penv_prog := {[ "is_even" := is_even_func ]};
-  penv_proto := (λ fn vs Φ, is_odd_proto fn vs Φ);
-|}.
+Definition even_env : prog_environ C_lang Σ :=
+  ⟨ {[ "is_even" := is_even_func ]}, is_odd_proto ⟩.
 
-Definition odd_env : prog_environ C_lang Σ := {|
-  penv_prog := {[ "is_odd" := is_odd_func ]};
-  penv_proto := (λ fn vs Φ, is_even_proto fn vs Φ);
-|}.
+Definition odd_env : prog_environ C_lang Σ :=
+  ⟨ {[ "is_odd" := is_odd_func ]}, is_even_proto ⟩.
 
 Lemma is_even_spec (x:Z) E :
   (0 ≤ x)%Z →
@@ -93,10 +89,9 @@ Section linking.
 Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
 Context `{!linkGS Σ}.
 
-Definition penv : prog_environ (link_lang C_mlang C_mlang) Σ := {|
-  penv_prog := {[ "is_even" := inl is_even_func; "is_odd" := inr is_odd_func ]};
-  penv_proto := (λ _ _ _, False)%I;
-|}.
+Definition penv : prog_environ (link_lang C_mlang C_mlang) Σ :=
+  ⟪ {[ "is_even" := inl is_even_func; "is_odd" := inr is_odd_func ]},
+    (λ _ _ _, False)%I ⟫.
 
 Instance penv_is_link : is_link_environ (penv_to_mlang even_env) (penv_to_mlang odd_env) penv.
 Proof.

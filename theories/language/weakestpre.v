@@ -51,12 +51,15 @@ Qed.
 Definition program_specification `{!langGS val Λ Σ, !invGS_gen hlc Σ} :=
   string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ.
 
-Record prog_environ {val} (Λ : language val) Σ := {
+Record prog_environ {val} (Λ : language val) Σ := Penv {
   penv_prog : gmap string Λ.(func);
   penv_proto : string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ;
 }.
+Global Arguments Penv {_ _ _} _ _.
 Global Arguments penv_prog {_ _ _} _.
 Global Arguments penv_proto {_ _ _} _.
+
+Notation "⟨ p , T ⟩" := (Penv p T : prog_environ _ _).
 
 Local Definition wp_def `{!langGS val Λ Σ, !invGS_gen hlc Σ} : Wp (iProp Σ) (expr Λ) val (prog_environ Λ Σ) :=
   λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).

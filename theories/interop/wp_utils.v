@@ -19,9 +19,6 @@ Global Notation MLval := ML_lang.val.
 Global Notation Cval := C_intf.val.
 
 
-Notation mkPeML p T := ({| penv_prog := p; penv_proto := T |} : prog_environ ML_lang (_ : gFunctors)).
-Notation mkPeW p T := ({| weakestpre.penv_prog := p; weakestpre.penv_proto := T |} : weakestpre.prog_environ wrap_lang (_ : gFunctors)).
-
 Section Utils.
 
 Context {hlc : has_lc}.
@@ -34,7 +31,6 @@ Implicit Types P : iProp Σ.
 Import mlanguage.
 
 (* TODO: auxiliary definition? *)
-Notation prim_proto := (prim -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
 Notation C_proto := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ).
 Notation ML_proto := (string -d> list MLval -d> (MLval -d> iPropO Σ) -d> iPropO Σ).
 
@@ -56,8 +52,7 @@ Definition wrap_proto (T : ML_proto) : C_proto := (λ f ws Φ,
 Definition wrap_penv (pe : prog_environ ML_lang Σ) :
   mlanguage.weakestpre.prog_environ wrap_lang Σ
 :=
-  {| weakestpre.penv_prog := prims_prog;
-     weakestpre.penv_proto := wrap_proto (penv_proto pe) |}.
+  ⟪ prims_prog, wrap_proto (penv_proto pe) ⟫.
 
 
 Section RootsRepr.

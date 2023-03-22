@@ -14,12 +14,10 @@ Context `{!heapGS_ML Σ, !heapGS_C Σ}.
 Context `{!invGS_gen hlc Σ}.
 Context `{!wrapperGCtokGS Σ}.
 
-(* XXX? *)
-Notation mkPeML p T := ({| penv_prog := p; penv_proto := T |} : prog_environ ML_lang (_ : gFunctors)).
-
-Notation prim_proto := (prim -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 Notation C_proto := (string -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 Notation ML_proto := (string -d> list ML_lang.val -d> (ML_lang.val -d> iPropO Σ) -d> iPropO Σ).
+
+Local Notation prim_proto := (prim -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 
 Definition proto_int2val : prim_proto := (λ p vl Φ,
    ∃ θ z,
@@ -135,7 +133,7 @@ Definition proto_callback (E : coPset) (T : ML_proto) : prim_proto := (λ p vl �
     "Hclos" ∷ γ ↦clos (f, x, e) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
     "Hsim'" ∷ lv' ~~ v' ∗
-    "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) @ mkPeML ∅ T ; E {{ ψ }} ∗
+    "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) @ ⟨∅, T⟩ ; E {{ ψ }} ∗
     "Cont" ∷ ▷ (∀ θ' vret lvret wret,
                    GC θ' -∗
                    ψ vret -∗
@@ -172,7 +170,6 @@ Definition proto_prims_in_C E (T : ML_proto) : C_proto := (λ f vs Φ,
 End PrimsProto.
 
 (* TODO: move? *)
-Notation mkPeML p T := ({| penv_prog := p; penv_proto := T |} : prog_environ ML_lang (_ : gFunctors)).
 Notation prim_proto Σ := (prim -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 Notation C_proto Σ := (string -d> list C_intf.val -d> (C_intf.val -d> iPropO Σ) -d> iPropO Σ).
 Notation ML_proto Σ := (string -d> list ML_lang.val -d> (ML_lang.val -d> iPropO Σ) -d> iPropO Σ).

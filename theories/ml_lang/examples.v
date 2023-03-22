@@ -21,10 +21,8 @@ Definition IncrementSpec := λ s v Φ, match (s,v) with
 Definition inc_impl : ML_lang.expr := let: "k" := ! "l" + #1 in "l" <- "k";; #().
 Definition inc_func := MlFun [BNamed "l"] inc_impl.
 
-Definition AxiomEnv : prog_environ ML_lang Σ := {|
-  penv_prog := ∅;
-  penv_proto := IncrementSpec;
-|}.
+Definition AxiomEnv : prog_environ ML_lang Σ :=
+  ⟨ ∅, IncrementSpec ⟩.
 
 Lemma prog_correct
  : ⊢ (WP call_inc @ AxiomEnv ; ⊤ {{v, ⌜v = #42⌝}})%I.
@@ -41,10 +39,8 @@ Qed.
 
 Definition EmptySpec : (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ) := λ _ _ _, ⌜False⌝%I.
 
-Definition SpecifiedEnv : prog_environ ML_lang Σ := {|
-  penv_prog := <[ "inc" := inc_func ]> ∅;
-  penv_proto := EmptySpec;
-|}.
+Definition SpecifiedEnv : prog_environ ML_lang Σ :=
+  ⟨ {[ "inc" := inc_func ]}, EmptySpec ⟩.
 
 Lemma inc_correct l (z:Z)
  : ⊢ l ↦M #z -∗ (WP Extern "inc" [ Val #l ] @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}})%I.

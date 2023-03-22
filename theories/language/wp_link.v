@@ -19,11 +19,9 @@ Implicit Types prog : mixin_prog (func Λ).
 Implicit Types pe : prog_environ Λ Σ.
 
 
-Notation mkPe p T := ({| penv_prog := p; penv_proto := T |} : prog_environ Λ Σ).
-
 Definition program_fulfills
   (Tin : program_specification) (p : mixin_prog (func Λ)) (Tshould : program_specification) : iProp Σ := 
-  ∀ s vv Φ, Tshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ (mkPe p Tin); ⊤ {{v, Φ v}}.
+  ∀ s vv Φ, Tshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ ⟨p, Tin⟩; ⊤ {{v, Φ v}}.
 
 Definition env_fulfills
   (p:prog_environ Λ Σ) (Tshould : program_specification) := program_fulfills p.(penv_proto) p.(penv_prog) Tshould.
@@ -151,9 +149,8 @@ Qed.
 Lemma wp_link_execs Taxiom Tres (pres : gmap string (Λ.(func))) A :
   can_link_all Taxiom Tres pres A
   -> ⊢ ∀ e Φ i, match (nth_error A i) with None => ⌜False⌝ | 
-          Some (Ti, pi) => WP e @ mkPe pi
-          (spec_union (spec_union_list_except i (map fst A)) Taxiom); ⊤ {{ v, Φ v }} end
-     -∗ WP e @ mkPe pres (Taxiom); ⊤ {{ v, Φ v }}.
+          Some (Ti, pi) => WP e @ ⟨pi, spec_union (spec_union_list_except i (map fst A)) Taxiom ⟩; ⊤ {{ Φ }} end
+     -∗ WP e @ ⟨pres, Taxiom⟩; ⊤ {{ v, Φ v }}.
 Proof.
   intros [Hdis HTres Haxiom -> one_spec' Hsatis].
   iLöb as "IHe". iIntros (e Φ i).

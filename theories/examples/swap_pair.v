@@ -37,15 +37,14 @@ Definition swap_pair_code (x : expr) : expr :=
 
 Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 
-Definition swap_pair_mod : gmap string function := {[ "swap_pair" := swap_pair_func]}.
+Definition swap_pair_mod : gmap string function := {[ "swap_pair" := swap_pair_func ]}.
 
 Definition swap_pair_ml_spec : @program_specification _ ML_lang _ _ _ _ := (
   λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
 )%I.
 
 Definition swap_pair_env : language.weakestpre.prog_environ C_lang Σ :=
-  {| penv_prog := swap_pair_mod;
-     penv_proto := (proto_prims_in_C ∅ swap_pair_ml_spec) |}.
+  ⟨ swap_pair_mod, (proto_prims_in_C ∅ swap_pair_ml_spec) ⟩.
 
 Lemma swap_pair_correct E f vs Φ :
     wrap_proto swap_pair_ml_spec f vs Φ
@@ -188,7 +187,7 @@ Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !heapGS_ML Σ, !wrapperGS Σ, !linkGS
 Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) := 
   (Extern "swap_pair" [ ((#3, (#1, #2)))%MLE ]).
 
-Definition client_env := {| penv_prog := ∅; penv_proto := swap_pair_ml_spec |} : prog_environ ML_lang Σ.
+Definition client_env : prog_environ ML_lang Σ := ⟨ ∅, swap_pair_ml_spec ⟩.
 Definition client_env_wrapped := (wrap_penv client_env).
 
 Lemma ML_prog_correct_axiomatic E : ⊢ WP swap_pair_client @ client_env ; E {{v, ⌜v = (#1,#2,#3)⌝%MLV}}.
@@ -215,9 +214,9 @@ Proof.
   by iApply wp_lang_to_mlang.
 Qed.
 
-Definition linked_env : prog_environ combined_lang Σ:= {|
-    penv_prog := fmap inl prims.prims_prog ∪ fmap inr swap_pair_mod ; 
-    penv_proto := λ _ _ _, ⌜False⌝%I |}.
+Definition linked_env : prog_environ combined_lang Σ :=
+  ⟪ fmap inl prims.prims_prog ∪ fmap inr swap_pair_mod,
+    λ _ _ _, ⌜False⌝%I ⟫.
 
 Lemma is_linkable_swap_pair : is_link_environ client_env_wrapped swap_pair_env_lifted linked_env.
 Proof.

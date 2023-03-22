@@ -248,7 +248,7 @@ Lemma callback_spec E pe (T : ML_proto Σ) θ w γ f x e lv' w' v' ψ :
   {{{ GC θ ∗
       γ ↦clos (f, x, e) ∗
       lv' ~~ v' ∗
-      (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) @ mkPeML ∅ T; E {{ ψ }})
+      (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) @ ⟨∅, T⟩; E {{ ψ }})
   }}}
     (call: &"callback" with (Val w, Val w'))%CE
       @ (penv_with_prims E pe T); E
