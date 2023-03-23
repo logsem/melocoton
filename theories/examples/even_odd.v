@@ -126,7 +126,8 @@ Proof.
   - rewrite is_odd_refines lang_to_mlang_refines //.
 Qed.
 
-(* TODO: could those be derived more directly? *)
+(* From this we can derive that calling is_even/is_odd in fullprog satisfies
+   their respective spec. *)
 Lemma is_even_linked_spec (x:Z) E :
   (0 ≤ x)%Z →
   {{{ link_in_state _ _ Boundary }}}
@@ -134,14 +135,11 @@ Lemma is_even_linked_spec (x:Z) E :
   {{{ RET #(Z.even x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
-  iApply wp_link_internal_call; first done.
-  iIntros "!>". iApply (wp_link_run_function1 with "Hlkst"); first done.
-  iIntros "!> Hlkst _".
-  iApply (wp_link_run1' with "Hlkst").
-  { iApply wp_wand.
-    2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
-    iApply wp_lang_to_mlang. by iApply is_even_correct. }
-  { iIntros (?) "[-> ?]". by iApply "HΦ". }
+  iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]"); try done.
+  { iApply fullprog_refines_even_odd. iLeft. iSplit; first done.
+    instantiate (1 := (λ y, ⌜y = #(Z.even x)⌝)%I). eauto. }
+  iNext. iIntros (? ->) "?". cbn. iApply (wp_value ⟪fullprog, ⊥⟫); eauto.
+  by iApply "HΦ".
 Qed.
 
 Lemma is_odd_linked_spec (x:Z) E :
@@ -151,14 +149,11 @@ Lemma is_odd_linked_spec (x:Z) E :
   {{{ RET #(Z.odd x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
-  iApply wp_link_internal_call; first done.
-  iIntros "!>". iApply (wp_link_run_function2 with "Hlkst"); first done.
-  iIntros "!> Hlkst _".
-  iApply (wp_link_run2' with "Hlkst").
-  { iApply wp_wand.
-    2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
-    iApply wp_lang_to_mlang. by iApply is_odd_correct. }
-  iIntros (?) "[-> ?]". by iApply "HΦ".
+  iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]"); try done.
+  { iApply fullprog_refines_even_odd. iRight. iSplit; first done.
+    instantiate (1 := (λ y, ⌜y = #(Z.odd x)⌝)%I). eauto. }
+  iNext. iIntros (? ->) "?". cbn. iApply (wp_value ⟪fullprog, ⊥⟫); eauto.
+  by iApply "HΦ".
 Qed.
 
 End linking.

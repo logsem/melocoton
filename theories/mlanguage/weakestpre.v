@@ -330,6 +330,22 @@ Proof.
   iSplitR; first done. iFrame.
 Qed.
 
+Lemma wp_internal_call_at_boundary p e fn vs C Ψ E Φ Φ' :
+  is_call e fn vs C →
+  at_boundary Λ -∗
+  mprog_proto E p Ψ fn vs Φ -∗
+  (▷ ∀ v, Φ v -∗ at_boundary Λ -∗ WP resume_with C (of_val Λ v) @ ⟪p, Ψ⟫; E {{ Φ' }}) -∗
+  WP e @ ⟪p, Ψ⟫; E {{ Φ' }}.
+Proof.
+  iIntros (Hcall) "Hb H Hcont". rewrite /mprog_proto.
+  case_match; last done. iDestruct "H" as (e' ?) "H".
+  iApply wp_internal_call; [done..|]. iNext.
+  iApply wp_bind. iApply (wp_post_mono with "[H Hb]").
+  { by iApply "H". }
+  cbn. iIntros (?) "(HΦ & Hb)". iModIntro.
+  iApply ("Hcont" with "HΦ Hb").
+Qed.
+
 Lemma wp_wand s E e Φ Φ' :
   WP e @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Φ' v) -∗ WP e @ s; E {{ Φ' }}.
 Proof.
