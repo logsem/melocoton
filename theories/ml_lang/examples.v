@@ -94,8 +94,8 @@ Proof. split.
   - iIntros (s vv Φ) "[]".
   - iIntros (s vv Φ) "Hvv".
     iDestruct (right_correct $! s vv Φ with "Hvv") as "[$ HR]".
-    iApply wp_pe_mono. 2: iApply "HR". split; try easy. cbn.
-    iIntros (? ? ?) "? []".
+    iApply wp_proto_mono. 2: iApply "HR". cbn.
+    iIntros (? ? ?) "[]".
   - cbn. apply map_eq_iff. intros i. destruct (decide (i = "inc")); set_solver.
 Qed.
 
@@ -103,9 +103,8 @@ Lemma link_executions
  : ⊢ (WP call_inc @ SpecifiedEnv ; ⊤ {{v, ⌜v = #42⌝}})%I.
 Proof.
   iApply (wp_link_execs _ _ _ _ _ $! _ _ 0).
-  cbn. iApply wp_pe_mono. 2: iApply prog_correct.
-  split; try reflexivity. 
-  iIntros (s vv Φ) "%Hdom Hvv". cbn -[IncrementSpec].
+  cbn. iApply wp_proto_mono. 2: iApply prog_correct.
+  iIntros (s vv Φ) "Hvv". cbn -[IncrementSpec].
   iLeft. iExists 1. cbn [nth_error]. iSplitR; done.
 Qed.
 

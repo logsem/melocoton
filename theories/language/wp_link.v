@@ -15,40 +15,38 @@ Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
-Implicit Types T : protocol val Σ.
-Implicit Types prog : mixin_prog (func Λ).
+Implicit Types Ψ : protocol val Σ.
+Implicit Types prog : lang_prog Λ.
 Implicit Types pe : prog_environ Λ Σ.
 
 
 Definition program_fulfills
-  (Tin : protocol val Σ) (p : mixin_prog (func Λ)) (Tshould : protocol val Σ) : iProp Σ :=
-  ∀ s vv Φ, Tshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ ⟨p, Tin⟩; ⊤ {{v, Φ v}}.
+  (Ψin : protocol val Σ) (p : mixin_prog (func Λ)) (Ψshould : protocol val Σ) : iProp Σ :=
+  ∀ s vv Φ, Ψshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ ⟨p, Ψin⟩; ⊤ {{ Φ }}.
 
 Definition env_fulfills
-  (p:prog_environ Λ Σ) (Tshould : protocol val Σ) := program_fulfills p.(penv_proto) p.(penv_prog) Tshould.
+  (p:prog_environ Λ Σ) (Ψshould : protocol val Σ) := program_fulfills p.(penv_proto) p.(penv_prog) Ψshould.
 
-Notation "Tin '|-' p '::' Tshould" := (program_fulfills Tin p Tshould) (at level 25, p, Tshould at level 26) : bi_scope.
+Notation "Ψin '|-' p '::' Ψshould" := (program_fulfills Ψin p Ψshould) (at level 25, p, Ψshould at level 26) : bi_scope.
 
 Definition spec_union (p1 p2 : protocol val Σ) : protocol val Σ :=
   λ s vv Φ, (p1 s vv Φ ∨ p2 s vv Φ)%I.
 Definition spec_inters (p1 p2 : protocol val Σ) : protocol val Σ :=
   λ s vv Φ, (p1 s vv Φ ∧ p2 s vv Φ)%I.
 
-Notation prog := (gmap string (Λ.(func))).
 
-
-Class can_link (T1 T2 Taxiom Tres : protocol val Σ) (p1 p2 p3 : prog) : Prop := {
+Class can_link (Ψ1 Ψ2 Ψaxiom Ψres : protocol val Σ) (p1 p2 p3 : lang_prog Λ) : Prop := {
   p1_p2_disjoint : dom p1 ## dom p2;
-  Tres_is_union : ⊢ (∀ s vv Φ, Tres s vv Φ -∗ (spec_union T1 T2) s vv Φ)%I;
-  Taxiom_is_axiomatic : ⊢ (∀ s vv Φ, Taxiom s vv Φ -∗ ⌜s ∉ dom p3⌝)%I;
-  p1_satisfies_T1 : ⊢ (spec_union T2 Taxiom |- p1 :: T1)%I;
-  p2_satisfies_T2 : ⊢ (spec_union T1 Taxiom |- p2 :: T2)%I;
+  Ψres_is_union : ⊢ (∀ s vv Φ, Ψres s vv Φ -∗ (spec_union Ψ1 Ψ2) s vv Φ)%I;
+  Ψaxiom_is_axiomatic : ⊢ (∀ s vv Φ, Ψaxiom s vv Φ -∗ ⌜s ∉ dom p3⌝)%I;
+  p1_satisfies_Ψ1 : ⊢ (spec_union Ψ2 Ψaxiom |- p1 :: Ψ1)%I;
+  p2_satisfies_Ψ2 : ⊢ (spec_union Ψ1 Ψaxiom |- p2 :: Ψ2)%I;
   p3_is_union : p3 = (union_with (λ _ _ : func Λ, None) p1 p2);
 }.
 
-Definition pairwise {X} (A:list X) (T : X -> X -> Prop) :=
+Definition pairwise {X} (A:list X) (Ψ : X -> X -> Prop) :=
   forall i j, i <> j -> match (nth_error A i, nth_error A j) with
-      (Some a, Some b) => T a b
+      (Some a, Some b) => Ψ a b
      | _ => True end.
 
 Definition spec_union_list (P : list (protocol val Σ)) : protocol val Σ :=
@@ -56,7 +54,7 @@ Definition spec_union_list (P : list (protocol val Σ)) : protocol val Σ :=
 Definition spec_union_list_except k (P : list (protocol val Σ)) : protocol val Σ :=
   λ s vv Φ, (∃ i, ⌜i <> k⌝ ∗ match nth_error P i with Some pp => pp s vv Φ | _ => ⌜False⌝ end)%I.
 
-Fixpoint union_map_list (P : list prog) : prog := match P with
+Fixpoint union_map_list (P : list (lang_prog Λ)) : lang_prog Λ := match P with
   nil => ∅
  | x::xr => union_with (λ _ _ : func Λ, None) x (union_map_list xr)
 end.
@@ -68,7 +66,7 @@ Proof.
   apply HH. congruence.
 Qed.
 
-Lemma union_map_list_spec x y (P:list prog) : 
+Lemma union_map_list_spec x y (P:list (lang_prog Λ)) :
   (pairwise P (fun p1 p2 => dom p1 ## dom p2)) -> 
   ((union_map_list P) !! x = Some y <-> ∃ k, In k P ∧ k !! x = Some y).
 Proof.
@@ -88,16 +86,16 @@ Proof.
       all: by eapply elem_of_dom_2.
     + injection 1; intros ->. exists a; repeat split; by try left.
     + intros (k & [-> | Hk] & Heq); first congruence.
-      exfalso. assert (∃ k : prog, In k P ∧ k !! x = Some y) as H by by exists k.
+      exfalso. assert (∃ k : lang_prog Λ, In k P ∧ k !! x = Some y) as H by by exists k.
       apply IHP in H; first congruence. by eapply pairwise_subset.
     + apply IHP in HvP; last by eapply pairwise_subset.
       destruct HvP as (k & ? & ?).
       injection 1; intros ->. exists k; repeat split; eauto.
     + intros (k & [-> | Hk] & Heq); first congruence.
-      assert (∃ k : prog, In k P ∧ k !! x = Some y) as H by by exists k.
+      assert (∃ k : lang_prog Λ, In k P ∧ k !! x = Some y) as H by by exists k.
       apply IHP in H; last by eapply pairwise_subset. congruence.
     + intros (k & [-> | Hk] & Heq); first congruence.
-      assert (∃ k : prog, In k P ∧ k !! x = Some y) as H by by exists k.
+      assert (∃ k : lang_prog Λ, In k P ∧ k !! x = Some y) as H by by exists k.
       apply IHP in H; last by eapply pairwise_subset. congruence.
 Qed.
 
@@ -111,20 +109,20 @@ Proof.
 Qed.
 
 Class can_link_all 
-    (Taxiom Tres : protocol val Σ) (pres : prog)
-    (A : list (prod (protocol val Σ) prog)) := {
+    (Ψaxiom Ψres : protocol val Σ) (pres : lang_prog Λ)
+    (A : list (prod (protocol val Σ) (lang_prog Λ))) := {
   all_disjoint : pairwise (map snd A) (fun p1 p2 => dom p1 ## dom p2);
-  Tres_is_big_union : ⊢ (∀ s vv Φ, Tres s vv Φ -∗ (spec_union_list (map fst A)) s vv Φ)%I;
-  Taxiom_is_axiomatic_all : ⊢ (∀ s vv Φ, Taxiom s vv Φ -∗ ⌜s ∉ dom pres⌝)%I;
+  Ψres_is_big_union : ⊢ (∀ s vv Φ, Ψres s vv Φ -∗ (spec_union_list (map fst A)) s vv Φ)%I;
+  Ψaxiom_is_axiomatic_all : ⊢ (∀ s vv Φ, Ψaxiom s vv Φ -∗ ⌜s ∉ dom pres⌝)%I;
   pres_is_union : pres = union_map_list (map snd A);
-  one_spec := fun i => spec_union (spec_union_list_except i (map fst A)) Taxiom;
+  one_spec := fun i => spec_union (spec_union_list_except i (map fst A)) Ψaxiom;
   all_satisfy_spec : ∀ i, match (nth_error A i) with None => True |
-      Some (Ti, pi) =>  ⊢ (one_spec i |- pi :: Ti)%I end
+      Some (Ψi, pi) =>  ⊢ (one_spec i |- pi :: Ψi)%I end
 }.
 
 #[global]
-Instance can_link_can_link_all Taxiom Tres pres T1 T2 p1 p2 : can_link T1 T2 Taxiom Tres p1 p2 pres
-  -> can_link_all Taxiom Tres pres [(T1,p1); (T2,p2)].
+Instance can_link_can_link_all Ψaxiom Ψres pres Ψ1 Ψ2 p1 p2 : can_link Ψ1 Ψ2 Ψaxiom Ψres p1 p2 pres
+  -> can_link_all Ψaxiom Ψres pres [(Ψ1,p1); (Ψ2,p2)].
 Proof.
   intros [H1 H2 H3 H4 H5 H6]; split; cbn.
   - intros [|[|[|i]]] [|[|[|j]]] H; cbn; easy.
@@ -140,36 +138,36 @@ Proof.
     1: iPoseProof H4 as "H"; iSpecialize ("H" $! s vv Φ with "Hres").
     2: iPoseProof H5 as "H"; iSpecialize ("H" $! s vv Φ with "Hres").
     all: iDestruct "H" as "[$ HWP]".
-    all: iApply wp_pe_mono; last iApply "HWP".
-    all: split; first done; cbn; intros s' vv' Φ'; iIntros (Hnot) "[H|H]".
+    all: iApply wp_proto_mono; last iApply "HWP".
+    all: cbn; intros s' vv' Φ'; iIntros "[H|H]".
     2,4: by iRight. all: iLeft.
     1: iExists 1. 2: iExists 0.
     all: iSplitR; first done. all: done.
 Qed.
 
-Lemma wp_link_execs Taxiom Tres (pres : gmap string (Λ.(func))) A :
-  can_link_all Taxiom Tres pres A
+Lemma wp_link_execs Ψaxiom Ψres (pres : gmap string (Λ.(func))) A :
+  can_link_all Ψaxiom Ψres pres A
   -> ⊢ ∀ e Φ i, match (nth_error A i) with None => ⌜False⌝ | 
-          Some (Ti, pi) => WP e @ ⟨pi, spec_union (spec_union_list_except i (map fst A)) Taxiom ⟩; ⊤ {{ Φ }} end
-     -∗ WP e @ ⟨pres, Taxiom⟩; ⊤ {{ v, Φ v }}.
+          Some (Ψi, pi) => WP e @ ⟨pi, spec_union (spec_union_list_except i (map fst A)) Ψaxiom ⟩; ⊤ {{ Φ }} end
+     -∗ WP e @ ⟨pres, Ψaxiom⟩; ⊤ {{ Φ }}.
 Proof.
-  intros [Hdis HTres Haxiom -> one_spec' Hsatis].
+  intros [Hdis HΨres Haxiom -> one_spec' Hsatis].
   iLöb as "IHe". iIntros (e Φ i).
-  destruct (nth_error A i) as [[Ti pi]|] eqn:Heq; last (iIntros "%H"; done).
+  destruct (nth_error A i) as [[Ψi pi]|] eqn:Heq; last (iIntros "%H"; done).
   rewrite !wp_unfold /wp_pre /=.
   iIntros "H %σ Hσ".
   - iSpecialize ("H" $! σ with "Hσ").
     iMod "H".
-    iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s' & %vv' & %K & %HeqK & %H2 & >(%Ξ & Hσ & [HT|HT] & H3))|(%HH & H3)]]".
+    iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s' & %vv' & %K & %HeqK & %H2 & >(%Ξ & Hσ & [HΨ|HΨ] & H3))|(%HH & H3)]]".
     * iModIntro. iLeft. iExists _. iFrame. iPureIntro. done.
-    * iDestruct "HT" as "(%kidx & %Hknei & HT)". rewrite nth_error_map.
-      destruct (nth_error A kidx) as [[Tc pc]|] eqn:Heqk; cbn; last iPure "HT" as [].
+    * iDestruct "HΨ" as "(%kidx & %Hknei & HΨ)". rewrite nth_error_map.
+      destruct (nth_error A kidx) as [[Ψc pc]|] eqn:Heqk; cbn; last iPure "HΨ" as [].
       specialize (Hsatis kidx). rewrite Heqk in Hsatis.
       iPoseProof (Hsatis) as "Hsatis".
-      iDestruct ("Hsatis" $! s' vv' Ξ with "HT")as "(%HNone & HT)".
+      iDestruct ("Hsatis" $! s' vv' Ξ with "HΨ")as "(%HNone & HΨ)".
       rewrite wp_unfold /wp_pre /=.
-      iSpecialize ("HT" $! σ with "Hσ").
-      iMod "HT" as "[(%x & %Heqx & Hσ & H)|[(%s'2 & %vv'2 & %K'2 & %HeqK2 & %H''2 & >(%Ξ' & Hσ & HT' & H3'))|(%HH2&H3')]]".
+      iSpecialize ("HΨ" $! σ with "Hσ").
+      iMod "HΨ" as "[(%x & %Heqx & Hσ & H)|[(%s'2 & %vv'2 & %K'2 & %HeqK2 & %H''2 & >(%Ξ' & Hσ & HΨ' & H3'))|(%HH2&H3')]]".
       -- exfalso. apply of_class_inj in Heqx. congruence.
       -- exfalso. assert (K'2 = empty_ectx) as ->. 
          2: { rewrite fill_empty in HeqK2. apply of_class_inj in HeqK2. assert (s'2 = s') as -> by congruence; congruence. }
@@ -186,7 +184,7 @@ Proof.
          destruct Hstep as (Fn & Heqp2' & He2' & -> ). iRight. iRight.
          assert (union_map_list (map snd A) !! s' = Some Fn) as Heqs'.
          { apply union_map_list_spec; first done. exists pc; repeat split; try done.
-           apply in_map_iff. exists ((Tc,pc)); repeat split. by eapply nth_error_In. }
+           apply in_map_iff. exists ((Ψc,pc)); repeat split. by eapply nth_error_In. }
          iModIntro. iSplit; first iPureIntro.
          { do 2 eexists. rewrite HeqK. econstructor; first done. 1:done.
            apply call_head_step. exists Fn. repeat split; try done. }
@@ -204,7 +202,7 @@ Proof.
          iIntros (r) "Hr". iSpecialize ("H3" $! r with "Hr"). iApply ("IHe" $! _ _ i). rewrite Heq. done.
     * iRight. iLeft. iModIntro. do 3 iExists _; iSplitR; first done.
       destruct (union_map_list (map snd A) !! s') as [v|] eqn:Heqv.
-      { iExFalso. iDestruct (Haxiom $! s' vv' Ξ with "HT") as "%Hfalse". exfalso.
+      { iExFalso. iDestruct (Haxiom $! s' vv' Ξ with "HΨ") as "%Hfalse". exfalso.
         apply Hfalse. eapply elem_of_dom_2. done. }
       cbn. iSplitR; first done. iModIntro. iExists Ξ. iFrame. iNext.
       iIntros (r) "Hr". iSpecialize ("H3" with "Hr"). iApply ("IHe" $! _ _ i). by rewrite Heq.
@@ -212,7 +210,7 @@ Proof.
       iSplitR.
       { iPureIntro. eapply reducible_mono; last done.
         apply union_map_subset; first done. apply elem_of_list_In.
-        apply in_map_iff. exists ((Ti, pi)); split; eauto.
+        apply in_map_iff. exists ((Ψi, pi)); split; eauto.
         by eapply nth_error_In. }
       iIntros (σ' e' Hstep%prim_step_inv).
       iSpecialize ("H3" $! σ' e').
@@ -231,7 +229,7 @@ Proof.
           rewrite fill_empty in Heq1. subst eK1. apply call_head_step in H, HHstep.
           destruct H as (FN1 & HFN1 &Happy1 & ->).
           destruct HHstep as (FN2 & HFN2 &Happy2 & ->).
-          apply union_map_list_spec in HFN1; last done. destruct HFN1 as (? & [[TT kk] [<- (kki & Hkki)%In_nth_error]]%in_map_iff & HFN1).
+          apply union_map_list_spec in HFN1; last done. destruct HFN1 as (? & [[ΨΨ kk] [<- (kki & Hkki)%In_nth_error]]%in_map_iff & HFN1).
           cbn in HFN1. destruct (decide (kki = i)) as [-> | Hcontr].
           1: apply call_head_step; exists FN2; repeat split; try congruence.
           exfalso. specialize (Hdis kki i Hcontr). rewrite ! nth_error_map in Hdis.
@@ -242,22 +240,22 @@ Proof.
       iMod "H3" as "(Hσ & HWP)". iModIntro. iFrame. iApply ("IHe" $! _ _ i). rewrite Heq. done.
 Qed.
 
-Lemma wp_link_progs Taxiom Tres (pres : gmap string (Λ.(func))) A :
-  can_link_all Taxiom Tres pres A
- -> ⊢ Taxiom |- pres :: Tres.
+Lemma wp_link_progs Ψaxiom Ψres (pres : gmap string (Λ.(func))) A :
+  can_link_all Ψaxiom Ψres pres A
+ -> ⊢ Ψaxiom |- pres :: Ψres.
 Proof.
-  intros [Hdis HTres Haxiom -> one_spec' Hsatis].
-  iIntros (s vv Φ) "H". iPoseProof HTres as "HTres".
-    iDestruct ("HTres" with "H") as "[%x Hx]".
+  intros [Hdis HΨres Haxiom -> one_spec' Hsatis].
+  iIntros (s vv Φ) "H". iPoseProof HΨres as "HΨres".
+    iDestruct ("HΨres" with "H") as "[%x Hx]".
     erewrite nth_error_map.
-    destruct (nth_error A x) as [[Ti pi]|] eqn:Heq; last by iExFalso. cbn.
+    destruct (nth_error A x) as [[Ψi pi]|] eqn:Heq; last by iExFalso. cbn.
     specialize (Hsatis x) as Hsatis2.
     rewrite Heq in Hsatis2. iDestruct (Hsatis2 $! s vv Φ with "Hx") as "[%Hx1 Hx2]".
     destruct (union_map_list (map snd A) !! s) eqn:Hl2.
-  - iSplitR; first done. unshelve iApply (wp_link_execs _ _ _ _ _ $! _ _ x). 3: by split. rewrite Heq. done.
+  - iSplitR; first done. unshelve iApply (wp_link_execs _ _ _ _ $! _ _ x). 3: by split. rewrite Heq. done.
   - exfalso. destruct (pi !! s) as [f|] eqn:Heqpi; try congruence.
     assert (∃ k, In k ((map snd A)) ∧ k !! s = Some f) as HH.
-    + exists pi; repeat split; try done. apply in_map_iff. exists (Ti,pi).
+    + exists pi; repeat split; try done. apply in_map_iff. exists (Ψi,pi).
       repeat split; try done. eapply nth_error_In. done.
     + apply union_map_list_spec in HH; try congruence. done.
 Qed.

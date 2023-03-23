@@ -48,224 +48,207 @@ Qed.
 
 (* Calling to runtime primitives *)
 
-(* TODO: move / refactor / merge with the other penv combinators *)
-Definition penv_with_prims E (pe : language.progenv.prog_environ C_lang Σ) (T : ML_proto Σ) :
-  language.progenv.prog_environ C_lang Σ
-  :=
-  {| penv_prog := filter (λ '(s, _), ¬ is_prim_name s) (penv_prog pe);
-     penv_proto := (λ f vs Φ, proto_prims_in_C E T f vs Φ ∨ penv_proto pe f vs Φ)%I; |}.
-
-
-Lemma int2val_spec E pe (T : ML_proto Σ) θ (x : Z) :
+Lemma wp_int2val E p Ψ θ (x : Z) :
+  p !! "int2val" = None →
+  int2val_proto ⊑ Ψ →
   {{{ GC θ }}}
-    (call: &"int2val" with (Val #x))%CE @ (penv_with_prims E pe T); E
+    (call: &"int2val" with (Val #x))%CE @ ⟨p, Ψ⟩; E
   {{{ w, RET w; GC θ ∗ ⌜repr_lval θ (Lint x) w⌝ }}}.
 Proof.
-  iIntros (Φ) "HGC Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros H; apply H. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_int2val /named. iExists _, _. iFrame.
-  iSplit; first by eauto. iIntros "!>" (?) "HGC %".
+  iIntros (Hp Hproto Φ) "HGC Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /int2val_proto /named. iExists _, _. iFrame.
+  do 2 (iSplit; first by eauto). iIntros "!>" (?) "HGC %".
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
-Lemma val2int_spec E pe (T : ML_proto Σ) θ (w:word) (x:Z) :
+Lemma wp_val2int E p Ψ θ (w:word) (x : Z) :
+  p !! "val2int" = None →
+  val2int_proto ⊑ Ψ →
   repr_lval θ (Lint x) w →
   {{{ GC θ }}}
-    (call: &"val2int" with (Val w))%CE @ (penv_with_prims E pe T); E
+    (call: &"val2int" with (Val w))%CE @ ⟨p, Ψ⟩; E
   {{{ RET (#x); GC θ }}}.
 Proof.
-  iIntros (Hrepr Φ) "HGC Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros H; apply H. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_val2int /named. iExists _, _, _. iFrame.
-  do 2 (iSplit; first by eauto). iIntros "!> HGC".
+  iIntros (Hp Hproto Hrepr Φ) "HGC Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /val2int_proto /named. iExists _, _, _. iFrame.
+  do 3 (iSplit; first by eauto). iIntros "!> HGC".
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
-Lemma registerroot_spec E pe (T : ML_proto Σ) θ v w a :
+Lemma wp_registerroot E p Ψ θ v w a :
+  p !! "registerroot" = None →
+  registerroot_proto ⊑ Ψ →
   repr_lval θ v w →
   {{{ GC θ ∗ a ↦C w }}}
-    (call: &"registerroot" with (Val (# a)))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"registerroot" with (Val (# a)))%CE @ ⟨p, Ψ⟩; E
   {{{ RET (# 0); GC θ ∗ a ↦roots v }}}.
 Proof.
-  iIntros (Hrepr Φ) "(HGC & Hpto) Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros H; apply H. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_registerroot /named.
+  iIntros (Hp Hproto Hrepr Φ) "(HGC & Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /registerroot_proto /named.
   iExists _, _, _, _. iFrame.
-  do 2 (iSplit; first by eauto). iIntros "!> ? ?".
+  do 3 (iSplit; first by eauto). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 
-Lemma unregisterroot_spec E pe (T : ML_proto Σ) θ v a :
+Lemma wp_unregisterroot E p Ψ θ v a :
+  p !! "unregisterroot" = None →
+  unregisterroot_proto ⊑ Ψ →
   {{{ GC θ ∗ a ↦roots v }}}
-    (call: &"unregisterroot" with (Val (# a)))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"unregisterroot" with (Val (# a)))%CE @ ⟨p, Ψ⟩; E
   {{{ w, RET (# 0); GC θ ∗ a ↦C w ∗ ⌜repr_lval θ v w⌝ }}}.
 Proof.
-  iIntros (Φ) "(HGC & Hpto) Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros H; apply H. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_unregisterroot /named.
+  iIntros (Hp Hproto Φ) "(HGC & Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /unregisterroot_proto /named.
   iExists _, _, _. iFrame.
-  iSplit; first by eauto. iIntros "!>" (?) "? ? %".
+  do 2 (iSplit; first by eauto). iIntros "!>" (?) "? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma modify_spec E pe (T : ML_proto Σ) θ γ w mut tg vs v' w' i :
+Lemma wp_modify E p Ψ θ γ w mut tg vs v' w' i :
+  p !! "modify" = None →
+  modify_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   vblock_access_le M mut →
   repr_lval θ v' w' →
   (0 ≤ i < length vs)%Z →
   {{{ GC θ ∗ γ ↦vblk[mut] (tg, vs) }}}
-    (call: &"modify" with (Val w, Val (# i), Val w'))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"modify" with (Val w, Val (# i), Val w'))%CE @ ⟨p, Ψ⟩; E
   {{{ RET (# 0); GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) }}}.
 Proof.
-  intros. iIntros "(HGC & Hpto) Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros HH; apply HH. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_modify /named.
+  intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /modify_proto /named.
   do 9 iExists _. iFrame.
-  do 6 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 7 (iSplit; first by eauto with lia). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma readfield_spec E pe (T : ML_proto Σ) θ γ w m dq tg vs i :
+Lemma wp_readfield E p Ψ θ γ w m dq tg vs i :
+  p !! "readfield" = None →
+  readfield_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   (0 ≤ i < length vs)%Z →
   {{{ GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}
-    (call: &"readfield" with (Val w, Val (# i)))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"readfield" with (Val w, Val (# i)))%CE @ ⟨p, Ψ⟩; E
   {{{ v' w', RET w';
         GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) ∗
         ⌜vs !! (Z.to_nat i) = Some v'⌝ ∗
         ⌜repr_lval θ v' w'⌝ }}}.
 Proof.
-  intros. iIntros "(HGC & Hpto) Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros HH; apply HH. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_readfield /named.
+  intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /readfield_proto /named.
   do 8 iExists _. iFrame.
-  do 4 (iSplit; first by eauto with lia). iIntros "!>" (? ?) "? ?".
+  do 5 (iSplit; first by eauto with lia). iIntros "!>" (? ?) "? ?".
   iIntros (? ?).
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma alloc_spec E pe (T : ML_proto Σ) θ tg tgnum sz :
+Lemma wp_alloc E p Ψ θ tg tgnum sz :
+  p !! "alloc" = None →
+  alloc_proto ⊑ Ψ →
   (0 ≤ sz)%Z →
   vblock_tag_as_int tg = tgnum →
   {{{ GC θ }}}
-    (call: &"alloc" with (Val (# tgnum), Val (# sz)))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"alloc" with (Val (# tgnum), Val (# sz)))%CE @ ⟨p, Ψ⟩; E
   {{{ θ' γ w, RET w;
         GC θ' ∗ γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) ∗
         ⌜repr_lval θ' (Lloc γ) w⌝ }}}.
 Proof.
-  intros. iIntros "HGC Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros HH; apply HH. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_alloc /named.
+  intros Hp Hproto **. iIntros "HGC Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /alloc_proto /named.
   do 3 iExists _. iFrame. subst.
-  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "? ? %".
+  do 3 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma alloc_foreign_spec E pe (T : ML_proto Σ) θ a :
+Lemma wp_alloc_foreign E p Ψ θ a :
+  p !! "alloc_foreign" = None →
+  alloc_foreign_proto ⊑ Ψ →
   {{{ GC θ }}}
-    (call: &"alloc_foreign" with (Val (# a)))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"alloc_foreign" with (Val (# a)))%CE @ ⟨p, Ψ⟩; E
   {{{ θ' γ w, RET w;
         GC θ' ∗ γ ↦foreign a ∗
         ⌜repr_lval θ' (Lloc γ) w⌝ }}}.
 Proof.
-  intros. iIntros "HGC Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros HH; apply HH. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_alloc_foreign /named.
+  intros Hp Hproto **. iIntros "HGC Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /alloc_foreign_proto /named.
   do 2 iExists _. iFrame.
-  iSplit; first by eauto with lia. iIntros "!>" (? ? ?) "? ? %".
+  do 2 (iSplit; first by eauto). iIntros "!>" (? ? ?) "? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma write_foreign_spec E pe (T : ML_proto Σ) θ w γ a a' :
+Lemma wp_write_foreign E p Ψ θ w γ a a' :
+  p !! "write_foreign" = None →
+  write_foreign_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ γ ↦foreign a }}}
-    (call: &"write_foreign" with (Val w, Val (# a')))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"write_foreign" with (Val w, Val (# a')))%CE @ ⟨p, Ψ⟩; E
   {{{ RET (# 0); GC θ ∗ γ ↦foreign a' }}}.
 Proof.
-  intros. iIntros "(HGC & ?) Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros HH; apply HH. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_write_foreign /named.
+  intros Hp Hproto **. iIntros "(HGC & ?) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /write_foreign_proto /named.
   do 5 iExists _. iFrame.
-  do 2 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 3 (iSplit; first by eauto with lia). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma read_foreign_spec E pe (T : ML_proto Σ) θ w γ a :
+Lemma wp_read_foreign E p Ψ θ w γ a :
+  p !! "read_foreign" = None →
+  read_foreign_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ γ ↦foreign a }}}
-    (call: &"read_foreign" with (Val w))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"read_foreign" with (Val w))%CE @ ⟨p, Ψ⟩; E
   {{{ RET (# a); GC θ ∗ γ ↦foreign a }}}.
 Proof.
-  intros. iIntros "(HGC & ?) Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros HH; apply HH. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_read_foreign /named.
+  intros Hp Hproto **. iIntros "(HGC & ?) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /read_foreign_proto /named.
   do 4 iExists _. iFrame.
-  do 2 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 3 (iSplit; first by eauto with lia). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma callback_spec E pe (T : ML_proto Σ) θ w γ f x e lv' w' v' ψ :
+Lemma wp_callback E p ΨML Ψ θ w γ f x e lv' w' v' Φ :
+  p !! "callback" = None →
+  callback_proto E ΨML ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   repr_lval θ lv' w' →
   {{{ GC θ ∗
       γ ↦clos (f, x, e) ∗
       lv' ~~ v' ∗
-      (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) @ ⟨∅, T⟩; E {{ ψ }})
+      (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) @ ⟨∅, ΨML⟩; E {{ Φ }})
   }}}
-    (call: &"callback" with (Val w, Val w'))%CE
-      @ (penv_with_prims E pe T); E
+    (call: &"callback" with (Val w, Val w'))%CE @ ⟨p, Ψ⟩; E
   {{{ θ' vret lvret wret, RET wret;
         GC θ' ∗
-        ψ vret ∗
+        Φ vret ∗
         lvret ~~ vret ∗
         ⌜repr_lval θ' lvret wret⌝ }}}.
 Proof.
-  intros. iIntros "(? & ? & ? & ?) Cont".
-  wp_pures. wp_extern.
-  { cbn. apply map_filter_lookup_None_2. right.
-    intros _ _. intros HH; apply HH. eexists; constructor. }
-  iModIntro. cbn. iLeft. iExists _. iSplit; first by eauto.
-  rewrite /= /proto_callback /named.
+  intros Hp Hproto **. iIntros "(? & ? & ? & ?) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /callback_proto /named.
   do 10 iExists _. iFrame.
-  do 3 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
+  do 4 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 

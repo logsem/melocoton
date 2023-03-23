@@ -35,19 +35,26 @@ Notation C_proto := (string -d> list Cval -d> (Cval -d> iPropO Σ) -d> iPropO Σ
 Notation ML_proto := (string -d> list MLval -d> (MLval -d> iPropO Σ) -d> iPropO Σ).
 
 (* TODO: move *)
-Definition wrap_proto (T : ML_proto) : C_proto := (λ f ws Φ,
-  ∃ θ vs lvs ψ,
+Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
+  ∃ θ vs lvs Φ',
     "HGC" ∷ GC θ ∗
     "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
     "Hsim" ∷ lvs ~~∗ vs ∗
-    "Hproto" ∷ T f vs ψ ∗
+    "Hproto" ∷ Ψ f vs Φ' ∗
     "Cont" ∷ ▷ (∀ θ' vret lvret wret,
       GC θ' -∗
-      ψ vret -∗
+      Φ' vret -∗
       lvret ~~ vret -∗
       ⌜repr_lval θ' lvret wret⌝ -∗
       Φ wret)
 )%I.
+
+Lemma wrap_proto_mono Ψ Ψ' : Ψ ⊑ Ψ' → wrap_proto Ψ ⊑ wrap_proto Ψ'.
+Proof using.
+  iIntros (Hre ? ? ?) "H". unfold wrap_proto. iNamed "H".
+  rewrite /named. iExists _, _, _, _. iFrame. iSplit; first done.
+  by iApply Hre.
+Qed.
 
 Section RootsRepr.
 

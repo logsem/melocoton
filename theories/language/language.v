@@ -571,3 +571,4 @@ End language.
 Definition exprO {val} {Λ : language val} := leibnizO (expr Λ).
 Global Instance expr_equiv {val} {Λ : language val} : Equiv (expr Λ). apply exprO. Defined.
 
+Notation lang_prog Λ := (gmap string Λ.(func)).

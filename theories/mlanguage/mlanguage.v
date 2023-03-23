@@ -230,6 +230,7 @@ End mlanguage.
 Definition exprO {val} {Λ : mlanguage val} := leibnizO (expr Λ).
 Global Instance expr_equiv {val} {Λ : mlanguage val} : Equiv (expr Λ). apply exprO. Defined.
 
+Notation mlang_prog Λ := (gmap string Λ.(func)).
 
 Class linkable {val} (Λ : mlanguage val) (public_state : Type) := Linkable {
   private_state : Type;

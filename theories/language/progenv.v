@@ -1,6 +1,7 @@
 From iris.proofmode Require Import base.
 From iris.base_logic.lib Require Import fancy_updates.
-From melocoton.language Require Export language.
+From melocoton Require Export language_commons.
+From melocoton.language Require Import language.
 From iris.prelude Require Import options.
 
 Record prog_environ {val} (Λ : language val) Σ := Penv {
@@ -11,4 +12,4 @@ Global Arguments Penv {_ _ _} _ _.
 Global Arguments penv_prog {_ _ _} _.
 Global Arguments penv_proto {_ _ _} _.
 
-Notation "⟨ p , T ⟩" := (Penv p T : prog_environ _ _).
+Notation "⟨ p , Ψ ⟩" := (Penv p Ψ : prog_environ _ _).

@@ -18,7 +18,7 @@ Implicit Types v : val.
 Implicit Types T : protocol val Σ.
 
 Global Program Instance lang_to_mlang_mlangGS :
-  mlanguage.weakestpre.mlangGS val Σ (lang_to_mlang Λ)
+  mlanguage.weakestpre.mlangGS val (lang_to_mlang Λ) Σ
 := {
   state_interp := language.weakestpre.state_interp;
   at_boundary := True%I;
@@ -41,14 +41,10 @@ Next Obligation. simpl. iIntros (σ) "_ Hσ". iPureIntro. exists σ, (). constru
    there as a canonical structure. *)
 Local Canonical Structure lang_to_mlang_mlang : mlanguage val := lang_to_mlang Λ.
 
-Definition penv_to_mlang (pe : language.progenv.prog_environ Λ Σ) :
-  mlanguage.progenv.prog_environ (lang_to_mlang Λ) Σ
-:= ⟪ pe.(language.progenv.penv_prog), pe.(language.progenv.penv_proto) ⟫.
-
-Lemma wp_lang_to_mlang (e : Λ.(language.expr)) pe E Φ :
-  ⊢ WP e @ pe; E {{ Φ }} -∗ WP e @ (penv_to_mlang pe); E {{ Φ }}.
+Lemma wp_lang_to_mlang (e : Λ.(language.expr)) p T E Φ :
+  ⊢ WP e @ ⟨p, T⟩; E {{ Φ }} -∗ WP e @ ⟪p, T⟫; E {{ Φ }}.
 Proof using.
-  iStartProof. iLöb as "IH" forall (e). destruct pe as [p T].
+  iStartProof. iLöb as "IH" forall (e).
   rewrite {1} @language.weakestpre.wp_unfold /language.weakestpre.wp_pre. simpl.
   rewrite {1} wp_unfold /mlanguage.weakestpre.wp_pre.
   iIntros "H" (σ) "Hσ". iMod ("H" $! σ with "Hσ") as "[(%x & %H1 & Hσ & H)|[(%s' & %vv & %K' & %H1 & %H2 & H3)|(%Hred & H3)]]"; cbn.
@@ -66,6 +62,16 @@ Proof using.
     iMod ("H3" $! σ2 e2 Hstep') as "H3". do 2 iModIntro. iMod "H3" as "(Hσ&HWP)". iModIntro. 
     do 2 iExists _; iSplit; first done. iFrame.
     by iApply "IH".
+Qed.
+
+Lemma lang_to_mlang_refines E (p : lang_prog Λ) Ψ :
+  prog_proto E p Ψ ⊑ mprog_proto E p Ψ.
+Proof using.
+  iIntros (? ? ?) "Hproto". rewrite /prog_proto /mprog_proto.
+  destruct (p !! s) as [fn|] eqn:HH; rewrite HH //; [].
+  iDestruct "Hproto" as (? ?) "Hwp". iExists _. iSplit; first done.
+  iNext. iIntros "_". iApply (wp_wand with "[Hwp]"); first by iApply wp_lang_to_mlang.
+  iIntros (?) "H". cbn. iFrame.
 Qed.
 
 (*
@@ -107,5 +113,3 @@ Abort.
 *)
 
 End ToMlang_logic.
-
-Global Arguments penv_to_mlang {_ _ _} _.

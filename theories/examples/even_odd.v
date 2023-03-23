@@ -1,6 +1,7 @@
 From Coq Require Import Lia.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_lang Require Import notation proofmode.
+From melocoton.mlanguage Require Import progenv.
 From melocoton.language Require Import weakestpre.
 From iris.prelude Require Import options.
 
@@ -9,38 +10,32 @@ Definition is_even_code (x : string) : C_lang.expr :=
   else if: x = #1 then #false
   else call: &"is_odd" with (x - #1).
 
-Definition is_even_func : C_lang.function :=
-  Fun [BNamed "x"] (is_even_code "x").
+Definition is_even_prog : lang_prog C_lang :=
+  {[ "is_even" := Fun [BNamed "x"] (is_even_code "x") ]}.
 
 Definition is_odd_code (x : string) : C_lang.expr :=
   if: x = #0 then #false
   else if: x = #1 then #true
   else call: &"is_even" with (x - #1).
 
-Definition is_odd_func : C_lang.function :=
-  Fun [BNamed "x"] (is_odd_code "x").
+Definition is_odd_prog : lang_prog C_lang :=
+  {[ "is_odd" := Fun [BNamed "x"] (is_odd_code "x") ]}.
 
 
 Section specs.
 Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
 
-Definition is_odd_proto fn (vs: list val) Φ : iProp Σ :=
+Definition is_odd_proto : protocol val Σ := (λ fn (vs: list val) Φ,
   ⌜fn = "is_odd"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
-  Φ (# (Z.odd x)).
+  Φ (# (Z.odd x)))%I.
 
-Definition is_even_proto fn vs Φ : iProp Σ :=
+Definition is_even_proto : protocol val Σ := (λ fn vs Φ,
   ⌜fn = "is_even"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
-  Φ (# (Z.even x)).
+  Φ (# (Z.even x)))%I.
 
-Definition even_env : prog_environ C_lang Σ :=
-  ⟨ {[ "is_even" := is_even_func ]}, is_odd_proto ⟩.
-
-Definition odd_env : prog_environ C_lang Σ :=
-  ⟨ {[ "is_odd" := is_odd_func ]}, is_even_proto ⟩.
-
-Lemma is_even_spec (x:Z) E :
+Lemma is_even_correct (x:Z) E :
   (0 ≤ x)%Z →
-  ⊢ WP subst "x" (#x) (is_even_code "x") @ even_env; E
+  ⊢ WP subst "x" (#x) (is_even_code "x") @ ⟨is_even_prog, is_odd_proto⟩; E
       {{ λ v, ⌜v = #(Z.even x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
@@ -58,9 +53,17 @@ Proof.
   wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.odd_pred //.
 Qed.
 
-Lemma is_odd_spec (x:Z) E :
+Lemma is_even_refines E : is_even_proto ⊑ prog_proto E is_even_prog is_odd_proto.
+Proof.
+  unfold prog_proto, is_even_proto.
+  iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
+  rewrite lookup_insert. iExists _. iSplit; first done. iNext.
+  iApply wp_wand; first by iApply is_even_correct. by iIntros (? ->).
+Qed.
+
+Lemma is_odd_correct (x:Z) E :
   (0 ≤ x)%Z →
-  ⊢ WP subst "x" (#x) (is_odd_code "x") @ odd_env; E
+  ⊢ WP subst "x" (#x) (is_odd_code "x") @ ⟨is_odd_prog, is_even_proto⟩; E
       {{ λ v, ⌜v = #(Z.odd x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
@@ -78,6 +81,14 @@ Proof.
   wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.even_pred //.
 Qed.
 
+Lemma is_odd_refines E : is_odd_proto ⊑ prog_proto E is_odd_prog is_even_proto.
+Proof.
+  unfold prog_proto, is_odd_proto.
+  iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
+  rewrite lookup_insert. iExists _. iSplit; first done. iNext.
+  iApply wp_wand; first by iApply is_odd_correct. by iIntros (? ->).
+Qed.
+
 End specs.
 
 From melocoton.lang_to_mlang Require Import weakestpre.
@@ -89,41 +100,37 @@ Section linking.
 Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
 Context `{!linkGS Σ}.
 
-Definition penv : prog_environ (link_lang C_mlang C_mlang) Σ :=
-  ⟪ {[ "is_even" := inl is_even_func; "is_odd" := inr is_odd_func ]}, ⊥ ⟫.
+Definition fullprog : mlang_prog (link_lang C_mlang C_mlang) :=
+  link_prog C_mlang C_mlang is_even_prog is_odd_prog.
 
-Instance penv_is_link : is_link_environ (penv_to_mlang even_env) (penv_to_mlang odd_env) penv.
+Instance can_link_even_odd :
+  can_link C_mlang C_mlang
+    is_even_prog is_odd_proto
+    is_odd_prog  is_even_proto
+    ⊥. (* there are no external calls left after linking *)
 Proof.
-  constructor.
-  { set_solver. }
-  { simpl. rewrite !fmap_insert !fmap_empty // -insert_union_l.
-    rewrite left_id_L //. }
-  { iIntros (? ? ? ? ? ?) "(-> & HT)". simpl in H.
-    iDestruct "HT" as (x [-> ?]) "HΦ".
-    iExists _. iSplitR.
-    { iPureIntro. simpl.
-      rewrite (_: func = is_odd_func); [|by simplify_map_eq/=].
-      rewrite /is_odd_func /apply_function. reflexivity. }
-    iIntros "!> _". iApply wp_wand.
-    { iApply wp_lang_to_mlang. by iApply is_odd_spec. }
-    iIntros (? ->). iFrame. }
-  { iIntros (? ? ? ? ? ?) "(-> & HT)". simpl in H.
-    iDestruct "HT" as (x [-> ?]) "HΦ".
-    iExists _. iSplitR.
-    { iPureIntro. simpl.
-      rewrite (_: func = is_even_func); [| by simplify_map_eq/=].
-      rewrite /is_even_func /apply_function. reflexivity. }
-    iIntros "!> _". iApply wp_wand.
-    { iApply wp_lang_to_mlang. by iApply is_even_spec. }
-    iIntros (? ->). iFrame. }
-  { iIntros (? ? ? ? ?) "(-> & _)". simplify_map_eq/=. }
-  { iIntros (? ? ? ? ?) "(-> & _)". simplify_map_eq/=. }
+  constructor; intros.
+  - set_solver.
+  - rewrite proto_on_refines is_odd_refines lang_to_mlang_refines //.
+  - rewrite proto_on_refines is_even_refines lang_to_mlang_refines //.
+  - iIntros (? ? ?) "[% [-> _]]". exfalso. naive_solver.
+  - iIntros (? ? ?) "[% [-> _]]". exfalso. naive_solver.
 Qed.
 
+(* The full program implements both is_even and is_odd, without making external calls *)
+Lemma fullprog_refines_even_odd E :
+  is_even_proto ⊔ is_odd_proto ⊑ mprog_proto E fullprog ⊥.
+Proof.
+  rewrite -link_refines. apply proto_join_mono.
+  - rewrite is_even_refines lang_to_mlang_refines //.
+  - rewrite is_odd_refines lang_to_mlang_refines //.
+Qed.
+
+(* TODO: could those be derived more directly? *)
 Lemma is_even_linked_spec (x:Z) E :
   (0 ≤ x)%Z →
   {{{ link_in_state _ _ Boundary }}}
-    LkSE (Link.ExprCall "is_even" [ #x ]) @ penv; E
+    LkSE (Link.ExprCall "is_even" [ #x ]) @ ⟪fullprog, ⊥⟫; E
   {{{ RET #(Z.even x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
@@ -133,14 +140,14 @@ Proof.
   iApply (wp_link_run1' with "Hlkst").
   { iApply wp_wand.
     2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
-    iApply wp_lang_to_mlang. by iApply is_even_spec. }
-  iIntros (?) "[-> ?]". by iApply "HΦ".
+    iApply wp_lang_to_mlang. by iApply is_even_correct. }
+  { iIntros (?) "[-> ?]". by iApply "HΦ". }
 Qed.
 
 Lemma is_odd_linked_spec (x:Z) E :
   (0 ≤ x)%Z →
   {{{ link_in_state _ _ Boundary }}}
-    LkSE (Link.ExprCall "is_odd" [ #x ]) @ penv; E
+    LkSE (Link.ExprCall "is_odd" [ #x ]) @ ⟪fullprog, ⊥⟫; E
   {{{ RET #(Z.odd x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
@@ -150,7 +157,7 @@ Proof.
   iApply (wp_link_run2' with "Hlkst").
   { iApply wp_wand.
     2: { iIntros (?) "H". by iSplitL; [by iApply "H"|]. }
-    iApply wp_lang_to_mlang. by iApply is_odd_spec. }
+    iApply wp_lang_to_mlang. by iApply is_odd_correct. }
   iIntros (?) "[-> ?]". by iApply "HΦ".
 Qed.
 

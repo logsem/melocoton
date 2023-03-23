@@ -79,7 +79,7 @@ Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
 end.
 
 Global Program Instance wrapGS :
-  mlanguage.weakestpre.mlangGS _ Σ wrap_lang
+  mlanguage.weakestpre.mlangGS _ wrap_lang Σ
 := {
   state_interp := wrap_state_interp;
   at_boundary := (ghost_var wrapperGS_γat_boundary (1/2) true)%I;

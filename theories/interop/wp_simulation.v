@@ -29,7 +29,7 @@ Lemma wp_to_val (pe : progenv.prog_environ wrap_lang Σ) E v:
  -∗ WP (WrSE (ExprML (ML_lang.Val v))) @ pe; E {{ w,
       ∃ θ' lv, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗
       at_boundary wrap_lang }}.
-Proof.
+Proof using.
   iIntros "Hnb".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%st SI".
@@ -61,18 +61,19 @@ Proof.
   iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
-Lemma wp_simulates (T : ML_proto Σ) E eml Φ :
-     not_at_boundary
-  -∗ (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ T fn_name vs Φ -∗ False)
-  -∗ WP eml @ ⟨ ∅, T ⟩; E {{ Φ }}
-  -∗ WP (WrSE (ExprML eml)) @ ⟪ prims_prog, wrap_proto T ⟫; E {{ w,
-       ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
-       at_boundary wrap_lang }}.
+Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) E eml Φ :
+  Ψ on (dom prims_prog) ⊑ ⊥ → (* Ψ does not use primitive names *)
+  not_at_boundary -∗
+  WP eml @ ⟨ ∅, Ψ ⟩; E {{ Φ }} -∗
+  WP (WrSE (ExprML eml)) @ ⟪ prims_prog, wrap_proto Ψ ⟫; E {{ w,
+    ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
+    at_boundary wrap_lang }}.
 Proof.
+  intros Hnprims.
   iLöb as "IH" forall (eml).
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   rewrite wp_unfold. rewrite /wp_pre.
-  iIntros "Hnb Hnprim HWP %st Hst".
+  iIntros "Hnb HWP %st Hst".
   iDestruct (SI_not_at_boundary_is_in_ML with "Hst Hnb") as %(ρml&σ&->).
   iNamed "Hst". iNamed "SIML".
   iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as %Hpublocs.
@@ -87,9 +88,10 @@ Proof.
     { cbn. iIntros (v) "(%θ' & %lv & ? & ? & ? & ?)". iExists _, _, _. iFrame. }
   (* extcall *)
   + iDestruct "HWP" as "(%fn_name & %vs & %K' & -> & %Hfn & >(%Ξ & Hσ & HT & Hr))".
-    iAssert (⌜¬ is_prim_name fn_name⌝)%I with "[Hnprim HT]" as "%Hnprim".
+    iAssert (⌜¬ is_prim_name fn_name⌝)%I with "[HT]" as "%Hnprim".
     { destruct (decide (is_prim_name fn_name)) as [His|]; last by eauto.
-      iExFalso. iApply "Hnprim"; eauto. }
+      cbn -[prims_prog]. iDestruct (Hnprims with "[HT]") as "%"; last done.
+      rewrite /proto_on. iFrame. iPureIntro. by eapply in_dom_prims_prog. }
 
     (* take an administrative step in the wrapper *)
 
@@ -104,7 +106,7 @@ Proof.
     1: done.
     1: by rewrite /= lookup_prims_prog_None //.
     { destruct (ml_to_c_exists vs ρml σ) as (ws & ρc & mem & ?); eauto. }
-    iMod (wrap_interp_ml_to_c with "[- Hnb Hnprim Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
+    iMod (wrap_interp_ml_to_c with "[- Hnb Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
       first done.
     { rewrite /wrap_state_interp /ML_state_interp /named.
       iSplitL "Hσ"; first by iFrame. by iFrame. }
@@ -143,7 +145,7 @@ Proof.
 
     (* continue execution using IH *)
 
-    iApply ("IH" with "Hnb Hnprim"). by iApply "Hr".
+    iApply ("IH" with "Hnb"). by iApply "Hr".
 
   (* step *)
   + iDestruct "HWP" as "(%Hred & HWP)".
@@ -162,56 +164,64 @@ Proof.
     * iMod ("HWP" $! _ _ Hstep) as "HWP".
       do 2 iModIntro. iMod "HWP" as "(HσC & HWP')".
       iModIntro. iExists _, _. iSplitR; first by iPureIntro.
-      iSplitR "HWP' Hnb Hnprim".
+      iSplitR "HWP' Hnb".
       { rewrite /weakestpre.state_interp /= /named.
         iSplitL "HσC"; by iFrame.  }
-      iApply ("IH" with "Hnb Hnprim HWP'").
+      iApply ("IH" with "Hnb HWP'").
 Qed.
 
-Lemma wp_primitive (T : ML_proto Σ) prim ws E Φ :
-  (∀ fn_name vs Φ, ⌜is_prim_name fn_name⌝ -∗ T fn_name vs Φ -∗ False) -∗
-  proto_prim prim E T ws Φ -∗
-  at_boundary wrap_lang -∗
-  WP (WrSE (RunPrimitive prim ws)) @ ⟪ prims_prog, wrap_proto T ⟫; E {{ w,
-    at_boundary wrap_lang ∗ Φ w }}.
+Lemma callback_proto_refines E Ψ :
+  Ψ on (dom prims_prog) ⊑ ⊥ →
+  callback_proto E Ψ ⊑ mprog_proto E prims_prog (wrap_proto Ψ).
 Proof.
-  iIntros "Hnprims Hproto Hb".
-  destruct (decide (prim = Pcallback)) as [->|]; last first.
-  { (* base primitives *)
-    iApply (wp_base_prims with "Hb Hproto"); first done.
-    iIntros "!>" (?) "? ?". iApply weakestpre.wp_value; first done.
-    iFrame. }
-  { (* callbacks *)
-    iNamed "Hproto".
+  iIntros (Hnprim ? ? ?) "Hproto". unfold weakestpre.prog_proto. iNamed "Hproto".
+  iExists _. iSplit; first done. iIntros "!> Hb".
+  rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
+  iIntros (st) "Hst".
+  iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
+  iAssert (⌜θ = θC ρc ∧
+            gmap_inj (θC ρc) ∧
+            ζC ρc !! γ = Some (Bclosure f x e)⌝)%I
+    as %(-> & Hθinj & Hγ).
+  { iNamed "Hst". iNamed "HGC". iNamed "SIC". SI_GC_agree.
+    iDestruct (lstore_own_immut_of with "[$] Hclos") as %(Hγvirt & _).
+    iPureIntro. split; eauto. split; first by apply HGCOK.
+    eapply freeze_lstore_lookup_bclosure; first done.
+    eapply lookup_union_Some_r; eauto. }
 
-    rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-    iIntros (st) "Hst".
-    iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
-    iAssert (⌜θ = θC ρc ∧
-              gmap_inj (θC ρc) ∧
-              ζC ρc !! γ = Some (Bclosure f x e)⌝)%I
-      as %(-> & Hθinj & Hγ).
-    { iNamed "Hst". iNamed "HGC". iNamed "SIC". SI_GC_agree.
-      iDestruct (lstore_own_immut_of with "[$] Hclos") as %(Hγvirt & _).
-      iPureIntro. split; eauto. split; first by apply HGCOK.
-      eapply freeze_lstore_lookup_bclosure; first done.
-      eapply lookup_union_Some_r; eauto. }
+  iModIntro.
+  iRight; iRight. iSplit; first done.
+  iSplit. { iPureIntro; intros (f'&vs'&C'&H1&H2); done. }
+  iIntros (X Hstep); inversion Hstep; simplify_eq.
+  1: specialize (H4 _ _ eq_refl); by inversion H4.
+  specialize (H3 _ _ _ _ _ _ _ _ eq_refl eq_refl Hreprw Hγ).
+  iMod (wrap_interp_c_to_ml with "Hst HGC Hb Hsim'") as "HH"; [done|done|].
+  iDestruct "HH" as "(%ρml & %σ & % & Hst & Hnb)".
 
-    iModIntro.
-    iRight; iRight. iSplit; first done.
-    iSplit. { iPureIntro; intros (f'&vs'&C'&H1&H2); done. }
-    iIntros (X Hstep); inversion Hstep; simplify_eq.
-    1: specialize (H4 _ _ eq_refl); by inversion H4.
-    specialize (H3 _ _ _ _ _ _ _ _ eq_refl eq_refl Hreprw Hγ).
-    iMod (wrap_interp_c_to_ml with "Hst HGC Hb Hsim'") as "HH"; [done|done|].
-    iDestruct "HH" as "(%ρml & %σ & % & Hst & Hnb)".
+  do 3 iModIntro. iExists _, _. iSplit; first done. iFrame "Hst".
 
-    do 3 iModIntro. iExists _, _. iSplit; first done. iFrame "Hst".
+  iApply (weakestpre.wp_wand with "[-Cont Hclos]").
+  { by iApply (wp_simulates with "Hnb [WPcallback]"). }
+  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & $)".
+  iApply ("Cont" with "[$] [$] [$]"); eauto.
+Qed.
 
-    iApply (weakestpre.wp_wand with "[-Cont Hclos]").
-    { by iApply (wp_simulates with "Hnb Hnprims [WPcallback]"). }
-    cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & $)".
-    iApply ("Cont" with "[$] [$] [$]"); eauto. }
+Lemma prim_proto_refines (p : prim) E Ψ :
+  Ψ on (dom prims_prog) ⊑ ⊥ →
+  prim_proto p E Ψ ⊑ mprog_proto E prims_prog (wrap_proto Ψ).
+Proof using.
+  intros Hnprim.
+  destruct p; try by apply base_prim_proto_refines.
+  by apply callback_proto_refines.
+Qed.
+
+Lemma prims_proto_refines E Ψ :
+  Ψ on (dom prims_prog) ⊑ ⊥ →
+  prims_proto E Ψ ⊑ mprog_proto E prims_prog (wrap_proto Ψ).
+Proof using.
+  intros Hnprim.
+  iIntros (? ? ?) "H". iDestruct "H" as (p) "H".
+  by iApply prim_proto_refines.
 Qed.
 
 End Simulation.

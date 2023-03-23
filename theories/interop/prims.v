@@ -110,3 +110,14 @@ Proof.
   { destruct (prims_prog !! s) eqn:HH; split; intros; try done.
     { apply lookup_prims_prog_Some in HH. firstorder. } }
 Qed.
+
+Lemma in_dom_prims_prog s :
+  s ∈ dom prims_prog ↔ is_prim_name s.
+Proof.
+  rewrite elem_of_dom.
+  destruct (decide (is_prim_name s)) as [[p Hp]|].
+  { destruct (prims_prog !! s) eqn:HH; split; firstorder.
+    apply lookup_prims_prog_None in HH. firstorder. }
+  { destruct (prims_prog !! s) eqn:HH; split; try by firstorder.
+    apply lookup_prims_prog_Some in HH. firstorder. }
+Qed.
