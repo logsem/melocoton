@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <snappy-c.h>
 #define CAML_NAME_SPACE
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
@@ -18,69 +19,52 @@ static struct custom_operations ops = {
   custom_fixed_length_default
 };
 
-// Not completely sure about the integer sizes here;
-// maybe some of those 'int's should be something else--oh well.
-value caml_miniba_init(value clos, value len)
-{
-  CAMLparam1(clos); // registerroot(&clos);
-  int sz = Int_val(len); // val2int
-
-  // allocate the C buffer
-  unsigned char* buf = malloc(sz);
-
-  // initialize it by invoking the callback
-  value byte;
-  for (int i = 0; i < sz; i++) {
-    byte = caml_callback(clos, Val_int(i) /* int2val */);
-    buf[i] = Int_val(byte); //val2int
-  }
-
-  // allocate the foreign block holding the C pointer to the buffer
-  value fblock = caml_alloc_custom(&ops, sizeof(char*), 0, 1); // allocforeign
-  *((void**)Data_custom_val(fblock)) = buf; // writeforeign
-
-  CAMLreturn(fblock); // unregisterroot(&clos); return fblock;
+int max(int a, int b) {
+  return a>b?a:b;
 }
 
-value caml_miniba_free(value fblock)
-{
-  void** bufp = Data_custom_val(fblock); // readforeign
-  // free the underlying C buffer
-  if (*bufp != NULL) free(*bufp);
-  // write NULL in the foreign block to mark it as deallocated
-  *bufp = NULL; // writeforeign
+#define caml_alloc_custom(k) (caml_alloc_custom(&ops, k, 0, 1))
 
+
+#define Data_val(k) (*(unsigned char**) (Data_custom_val(k)))
+value buf_alloc(value cap) {
+  CAMLparam0(); CAMLlocal1(bk);
+  bk = caml_alloc_custom(sizeof(void*));
+  size_t len = snappy_max_compressed_length(Int_val(cap));
+  void *bts = malloc(len); Data_val(bk) = bts;
+  value bf = caml_alloc(3, 0);
+  caml_modify(&Field(bf, 0), bk);
+  caml_modify(&Field(bf, 1), Val_int(0));
+  caml_modify(&Field(bf, 2), Val_int(len));
+  CAMLreturn(bf);
+}
+value buf_upd(value iv, value jv, value f, value bf) {
+  CAMLparam1(f);
+  value bk = Field(bf, 0);  unsigned char* bts = Data_val(bk); size_t j = Int_val(jv);
+  size_t sz = max(j+1, Int_val(Field(bf, 1))); caml_modify(&Field(bf, 1), Val_int(sz));
+  for (size_t i = Int_val(iv); i <= j; i++)
+    bts[i] = Int_val(caml_callback(f, Val_int(i)));
+  CAMLreturn(Val_unit);
+}
+value buf_compress(value bf1, value bf2) {
+  value bk1 = Field(bf1, 0); value bk2 = Field(bf2, 0);
+  unsigned char* bts1 = Data_val(bk1); unsigned char* bts2 = Data_val(bk2);
+  size_t used1 = Int_val(Field(bf1, 1)); size_t nused2 = Int_val(Field(bf2, 2));
+  int res = snappy_compress(bts1, used1, bts2, &nused2);
+  caml_modify(&Field(bf2, 1), Val_int(nused2));
+  return (res == SNAPPY_OK) ? Val_int(1) : Val_int(0);
+}
+
+value buf_free(value bf) {
+  value bk = Field(bf, 0);
+  unsigned char* bts = Data_val(bk);
+  if (bts != NULL) free(bts);
+  Data_val(bk) = NULL;
   return Val_unit;
 }
 
-// function coming from a pre-existing C library
-int myhash(unsigned char* data, int sz) {
-  // do something smarter here...
-  int hash = 0;
-  for (int i = 0; i < sz; i++)
-    hash += data[i];
-  return hash;
-}
-
-
-value caml_miniba_hash(value fblock, value len)
-{
-  void** bufp = Data_custom_val(fblock); // readforeign
-
-  value ret;
-
-  // Check that the underlying C buffer has not been deallocated
-  if (*bufp != NULL) {
-    // call myhash on the C buffer
-    int hash = myhash(*bufp, Int_val(len) /* val2int */);
-    // return Ok(hash)
-    ret = caml_alloc(1 /* size */, 0 /* tag */); // alloc
-    Store_field(ret, 0, Val_int(hash) /* int2val */); // modify
-  } else {
-    // return Error ().
-    ret = caml_alloc(1 /* size */, 1 /* tag */); // alloc
-    Store_field(ret, 0, Val_unit); // modify
-  }
-
-  return ret;
+value buf_get(value bf, value i) {
+  value bk = Field(bf, 0);
+  unsigned char* bg = Data_val(bk);
+  return Val_int(bg[Int_val(i)]);
 }

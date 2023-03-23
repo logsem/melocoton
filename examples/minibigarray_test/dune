@@ -1,3 +1,4 @@
 (executable
   (name main)
-  (libraries minibigarray))
+  (libraries minibigarray)
+  (link_flags "-cclib" "-lsnappy"))

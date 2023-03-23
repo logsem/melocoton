@@ -1,33 +1,14 @@
-(* Abstract type representing the foreign blocks created in C pointing to the C
-   buffer. Manipulating those requires knowing their length on the side; thus
-   they are type unsafe in general, and will not be exposed to the user
-   directly. *)
-type buffer
 
-external buffer_init : (int (* index *) -> int (* byte *)) -> int (* length *) -> buffer
-  = "caml_miniba_init"
+type bytes
+type buf = { contents: bytes; mutable used: int; cap : int }
+external buf_alloc     : int -> buf                                   = "buf_alloc"
+external buf_free      : buf -> unit                                  = "buf_free"
+(* external buf_get       : buf -> int -> char                           = "buf_get" *)
+external buf_upd       : int -> int -> (int -> char) -> buf -> unit   = "buf_upd"
+external buf_compress  : buf -> buf -> bool                           = "buf_compress"
 
-external buffer_free : buffer -> unit
-  = "caml_miniba_free"
-
-external buffer_hash : buffer -> int (* length *) -> (int, unit) Result.t (* hash or error *)
-  = "caml_miniba_hash"
-
-
-
-(* Type-safe API built on top of unsafe buffers *)
-(* NB: if we additionally want slices then we need to add an "offset" parameter
-   to [buffer_hash]. *)
-
-type t = { buf : buffer; len : int }
-
-let init f len =
-  if len < 0 then raise (Failure "len")
-  else let buf = buffer_init f len in
-      { buf; len }
-
-let free ba =
-  buffer_free ba.buf
-
-let hash ba =
-  buffer_hash ba.buf ba.len
+let is_compressable (xs: char array) =
+  let len = Array.length xs in let (inp, outp) = (buf_alloc len, buf_alloc len) in
+  buf_upd 0 (len - 1) (fun i -> Array.get xs i) inp;
+  let succ = buf_compress inp outp in let shrink = succ && (outp.used < inp.used) in
+  buf_free inp; buf_free outp; shrink
