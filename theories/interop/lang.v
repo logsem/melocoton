@@ -330,7 +330,6 @@ Inductive c_prim_step :
     Y (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem →
     c_prim_step Pwriteforeign [w; CLocV aforeign'] ρc mem Y.
 
-
 Lemma c_prim_step_covariant_in_Y prm ws ρc mem Y Y' :
   c_prim_step prm ws ρc mem Y →
   (∀ w ρc' mem', Y w ρc' mem' → Y' w ρc' mem') →
@@ -553,4 +552,3 @@ Global Program Instance wrap_linkable : linkable wrap_lang memory := {
 }.
 
 Notation wrap_prog e := (prims_prog e : mlang_prog wrap_lang).
-

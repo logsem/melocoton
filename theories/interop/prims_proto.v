@@ -8,11 +8,11 @@ From melocoton.interop Require Import basics_resources gctoken prims.
 
 Section PrimsProto.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGCtokGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperGCtokG Σ}.
 
 Notation C_proto := (protocol C_intf.val Σ).
 Notation ML_proto := (protocol ML_lang.val Σ).

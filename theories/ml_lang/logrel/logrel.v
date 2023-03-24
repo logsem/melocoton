@@ -19,7 +19,7 @@ Class logrel_na_invs Σ := {
 Notation na_tok := (na_own logrel_nais ⊤).
 
 Section logrel.
-  Context `{!heapGS_ML Σ, !invGS_gen hlc Σ, !logrel_na_invs Σ}.
+  Context `{!heapG_ML Σ, !invG Σ, !logrel_na_invs Σ}.
   Notation D := (persistent_predO val (iPropI Σ)).
   Implicit Types τi : D.
   Implicit Types Δ : listO D.

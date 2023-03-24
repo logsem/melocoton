@@ -343,7 +343,7 @@ Proof.
     assert (dom (<[γ:=lvs]> ζσ ∪ ζi0) ⊆ dom χ1) as Hsub3.
     { rewrite dom_union_L. eapply union_subseteq. split.
       * rewrite dom_insert_L. apply union_subseteq. split.
-        eapply singleton_subseteq_l; first by eapply elem_of_dom_2.
+        1: eapply singleton_subseteq_l; first by eapply elem_of_dom_2.
         eapply elem_of_subseteq; intros k Hk.
         destruct Hstbl as (HH1&HH2). apply HH2 in Hk. destruct Hk as (?&?&H1&H2).
         eapply elem_of_dom_2. eapply lookup_weaken; first apply H1.
@@ -436,8 +436,9 @@ Proof.
   - intros ℓ vs γ b He1 He2 He3.
     eapply is_heap_elt_weaken. 1: eapply HA3; try done. 2: done.
     + rewrite <- map_union_assoc in He3. eapply lookup_union_Some in He3; destruct He3; try done.
-      destruct (HA2) as [HL HR]. destruct (HR γ) as [HRL HRR]. eapply elem_of_dom in HRR. destruct HRR as [vv Hvv].
+      destruct (HA2) as [HL HR]. destruct (HR γ) as [HRL HRR]. eapply elem_of_dom in HRR.
       2: do 2 eexists; done.
+      destruct HRR as [vv Hvv].
       exfalso. erewrite map_disjoint_Some_r in H; try congruence. 1: done.
       erewrite lookup_union_Some_l; last done; first done.
     + erewrite <- map_union_assoc. eapply map_union_subseteq_r. done.

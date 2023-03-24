@@ -7,8 +7,9 @@ Import uPred.
 
 (** Heap tactics *)
 Section examples.
+Context `{SI:indexT}.
 
-Context `{!heapGS_ML Σ, !invGS_gen hlc Σ}.
+Context `{!heapG_ML Σ, !invG Σ}.
 
 Definition call_inc : ML_lang.expr :=
   let: "l" := ref (#0 + #0)
@@ -29,12 +30,14 @@ Lemma prog_correct
 Proof.
   iStartProof. unfold call_inc.
   wp_pures. unfold Z.add.
-
-  wp_alloc l as "Hl".
-  wp_pures. wp_store.
+  wp_apply (wp_alloc with "[//]"); iIntros (l) "[Hl _]".
+  wp_pures.
+  wp_apply (wp_store with "Hl"); iIntros "Hl". wp_pures.
   wp_extern.
   iModIntro. cbn. iExists 41%Z. iFrame. iIntros "Hl".
-  wp_pures. wp_load. iModIntro. done.
+  wp_pures.
+  wp_apply (wp_load with "Hl"); iIntros "Hl".
+  done.
 Qed.
 
 Definition SpecifiedEnv : prog_environ ML_lang Σ :=
@@ -44,7 +47,11 @@ Lemma inc_correct l (z:Z)
  : ⊢ l ↦M #z -∗ (WP Extern "inc" [ Val #l ] @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}})%I.
 Proof.
   iStartProof. iIntros "Hz". wp_call. iApply prove_wp_call; [done|done|]. wp_finish.
-  wp_load. wp_pures. wp_store. iModIntro. iSplitL; done.
+  wp_apply (wp_load with "Hz"); iIntros "Hz".
+  wp_pures.
+  wp_apply (wp_store with "Hz"); iIntros "Hz".
+  wp_pures.
+  iModIntro. iSplitL; done.
 Qed.
 
 Lemma left_correct : ⊢ env_fulfills AxiomEnv ⊥.

@@ -15,7 +15,8 @@ From iris.prelude Require Import options.
 lead to overlapping instances. *)
 
 Section lifting.
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
+Context {SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ}.
 Context {p:program}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
@@ -112,6 +113,11 @@ Proof.
     cbn. rewrite insert_union_singleton_l.
     unfold loc_add. cbn. done.
 Qed.
+
+Lemma wp_free_array' s E l z vs :
+  z = Z.of_nat (length vs) →
+  {{{ ▷ l ↦C∗ vs }}} free (#l, #z) @ s; E {{{ RET LitV LitUnit; True }}}%CE.
+Proof. iIntros (-> Φ) "H HΦ". by iApply (wp_free_array with "H"). Qed.
 
 End lifting.
 

@@ -1,5 +1,5 @@
 From stdpp Require Import relations strings gmap.
-From iris.base_logic.lib Require Import own.
+From transfinite.base_logic.lib Require Import own.
 From iris.algebra Require Import ofe.
 From iris.algebra Require Import auth excl excl_auth gmap.
 From iris.proofmode Require Import tactics.
@@ -15,6 +15,9 @@ Inductive mixin_expr_class {val} :=
 
 Notation protocol val Σ :=
   (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ).
+
+Section Protocols.
+Context {SI:indexT}.
 
 (* ⊥ *)
 Global Instance protocol_bottom val Σ : Bottom (protocol val Σ) :=
@@ -108,3 +111,9 @@ Proof.
   { iApply bi.or_intro_l. by iApply Hre1. }
   { iApply bi.or_intro_r. by iApply Hre2. }
 Qed.
+
+End Protocols.
+
+(* Reexport notations *)
+Notation "Ψ 'except' fns" := (proto_except Ψ fns) (at level 10).
+Notation "Ψ 'on' fns" := (proto_on Ψ fns) (at level 10).

@@ -14,10 +14,10 @@ From iris.prelude Require Import options.
 
 Section Laws.
 
-Context {hlc : has_lc}.
+Context {SI : indexT}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ, !invGS_gen hlc Σ}.
-Context `{!wrapperGCtokGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ, !invG Σ}.
+Context `{!wrapperGCtokG Σ}.
 
 (* Reading and writing roots using plain C reads and writes *)
 

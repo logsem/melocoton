@@ -18,8 +18,8 @@ From melocoton.linking Require Import lang weakestpre.
 Section C_prog.
 Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
-
-Context `{!heapGS_C Σ, !heapGS_ML Σ, !invGS_gen hlc Σ, !primitive_laws.heapGS_ML Σ, !wrapperGS Σ}.
+Context `{SI:indexT}.
+Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
 
 Definition swap_pair_code (x : expr) : expr :=
@@ -69,13 +69,13 @@ Proof.
   wp_apply (wp_readfield with "[$HGC $Hptpair]"); [done..|].
   iIntros (v wlv1) "(HGC & _ & %Heq & %Hrepr1)".
   change (Z.to_nat 0) with 0 in Heq. cbn in *. symmetry in Heq. simplify_eq.
-  wp_store. wp_pures.
+  wp_apply (wp_store with "H1"). iIntros "H1". wp_pures.
 
   (* readfield 2 *)
   wp_apply (wp_readfield with "[$HGC $Hptpair]"); [done..|].
   iIntros (v wlv2) "(HGC & _ & %Heq & %Hrepr2)".
   change (Z.to_nat 1) with 1 in Heq. cbn in *. symmetry in Heq. simplify_eq.
-  wp_store. wp_pures.
+  wp_apply (wp_store with "H2"). iIntros "H2". wp_pures.
 
   (* registerroot 1 *)
   wp_apply (wp_registerroot with "[$HGC $H1]"); [done..|].
@@ -91,7 +91,6 @@ Proof.
   wp_pures. change (Z.to_nat 2) with 2. cbn [repeat].
 
   (* load from root *)
-  wp_bind (Load _).
   wp_apply (load_from_root with "[HGC H1r]"); first iFrame.
   iIntros (wlv1') "(Hr1&HGC&%Hrepr1')".
 
@@ -123,7 +122,8 @@ Proof.
   (* free *)
   iAssert ((Loc rr) ↦C∗ [Some wlv1'; Some wlv2'])%I with "[H1 H2]" as "Hrr".
   1: cbn; iFrame.
-  wp_free. wp_pures.
+  wp_apply (wp_free_array' with "Hrr"); first done. iIntros "_".
+  wp_pures.
 
   (* Finish, convert the new points-to to an immutable pointsto *)
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
@@ -140,7 +140,8 @@ Section ML_prog.
 Import melocoton.c_lang.primitive_laws.
 Import melocoton.ml_lang.proofmode.
 
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ, !heapGS_ML Σ, !wrapperGS Σ, !linkGS Σ}.
+Context `{SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ}.
 
 (* TODO: define ML_mlang? *)
 Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) :=

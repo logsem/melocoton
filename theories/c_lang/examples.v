@@ -8,8 +8,8 @@ Import uPred.
 
 (** Heap tactics *)
 Section examples.
-
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
+Context `{SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ}.
  
 Fixpoint fib (n:nat) : nat := match n with
   0 => 0
@@ -21,6 +21,7 @@ Definition fib_prog name (x:expr) : expr :=
 (if: "x" < #2 
  then "x"
  else (call: (&name) with ("x" - #1)) + (call: (&name) with ("x" - #2) )).
+
 Definition heap_example : expr :=
   let: "x" := malloc (#2) in 
  (call: &"store_it" with (("x" +ₗ #1), call: &"fib_left" with ( Val (#3) )) ;;
@@ -94,22 +95,45 @@ Proof.
   destruct l as [l]. cbn. unfold loc_add; cbn.
   iDestruct "Hl" as "(Hl0 & Hl1 & _)".
   do 2 wp_pure _.
+  change (l + 1)%Z with (l + 1%nat)%Z.
   wp_bind (FunCall _ _).
   change 3 with (Z.of_nat 3).
+(*
+
+
+
+Tactic Notation "mwp_extern" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' => match e' with FunCall (Val (& ?s)) (map Val ?vv) =>
+      iApply (@wp_extern _ _ C_lang _ _ _ K _ s vv); [iPureIntro; vm_compute; reflexivity | ] end)
+    || fail "wp_extern: expression not a call"
+  | _ => fail "wp_extern: not a 'wp'"
+  end.
+Set Ltac Debug.
+iApply (@wp_extern _ _ C_lang _ _ _ [] _ "fib_left" [(#3)%V]).
+1: iPureIntro; vm_compute.
+mwp_extern.
+
+
+  Locate wp_extern. *)
   wp_extern. cbn. iLeft. cbn. iModIntro.
   iSplitR; first (iPureIntro; lia). wp_pures. 
   wp_bind (FunCall _ _).
   wp_extern. cbn. iRight. cbn. iModIntro.
   iExists _. iFrame. iIntros "Hl1".
   wp_pures.
-  wp_store.
   wp_pures.
-  wp_load.
+  wp_apply (wp_store with "Hl0"); iIntros "Hl0".
+  wp_pures.
+  wp_apply (wp_load with "Hl1"); iIntros "Hl1".
   wp_pures.
   wp_free.
   wp_pures.
   rewrite Z.add_0_r.
-  wp_load.
+  wp_apply (wp_load with "Hl0"); iIntros "Hl0".
   wp_pures.
   done.
 Qed.

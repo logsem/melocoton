@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
-From iris.base_logic.lib Require Import ghost_var.
+From transfinite.base_logic.lib Require Import ghost_var.
 From melocoton.linking Require Import lang.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre.
@@ -11,25 +11,25 @@ From iris.proofmode Require Import proofmode.
 Inductive link_state_case :=
   Boundary | In1 | In2.
 
-Class linkGS Σ := LinkGS {
+Class linkG `{!indexT} Σ := LinkG {
   linkG_inG :> ghost_varG Σ link_state_case;
   linkG_γ : gname;
 }.
 
 Section Linking_logic.
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
 Context {val pubstate : Type}.
 Context (Λ1 Λ2 : mlanguage val).
-Context `{!linkGS Σ}.
-Context `{!mlangGS val Λ1 Σ}.
-Context `{!mlangGS val Λ2 Σ}.
-Context `{!invGS_gen hlc Σ}.
+Context `{!linkG Σ}.
+Context `{!mlangG val Λ1 Σ}.
+Context `{!mlangG val Λ2 Σ}.
+Context `{!invG Σ}.
 Context (public_state_interp : pubstate → iProp Σ).
 Context `{!linkable Λ1 pubstate}.
 Context `{!linkable Λ2 pubstate}.
-Context `{!linkableGS Λ1 public_state_interp}.
-Context `{!linkableGS Λ2 public_state_interp}.
+Context `{!linkableG Λ1 public_state_interp}.
+Context `{!linkableG Λ2 public_state_interp}.
 
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
@@ -97,12 +97,12 @@ Proof using.
   all: by iDestruct (ghost_var_agree with "Hb Hb'") as %?.
 Qed.
 
-Global Program Instance link_mlangGS : mlangGS val (link_lang Λ1 Λ2) Σ := {
+Global Program Instance link_mlangG : mlangG val (link_lang Λ1 Λ2) Σ := {
   state_interp := link_state_interp;
   at_boundary := link_in_state Boundary;
 }.
 
-Global Program Instance link_linkableGS : linkableGS (link_lang Λ1 Λ2) public_state_interp := {
+Global Program Instance link_linkableG : linkableG (link_lang Λ1 Λ2) public_state_interp := {
   private_state_interp := (λ '(privσ1, privσ2),
     ghost_var linkG_γ (1/2) Boundary ∗
     private_state_interp privσ1 ∗ private_state_interp privσ2)%I;
@@ -393,7 +393,7 @@ Proof using.
 
       { (* call to a function of pe2 *)
         assert (link_prog p1 p2 !! f = Some (inr fn2)) as Hpef.
-        { rewrite lookup_union_r lookup_fmap. by rewrite Hf2. by rewrite Hf. }
+        { rewrite lookup_union_r lookup_fmap. 1: by rewrite Hf2. by rewrite Hf. }
 
         (* administrative step CallS: Link.ExprCall ~> LinkRunFunction *)
         iApply wp_link_call; first done.
@@ -481,7 +481,7 @@ Proof using.
 
       { (* call to a function of pe1 *)
         assert (link_prog p1 p2 !! f = Some (inl fn1)) as Hpef.
-        { rewrite lookup_union_l lookup_fmap. by rewrite Hf1. by rewrite Hf. }
+        { rewrite lookup_union_l lookup_fmap. 1: by rewrite Hf1. by rewrite Hf. }
 
         (* administrative step CallS: Link.ExprCall ~> LinkRunFunction *)
         iApply wp_link_call; first done.
@@ -631,7 +631,7 @@ Proof using.
     { destruct Hcanlink. apply elem_of_dom_2 in HH1, HH2. set_solver. }
     assert (link_prog p1 p2 !! s = Some (inl fn)) as HH3.
     { rewrite /link_prog lookup_union_l lookup_fmap //.
-      rewrite HH1 //. rewrite HH2 //. (*TODO: lemma*) }
+      1: rewrite HH1 //. rewrite HH2 //. (*TODO: lemma*) }
     iApply (bi.or_elim with "H"); iIntros "H"; last done.
     iDestruct "H" as (? ?) "H". rewrite HH3.
     iExists _. iSplit; first done. iNext. iIntros "Hb".
@@ -642,7 +642,7 @@ Proof using.
     2: { iExFalso. iApply (bi.or_elim with "H"); by iIntros. }
     assert (link_prog p1 p2 !! s = Some (inr fn)) as HH3.
     { rewrite /link_prog lookup_union_r lookup_fmap //.
-      rewrite HH2 //. rewrite HH1 //. (*TODO: lemma*) }
+      1: rewrite HH2 //. rewrite HH1 //. (*TODO: lemma*) }
     iApply (bi.or_elim with "H"); iIntros "H"; first done.
     iDestruct "H" as (? ?) "H". rewrite HH3.
     iExists _. iSplit; first done. iNext. iIntros "Hb".

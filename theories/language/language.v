@@ -568,7 +568,7 @@ Section language.
 End language.
 
 (* discrete OFE instance for expr and thread_id *)
-Definition exprO {val} {Λ : language val} := leibnizO (expr Λ).
-Global Instance expr_equiv {val} {Λ : language val} : Equiv (expr Λ). apply exprO. Defined.
+Definition exprO `{indexT} {val} {Λ : language val} := leibnizO (expr Λ).
+Global Instance expr_equiv `{indexT} {val} {Λ : language val} : Equiv (expr Λ). apply exprO. Defined.
 
 Notation lang_prog Λ := (gmap string Λ.(func)).

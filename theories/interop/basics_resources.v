@@ -1,34 +1,35 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
-From iris.base_logic.lib Require Import ghost_map ghost_var gen_heap.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var gen_heap.
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
 From melocoton Require Import named_props.
 From melocoton.ml_lang Require Import lang.
 From melocoton.interop Require Export basics.
 
-Class wrapperBasicsGS Σ := WrapperBasicsGS {
-  wrapperGS_lstoreGS :> ghost_mapG Σ lloc block;
-  wrapperGS_addr_lvalGS :> ghost_mapG Σ addr lval;
-  wrapperGS_lloc_mapGS :> ghost_mapG Σ lloc lloc_visibility;
-  wrapperGS_γζvirt : gname;
-  wrapperGS_γχvirt : gname;
-  wrapperGS_γroots_map : gname;
+Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
+  wrapperG_lstoreG :> ghost_mapG Σ lloc block;
+  wrapperG_addr_lvalG :> ghost_mapG Σ addr lval;
+  wrapperG_lloc_mapG :> ghost_mapG Σ lloc lloc_visibility;
+  wrapperG_γζvirt : gname;
+  wrapperG_γχvirt : gname;
+  wrapperG_γroots_map : gname;
 }.
 
 Section BasicsResources.
-Context `{!wrapperBasicsGS Σ}.
+Context `{SI: indexT}.
+Context `{!wrapperBasicsG Σ}.
 
 (* Ghost state for [lloc_map] *)
 
 Definition lloc_own_priv (γ : lloc) : iProp Σ :=
-  γ ↪[wrapperGS_γχvirt] LlocPrivate.
+  γ ↪[wrapperG_γχvirt] LlocPrivate.
 
 Definition lloc_own_foreign (γ : lloc) (id : nat) : iProp Σ :=
-  γ ↪[wrapperGS_γχvirt]□ (LlocForeign id).
+  γ ↪[wrapperG_γχvirt]□ (LlocForeign id).
 
 Definition lloc_own_pub (γ : lloc) (ℓ : loc) : iProp Σ :=
-  γ ↪[wrapperGS_γχvirt]□ LlocPublic ℓ.
+  γ ↪[wrapperG_γχvirt]□ LlocPublic ℓ.
 
 Instance lloc_own_pub_persistent γ ℓ : Persistent (lloc_own_pub γ ℓ).
 Proof using. apply _. Qed.
@@ -37,7 +38,7 @@ Instance lloc_own_foreign_persistent γ id : Persistent (lloc_own_foreign γ id)
 Proof using. apply _. Qed.
 
 Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
-  "Hχgmap" ∷ ghost_map_auth wrapperGS_γχvirt 1 χ ∗
+  "Hχgmap" ∷ ghost_map_auth wrapperG_γχvirt 1 χ ∗
   "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ) ∗
   "Hχforeign" ∷ ([∗ map] γ↦id ∈ (lloc_map_foreign χ), lloc_own_foreign γ id).
 
@@ -206,8 +207,8 @@ Qed.
 
 Definition lstore_own_elem (γ : lloc) (dq : dfrac) (b : block) :=
   match mutability b with
-  | Mut => γ ↪[wrapperGS_γζvirt]{dq} b
-  | Immut => γ ↪[wrapperGS_γζvirt]□ b
+  | Mut => γ ↪[wrapperG_γζvirt]{dq} b
+  | Immut => γ ↪[wrapperG_γζvirt]□ b
   end%I.
 
 Definition lstore_own_mut (γ : lloc) (dq : dfrac) (b : block) :=
@@ -217,7 +218,7 @@ Definition lstore_own_immut (γ : lloc) (b : block) :=
   (lstore_own_elem γ (DfracOwn 1) b ∗ ⌜mutability b = Immut⌝)%I.
 
 Definition lstore_own_auth (ζ : lstore) : iProp Σ :=
-  "Hζgmap" ∷ ghost_map_auth wrapperGS_γζvirt 1 ζ ∗
+  "Hζgmap" ∷ ghost_map_auth wrapperG_γζvirt 1 ζ ∗
   "#Hζimmut" ∷ ([∗ map] γ↦b ∈ (lstore_immut_blocks ζ), lstore_own_immut γ b).
 
 Global Instance lstore_own_immut_persistent γ b :
@@ -638,7 +639,7 @@ Notation "γ ↦foreign{ dq } a" := (lstore_own_foreign γ dq a)%I
 Notation "γ ↦foreign a" := (γ ↦foreign{DfracOwn 1} a)%I
   (at level 20, format "γ  ↦foreign  a") : bi_scope.
 
-Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperGS_γroots_map]{dq} w)%I
+Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperG_γroots_map]{dq} w)%I
   (at level 20, format "γ  ↦roots{ dq }  w") : bi_scope.
-Notation "γ ↦roots w" := (γ ↪[wrapperGS_γroots_map] w)%I
+Notation "γ ↦roots w" := (γ ↪[wrapperG_γroots_map] w)%I
   (at level 20, format "γ  ↦roots  w") : bi_scope.

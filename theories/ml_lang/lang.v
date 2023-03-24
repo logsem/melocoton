@@ -1,7 +1,6 @@
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
-From iris.program_logic Require ectxi_language.
 From melocoton Require Import stdpp_extra language_commons.
 From melocoton.ml_lang Require Export locoff.
 From iris.prelude Require Import options.
@@ -498,10 +497,10 @@ Global Instance state_inhabited : Inhabited state :=
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
-Canonical Structure stateO := leibnizO state.
-Canonical Structure locO := leibnizO loc.
-Canonical Structure valO := leibnizO val.
-Canonical Structure exprO := leibnizO expr.
+Canonical Structure stateO `{SI: indexT} := leibnizO state.
+Canonical Structure locO `{SI: indexT} := leibnizO loc.
+Canonical Structure valO `{SI: indexT} := leibnizO val.
+Canonical Structure exprO `{SI: indexT} := leibnizO expr.
 
 (** Evaluation contexts *)
 Inductive ectx_item :=

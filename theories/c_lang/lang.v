@@ -318,8 +318,8 @@ Qed.
 
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
-Canonical Structure locO := leibnizO loc.
-Canonical Structure exprO := leibnizO expr.
+Canonical Structure locO {SI:indexT} := leibnizO loc.
+Canonical Structure exprO {SI:indexT} := leibnizO expr.
 
 (** Evaluation contexts *)
 Inductive ectx_item :=

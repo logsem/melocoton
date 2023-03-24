@@ -1,5 +1,5 @@
 From iris.proofmode Require Import base proofmode classes.
-From iris.base_logic.lib Require Export fancy_updates.
+From transfinite.base_logic.lib Require Export fancy_updates.
 From melocoton.mlanguage Require Export mlanguage progenv.
 From melocoton Require Import multirelations.
 (* FIXME: If we import iris.bi.weakestpre earlier texan triples do not
@@ -15,15 +15,15 @@ Import uPred.
    - with the property that splitting/joining the state allows splitting/joining
      the state interpretations accordingly.
 *)
-Class mlangGS (val : Type) (Λ : mlanguage val) (Σ : gFunctors) :=
-MlangGS {
+Class mlangG {SI:indexT} (val : Type) (Λ : mlanguage val) (Σ : gFunctors) :=
+MlangG {
   state_interp : state Λ → iProp Σ;
   at_boundary : iProp Σ;
 }.
 
-Arguments at_boundary {_} Λ {_ _}.
+Arguments at_boundary {_ _} Λ {_ _}.
 
-Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}
+Definition wp_pre_cases `{SI:indexT, !invG Σ, !mlangG val Λ Σ}
     (p : mixin_prog Λ.(func))
     (Ψ : protocol val Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
@@ -38,7 +38,7 @@ Definition wp_pre_cases `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}
        ∀ e' σ', ⌜X (e', σ')⌝ ={E}▷=∗ state_interp σ' ∗ wp E e' Φ)
   )%I.
 
-Definition wp_pre `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}
+Definition wp_pre `{SI:indexT, !invG Σ, !mlangG val Λ Σ}
     (p : mixin_prog Λ.(func))
     (Ψ : protocol val Σ)
     (wp : coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ) :
@@ -46,7 +46,7 @@ Definition wp_pre `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}
   (∀ σ, state_interp σ ={E}=∗ wp_pre_cases p Ψ wp σ E e Φ)%I.
 
 Local Instance wp_pre_contractive
-      `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}
+      `{SI:indexT, !invG Σ, !mlangG val Λ Σ}
       {p:mixin_prog Λ.(func)} Ψ :
   Contractive (wp_pre p Ψ).
 Proof.
@@ -55,18 +55,18 @@ Proof.
 Qed.
 
 Local Definition wp_def
-      `{!invGS_gen hlc Σ, !mlangGS val Λ Σ} :
+      `{SI:indexT, !invG Σ, !mlangG val Λ Σ} :
   Wp (iProp Σ) (expr Λ) (val) (prog_environ Λ Σ) :=
   λ p : (prog_environ Λ Σ), fixpoint (wp_pre p.(penv_prog) p.(penv_proto)).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
-Global Arguments wp' {hlc Σ _ val Λ _}.
+Global Arguments wp' {SI Σ _ val Λ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!invGS_gen hlc Σ, !mlangGS val Λ Σ} :
-  wp = @wp_def hlc Σ _ val Λ _.
+Local Lemma wp_unseal `{SI:indexT, !invG Σ, !mlangG val Λ Σ} :
+  wp = @wp_def SI Σ _ val Λ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
-Definition mprog_proto `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}
+Definition mprog_proto `{!indexT, !invG Σ, !mlangG val Λ Σ}
   E (p : mlang_prog Λ) (Ψ : protocol val Σ) : protocol val Σ
 :=
   (λ fname vs Φ,
@@ -79,7 +79,7 @@ Definition mprog_proto `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}
      end)%I.
 
 Section wp.
-Context `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}.
+Context `{SI:indexT, !invG Σ, !mlangG val Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -97,14 +97,15 @@ Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre pe.(penv_prog) pe.(penv
 Global Instance wp_ne pe E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) pe E e).
 Proof.
-  revert e. induction (lt_wf n) as [n _ IH]=> e Φ Φ' HΦ.
+  revert e. induction (index_lt_wf n) as [n _ IH]=> e Φ Φ' HΦ.
   rewrite !wp_unfold /wp_pre /wp_pre_cases /=.
   do 16 f_equiv. 1: do 3 f_equiv.
   all: f_contractive.
   1: do 1 f_equiv.
   1: intros r; f_equiv.
   2: do 2 f_equiv.
-  all: apply IH; eauto; intros k; eapply dist_le', HΦ; lia.
+  all: apply IH; eauto; intros k; eapply dist_le', HΦ; eauto.
+  all: by eapply index_lt_le_subrel.
 Qed.
 Global Instance wp_proper pe E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) pe E e).
@@ -380,7 +381,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!invGS_gen hlc Σ, !mlangGS val Λ Σ}.
+  Context `{SI:indexT, !invG Σ, !mlangG val Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types v : val.
@@ -412,11 +413,11 @@ Section proofmode_classes.
 End proofmode_classes.
 
 
-Class linkableGS
-  {val pubstate} (Λ : mlanguage val)
-  `{!mlangGS val Λ Σ, !linkable Λ pubstate}
+Class linkableG
+  `{SI:indexT} {val pubstate} (Λ : mlanguage val)
+  `{!mlangG val Λ Σ, !linkable Λ pubstate}
   (public_state_interp : pubstate → iProp Σ)
-:= LinkableGS {
+:= LinkableG {
   private_state_interp : private_state → iProp Σ;
 
   state_interp_split σ pubσ privσ :

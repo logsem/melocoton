@@ -5,7 +5,7 @@ From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import lang state.
-From iris.base_logic.lib Require Import ghost_map ghost_var.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
@@ -16,11 +16,11 @@ Import Wrap.
 
 Section BoundaryLaws.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperG Σ}.
 
 Lemma wrap_interp_c_to_ml w ρc mem θ v lv :
   repr_lval θ lv w →
@@ -36,7 +36,7 @@ Proof using.
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
   iAssert (⌜is_val χvirt (ζσ ∪ ζvirt) v lv⌝)%I as "%Hval".
-  by iApply (block_sim_auth_is_val with "GCχvirt GCζvirt Hblk").
+  1: by iApply (block_sim_auth_is_val with "GCχvirt GCζvirt Hblk").
   iAssert (⌜∀ k lv, roots_m !! k = Some lv →
             ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
   1: { iIntros (kk vv Hroots).

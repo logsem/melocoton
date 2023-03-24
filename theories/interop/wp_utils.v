@@ -6,7 +6,7 @@ From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import state lang basics_resources.
 From melocoton.interop Require Export basics_constructions.
-From iris.base_logic.lib Require Import ghost_map ghost_var gset_bij.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var gset_bij.
 From iris.algebra Require Import gset gset_bij.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
@@ -21,11 +21,11 @@ Global Notation Cval := C_intf.val.
 
 Section Utils.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperG Σ}.
 
 Implicit Types P : iProp Σ.
 Import mlanguage.
@@ -84,7 +84,7 @@ Proof.
     assert (memr !! l = None) as HNone1.
     1: apply not_elem_of_dom; erewrite <- repr_roots_dom; last done; by eapply not_elem_of_dom.
     assert (privmem !! l = None) as Hnone2.
-    rewrite <- (lookup_union_r memr privmem); try done; rewrite <- Hunion; by apply lookup_delete.
+    1: rewrite <- (lookup_union_r memr privmem); try done; rewrite <- Hunion; by apply lookup_delete.
     eexists privmem, (<[l:=Storing w]> memr). split_and!.
     * econstructor; try done; by eapply not_elem_of_dom.
     * by apply map_disjoint_insert_r.
@@ -152,9 +152,9 @@ Proof.
     + symmetry. eapply not_elem_of_dom. rewrite <- Hr2. by eapply not_elem_of_dom. }
   assert (p1 = p2) as ->.
   { eapply map_eq_iff. intros i. destruct (p1 !! i) as [v|] eqn:Heq.
-    + eapply elem_of_dom_2 in Heq as Hdom. eapply lookup_union_Some_r in Heq.
-      erewrite <- Hu1 in Heq. erewrite <- Heq. erewrite Hu2.
-      eapply lookup_union_r. 2: done.
+    + eapply elem_of_dom_2 in Heq as Hdom. eapply lookup_union_Some_r in Heq. 2: done.
+      erewrite <- Hu1 in Heq. erewrite <- Heq. erewrite Hu2;
+      eapply lookup_union_r.
       eapply not_elem_of_dom. eapply map_disjoint_dom in Hd1. set_solver.
     + destruct (mem !! i) as [v'|] eqn:Heqmem.
       * pose proof Heqmem as Heq2. rewrite Hu1 in Heqmem.

@@ -7,25 +7,25 @@ From melocoton.lang_to_mlang Require Import lang.
 From iris.proofmode Require Import proofmode.
 
 Section ToMlang_logic.
-Context {hlc : has_lc}.
+Context `{SI:indexT}.
 Context {Σ : gFunctors}.
 Context {val : Type}.
 Context (Λ: language val).
-Context `{!language.weakestpre.langGS val Λ Σ, !invGS_gen hlc Σ}.
+Context `{!language.weakestpre.langG val Λ Σ, !invG Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : protocol val Σ.
 
-Global Program Instance lang_to_mlang_mlangGS :
-  mlanguage.weakestpre.mlangGS val (lang_to_mlang Λ) Σ
+Global Program Instance lang_to_mlang_mlangG :
+  mlanguage.weakestpre.mlangG val (lang_to_mlang Λ) Σ
 := {
   state_interp := language.weakestpre.state_interp;
   at_boundary := True%I;
 }.
 
-Global Program Instance lang_to_mlang_linkableGS :
-  (@linkableGS _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
+Global Program Instance lang_to_mlang_linkableG :
+  (@linkableG _ _ _ (lang_to_mlang Λ) _ _ (lang_to_mlang_linkable Λ) state_interp)%I
 := {
   private_state_interp := (λ _, True)%I;
 }. 

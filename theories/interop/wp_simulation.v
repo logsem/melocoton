@@ -5,7 +5,7 @@ From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop Require Import state lang basics_resources.
-From iris.base_logic.lib Require Import ghost_map ghost_var.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
@@ -15,11 +15,11 @@ Import Wrap.
 
 Section Simulation.
 
-Context {hlc : has_lc}.
+Context `{SI: indexT}.
 Context {Σ : gFunctors}.
-Context `{!heapGS_ML Σ, !heapGS_C Σ}.
-Context `{!invGS_gen hlc Σ}.
-Context `{!wrapperGS Σ}.
+Context `{!heapG_ML Σ, !heapG_C Σ}.
+Context `{!invG Σ}.
+Context `{!wrapperG Σ}.
 
 Implicit Types P : iProp Σ.
 Import mlanguage.
@@ -212,9 +212,9 @@ Proof using.
   iDestruct (ghost_var_agree with "Hat_init SIinit") as %?; simplify_eq.
   iNamed "Hinit". iRename "Hat_init" into "GCinit".
   destruct ρc. cbn [state.ζC state.χC state.θC state.rootsC] in *. SI_GC_agree.
-  iAssert (ghost_var wrapperGS_γat_init 1 true) with "[GCinit SIinit]" as "SIinit".
+  iAssert (ghost_var wrapperG_γat_init 1 true) with "[GCinit SIinit]" as "SIinit".
   { rewrite -{3}Qp.half_half.
-    iApply (fractional.fractional_merge _ _ (λ q, ghost_var wrapperGS_γat_init q true)
+    iApply (fractional.fractional_merge _ _ (λ q, ghost_var wrapperG_γat_init q true)
              with "GCinit SIinit"). }
   iMod (ghost_var_update false with "SIinit") as "SIinit".
   iMod (ghost_var_update_halves false with "Hb SIbound") as "[Hb SIbound]".

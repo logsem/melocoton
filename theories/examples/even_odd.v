@@ -23,7 +23,8 @@ Definition is_odd_prog : lang_prog C_lang :=
 
 
 Section specs.
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
+Context `{SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ}.
 
 Definition is_odd_proto : protocol val Σ := (λ fn (vs: list val) Φ,
   ⌜fn = "is_odd"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
@@ -97,8 +98,9 @@ From melocoton.mlanguage Require Import weakestpre.
 From melocoton.c_lang Require Import mlang_instantiation.
 
 Section linking.
-Context `{!heapGS_C Σ, !invGS_gen hlc Σ}.
-Context `{!linkGS Σ}.
+Context `{SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ}.
+Context `{!linkG Σ}.
 
 Definition fullprog : mlang_prog (link_lang C_mlang C_mlang) :=
   link_prog C_mlang C_mlang is_even_prog is_odd_prog.
