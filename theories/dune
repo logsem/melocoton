@@ -1,7 +1,9 @@
 (coq.theory
   (name melocoton)
-  (flags :standard -w -redundant-canonical-projection
+  (flags :standard
+         -w -redundant-canonical-projection
          -w -inconsistent-scopes ; TODO properly eliminate this warning
+         -w -notation-overridden
   ))
 
 (include_subdirs qualified)
