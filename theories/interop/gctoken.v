@@ -28,10 +28,12 @@ Class wrapperGCtokGS Σ := WrapperGCtokGS {
   wrapperGS_addrmapGS :> ghost_varG Σ (leibnizO addr_map);
   wrapperGS_var_lstoreGS :> ghost_varG Σ lstore;
   wrapperGS_var_lloc_mapGS :> ghost_varG Σ lloc_map;
+  wrapperGS_var_bool :> ghost_varG Σ (leibnizO bool);
   wrapperGS_γζ : gname;
   wrapperGS_γθ : gname;
   wrapperGS_γχ : gname;
   wrapperGS_γroots_set : gname;
+  wrapperGS_γat_init : gname;
 }.
 
 Section GCtoken.
@@ -47,6 +49,7 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "GCχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
   ∗ "GCθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
   ∗ "GCroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots_s
+  ∗ "GCinit" ∷ ghost_var wrapperGS_γat_init (1/2) false
   ∗ "GCζvirt" ∷ lstore_own_auth ζvirt
   ∗ "(GCσMLv & GCσdom)" ∷ state_interp (σMLvirt : language.language.state ML_lang)
   ∗ "GCχvirt" ∷ lloc_own_auth χvirt
@@ -64,5 +67,7 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "%Hχvirt" ∷ ⌜expose_llocs χ χvirt⌝
   ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝ (* TODO redundant? *)
   ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
+
+Definition at_init := ghost_var wrapperGS_γat_init (1/2) true.
 
 End GCtoken.

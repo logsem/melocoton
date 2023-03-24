@@ -17,7 +17,6 @@ Import Wrap.
 
 Class wrapperGS Σ := WrapperGS {
   wrapperGS_GCtok :> wrapperGCtokGS Σ;
-  wrapperGS_at_boundary :> ghost_varG Σ (leibnizO bool);
   wrapperGS_γat_boundary : gname;
 }.
 
@@ -34,12 +33,25 @@ Notation Cval := C_intf.val.
 
 Implicit Types P : iProp Σ.
 
+Definition preGCtok : iProp Σ :=
+    "GCζ" ∷ ghost_var wrapperGS_γζ (1/2) (∅:lstore)
+  ∗ "GCχ" ∷ ghost_var wrapperGS_γχ (1/2) (∅:lloc_map)
+  ∗ "GCθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅:addr_map)
+  ∗ "GCroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (∅:gset addr)
+  ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
+  ∗ "GCML" ∷ state_interp (∅ : language.language.state ML_lang)
+  ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
+  ∗ "GCrootsm" ∷ ghost_map_auth wrapperGS_γroots_map 1 (∅:gmap addr lval).
+
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
+  ∃ (at_init : bool),
     "SIζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperGS_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperGS_γθ (1/2) θ
   ∗ "SIroots" ∷ ghost_var wrapperGS_γroots_set (1/2) roots
-  ∗ "SIbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true.
+  ∗ "SIbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) true
+  ∗ "SIinit" ∷ ghost_var wrapperGS_γat_init (1/2) at_init
+  ∗ "Hinit" ∷ if at_init then preGCtok else True.
 
 Definition GC_token_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) : iProp Σ :=
    "GCζ" ∷ ghost_var wrapperGS_γζ (1/2) ζ
@@ -55,6 +67,7 @@ Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "SIθ" ∷ ghost_var wrapperGS_γθ (1/2) (∅ : addr_map)
   ∗ "SIroots" ∷ ghost_var wrapperGS_γroots_set (1/2) (dom roots)
   ∗ "SIbound" ∷ ghost_var wrapperGS_γat_boundary (1/2) false
+  ∗ "SIinit" ∷ ghost_var wrapperGS_γat_init 1 false
   ∗ "SIζvirt" ∷ lstore_own_auth ζvirt
   ∗ "HσCv" ∷ gen_heap_interp (memC ∪ (fmap (fun k => None) roots))
   ∗ "SIAχ" ∷ lloc_own_auth χ
@@ -82,16 +95,17 @@ Global Program Instance wrapGS :
   mlanguage.weakestpre.mlangGS _ wrap_lang Σ
 := {
   state_interp := wrap_state_interp;
-  at_boundary := (ghost_var wrapperGS_γat_boundary (1/2) true)%I;
+  at_boundary := ghost_var wrapperGS_γat_boundary (1/2) true
 }.
 
-Definition not_at_boundary := (ghost_var wrapperGS_γat_boundary (1/2) false)%I.
+Definition not_at_boundary := ghost_var wrapperGS_γat_boundary (1/2) false.
 
 Global Program Instance wrap_linkableGS : linkableGS wrap_lang public_state_interp := {
   private_state_interp := private_state_interp
 }.
 Next Obligation.
-  iIntros (σ pubσ privσ Hlink) "Hσ !>". inversion Hlink; subst. iApply "Hσ".
+  iIntros (σ pubσ privσ Hlink) "Hσ". inversion Hlink; subst.
+  iApply "Hσ".
 Qed.
 Next Obligation.
   iIntros (pubσ privσ) "Hpubσ Hprivσ !>". cbn.
@@ -134,4 +148,5 @@ Ltac SI_GC_agree :=
   iDestruct (ghost_var_agree with "GCχ SIχ") as %?;
   iDestruct (ghost_var_agree with "GCθ SIθ") as %?;
   iDestruct (ghost_var_agree with "GCroots SIroots") as %?;
+  iDestruct (ghost_var_agree with "GCinit SIinit") as %?;
   simplify_eq.

@@ -1,11 +1,13 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import base strings gmap.
+From melocoton.ml_lang Require Import lang.
 
 Inductive prim :=
   | Palloc | Pregisterroot | Punregisterroot
   | Pmodify | Preadfield | Pval2int | Pint2val
   | Pallocforeign | Pwriteforeign | Preadforeign
-  | Pcallback.
+  | Pcallback
+  | Pmain (e : ML_lang.expr).
 
 Inductive is_prim : string → prim → Prop :=
   | alloc_is_prim : is_prim "alloc" Palloc
@@ -18,7 +20,8 @@ Inductive is_prim : string → prim → Prop :=
   | allocforeign_is_prim : is_prim "alloc_foreign" Pallocforeign
   | writeforeign_is_prim : is_prim "write_foreign" Pwriteforeign
   | readforeign_is_prim : is_prim "read_foreign" Preadforeign
-  | callback_is_prim : is_prim "callback" Pcallback.
+  | callback_is_prim : is_prim "callback" Pcallback
+  | main_is_prim e : is_prim "main" (Pmain e).
 
 Global Hint Constructors is_prim : core.
 
@@ -27,6 +30,8 @@ Proof.
   intros p1 p2.
   destruct p1; destruct p2;
     (try by left); try by right.
+  destruct (decide (e = e0)); subst; first by left.
+  right; congruence.
 Qed.
 
 Ltac inv_is_prim :=
@@ -36,18 +41,6 @@ Ltac inv_is_prim :=
 
 Definition is_prim_name (s : string) : Prop :=
   ∃ p, is_prim s p.
-
-Lemma is_prim_inj s p1 p2 :
-  is_prim s p1 →
-  is_prim s p2 →
-  p1 = p2.
-Proof. inversion 1; inversion 1; by simplify_eq. Qed.
-
-Ltac is_prim_inj :=
-  repeat match goal with
-  | H1 : is_prim ?s ?p1, H2 : is_prim ?s ?p2 |- _ =>
-      pose proof (is_prim_inj _ _ _ H1 H2); subst p2; clear H2
-  end.
 
 Global Instance is_prim_name_dec s : Decision (is_prim_name s).
 Proof.
@@ -62,10 +55,12 @@ Proof.
   destruct (decide (s = "write_foreign")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "read_foreign")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "callback")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "main")) as [->|]. left; eexists; constructor.
   right. by intros [? H]; inversion H.
+  Unshelve. exact inhabitant.
 Qed.
 
-Definition prims_prog : gmap string prim :=
+Definition prims_prog e : gmap string prim :=
   list_to_map [
       ("alloc", Palloc);
       ("registerroot", Pregisterroot);
@@ -77,47 +72,22 @@ Definition prims_prog : gmap string prim :=
       ("alloc_foreign", Pallocforeign);
       ("write_foreign", Pwriteforeign);
       ("read_foreign", Preadforeign);
-      ("callback", Pcallback)
+      ("callback", Pcallback);
+      ("main", Pmain e)
   ].
 
-Lemma lookup_prims_prog_Some s p :
-  prims_prog !! s = Some p ↔ is_prim s p.
+Lemma in_dom_prims_prog e s :
+  s ∈ dom (prims_prog e) ↔ is_prim_name s.
 Proof.
-  rewrite /prims_prog. split.
-  { cbn. intros H.
-    destruct (decide (s = "alloc")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "registerroot")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "unregisterroot")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "modify")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "readfield")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "val2int")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "int2val")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "alloc_foreign")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "write_foreign")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "read_foreign")) as [->|]; simplify_map_eq; first constructor.
-    destruct (decide (s = "callback")) as [->|]; simplify_map_eq; first constructor.
-  }
-  { inversion 1; by simplify_map_eq. }
+  rewrite /prims_prog.
+  cbn. rewrite !dom_insert_L dom_empty_L. split.
+  { rewrite !elem_of_union !elem_of_singleton. intros HH.
+    destruct_or!; subst; eexists; try econstructor; [].
+    exfalso. set_solver. }
+  { intros [? Hprim]. inversion Hprim; set_solver. }
+  Unshelve. { exfalso. set_solver. } { auto. }
 Qed.
 
-Lemma lookup_prims_prog_None s :
-  prims_prog !! s = None ↔ ¬ is_prim_name s.
-Proof.
-  destruct (decide (is_prim_name s)) as [[p Hp]|].
-  { destruct (prims_prog !! s) eqn:HH; split; intros; try done.
-    { exfalso; firstorder. }
-    { apply lookup_prims_prog_Some in Hp. congruence. } }
-  { destruct (prims_prog !! s) eqn:HH; split; intros; try done.
-    { apply lookup_prims_prog_Some in HH. firstorder. } }
-Qed.
-
-Lemma in_dom_prims_prog s :
-  s ∈ dom prims_prog ↔ is_prim_name s.
-Proof.
-  rewrite elem_of_dom.
-  destruct (decide (is_prim_name s)) as [[p Hp]|].
-  { destruct (prims_prog !! s) eqn:HH; split; firstorder.
-    apply lookup_prims_prog_None in HH. firstorder. }
-  { destruct (prims_prog !! s) eqn:HH; split; try by firstorder.
-    apply lookup_prims_prog_Some in HH. firstorder. }
-Qed.
+Lemma lookup_prims_prog_None e s :
+  prims_prog e !! s = None ↔ ¬ is_prim_name s.
+Proof. rewrite -not_elem_of_dom in_dom_prims_prog //. Qed.

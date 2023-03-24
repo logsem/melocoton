@@ -82,6 +82,8 @@ Proof.
   destruct HH as (Hmono & Hblocks & Hprivblocks & HζC & Hζdisj &
                     Hstore & Hvals & ? & ? & ? & Hroots & ?).
 
+  iDestruct (ghost_var_split _ _ (1/2) (1/2) with "[SIinit]") as "[SIinit GCinit]".
+  { rewrite {1}(_: 1 = 1/2+1/2)%Qp // Qp.half_half //. }
   iMod (ghost_var_update_halves with "Hb SIbound") as "(Hnb & SIbound)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ & GCζ)".
   iMod (ghost_var_update_halves with "SIχ GCχ") as "(SIχ & GCχ)".
@@ -99,6 +101,7 @@ Proof.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
+  iSplitL "SIinit". { iExists false. iFrame. }
   iSplit.
   { rewrite /GC /named.
     iExists (ζC ρc), (ζC ρc), ζσ, (ζML ρml ∪ ζnewimm).

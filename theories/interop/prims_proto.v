@@ -122,8 +122,8 @@ Definition read_foreign_proto : C_proto := (λ fn vl Φ,
                  γ ↦foreign a -∗
                  Φ (C_intf.LitV (C_intf.LitLoc a))))%I.
 
-Definition callback_proto E (T : ML_proto) : C_proto := (λ fn vl Φ,
-  ∃ θ w γ w' lv' v' f x e ψ,
+Definition callback_proto E (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
+  ∃ θ w γ w' lv' v' f x e Φ',
     "->" ∷ ⌜fn = "callback"⌝ ∗
     "HGC" ∷ GC θ ∗
     "->" ∷ ⌜vl = [ w; w' ]⌝ ∗
@@ -131,13 +131,21 @@ Definition callback_proto E (T : ML_proto) : C_proto := (λ fn vl Φ,
     "Hclos" ∷ γ ↦clos (f, x, e) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
     "Hsim'" ∷ lv' ~~ v' ∗
-    "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) @ ⟨∅, T⟩ ; E {{ ψ }} ∗
+    "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) @ ⟨∅, Ψ⟩ ; E {{ Φ' }} ∗
     "Cont" ∷ ▷ (∀ θ' vret lvret wret,
                    GC θ' -∗
-                   ψ vret -∗
+                   Φ' vret -∗
                    lvret ~~ vret -∗
                    ⌜repr_lval θ' lvret wret⌝ -∗
                    Φ wret))%I.
+
+Definition main_proto (E: coPset) (e : ML_lang.expr) (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
+  "->" ∷ ⌜fn = "main"⌝ ∗
+  "->" ∷ ⌜vl = []⌝ ∗
+  "Hat_init" ∷ at_init ∗
+  "WPmain" ∷ ▷ WP e @ ⟨∅, Ψ⟩; E {{ λ v, ⌜v = LitV LitUnit⌝ }} ∗
+  "Cont" ∷ ▷ Φ (C_intf.LitV (C_intf.LitInt 0))
+  )%I.
 
 Definition prim_proto (p : prim) E (Ψ : ML_proto) : C_proto :=
   match p with
@@ -152,58 +160,63 @@ Definition prim_proto (p : prim) E (Ψ : ML_proto) : C_proto :=
   | Pwriteforeign => write_foreign_proto
   | Preadforeign => read_foreign_proto
   | Pcallback => callback_proto E Ψ
+  | Pmain e => main_proto E e Ψ
   end.
 
-Definition prims_proto E (Ψ : ML_proto) : C_proto :=
-  (λ fn vs Φ, ∃ p, prim_proto p E Ψ fn vs Φ)%I.
+Definition prims_proto E e (Ψ : ML_proto) : C_proto :=
+  (λ fn vs Φ, ∃ p, ⌜prims_prog e !! fn = Some p⌝ ∗
+    prim_proto p E Ψ fn vs Φ)%I.
 
-Lemma proto_prim_mask_mono E1 E2 Ψ : E1 ⊆ E2 →
-  ∀ fn vl Φ, prims_proto E1 Ψ fn vl Φ -∗ prims_proto E2 Ψ fn vl Φ.
+Lemma proto_prim_mask_mono E1 E2 e Ψ : E1 ⊆ E2 →
+  ∀ fn vl Φ, prims_proto E1 e Ψ fn vl Φ -∗ prims_proto E2 e Ψ fn vl Φ.
 Proof using.
-  iIntros (H fn vl Φ) "H". iDestruct "H" as (p) "H". iExists p.
-  destruct p; try done. cbn.
-  iNamed "H". do 10 iExists _; unfold named.
-  iFrame. do 4 (iSplit; first done).
-  iNext. iApply @wp_mask_mono. 1: done.
-  iFrame.
+  iIntros (H fn vl Φ) "H". iDestruct "H" as (p Hp) "H". iExists p.
+  iSplit; first done.
+  destruct p; try done. all: cbn; iNamed "H".
+  { do 10 iExists _; unfold named.
+    iFrame. do 4 (iSplit; first done).
+    iNext. iApply wp_mask_mono. 1: done.
+    iFrame. }
+  { unfold main_proto, named. iFrame. do 2 (iSplit; first done).
+    iNext. iApply wp_mask_mono; first done. iFrame. }
 Qed.
 
-Lemma prim_proto_refines_prims_proto p E Ψ :
-  prim_proto p E Ψ ⊑ prims_proto E Ψ.
-Proof using. iIntros (? ? ?) "H". by iExists p. Qed.
-
-Lemma prims_proto_except_dom E Ψ :
-  (prims_proto E Ψ) except (dom prims_prog) ⊑ ⊥.
+Lemma prims_proto_except_dom E e Ψ :
+  (prims_proto E e Ψ) except (dom (prims_prog e)) ⊑ ⊥.
 Proof using.
   iIntros (? ? ?) "H". rewrite /proto_except.
-  iDestruct "H" as (Hdom p) "H".
+  iDestruct "H" as (Hdom p ?) "H".
   apply not_elem_of_dom in Hdom.
   destruct p; unfold prim_proto; iNamed "H"; by exfalso.
 Qed.
 
 (* some boilerplate *)
-Lemma int2val_refines_prims_proto E Ψ : int2val_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Pint2val). Qed.
-Lemma val2int_refines_prims_proto E Ψ : val2int_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Pval2int). Qed.
-Lemma registerroot_refines_prims_proto E Ψ : registerroot_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Pregisterroot). Qed.
-Lemma unregisterroot_refines_prims_proto E Ψ : unregisterroot_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Punregisterroot). Qed.
-Lemma modify_refines_prims_proto E Ψ : modify_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Pmodify). Qed.
-Lemma readfield_refines_prims_proto E Ψ : readfield_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Preadfield). Qed.
-Lemma alloc_refines_prims_proto E Ψ : alloc_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Palloc). Qed.
-Lemma alloc_foreign_refines_prims_proto E Ψ : alloc_foreign_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Pallocforeign). Qed.
-Lemma write_foreign_refines_prims_proto E Ψ : write_foreign_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Pwriteforeign). Qed.
-Lemma read_foreign_refines_prims_proto E Ψ : read_foreign_proto ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Preadforeign). Qed.
-Lemma callback_refines_prims_proto E Ψ : callback_proto E Ψ ⊑ prims_proto E Ψ.
-Proof using. eapply (prim_proto_refines_prims_proto Pcallback). Qed.
+Local Ltac tac p :=
+  iIntros (? ? ?) "H"; iExists p; (iSplit; last iFrame); by iNamed "H".
+Lemma int2val_refines_prims_proto E e Ψ : int2val_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pint2val. Qed.
+Lemma val2int_refines_prims_proto E e Ψ : val2int_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pval2int. Qed.
+Lemma registerroot_refines_prims_proto E e Ψ : registerroot_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pregisterroot. Qed.
+Lemma unregisterroot_refines_prims_proto E e Ψ : unregisterroot_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Punregisterroot. Qed.
+Lemma modify_refines_prims_proto E e Ψ : modify_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pmodify. Qed.
+Lemma readfield_refines_prims_proto E e Ψ : readfield_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Preadfield. Qed.
+Lemma alloc_refines_prims_proto E e Ψ : alloc_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Palloc. Qed.
+Lemma alloc_foreign_refines_prims_proto E e Ψ : alloc_foreign_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pallocforeign. Qed.
+Lemma write_foreign_refines_prims_proto E e Ψ : write_foreign_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pwriteforeign. Qed.
+Lemma read_foreign_refines_prims_proto E e Ψ : read_foreign_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Preadforeign. Qed.
+Lemma callback_refines_prims_proto E e Ψ : callback_proto E Ψ ⊑ prims_proto E e Ψ.
+Proof using. tac Pcallback. Qed.
+Lemma main_refines_prims_proto E e Ψ : main_proto E e Ψ ⊑ prims_proto E e Ψ.
+Proof using. tac (Pmain e). Qed.
 
 End PrimsProto.
 
@@ -218,3 +231,4 @@ Global Hint Resolve alloc_foreign_refines_prims_proto : core.
 Global Hint Resolve write_foreign_refines_prims_proto : core.
 Global Hint Resolve read_foreign_refines_prims_proto : core.
 Global Hint Resolve callback_refines_prims_proto : core.
+Global Hint Resolve main_refines_prims_proto : core.

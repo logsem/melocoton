@@ -61,11 +61,11 @@ Proof using.
   iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
-Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) E eml Φ :
-  Ψ on (dom prims_prog) ⊑ ⊥ → (* Ψ does not use primitive names *)
+Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) E eml emain Φ :
+  Ψ on (dom (prims_prog emain)) ⊑ ⊥ → (* Ψ does not use primitive names *)
   not_at_boundary -∗
   WP eml @ ⟨ ∅, Ψ ⟩; E {{ Φ }} -∗
-  WP (WrSE (ExprML eml)) @ ⟪ prims_prog, wrap_proto Ψ ⟫; E {{ w,
+  WP (WrSE (ExprML eml)) @ ⟪ prims_prog emain, wrap_proto Ψ ⟫; E {{ w,
     ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
     at_boundary wrap_lang }}.
 Proof.
@@ -170,10 +170,10 @@ Proof.
       iApply ("IH" with "Hnb HWP'").
 Qed.
 
-Lemma callback_proto_refines E Ψ :
-  Ψ on (dom prims_prog) ⊑ ⊥ →
-  callback_proto E Ψ ⊑ mprog_proto E prims_prog (wrap_proto Ψ).
-Proof.
+Lemma callback_proto_refines E emain Ψ :
+  Ψ on (dom (prims_prog emain)) ⊑ ⊥ →
+  callback_proto E Ψ ⊑ mprog_proto E (prims_prog emain) (wrap_proto Ψ).
+Proof using.
   iIntros (Hnprim ? ? ?) "Hproto". unfold weakestpre.prog_proto. iNamed "Hproto".
   iExists _. iSplit; first done. iIntros "!> Hb".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -206,22 +206,59 @@ Proof.
   iApply ("Cont" with "[$] [$] [$]"); eauto.
 Qed.
 
-Lemma prim_proto_refines (p : prim) E Ψ :
-  Ψ on (dom prims_prog) ⊑ ⊥ →
-  prim_proto p E Ψ ⊑ mprog_proto E prims_prog (wrap_proto Ψ).
+Lemma main_proto_refines E emain Ψ :
+  Ψ on (dom (prims_prog emain)) ⊑ ⊥ →
+  main_proto E emain Ψ ⊑ mprog_proto E (prims_prog emain) (wrap_proto Ψ).
 Proof using.
-  intros Hnprim.
-  destruct p; try by apply base_prim_proto_refines.
-  by apply callback_proto_refines.
+  iIntros (Hnprim ? ? ?) "Hproto". unfold weakestpre.prog_proto. iNamed "Hproto".
+  iExists _. iSplit; first done. iIntros "!> Hb".
+  rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
+  iIntros (st) "Hst".
+  iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
+  iNamed "Hst". iNamed "SIC". unfold gctoken.at_init.
+  iDestruct (ghost_var_agree with "Hat_init SIinit") as %?; simplify_eq.
+  iNamed "Hinit". iRename "Hat_init" into "GCinit".
+  destruct ρc. cbn [state.ζC state.χC state.θC state.rootsC] in *. SI_GC_agree.
+  iAssert (ghost_var wrapperGS_γat_init 1 true) with "[GCinit SIinit]" as "SIinit".
+  { rewrite -{3}Qp.half_half.
+    iApply (fractional.fractional_merge _ _ (λ q, ghost_var wrapperGS_γat_init q true)
+             with "GCinit SIinit"). }
+  iMod (ghost_var_update false with "SIinit") as "SIinit".
+  iMod (ghost_var_update_halves false with "Hb SIbound") as "[Hb SIbound]".
+
+  iModIntro.
+  iRight; iRight. iSplit; first done.
+  iSplit. { iPureIntro; intros (f'&vs'&C'&H1&H2); done. }
+  iIntros (X Hstep); inversion Hstep; simplify_eq.
+  1: specialize (H4 _ _ eq_refl); by inversion H4.
+  specialize (H4 mem eq_refl eq_refl).
+
+  do 3 iModIntro. iExists _, _. iSplit; first done.
+  rewrite /weakestpre.state_interp /= /named.
+  rewrite /ML_state_interp /= /named.
+  rewrite /public_state_interp.
+  rewrite !fmap_empty !right_id_L !dom_empty_L. iFrame.
+  rewrite pub_locs_in_lstore_empty big_sepM_empty dom_empty_L. iFrame.
+  rewrite big_sepS_empty. iSplit; first by iPureIntro.
+
+  iApply (weakestpre.wp_wand with "[-Cont]").
+  { by iApply (wp_simulates with "Hb WPmain"). }
+  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & %Hrepr & Hsim & HΦ' & $)".
+  iDestruct "HΦ'" as "->". iDestruct "Hsim" as "->".
+  by inversion Hrepr; simplify_eq.
 Qed.
 
-Lemma prims_proto_refines E Ψ :
-  Ψ on (dom prims_prog) ⊑ ⊥ →
-  prims_proto E Ψ ⊑ mprog_proto E prims_prog (wrap_proto Ψ).
+Lemma wrap_refines E e Ψ :
+  Ψ on (dom (wrap_prog e)) ⊑ ⊥ →
+  prims_proto E e Ψ ⊑ mprog_proto E (wrap_prog e) (wrap_proto Ψ).
 Proof using.
   intros Hnprim.
-  iIntros (? ? ?) "H". iDestruct "H" as (p) "H".
-  by iApply prim_proto_refines.
+  iIntros (? ? ?) "H". iDestruct "H" as (p Hp) "H".
+  destruct p; try by iApply (base_prim_proto_refines with "H").
+  { by iApply (callback_proto_refines with "H"). }
+  { iAssert (⌜e = e0⌝)%I as %->.
+    { iNamed "H". iClear "∗". vm_compute in Hp. by simplify_eq. }
+    by iApply (main_proto_refines with "H"). }
 Qed.
 
 End Simulation.

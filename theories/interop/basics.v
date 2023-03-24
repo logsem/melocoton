@@ -354,6 +354,9 @@ Definition pub_locs_in_lstore (χ : lloc_map) (ζ : lstore) : gmap lloc loc :=
 Definition lstore_immut_blocks (ζ : lstore) : lstore :=
   filter (λ '(_, bb), mutability bb = Immut) ζ.
 
+Lemma lloc_map_pubs_empty : lloc_map_pubs ∅ = ∅.
+Proof. rewrite /lloc_map_pubs omap_empty //. Qed.
+
 Lemma lloc_map_pubs_lookup_Some χ γ ℓ :
   lloc_map_pubs χ !! γ = Some ℓ ↔ χ !! γ = Some (LlocPublic ℓ).
 Proof.
@@ -435,6 +438,10 @@ Proof. rewrite /lloc_map_foreign omap_insert //. Qed.
 Lemma lloc_map_foreign_insert_foreign χ γ id :
   lloc_map_foreign (<[γ:=LlocForeign id]> χ) = <[γ := id]> (lloc_map_foreign χ).
 Proof. rewrite /lloc_map_foreign omap_insert //. Qed.
+
+Lemma pub_locs_in_lstore_empty :
+  pub_locs_in_lstore ∅ ∅ = ∅.
+Proof. rewrite /pub_locs_in_lstore lloc_map_pubs_empty //. Qed.
 
 Lemma pub_locs_in_lstore_lookup χ ζ γ ℓ :
   γ ∈ dom ζ

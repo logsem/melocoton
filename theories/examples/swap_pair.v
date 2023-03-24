@@ -43,9 +43,9 @@ Definition swap_pair_ml_spec : protocol ML_lang.val Σ := (
   λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
 )%I.
 
-Lemma swap_pair_correct E :
+Lemma swap_pair_correct E e :
   wrap_proto swap_pair_ml_spec ⊑
-  prog_proto E swap_pair_prog (prims_proto ∅ ⊥).
+  prog_proto E swap_pair_prog (prims_proto ∅ e ⊥).
 Proof.
   iIntros (fn ws Φ) "H". iNamed "H".
   iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
@@ -158,16 +158,16 @@ Qed.
 
 Import melocoton.mlanguage.weakestpre.
 
-Lemma is_linkable_swap_pair :
+Lemma is_linkable_swap_pair e :
   can_link wrap_lang C_mlang
-    prims_prog (wrap_proto swap_pair_ml_spec)
-    swap_pair_prog (prims_proto ∅ ⊥)
+    (wrap_prog e)  (wrap_proto swap_pair_ml_spec)
+    swap_pair_prog (prims_proto ∅ e ⊥)
     ⊥.
 Proof.
   constructor; intros.
   - rewrite !dom_insert_L !dom_empty_L. set_solver.
   - rewrite proto_on_refines swap_pair_correct lang_to_mlang_refines //.
-  - rewrite proto_on_refines prims_proto_refines.
+  - rewrite proto_on_refines wrap_refines.
     2: { rewrite proto_on_refines //. }
     eapply mprog_proto_mono; first set_solver.
     apply wrap_proto_mono, proto_refines_bot_l.

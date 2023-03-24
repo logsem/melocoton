@@ -9,6 +9,8 @@ From melocoton.interop Require Import basics basics_constructions state prims.
 Module Wrap.
 Section wrappersem.
 
+(* A wrapped program is a collection of builtins; in practice always an instance
+   of [prims_prog]. *)
 Local Notation prog := (gmap string prim).
 
 Inductive simple_expr : Type :=
@@ -19,7 +21,7 @@ Inductive simple_expr : Type :=
      - an incoming call to a runtime primitive, which will be implemented by the wrapper
    *)
   | ExprCall (fn_name : string) (args : list word)
-  (* Call to a runtime primitive *)
+  (* Call to a builtin (primitive or main) *)
   | RunPrimitive (prm : prim) (args : list word)
   (* Execution of wrapped ML code *)
   | ExprML (eml : ML_lang.expr).
@@ -60,7 +62,7 @@ Local Notation public_state := memory.
 
 (* boundary states are ones in the [CState _ _] case *)
 Inductive split_state : state → public_state → private_state → Prop :=
-  | WrapSplitSt ρc mem :
+  | WrapSplitStC ρc mem :
     split_state (CState ρc mem) mem ρc.
 
 Implicit Types X : expr * state → Prop.
@@ -288,10 +290,13 @@ Inductive c_prim_step :
        Y (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem) →
     c_prim_step Pwriteforeign ls ρc mem Y.
 
-Lemma c_prim_step_total p ws ρc mem : p ≠ Pcallback → c_prim_step p ws ρc mem (λ _ _ _, True).
+Lemma c_prim_step_total p ws ρc mem :
+  p ≠ Pcallback →
+  (∀ e, p ≠ Pmain e) →
+  c_prim_step p ws ρc mem (λ _ _ _, True).
 Proof.
   (* TODO: refactor *)
-  intros H; destruct p; try done.
+  intros Hnocb Hnomain; destruct p; try naive_solver.
   all: econstructor; try by eauto.
 
   (* alloc *)
@@ -416,12 +421,12 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
 
   (* Administrative step for resolving a call to a primitive. *)
   | ExprCallS fn_name args ρ K X :
-    (∀ prm,
-       p !! fn_name = Some prm →
-       X (WrE (RunPrimitive prm args) K, ρ)) →
+    (∀ btin,
+       p !! fn_name = Some btin →
+       X (WrE (RunPrimitive btin args) K, ρ)) →
     prim_step_mrel p (WrE (ExprCall fn_name args) K, ρ) X
 
-  (* Call to a primitive (except for callback, see next case) *)
+  (* Call to a primitive (except for callback/main, see next cases) *)
   | PrimS prm ws ρ K X :
     (∀ ρc mem,
        ρ = CState ρc mem →
@@ -439,7 +444,15 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
        c_to_ml w' ρc mem (λ v ρml σ,
          X (WrE (ExprML (App (Val (RecV f x e)) (Val v))) K,
              MLState ρml σ))) →
-    prim_step_mrel p (WrE (RunPrimitive Pcallback ls) K, ρ) X.
+    prim_step_mrel p (WrE (RunPrimitive Pcallback ls) K, ρ) X
+
+  (* Call to the main function *)
+  | MainS e ls ρ K X :
+    (∀ mem,
+       ls = [] →
+       ρ = CState (WrapstateC ∅ ∅ ∅ ∅) mem →
+       X (WrE (ExprML e) K, MLState (WrapstateML ∅ ∅ ∅ mem) ∅)) →
+    prim_step_mrel p (WrE (RunPrimitive (Pmain e) ls) K, ρ) X.
 
 Program Definition prim_step (P : prog) : umrel (expr * state) :=
   {| mrel := prim_step_mrel P |}.
@@ -451,6 +464,7 @@ Next Obligation.
   | eapply ExprCallS
   | eapply PrimS
   | eapply CallbackS
+  | eapply MainS
   ]; unfold c_to_ml in *; eauto; [naive_solver..|].
   { (* PrimS case: need to perform inversion on c_prim_step *)
     intros * ->. specialize (H _ _ eq_refl).
@@ -483,8 +497,8 @@ Proof using.
   - intros p C [] σ X Hnv. rewrite /resume_with.
     inversion 1; simplify_eq.
     all: try (econstructor; eauto; done).
-    destruct k; simplify_list_eq.
-    by econstructor.
+    { destruct k; simplify_list_eq.
+      by econstructor. }
   - intros p [[] ] σ H; cbv; try (by (econstructor; eauto)).
     + destruct k; cbv in H; try done.
       econstructor; eauto.
@@ -505,6 +519,8 @@ Global Program Instance wrap_linkable : linkable wrap_lang memory := {
   private_state := wrapstateC;
   split_state := Wrap.split_state;
 }.
+
+Notation wrap_prog e := (prims_prog e : mlang_prog wrap_lang).
 
 (* inversion lemmas *)
 (* XXX are they still useful?
