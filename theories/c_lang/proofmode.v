@@ -5,7 +5,7 @@ From melocoton.c_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 
-Lemma tac_wp_expr_eval {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E Φ e e' :
+Lemma tac_wp_expr_eval `{SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
@@ -216,92 +216,9 @@ Proof.
   rewrite envs_app_sound //; simpl.
   apply wand_intro_l. by rewrite (sep_elim_l (l ↦C∗ _)%I) right_id wand_elim_r.
 Qed.
-(*
-Check envs_lookup_sound.
-Check into_laterN_env_sound.
 
-Lemma help1 H P Q : 
-  (⊢ H -∗ □ P)%I →
-  (⊢ H -∗ Q)%I →
-  (⊢ H -∗ (□ P) ∗ Q)%I.
-Proof.
-  iIntros (H1 H2) "HH". iSplit.
-  + by iApply H1.
-  + by iApply H2.
-Qed.
-
-Lemma help2 P Q : 
-  (⊢ ▷ (P ∗ Q) -∗ ▷ Q).
-Proof.
-  iIntros "H !>"; by iDestruct "H" as "(_&$)".
-Qed.
-
-Lemma help3 P Q R : 
-  (Q ⊢ R)%I →
-  (P ∗ Q ⊢ P ∗ R)%I.
-Proof.
-  iIntros (H) "($&H)"; by iApply H.
-Qed.
-
-Lemma help4 (P1 P2:Prop) Q1 Q2 :
-  (P1 → P2) →
-  (Q1 ⊢ ▷ Q2)%I →
-  (⌜P1⌝ ∧ Q1 ⊢ ▷ (⌜P2⌝ ∧ Q2))%I.
-Proof.
-  iIntros (H1 H2) "H". iDestruct "H" as "(H1&H2)".
-  iPoseProof (H2 with "H2") as "H2'".
-  iNext. iSplit. 2: iApply "H2'". iPure "H1" as H1'. iPureIntro. eauto.
-Qed.
-
-Lemma env_lookup_later_commute Δ Δ' p i (P : iProp Σ) :
-  MaybeIntoLaterNEnvs 1 Δ Δ' →
-  envs_lookup i Δ = Some (p, P)%I →
-( of_envs Δ ⊢
-  (□?p P) ∗ (▷ of_envs (envs_delete true i p Δ')))%I.
-Proof.
-  intros H1 Hlu.
-  erewrite envs_lookup_sound; last done.
-  apply help3.
-  destruct H1 as [[H1 H1wf H1dom] [H2 H2wf H2dom]]. cbn in *.
-  unfold MaybeIntoLaterN in *. 
-  destruct Δ as [ΔI ΔS Δc], Δ' as [ΔI' ΔS' Δc']. cbn in *.
-  refine ((fun H2 => _) (H2 _)); first clear H3.
-  2: by iIntros (PP QQ HPQ) "HP"; iApply HPQ.
-  refine ((fun H1 => _) (H1 _ _)); first clear H3.
-  2: {  iIntros (PP QQ HPQ) "#HP". iPoseProof (HPQ with "HP") as "HP2". by do 2 iModIntro. }
-  2: by eauto.
-  unfold of_envs; cbn. unfold of_envs'.
-  eapply help4.
-  { destruct p; cbn; intros HH; econstructor.
-    - Print env_wf. eapply env_delete_wf. eapply H1wf
-  destruct p; cbn in *.
-  { Search bi_entails bi_and bi_sep.
-  destruct p; cbn in *.
-  { Search env_lookup
-  2: by iIntros (PP QQ HPQ) "HP"; iApply HPQ.
-  unfold of_envs in *; cbn in *.
-  unfold of_envs' in *; cbn in *. 
- destruct p; cbn in *.
-  + case_match. 2: destruct (env_lookup i ΔS'); simplify_eq.
-    simplify_eq. Search pm_option_bind.
-  inversion H.
-  Print TransformSpatialEnv. *)
-
-
-Definition maybe_later (b:bool) (P : iProp Σ) : iProp Σ := if b then (▷ P)%I else P.
-
-Lemma maybe_later_false T X (Y:T) (Z:iProp Σ) :
-  X = Some (Y, Z) →
-  X = Some (Y, (maybe_later false Z)).
-Proof. done. Qed.
-
-Lemma maybe_later_true T X (Y:T) (Z:iProp Σ) :
-  X = Some (Y, bi_later Z) →
-  X = Some (Y, (maybe_later true Z)).
-Proof. done. Qed.
-
-Lemma tac_wp_free Δ Δ' s E b i K l (v:option val) Φ :
-  envs_lookup i Δ = Some (false, maybe_later b (l I↦C v))%I →
+Lemma tac_wp_free Δ Δ' s E i K l (v:option val) Φ :
+  envs_lookup i Δ = Some (false, (l I↦C v))%I →
   MaybeIntoLaterNEnvs 1 (envs_delete false i false Δ) Δ' →
   (let Δ'' := (Δ') in
    envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})) →
@@ -310,14 +227,13 @@ Proof.
   rewrite envs_entails_unseal=> Hlk ? Hfin.
   rewrite -wp_bind. eapply wand_apply; first apply wp_free.
   erewrite envs_lookup_sound'; last done. cbn.
-  eapply sep_mono; first (destruct b; cbn; by iIntros "H !>").
+  eapply sep_mono; first (by iIntros "H !>").
   erewrite into_laterN_env_sound; last done.
   eapply later_mono.
   iIntros "H1 _"; by iApply Hfin.
 Qed.
 
 (*
-
 Lemma tac_wp_freeN Δ Δ' s E i K l (v:list $ option val) z Φ :
   z = Z.of_nat (length v) →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
@@ -426,9 +342,8 @@ Tactic Notation "wp_alloc" ident(l) :=
 
 Tactic Notation "wp_free" :=
   let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, maybe_later _ (?l I↦C{_} _)%I) => l end in
-       (eapply maybe_later_false; iAssumptionCore)
-    || (eapply maybe_later_true; iAssumptionCore)
+    let l := match goal with |- _ = Some (_, (?l I↦C{_} _)%I) => l end in
+       (iAssumptionCore)
     || fail "wp_free: cannot find" l "I↦ ?" in
   let solve_array_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↦C∗{_} _)%I) => l end in
@@ -437,7 +352,7 @@ Tactic Notation "wp_free" :=
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     first
-      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ _ _ K));
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ _ K));
         [solve_mapsto ()
         |tc_solve
         |pm_reduce; wp_finish] (*

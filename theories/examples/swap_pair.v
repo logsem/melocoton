@@ -17,7 +17,7 @@ From melocoton.linking Require Import lang weakestpre.
 Section C_prog.
 Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
-
+Context `{SI:indexT}.
 Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
 
@@ -38,8 +38,7 @@ Definition swap_pair_code (x : expr) : expr :=
 Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 
 Definition swap_pair_mod : gmap string function := {[ "swap_pair" := swap_pair_func]}.
-
-Definition swap_pair_ml_spec : @program_specification _ ML_lang _ _ _ _ := (
+Definition swap_pair_ml_spec : @program_specification _ _ ML_lang _ _ _ := (
   λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
 )%I.
 
@@ -75,7 +74,7 @@ Proof.
   do 2 (iSplitR; first done).
   iIntros (v wlv1) "HGC #Helem1". change (Z.to_nat 0) with 0. cbn -[lstore_own_elem].
   iIntros (Heq Hrepr1); injection Heq; intros <-. clear Heq.
-  wp_store.
+  wp_apply (wp_store with "H1"); iIntros "H1".
 
   (* readfield 2 *)
   wp_pures.
@@ -86,7 +85,7 @@ Proof.
   do 2 (iSplitR; first done).
   iIntros (v wlv2) "HGC #Helem2". change (Z.to_nat 1) with 1. cbn -[lstore_own_elem].
   iIntros (Heq Hrepr2); injection Heq; intros <-. clear Heq.
-  wp_store.
+  wp_apply (wp_store with "H2"); iIntros "H2".
 
   (* registerroot 1 *)
   wp_pures.
@@ -116,7 +115,6 @@ Proof.
   wp_pures. change (Z.to_nat 2) with 2. cbn.
 
   (* load from root *)
-  wp_bind (Load _).
   wp_apply (load_from_root with "[HGC H1r]"); first iFrame.
   iIntros (wlv1') "(Hr1&HGC&%Hrepr1')".
 
@@ -129,7 +127,7 @@ Proof.
   iIntros "HGC Hnew1". change (Z.to_nat 1) with 1. cbn.
 
   (* load from root *)
-  wp_pures. wp_bind (Load _).
+  wp_pures.
   wp_apply (load_from_root with "[HGC H2r]"); first iFrame.
   iIntros (wlv2') "(Hr2&HGC&%Hrepr2')".
 
@@ -165,7 +163,8 @@ Proof.
   wp_pures.
   iAssert ((Loc rr) ↦C∗ [Some wlv1'; Some wlv2'])%I with "[Hr1 Hr2]" as "Hrr".
   1: cbn; iFrame.
-  wp_free.
+  change (#2) with (#(length [Some wlv1'; Some wlv2'])).
+  wp_apply (wp_free_array with "Hrr"); iIntros "_".
 
   (* Finish, convert points-to *)
   wp_pures.
@@ -183,6 +182,7 @@ Section ML_prog.
 Import melocoton.c_lang.primitive_laws.
 Import melocoton.ml_lang.proofmode.
 
+Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ}.
 
 Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) := 
@@ -203,7 +203,7 @@ Qed.
 Import melocoton.mlanguage.weakestpre.
 
 Notation combined_lang := (link_lang wrap_lang (lang_to_mlang C_lang)).
-Definition swap_pair_env_lifted := penv_to_mlang swap_pair_env.
+Definition swap_pair_env_lifted := penv_to_mlang _ swap_pair_env.
 
 Lemma swap_pair_correct_lifted E f vs Φ :
     wrap_proto swap_pair_ml_spec f vs Φ
@@ -257,6 +257,7 @@ Proof.
 Qed.
 
 Notation link_in_state := (link_in_state wrap_lang (lang_to_mlang C_lang)).
+(* XXX use main function *)
 (*
 Lemma linked_prog_correct_overall E : 
     link_in_state In1

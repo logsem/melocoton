@@ -8,7 +8,7 @@ Import uPred.
 
 (** Heap tactics *)
 Section examples.
-Context {SI:indexT}.
+Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
  
 Fixpoint fib (n:nat) : nat := match n with
@@ -24,17 +24,12 @@ Definition fib_prog name (x:expr) : expr :=
 
 Definition heap_example : expr :=
   let: "x" := malloc (#2) in 
-  free ("x" +ₗ #1, #1).
-
-(*
-Definition heap_example : expr :=
-  let: "x" := malloc (#2) in 
  (call: &"store_it" with (("x" +ₗ #1), call: &"fib_left" with ( Val (#3) )) ;;
  ("x" +ₗ #0) <- #1337 ;;
   let: "y" := *("x" +ₗ #1) in
   free ("x" +ₗ #1, #1) ;;
   *"x" + "y").
-*)
+
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram fname cname : gmap string function :=
   insert fname (fib_func cname) ∅.
@@ -106,29 +101,44 @@ Proof.
   iDestruct "Hl" as "(Hl0 & Hl1 & _)".
   do 2 wp_pure _.
   change (l + 1)%Z with (l + 1%nat)%Z.
-
-  iAssert (▷ (Loc (l + 1%nat) I↦C None))%I  with "[Hl1]" as "HHH".
-  1: done.
-  
-  mwp_free.
-  wp_free.
-  do 2 wp_pure _.
   wp_bind (FunCall _ _).
   change 3 with (Z.of_nat 3).
+(*
+
+
+
+Tactic Notation "mwp_extern" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' => match e' with FunCall (Val (& ?s)) (map Val ?vv) =>
+      iApply (@wp_extern _ _ C_lang _ _ _ K _ s vv); [iPureIntro; vm_compute; reflexivity | ] end)
+    || fail "wp_extern: expression not a call"
+  | _ => fail "wp_extern: not a 'wp'"
+  end.
+Set Ltac Debug.
+iApply (@wp_extern _ _ C_lang _ _ _ [] _ "fib_left" [(#3)%V]).
+1: iPureIntro; vm_compute.
+mwp_extern.
+
+
+  Locate wp_extern. *)
   wp_extern. cbn. iLeft. cbn. iModIntro.
   iSplitR; first (iPureIntro; lia). wp_pures. 
   wp_bind (FunCall _ _).
   wp_extern. cbn. iRight. cbn. iModIntro.
   iExists _. iFrame. iIntros "Hl1".
   wp_pures.
-  wp_store.
   wp_pures.
-  wp_load.
+  wp_apply (wp_store with "Hl0"); iIntros "Hl0".
+  wp_pures.
+  wp_apply (wp_load with "Hl1"); iIntros "Hl1".
   wp_pures.
   wp_free.
   wp_pures.
   rewrite Z.add_0_r.
-  wp_load.
+  wp_apply (wp_load with "Hl0"); iIntros "Hl0".
   wp_pures.
   done.
 Qed.

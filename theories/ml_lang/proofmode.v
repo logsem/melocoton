@@ -5,7 +5,7 @@ From melocoton.ml_lang Require Import notation.
 From iris.prelude Require Import options.
 Import uPred.
 
-Lemma tac_wp_expr_eval `{!heapG_ML Σ, !invG Σ} Δ s E Φ e e' :
+Lemma tac_wp_expr_eval `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
@@ -35,7 +35,7 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
   end.
 Ltac wp_expr_simpl := wp_expr_eval solve_lookup_fixed.
 
-Lemma tac_wp_pure `{!heapG_ML Σ, !invG Σ} Δ Δ' s E K e1 e2 φ n Φ :
+Lemma tac_wp_pure `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ Δ' s E K e1 e2 φ n Φ :
   PureExec φ n (penv_prog s) e1 e2 →
   φ →
   MaybeIntoLaterNEnvs n Δ Δ' →
@@ -49,11 +49,11 @@ Lemma tac_wp_pure `{!heapG_ML Σ, !invG Σ} Δ Δ' s E K e1 e2 φ n Φ :
  Qed.
 
 
-Lemma tac_wp_value_nofupd `{!heapG_ML Σ, !invG Σ} Δ s E Φ v :
+Lemma tac_wp_value_nofupd `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ v :
   envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by apply wp_value. Qed.
 
-Lemma tac_wp_value `{!heapG_ML Σ, !invG Σ} Δ s E (Φ : val → iPropI Σ) v :
+Lemma tac_wp_value`{SI:indexT}  `{!heapG_ML Σ, !invG Σ} Δ s E (Φ : val → iPropI Σ) v :
   envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 
@@ -146,7 +146,7 @@ Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
 
 
-Lemma tac_wp_call `{!heapG_ML Σ, !invG Σ} Δ s E Φ fn vv e1 :
+Lemma tac_wp_call `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ fn vv e1 :
   (e1 = of_class _ (ExprCall fn vv)) →
   envs_entails Δ (WPCall fn with vv @ s; E {{ Φ }}) →
   envs_entails Δ (WP e1 @ s; E {{ Φ }}).
@@ -176,14 +176,15 @@ Tactic Notation "wp_extern" :=
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let e := eval simpl in e in
-    reshape_expr e ltac:(fun K e' => match e' with Extern (?s) (map Val ?vv) => iApply (wp_extern K _ s vv); [iPureIntro; vm_compute; reflexivity | ] end)
+    reshape_expr e ltac:(fun K e' => match e' with Extern (?s) (map Val ?vv) => 
+      iApply (@wp_extern _ _ ML_lang _ _ _ K _ s vv); [iPureIntro; vm_compute; reflexivity | ] end)
     || fail "wp_extern: expression not a call"
   | _ => fail "wp_extern: not a 'wp'"
   end.
 
 
 
-Lemma tac_wp_bind `{!heapG_ML Σ, !invG Σ} K Δ s E Φ e f :
+Lemma tac_wp_bind `{SI:indexT} `{!heapG_ML Σ, !invG Σ} K Δ s E Φ e f :
   f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
   envs_entails Δ (WP e @ s; E {{ v, WP f (Val v) @ s; E {{ Φ }} }})%I →
   envs_entails Δ (WP fill K e @ s; E {{ Φ }}).
@@ -208,6 +209,7 @@ Tactic Notation "wp_bind" open_constr(efoc) :=
 
 
 (** Heap tactics *)
+(* TODO fix later-sep issues
 Section heap.
 Context `{!heapG_ML Σ, !invG Σ}.
 Implicit Types P Q : iProp Σ.
@@ -215,7 +217,6 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types Δ : envs (uPredI (iResUR Σ)).
 Implicit Types v : val.
 Implicit Types z : Z.
-
 Lemma tac_wp_allocN Δ Δ' s E j K v n Φ :
   (0 ≤ n)%Z →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
@@ -335,7 +336,7 @@ Proof.
   rewrite right_id. by apply later_mono, sep_mono_r, wand_mono.
 Qed.
 
-End heap.
+End heap. *)
 
 (** The tactic [wp_apply_core lem tac_suc tac_fail] evaluates [lem] to a
 hypothesis [H] that can be applied, and then runs [wp_bind_core K; tac_suc H]
@@ -367,7 +368,7 @@ Tactic Notation "wp_apply" open_constr(lem) :=
 Tactic Notation "wp_smart_apply" open_constr(lem) :=
   wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
                     ltac:(fun cont => wp_pure _; []; cont ()).
-
+(*
 Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
   let Htmp := iFresh in
   let finish _ :=
@@ -480,3 +481,4 @@ Tactic Notation "wp_length" :=
     |wp_finish]
   | _ => fail "wp_length: not a 'wp'"
   end.
+*)

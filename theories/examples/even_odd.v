@@ -22,6 +22,7 @@ Definition is_odd_func : C_lang.function :=
 
 
 Section specs.
+Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 
 Definition is_odd_proto fn (vs: list val) Φ : iProp Σ :=
@@ -90,6 +91,7 @@ From melocoton.mlanguage Require Import weakestpre.
 From melocoton.c_lang Require Import mlang_instantiation.
 
 Section linking.
+Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 Context `{!linkG Σ}.
 
@@ -98,7 +100,7 @@ Definition penv : prog_environ (link_lang C_mlang C_mlang) Σ := {|
   penv_proto := (λ _ _ _, False)%I;
 |}.
 
-Instance penv_is_link : is_link_environ (penv_to_mlang even_env) (penv_to_mlang odd_env) penv.
+Instance penv_is_link : is_link_environ (penv_to_mlang _ even_env) (penv_to_mlang _ odd_env) penv.
 Proof.
   constructor.
   { set_solver. }
