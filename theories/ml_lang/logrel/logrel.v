@@ -3,7 +3,7 @@ From melocoton.ml_lang.logrel Require Export persistent_pred typing iterup.
 From melocoton.ml_lang Require Export proofmode.
 From melocoton.ml_lang Require Export lang notation metatheory.
 From iris.algebra Require Import list gmap big_op.
-From iris.base_logic.lib Require Import na_invariants.
+From transfinite.base_logic.lib Require Import na_invariants ghost_var.
 From iris.prelude Require Import options.
 From melocoton.language Require Export weakestpre.
 From Autosubst Require Export Autosubst.
@@ -11,15 +11,18 @@ Import uPred.
 
 (** interp : is a unary logical relation. *)
 
-Class logrel_na_invs Σ := {
+Class logrelG `{SI: indexT} (Σ : gFunctors) := {
   logrel_na_invG :> na_invG Σ;
+  wrapperG_addrmapG :> ghost_varG Σ (leibnizO (list val));
   logrel_nais : na_inv_pool_name;
 }.
 
 Notation na_tok := (na_own logrel_nais ⊤).
 
 Section logrel.
-  Context `{!heapG_ML Σ, !invG Σ, !logrel_na_invs Σ}.
+  Context `{SI: indexT}.
+  Context {Σ : gFunctors}. 
+  Context `{!heapG_ML Σ, !invG Σ, !logrelG Σ}.
   Notation D := (persistent_predO val (iPropI Σ)).
   Implicit Types τi : D.
   Implicit Types Δ : listO D.
@@ -35,9 +38,8 @@ Section logrel.
      format "'[hv' 'WP'  e  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
   Notation of_val w := (of_val ML_lang w%V).
 
-
   Program Definition env_lookup (x : nat) : listO D -n> D :=
-    λne Δ, PersPred (default (inhabitant : persistent_pred _ _) (Δ !! x)).
+    λne Δ, default (inhabitant : persistent_pred _ _) (Δ !! x).
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
   Definition interp_unit : listO D -n> D := λne Δ, PersPred (λ w, ⌜w = #LitUnit⌝)%I.
@@ -95,14 +97,17 @@ Section logrel.
     intros interp n Δ1 Δ2 HΔ; apply fixpoint_ne => τi w. solve_proper.
   Qed.
 
-  Program Definition interp_array_inv (l : loc) : D -n> iPropO Σ := λne τi,
-    (∃ vs, l ↦∗ vs ∗ [∗ list] v∈vs, τi v)%I.
+  Program Definition interp_array_inv_L γ (l : loc) : iPropO Σ := 
+    (∃ vs, l ↦∗ vs ∗ ghost_var γ (1/2) vs)%I.
+  Program Definition interp_array_inv_R γ : D -n> iPropO Σ := λne τi,
+    (∃ vs, ([∗ list] v∈vs, τi v) ∗ ghost_var γ (1/2) vs)%I.
   Solve Obligations with solve_proper.
 
   Program Definition interp_array (interp : listO D -n> D) : listO D -n> D :=
     λne Δ,
-    PersPred (λ w, ∃ (l:loc), ⌜w = # l⌝ ∧
-                      na_inv logrel_nais (nroot .@ l) (interp_array_inv l (interp Δ)))%I.
+    PersPred (λ w, ∃ γ (l:loc), ⌜w = # l⌝ ∧
+                      na_inv logrel_nais (nroot .@ "timeless" .@ l) (interp_array_inv_L γ l) ∗
+                      na_inv logrel_nais (nroot .@ "typing"   .@ l) (interp_array_inv_R γ (interp Δ)))%I.
   Solve Obligations with solve_proper.
 
   Fixpoint interp (τ : type) : listO D -n> D :=
@@ -131,7 +136,8 @@ Section logrel.
 
   (* Compare with language/wp_link.v
      The difference between this and program_fulfills is that we allow axiomatically specified
-     functions to be well-typed. *)
+     functions to be well-typed.
+      XXX @armael: rephrase in terms of protocols *)
   Definition program_spec_satisfied
     (Tshould : protocol val Σ) : iProp Σ :=
     □ ∀ s vv Φ, Tshould s vv Φ -∗ na_tok -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v ∗ na_tok}}.
@@ -269,6 +275,9 @@ Section logrel.
 End logrel.
 
 Global Typeclasses Opaque interp_env.
+
+Global Instance interp_array_inv_L_timeless `{SI: indexT} `{!heapG_ML Σ, !logrelG Σ} γ l : Timeless (interp_array_inv_L γ l).
+Proof. apply _. Qed.
 
 Notation "⟦ P ⟧ₚ*  x" := (interp_prog_env x P) (at level 10).
 Notation "⟦ τ ⟧  x" := (interp x τ) (at level 10).

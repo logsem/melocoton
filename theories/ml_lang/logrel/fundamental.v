@@ -1,17 +1,18 @@
-From iris.base_logic.lib Require Import na_invariants.
+From transfinite.base_logic.lib Require Import na_invariants ghost_var.
 From melocoton.language Require Import lifting.
 From iris.proofmode Require Import proofmode.
 From melocoton.ml_lang.logrel Require Export logrel typing.
 From Autosubst Require Export Autosubst.
 From iris.prelude Require Import options.
 
-Definition log_typed `{!heapG_ML Σ, !invG Σ, !logrel_na_invs Σ} {p:prog_environ ML_lang Σ} (P : program_env) (Γ : gmap string type) (e : expr) (τ : type) : iProp Σ :=
+Definition log_typed `{SI: indexT} `{!heapG_ML Σ, !invG Σ, !logrelG Σ} {p:prog_environ ML_lang Σ} (P : program_env) (Γ : gmap string type) (e : expr) (τ : type) : iProp Σ :=
   □ ∀ Δ vs, ⟦ Γ ⟧* p Δ vs -∗ ⟦ P ⟧ₚ* p Δ -∗ ⟦ τ ⟧ₑ p Δ (env_subst vs e).
 Notation "P  ;;  Γ  ⊨  e  :  τ" := (log_typed P Γ e τ) (at level 74, Γ, e, τ at next level).
 
 
 Section typed_interp.
-  Context `{!heapG_ML Σ, !invG Σ, !logrel_na_invs Σ}.
+  Context `{SI: indexT}.
+  Context `{!heapG_ML Σ, !invG Σ, !logrelG Σ}.
   Context {p:prog_environ ML_lang Σ}.
   Notation D := (persistent_predO val (iPropI Σ)).
 
@@ -111,8 +112,8 @@ Section typed_interp.
     iIntros (w) "#Hw/= Htok". inversion Hop. all: cbn.
     1: iDestruct "Hv" as "%"; iDestruct "Hw" as "%"; simplify_eq/=.
     2,3: iDestruct "Hv" as (v1) "%"; iDestruct "Hw" as (v2) "%"; simplify_eq/=.
-    4: iDestruct "Hv" as (v1) "[% #H1]"; iDestruct "Hw" as (v2) "[% #H2]"; simplify_eq/=.
-    all: iApply wp_pure_step_later; first by eauto.
+    4: iDestruct "Hv" as (v1 γ1) "(%&#H1L&#H1R)"; iDestruct "Hw" as (v2 γ2) "(%&#H2L&#H2R)"; simplify_eq/=.
+    all: iApply wp_pure_step_later; first try eauto.
     all: iIntros "!>"; iApply wp_value; first done.
     all: iFrame; by iExists _.
   Qed.
@@ -319,11 +320,19 @@ Section typed_interp.
     iApply (interp_expr_bind [AllocNLCtx _]); first by iApply "IH1".
     iIntros (v1) "#(%n&->) /= Htok".
     destruct (decide (0 ≤ n)%Z) as [Hn|Hn].
-    { wp_alloc l as "Hl"; first done. iFrame "Htok".
-      iMod (na_inv_alloc _ with "[Hl]") as "#HN".
-      2: { iModIntro. cbn. iExists l. by iSplit. }
-      iNext. iExists _. iFrame "Hl".
-      iApply big_sepL_forall. by iIntros (? ? (-> & _)%lookup_replicate). }
+    { iApply wp_fupd.
+      wp_apply (wp_allocN with "[//]"); first done.
+      iIntros (l) "(Hl&_)". iFrame "Htok".
+      iMod (ghost_var_alloc (replicate (Z.to_nat n) v2)) as (γ) "Hγ".
+      rewrite <- Qp.half_half.
+      iPoseProof (ghost_var_split with "Hγ") as "(HγL&HγR)".
+      rewrite Qp.half_half.
+      iMod (na_inv_alloc _ with "[HγL]") as "#HL"; last first.
+      1: iMod (na_inv_alloc _ _ (nroot .@ "timeless" .@ l) with "[Hl HγR]") as "#HR"; last first.
+      - iModIntro. cbn. iExists γ, l. iFrame "HR". iFrame "HL". done.
+      - iNext. iExists _. iFrame.
+      - iNext. iExists _. iFrame "HγL".
+        iApply big_sepL_forall. by iIntros (? ? (-> & _)%lookup_replicate). }
     { iApply (wp_allocN_wrong_size with "[] []"); [lia|done|].
       iIntros "!> ?". done. }
   Qed.
@@ -337,20 +346,24 @@ Section typed_interp.
     iApply (interp_expr_bind [LoadNRCtx _]); first by iApply "IH2".
     iIntros (v2) "#(%n2&->) /=".
     iApply (interp_expr_bind [LoadNLCtx _]); first by iApply "IH1".
-    iIntros (v1) "#(%l&->&#Hv1) /= Htok"; rewrite -/(interp _).
-    iMod (na_inv_acc with "Hv1 Htok") as "[Hvs (Htok & Hclose)]"; [done..|].
-    iDestruct "Hvs" as (vv) "[Hvv #Hvvτ]".
+    iIntros (v1) "#(%γ&%l&->&#HvL&#HvR) /= Htok"; rewrite -/(interp _).
+    iMod (na_inv_acc_open_timeless with "HvL Htok") as "[(%vv&Hvs&HγL) (Htok & HcloseL)]"; [done..|].
+    iMod (na_inv_acc_open with "HvR Htok") as "HvRO". 1: done. 1: admit.
+    (* XXX help how do you open both invariants at the same time? *)
     destruct (decide (0 ≤ n2 < length vv)%Z) as [Hn2|Hn2].
     { assert (is_Some (vv !! Z.to_nat n2)) as [v ?].
       { apply lookup_lt_is_Some_2. lia. }
       iApply wp_fupd.
-      iApply (wp_loadN with "Hvv"); [lia|eauto|].
-      iIntros "!> Hvv".
-      iMod ("Hclose" with "[Hvv Hvvτ $Htok]") as "$".
-      { iNext. iExists _. iFrame "Hvvτ ∗". }
-      iModIntro. by iApply (big_sepL_lookup with "Hvvτ"). }
-    { iApply (wp_loadN_oob with "Hvv"); first lia. by iIntros "!>" (?) "?". }
-  Qed.
+      iApply (wp_loadN with "Hvs"); [lia|eauto|].
+      iIntros "!> Hvs". iDestruct "HvRO" as "[(%&#Htyp&HγR) (Htok & HcloseR)]".
+      iPoseProof (ghost_var_agree with "HγL HγR") as "<-".
+      iMod ("HcloseR" with "[HγR Htyp $Htok]") as "Htok".
+      { iNext. iExists _. iFrame "Htyp ∗". }
+      iMod ("HcloseL" with "[HγL Hvs $Htok]") as "$".
+      { iNext. iExists _. iFrame. }
+      iModIntro. by iApply (big_sepL_lookup with "Htyp"). }
+    { iApply (wp_loadN_oob with "Hvs"); first lia. by iIntros "!>" (?) "?". }
+  Admitted.
 
   Lemma sem_typed_store P Γ e1 e2 e3 τ :
     P ;; Γ ⊨ e1 : (TArray τ) -∗
@@ -364,23 +377,26 @@ Section typed_interp.
     iApply (interp_expr_bind [StoreNLRCtx _ _]); first by iApply "IH2".
     iIntros (v2) "#(%n2&->)/=".
     iApply (interp_expr_bind [StoreNLLCtx _ _]); first by iApply "IH1".
-    iIntros (v1) "#(%l&->&Hinv)/="; rewrite -/(interp _).
-    iIntros "Htok".
-    iMod (na_inv_acc with "Hinv Htok") as "[Hvs (Htok & Hclose)]"; [done..|].
-    iDestruct "Hvs" as (vv) "[Hvv #Hvvτ]".
+    iIntros (v1) "#(%γ&%l&->&#HvL&#HvR) /= Htok"; rewrite -/(interp _).
+    iMod (na_inv_acc_open_timeless with "HvL Htok") as "[(%vv&Hvv&HγL) (Htok & HcloseL)]"; [done..|].
+    iMod (na_inv_acc_open with "HvR Htok") as "HvRO". 1: done. 1: admit.
     destruct (decide (0 ≤ n2 < length vv)%Z) as [Hn2|Hn2].
     { assert (is_Some (vv !! Z.to_nat n2)) as [v ?].
       { apply lookup_lt_is_Some_2. lia. }
       iApply wp_fupd.
       iApply (wp_storeN with "Hvv"); first lia.
-      iIntros "!> Hvv".
-      iMod ("Hclose" with "[Hvv Hvvτ $Htok]") as "$".
-      { iNext. iExists _. iFrame "Hvv".
+      iIntros "!> Hvv". iDestruct "HvRO" as "[(%&#Hvvτ&HγR) (Htok & HcloseR)]".
+      iPoseProof (ghost_var_agree with "HγL HγR") as "<-".
+      iMod (ghost_var_update_halves with "HγL HγR") as "(HγL & HγR)".
+      iMod ("HcloseR" with "[HγR Hvvτ $Htok]") as "Htok".
+      { iNext. iExists _. iFrame "HγR".
         iDestruct (big_sepL_insert_acc with "Hvvτ") as "[_ H]"; first done.
-        by iApply "H". }
+        iApply "H". iApply "Hv3". }
+      iMod ("HcloseL" with "[HγL Hvv $Htok]") as "$".
+      { iNext. iExists _. iFrame. }
       done. }
     { iApply (wp_storeN_oob with "Hvv"); first lia. by iIntros "!>" (?) "?". }
-  Qed.
+  Admitted.
 
   Lemma sem_typed_extern_ind P Γ Δ vs s tr tl1 tl2 vl1 el2 :
       P !! s = Some (FunType (tl1 ++ tl2) tr) →

@@ -1,9 +1,12 @@
 From stdpp Require Import tactics.
 From iris.bi Require Import bi.
 From iris.prelude Require Import options.
+From transfinite.base_logic Require Import upred bi iprop.
 
 Section persistent_pred.
+  Context `{SI: indexT}.
   Context (A : Type) (PROP : bi).
+  Context `{Hcont : @BoundedLimitPreserving _ _ _ (@Persistent SI PROP)}.
 
   (* The domain of semantic types: persistent Iris predicates type A. *)
   Record persistent_pred := PersPred {
@@ -23,12 +26,15 @@ Section persistent_pred.
     Ofe persistent_pred persistent_pred_ofe_mixin.
 
   Global Instance persistent_pred_cofe : Cofe persistent_predO.
-  Proof.
-    apply (iso_cofe_subtype' (λ Φ : A -d> PROP, ∀ w, Persistent (Φ w))
+  Proof using Hcont.
+    unshelve eapply (iso_cofe_subtype' (λ Φ : A -d> PROP, ∀ w, Persistent (Φ w))
       PersPred pers_pred_car)=> //.
     - apply _.
     - apply limit_preserving_forall=> w.
       by apply bi.limit_preserving_Persistent=> n ??.
+    - eapply bounded_limit_preserving_forall=>x.
+      eapply bounded_limit_preserving_fun_app.
+      eapply Hcont.
   Qed.
 
   Global Instance persistent_pred_car_ne n :
@@ -46,6 +52,6 @@ Section persistent_pred.
 
 End persistent_pred.
 
-Global Arguments PersPred {_ _} _%I {_}.
-Global Arguments pers_pred_car {_ _} !_ _.
-Global Instance: Params (@pers_pred_car) 2 := {}.
+Global Arguments PersPred {_ _ _} _%I {_}.
+Global Arguments pers_pred_car {_ _ _} !_ _.
+Global Instance: Params (@pers_pred_car) 3 := {}.
