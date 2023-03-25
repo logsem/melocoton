@@ -1,6 +1,7 @@
 From transfinite.base_logic.lib Require Import na_invariants ghost_var.
 From melocoton.language Require Import lifting.
 From iris.proofmode Require Import proofmode.
+From stdpp Require Import namespaces.
 From melocoton.ml_lang.logrel Require Export logrel typing.
 From Autosubst Require Export Autosubst.
 From iris.prelude Require Import options.
@@ -8,7 +9,6 @@ From iris.prelude Require Import options.
 Definition log_typed `{SI: indexT} `{!heapG_ML Σ, !invG Σ, !logrelG Σ} {p:prog_environ ML_lang Σ} (P : program_env) (Γ : gmap string type) (e : expr) (τ : type) : iProp Σ :=
   □ ∀ Δ vs, ⟦ Γ ⟧* p Δ vs -∗ ⟦ P ⟧ₚ* p Δ -∗ ⟦ τ ⟧ₑ p Δ (env_subst vs e).
 Notation "P  ;;  Γ  ⊨  e  :  τ" := (log_typed P Γ e τ) (at level 74, Γ, e, τ at next level).
-
 
 Section typed_interp.
   Context `{SI: indexT}.
@@ -348,8 +348,7 @@ Section typed_interp.
     iApply (interp_expr_bind [LoadNLCtx _]); first by iApply "IH1".
     iIntros (v1) "#(%γ&%l&->&#HvL&#HvR) /= Htok"; rewrite -/(interp _).
     iMod (na_inv_acc_open_timeless with "HvL Htok") as "[(%vv&Hvs&HγL) (Htok & HcloseL)]"; [done..|].
-    iMod (na_inv_acc_open with "HvR Htok") as "HvRO". 1: done. 1: admit.
-    (* XXX help how do you open both invariants at the same time? *)
+    iMod (na_inv_acc_open with "HvR Htok") as "HvRO". 1: done. 1: solve_ndisj.
     destruct (decide (0 ≤ n2 < length vv)%Z) as [Hn2|Hn2].
     { assert (is_Some (vv !! Z.to_nat n2)) as [v ?].
       { apply lookup_lt_is_Some_2. lia. }
@@ -363,7 +362,7 @@ Section typed_interp.
       { iNext. iExists _. iFrame. }
       iModIntro. by iApply (big_sepL_lookup with "Htyp"). }
     { iApply (wp_loadN_oob with "Hvs"); first lia. by iIntros "!>" (?) "?". }
-  Admitted.
+  Qed.
 
   Lemma sem_typed_store P Γ e1 e2 e3 τ :
     P ;; Γ ⊨ e1 : (TArray τ) -∗
@@ -379,7 +378,7 @@ Section typed_interp.
     iApply (interp_expr_bind [StoreNLLCtx _ _]); first by iApply "IH1".
     iIntros (v1) "#(%γ&%l&->&#HvL&#HvR) /= Htok"; rewrite -/(interp _).
     iMod (na_inv_acc_open_timeless with "HvL Htok") as "[(%vv&Hvv&HγL) (Htok & HcloseL)]"; [done..|].
-    iMod (na_inv_acc_open with "HvR Htok") as "HvRO". 1: done. 1: admit.
+    iMod (na_inv_acc_open with "HvR Htok") as "HvRO". 1: done. 1: solve_ndisj.
     destruct (decide (0 ≤ n2 < length vv)%Z) as [Hn2|Hn2].
     { assert (is_Some (vv !! Z.to_nat n2)) as [v ?].
       { apply lookup_lt_is_Some_2. lia. }
@@ -396,7 +395,7 @@ Section typed_interp.
       { iNext. iExists _. iFrame. }
       done. }
     { iApply (wp_storeN_oob with "Hvv"); first lia. by iIntros "!>" (?) "?". }
-  Admitted.
+  Qed.
 
   Lemma sem_typed_extern_ind P Γ Δ vs s tr tl1 tl2 vl1 el2 :
       P !! s = Some (FunType (tl1 ++ tl2) tr) →
