@@ -91,36 +91,36 @@ Definition alloc_proto : C_proto := (λ fn vl Φ,
                             Φ w))%I.
 
 Definition alloc_foreign_proto : C_proto := (λ fn vl Φ,
-  ∃ θ a,
+  ∃ θ,
     "->" ∷ ⌜fn = "alloc_foreign"⌝ ∗
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ C_intf.LitV (C_intf.LitLoc a) ]⌝ ∗
+    "->" ∷ ⌜vl = [ ]⌝ ∗
     "Cont" ∷ ▷ (∀ θ' γ w, GC θ' -∗
-                           γ ↦foreign a -∗
+                           γ ↦foreignO None -∗
                            ⌜repr_lval θ' (Lloc γ) w⌝ -∗
                            Φ w))%I.
 
 Definition write_foreign_proto : C_proto := (λ fn vl Φ,
-  ∃ θ γ w a a',
+  ∃ θ γ w wo w',
     "->" ∷ ⌜fn = "write_foreign"⌝ ∗
     "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ w; C_intf.LitV (C_intf.LitLoc a') ]⌝ ∗
+    "->" ∷ ⌜vl = [ w; w' ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ γ ↦foreign a ∗
+    "Hpto" ∷ γ ↦foreignO wo ∗
     "Cont" ∷ ▷ (GC θ -∗
-                 γ ↦foreign a' -∗
+                 γ ↦foreign w' -∗
                  Φ (C_intf.LitV (C_intf.LitInt 0))))%I.
 
 Definition read_foreign_proto : C_proto := (λ fn vl Φ,
-  ∃ θ γ w a,
+  ∃ θ γ w w',
     "->" ∷ ⌜fn = "read_foreign"⌝ ∗
     "HGC" ∷ GC θ ∗
     "->" ∷ ⌜vl = [ w ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ γ ↦foreign a ∗
+    "Hpto" ∷ γ ↦foreign w' ∗
     "Cont" ∷ ▷ (GC θ -∗
-                 γ ↦foreign a -∗
-                 Φ (C_intf.LitV (C_intf.LitLoc a))))%I.
+                 γ ↦foreign w' -∗
+                 Φ w'))%I.
 
 Definition callback_proto E (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
   ∃ θ w γ w' lv' v' f x e Φ',

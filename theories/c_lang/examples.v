@@ -170,7 +170,7 @@ Proof.
   iStartProof. unfold env_fulfills. unfold program_fulfills.
   iIntros (s vv Φ) "Hvv"; unfold FibLeftSpec.
   Ltac ft := (iDestruct "Hvv" as "%Hvv"; exfalso; done).
-  string_resolve s ft. destruct vv as [|[[z| |]] []]; try ft.
+  string_resolve s ft. destruct vv as [|[[z| | |]] []]; try ft.
   iSplitR; first (iPureIntro; done).
   iDestruct "Hvv" as "(%Hnp & Hvv)".
   assert (exists n, Z.of_nat n = z) as [n <-].
@@ -196,7 +196,7 @@ Lemma fib_right_correct : ⊢ env_fulfills RightEnv FibRightSpec.
 Proof.
   iStartProof.
   iIntros (s vv Φ) "Hvv". unfold FibRightSpec.
-  string_resolve s ft. destruct vv as [|[[z| |]] []]; try ft.
+  string_resolve s ft. destruct vv as [|[[z| | |]] []]; try ft.
   iSplitR; first (iPureIntro; done).
   iDestruct "Hvv" as "(%Hnp & Hvv)".
   assert (exists n, Z.of_nat n = z) as [n <-].

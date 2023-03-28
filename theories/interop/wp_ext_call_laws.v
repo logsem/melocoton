@@ -392,7 +392,7 @@ Proof using.
       χC ρc !! γ = None ∧
       (∀ γ' id', χC ρc !! γ' = Some (LlocForeign id') → id' ≠ id) ∧
       χC' = <[ γ := LlocForeign id ]> (χC ρc) ∧
-      ζC' = <[ γ := Bforeign a ]> (ζC ρc) ∧
+      ζC' = <[ γ := Bforeign None ]> (ζC ρc) ∧
       GC_correct ζC' θC' ∧
       repr θC' roots_m privmem mem' ∧
       roots_are_live θC' roots_m ∧
@@ -419,7 +419,7 @@ Proof using.
     intros [HH|HH]%elem_of_union.
     all: eapply elem_of_dom in HH; destruct HH as [v HHv]; congruence. }
 
-  assert (freeze_lstore (<[γ := Bforeign a]> (ζC ρc)) (ζσ ∪ <[γ:=Bforeign a]> ζvirt)) as Hfreezeρ_new.
+  assert (freeze_lstore (<[γ := Bforeign None]> (ζC ρc)) (ζσ ∪ <[γ:=Bforeign None]> ζvirt)) as Hfreezeρ_new.
   { destruct Hfreezeρ as [HfL HfR]; split.
     - rewrite !dom_insert_L HfL dom_union_L. set_solver+.
     - rewrite <- insert_union_r. 2: done.
@@ -433,7 +433,7 @@ Proof using.
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ&SIχ)".
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ&SIθ)".
 
-  iMod (lstore_own_insert _ γ (Bforeign a) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
+  iMod (lstore_own_insert _ γ (Bforeign None) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
   iMod (lloc_own_allocate_foreign _ γ id with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
 
   do 3 iModIntro. iFrame. cbn -[prims_prog].
@@ -443,7 +443,7 @@ Proof using.
   3: iPureIntro; by econstructor.
   2: iFrame; by eauto.
   rewrite /GC /named.
-  iExists _, _, (ζσ), (<[γ:=Bforeign a]> ζvirt), _, (<[γ:=LlocForeign id]> χvirt).
+  iExists _, _, (ζσ), (<[γ:=Bforeign None]> ζvirt), _, (<[γ:=LlocForeign id]> χvirt).
   iExists σMLvirt, _, _.
   rewrite pub_locs_in_lstore_alloc_foreign //. iFrame.
   iPureIntro; split_and!; eauto.
@@ -485,14 +485,14 @@ Proof using.
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iDestruct "Hpto" as "(Hpto & Hsim)".
   iDestruct (lstore_own_mut_of with "GCζvirt Hpto") as %[Helem _].
-  iAssert ⌜ζC ρc !! γ = Some (Bforeign a)⌝%I as "%Helem2".
+  iAssert ⌜ζC ρc !! γ = Some (Bforeign (Some w'))⌝%I as "%Helem2".
   { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
     eapply freeze_lstore_lookup_backwards in Helem as (?&Hfrz&?); eauto.
     inversion Hfrz; by simplify_eq. }
   destruct HGCOK as [HGCL HGCR]. inv_repr_lval.
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iExists (λ '(e', σ'), e' = WrSE (ExprV (#a)) ∧ σ' = CState ρc mem).
+  iExists (λ '(e', σ'), e' = WrSE (ExprV w') ∧ σ' = CState ρc mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
@@ -513,7 +513,7 @@ Proof using.
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iDestruct "Hpto" as "(Hpto & Hsim)".
   iDestruct (lstore_own_mut_of with "GCζvirt Hpto") as %[Helem _].
-  iAssert ⌜ζC ρc !! γ = Some (Bforeign a)⌝%I as "%Helem2".
+  iAssert ⌜ζC ρc !! γ = Some (Bforeign wo)⌝%I as "%Helem2".
   { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
     eapply freeze_lstore_lookup_backwards in Helem as (?&Hfrz&?); eauto.
     inversion Hfrz; by simplify_eq. }
@@ -522,11 +522,11 @@ Proof using.
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
     e' = WrSE (ExprV #0) ∧
-    σ' = CState (WrapstateC (χC ρc) (<[γ:=Bforeign a']> (ζC ρc)) (θC ρc) (rootsC ρc)) mem).
+    σ' = CState (WrapstateC (χC ρc) (<[γ:=Bforeign (Some w')]> (ζC ρc)) (θC ρc) (rootsC ρc)) mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
 
-  iMod (lstore_own_update _ _ _ (Bforeign a') with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
+  iMod (lstore_own_update _ _ _ (Bforeign (Some w')) with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iPoseProof (interp_ML_discarded_locs_pub with "GCσMLv GCχNone") as "%Hpublocs".
   do 3 iModIntro. iFrame. cbn -[prims_prog] in *.
@@ -534,7 +534,7 @@ Proof using.
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).
   iApply ("Cont" with "[-Hpto Hsim] [$Hpto $Hsim]").
-  { iExists _, (<[γ:=Bforeign a']> (ζσ ∪ ζvirt)), ζσ, (<[γ:=Bforeign a']>ζvirt), _, χvirt, σMLvirt.
+  { iExists _, (<[γ:=Bforeign (Some w')]> (ζσ ∪ ζvirt)), ζσ, (<[γ:=Bforeign (Some w')]>ζvirt), _, χvirt, σMLvirt.
     iExists _, _. unfold named. iFrame.
     erewrite pub_locs_in_lstore_insert_existing; last by eapply elem_of_dom_2. iFrame.
     iPureIntro; split_and!; eauto; cbn. 1: destruct Hfreezeρ as [HL HR]; split.

@@ -416,17 +416,16 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option base_lit :=
   | LtOp, LitV (LitLoc (Loc n1)), LitV (LitLoc (Loc n2)) => Some $ LitBool (bool_decide (n1 < n2))
   | EqOp, LitV (LitLoc (Loc n1)), LitV (LitLoc (Loc n2)) => Some $ LitBool (bool_decide (n1 = n2))
   | EqOp, LitV (LitFunPtr n1), LitV (LitFunPtr n2) => Some $ LitBool (bool_decide (n1 = n2))
+  | EqOp, LitV LitNull,       LitV (LitLoc _)    => Some $ LitBool false
+  | EqOp, LitV LitNull,       LitV (LitFunPtr _) => Some $ LitBool false
+  | EqOp, LitV (LitLoc _),    LitV LitNull       => Some $ LitBool false
+  | EqOp, LitV (LitFunPtr _), LitV LitNull       => Some $ LitBool false
+  | EqOp, LitV LitNull,       LitV LitNull       => Some $ LitBool true
   | PtrOffsetOp, LitV (LitLoc (Loc n1)), LitV (LitInt n2) => Some $ LitLoc $ Loc $ (n1 + n2)
   | PtrOffsetOp, LitV (LitInt n1), LitV (LitLoc (Loc n2)) => Some $ LitLoc $ Loc $ (n1 + n2)
   | PtrDiffOp, LitV (LitLoc (Loc n1)), LitV (LitLoc (Loc n2)) => Some $ LitInt $ (n1 - n2)
   | _, _, _ => None
   end%Z.
-
-  Definition vals_compare_safe v1 v2 := match v1, v2 with
-    LitInt _, LitInt _ => True
-  | LitLoc _, LitLoc _ => True
-  | LitFunPtr _, LitFunPtr _ => True
-  | _,_ => False end.
 
 (* [h] is added on the right here to make [state_init_heap_singleton] true. *)
 Definition state_init_heap (l : loc) (n : Z) (v : heap_cell) (σ : c_state) : c_state :=
@@ -444,7 +443,8 @@ Definition asTruth (v:val) : bool := match v with
   | LitV (LitInt _) => true
   | LitV (LitLoc (Loc 0)) => false
   | LitV (LitLoc (Loc _)) => true
-  | LitV (LitFunPtr p) => true end.
+  | LitV (LitFunPtr p) => true
+  | LitV (LitNull) => false end.
 
 (* Note that this way, a function where all arguments have the same name (say x), that returns x, returns the first argument *)
 Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) := match an, av with

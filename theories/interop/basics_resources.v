@@ -454,13 +454,14 @@ Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
 
 (* Foreign block points-to *)
 
-Definition lstore_own_foreign γ dq (addr : loc) : iProp Σ :=
-  lstore_own_mut γ dq (Bforeign addr) ∗ ∃ id, γ ~foreign~ id.
+Definition lstore_own_foreign γ dq (v : option word) : iProp Σ :=
+  lstore_own_mut γ dq (Bforeign v) ∗ ∃ id, γ ~foreign~ id.
 
-Notation "γ ↦foreign{ dq } a" := (lstore_own_foreign γ dq a)%I
-  (at level 20, format "γ  ↦foreign{ dq }  a") : bi_scope.
-Notation "γ ↦foreign a" := (γ ↦foreign{DfracOwn 1} a)%I
-  (at level 20, format "γ  ↦foreign  a") : bi_scope.
+
+Notation "γ ↦foreignO{ dq } a" := (lstore_own_foreign γ dq a)%I
+  (at level 20, format "γ  ↦foreignO{ dq }  a") : bi_scope.
+Notation "γ ↦foreignO a" := (γ ↦foreignO{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreignO  a") : bi_scope.
 
 (* Lifting of ~ℓ~ at the level of ML values *)
 
@@ -634,7 +635,11 @@ Notation "γ ↦imm b" := (γ ↦vblk[I]{DfracOwn 1} b)%I
 Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
   (at level 20, format "γ  ↦clos  ( f ,  x ,  e )") : bi_scope.
 
-Notation "γ ↦foreign{ dq } a" := (lstore_own_foreign γ dq a)%I
+Notation "γ ↦foreignO{ dq } a" := (lstore_own_foreign γ dq a)%I
+  (at level 20, format "γ  ↦foreignO{ dq }  a") : bi_scope.
+Notation "γ ↦foreignO a" := (γ ↦foreignO{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreignO  a") : bi_scope.
+Notation "γ ↦foreign{ dq } a" := (γ ↦foreignO{ dq } (Some a))%I
   (at level 20, format "γ  ↦foreign{ dq }  a") : bi_scope.
 Notation "γ ↦foreign a" := (γ ↦foreign{DfracOwn 1} a)%I
   (at level 20, format "γ  ↦foreign  a") : bi_scope.

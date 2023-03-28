@@ -23,21 +23,6 @@ Section pure_exec.
     PureExec (bin_op_eval op v1 v2 = Some v') 1 p (BinOp op (Val v1) (Val v2)) (Val (LitV v')) | 10.
   Proof. solve_pure_exec. Qed.
 
-  (* Higher-priority instance for [EqOp]. *)
-  Global Instance pure_eqop v1 v2 :
-    PureExec (vals_compare_safe v1 v2) 1 p
-      (BinOp EqOp (Val (LitV v1)) (Val (LitV v2)))
-      (Val $ LitV $ LitBool $ bool_decide (v1 = v2)) | 1.
-  Proof.
-    intros Hcompare.
-    cut (bin_op_eval EqOp (LitV v1) (LitV v2) = Some $ LitBool $ bool_decide (v1 = v2)).
-    { intros. revert Hcompare. solve_pure_exec. }
-    destruct v1, v2; cbn in *; try easy.
-    - destruct_bool_decide; congruence.
-    - destruct l, l0. destruct_bool_decide; congruence.
-    - destruct_bool_decide; congruence.
-  Qed.
-
   Global Instance pure_if_true v e1 e2 : asTruth v = true ->
     PureExec True 1 p (If (Val $ v) e1 e2) e1.
   Proof. intros H. solve_pure_exec. congruence. Qed.

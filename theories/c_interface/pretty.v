@@ -12,6 +12,7 @@ Global Instance pretty_base_lit : Pretty base_lit :=
        | LitInt z => pretty z
        | LitLoc l => "(loc " +:+ pretty l +:+ ")"
        | LitFunPtr p => "(& " +:+ p +:+ ")"
+       | LitNull=> "null"
        end.
 
 Global Instance pretty_val : Pretty val :=

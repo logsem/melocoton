@@ -104,8 +104,8 @@ Notation vblock :=
 Inductive block :=
   | Bvblock (vblk : vblock)
   | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr)
-  (* A limited form of OCaml's "custom blocks", storing a single C pointer *)
-  | Bforeign (ptr : loc).
+  (* A limited form of OCaml's "custom blocks", storing a C value *)
+  | Bforeign (ptr : option C_intf.val).
 
 Definition vblock_mutability (vb: vblock) : ismut :=
   let '(i,_) := vb in i.

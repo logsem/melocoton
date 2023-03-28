@@ -11,7 +11,7 @@ Module C_intf.
 (** C values *)
 
 Inductive base_lit : Set :=
-  | LitInt (n : Z) | LitLoc (l : loc) | LitFunPtr (x : string).
+  | LitInt (n : Z) | LitLoc (l : loc) | LitNull | LitFunPtr (x : string).
 Inductive val :=
   | LitV (l : base_lit).
 
@@ -27,11 +27,13 @@ Proof.
  refine (inj_countable' (λ l, match l with
   | LitInt n => (inl (inl n))
   | LitLoc l => (inl (inr l))
-  | LitFunPtr p => (inr p)
+  | LitFunPtr p => (inr (inl p))
+  | LitNull => inr (inr ())
   end) (λ l, match l with
   | inl (inl n) => LitInt n
   | inl (inr l) => LitLoc l
-  | inr p => LitFunPtr p
+  | inr (inl p) => LitFunPtr p
+  | inr (inr _) => LitNull
   end) _); by intros [].
 Qed.
 Global Instance val_countable : Countable val.

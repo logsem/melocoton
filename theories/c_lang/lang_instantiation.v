@@ -37,7 +37,7 @@ Local Lemma of_to_class_C e c : to_class_C e = Some c → of_class_C c = e.
 Proof.
   destruct e; cbn; try congruence.
   - intros H. injection H. intros <-. easy.
-  - destruct e. 2-12: congruence. destruct v. destruct l. 1-2: congruence.
+  - destruct e. 2-12: congruence. destruct v. destruct l. 1-3: congruence.
     destruct unmap_val eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
 Qed.

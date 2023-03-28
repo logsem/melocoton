@@ -302,7 +302,7 @@ Inductive c_prim_step :
     repr_lval (θC ρc) (Lint x) w →
     Y w ρc mem →
     c_prim_step Pint2val [CIntV x] ρc mem Y
-  | PrimAllocForeignS aforeign roots privmem ρc mem Y :
+  | PrimAllocForeignS roots privmem ρc mem Y :
     dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
     GC_correct (ζC ρc) (θC ρc) →
@@ -311,24 +311,24 @@ Inductive c_prim_step :
       χC ρc !! γ = None →
       (∀ γ' id', χC ρc !! γ' = Some (LlocForeign id') → id' ≠ id) →
       χC' = <[ γ := LlocForeign id ]> (χC ρc) →
-      ζC' = <[ γ := Bforeign aforeign ]> (ζC ρc) →
+      ζC' = <[ γ := Bforeign None ]> (ζC ρc) →
       GC_correct ζC' θC' →
       repr θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
       Y (CLocV a) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
-    c_prim_step Pallocforeign [CLocV aforeign] ρc mem Y
+    c_prim_step Pallocforeign [] ρc mem Y
   | PrimReadForeignS w γ aforeign ρc mem Y :
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (Bforeign aforeign) →
-    Y (CLocV aforeign) ρc mem →
+    (ζC ρc) !! γ = Some (Bforeign (Some aforeign)) →
+    Y aforeign ρc mem →
     c_prim_step Preadforeign [w] ρc mem Y
-  | PrimWriteForeignS w γ aforeign aforeign' ζC' ρc mem Y :
+  | PrimWriteForeignS w γ aforeigno aforeign' ζC' ρc mem Y :
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (Bforeign aforeign) →
-    ζC' = <[ γ := Bforeign aforeign' ]> (ζC ρc) →
+    (ζC ρc) !! γ = Some (Bforeign aforeigno) →
+    ζC' = <[ γ := Bforeign (Some aforeign') ]> (ζC ρc) →
     Y (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem →
-    c_prim_step Pwriteforeign [w; CLocV aforeign'] ρc mem Y.
+    c_prim_step Pwriteforeign [w; aforeign'] ρc mem Y.
 
 Lemma c_prim_step_covariant_in_Y prm ws ρc mem Y Y' :
   c_prim_step prm ws ρc mem Y →
@@ -387,7 +387,7 @@ Proof.
     pose (fresh χforeignids) as id.
     specialize (H4 γ id
                  (<[ γ := LlocForeign id ]> (χC ρc))
-                 (<[ γ := Bforeign aforeign ]> (ζC ρc))
+                 (<[ γ := Bforeign None ]> (ζC ρc))
                  (<[ γ := w ]> (θC ρc))
                  w mem).
     do 3 eexists. eapply H4; eauto.
