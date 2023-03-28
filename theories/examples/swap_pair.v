@@ -171,13 +171,15 @@ Proof.
   - rewrite !dom_insert_L !dom_empty_L. set_solver.
   - rewrite proto_on_refines swap_pair_correct lang_to_mlang_refines //.
   - rewrite proto_on_refines wrap_refines.
-    2: { rewrite proto_on_refines. (* what?? that shouldn't be necessary to prove -- I want to make external calls here *) admit. }
+    2: { iIntros (? ? ?). rewrite /proto_on.
+         iIntros "(% & H)". iDestruct "H" as (? ? ->) "_". exfalso.
+         by vm_compute in H. }
     eapply mprog_proto_mono; first set_solver. done.
   - iIntros (? ? ?) "H". rewrite /proto_except.
     iDestruct "H" as (?) "H". iNamed "H".
     iDestruct "Hproto" as (? ? ->) "H". set_solver.
   - apply prims_proto_except_dom.
-Admitted.
+Qed.
 
 Notation link_in_state := (link_in_state wrap_lang C_mlang).
 
