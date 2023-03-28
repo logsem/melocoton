@@ -37,9 +37,9 @@ value buf_alloc(value cap) {
   bk = caml_alloc_custom(sizeof(void*));    // \label{line:bufalloc:custom}   // 
   Custom_contents(bk) = malloc(Int_val(cap));   // \label{line:bufalloc:bytes}   // 
   bf = caml_alloc(3, 0);   // \label{line:bufalloc:buffer_start}   // 
-  caml_modify(&Field(bf, 0), bk);
-  caml_modify(&Field(bf, 1), Val_int(0));
-  caml_modify(&Field(bf, 2), cap);   // \label{line:bufalloc:buffer_end}   // 
+  Store_field(bf, 0, bk);
+  Store_field(bf, 1, Val_int(0));
+  Store_field(bf, 2, cap);   // \label{line:bufalloc:buffer_end}   //
   CAMLreturn(bf);   // \label{line:bufalloc:gc_two}   // 
 }
 value buf_upd(value iv, value jv, value f, value bf) {
@@ -47,7 +47,7 @@ value buf_upd(value iv, value jv, value f, value bf) {
   unsigned char* bts = Custom_contents(Field(bf, 0)); size_t j = Int_val(jv);
   for (size_t i = Int_val(iv); i <= j; i++) {
     bts[i] = Int_val(caml_callback(f, Val_int(i)));
-    if (i+1 > Int_val(Field(bf, 1))) caml_modify(&Field(bf, 1), Val_int(i+1));
+    if (i+1 > Int_val(Field(bf, 1))) Store_field(bf, 1, Val_int(i+1));
   }
   CAMLreturn(Val_unit);
 }
@@ -57,7 +57,7 @@ value wrap_compress(value bf1, value bf2) {
   unsigned char* bts2 = Custom_contents(Field(bf2, 0));
   size_t used1 = Int_val(Field(bf1, 1)); size_t cap2 = Int_val(Field(bf2, 2));
   int res = snappy_compress(bts1, used1, bts2, &cap2);
-  caml_modify(&Field(bf2, 1), Val_int(cap2));
+  Store_field(bf2, 1, Val_int(cap2));
   CAMLreturn((res == SNAPPY_OK) ? Val_int(1) : Val_int(0));
 }
 
