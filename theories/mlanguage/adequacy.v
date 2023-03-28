@@ -27,14 +27,14 @@ Section Adequacy.
   Implicit Types e : expr Λ.
   Implicit Types X : cfg → Prop.
 
-  Context `{!mlangG val Λ Σ}.
-  (* XXX this can be strengthened to allow opening invariants (without needing to close them again annoyingly) *)
-  Hypothesis HΦ : (⊢ ∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
-  Hypothesis Hpeclosed : (⊢ ∀ f s vv, penv_proto pe f s vv -∗ False).
-
 
 
   Section GenAdequacy.
+    Context `{!mlangG val Λ Σ}.
+    (* XXX this can be strengthened to allow opening invariants (without needing to close them again annoyingly) *)
+    Hypothesis HΦ : (⊢ ∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
+    Hypothesis Hpeclosed : (⊢ ∀ f s vv, penv_proto pe f s vv -∗ False).
+
     Context {sat_at : coPset → iProp Σ → Prop}.
     Context `{!invG Σ}.
     Context `{!SatisfiableAt sat_at}.
@@ -129,20 +129,30 @@ Section Adequacy.
 
   Section ConreteAdequacy.
     Context `{!invPreG Σ}.
-    Lemma final_adequacy e σ E X:
-      (∀ `{Hinv : !invG Σ}, ⊢ ( |==> (state_interp σ ∗ WP e @ pe ; E {{Φbi}}))%I) →
+
+    (* XXX this is definitely wrong, but how to set it up properly? *)
+    Lemma final_adequacy σ e E X:
+      (Alloc (mlangG val Λ Σ) (λ H, state_interp σ) (invG Σ)) →
+      (⊢(∀ (Hinv : invG Σ) (Hmlang : mlangG val Λ Σ) σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝))%I →
+      (⊢(∀ (Hinv : invG Σ) (Hmlang : mlangG val Λ Σ) f s vv, penv_proto pe f s vv -∗ False))%I →
+      (⊢(∀ (Hinv : invG Σ) (Hmlang : mlangG val Λ Σ), |==> WP e @ pe ; E {{Φbi}})%I) →
       (star_AD step (e, σ) X) →
       (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ)).
     Proof using All.
-      intros H1 Hstep.
-      pose proof (@alloc_intro _ Σ) as Halloc.
-      eapply alloc_wsat_inst in Halloc as (HinvG & Halloc); last done.
-      eapply alloc_iProp_sat in Halloc.
-      specialize (H1 HinvG).
-      eapply (@star_step_from_wp iProp_sat_at HinvG _ _); last done.
-      eapply sat_bupd, sat_frame_move, sat_sat_frame, sat_mono. 2: exact Halloc.
-      iIntros "(_&$&$)". iPoseProof H1 as "H1".
-      iMod "H1" as "($&Hwp)". iModIntro. iApply wp_mask_mono; last first.
+      intros Halloc Hpure Hproto HWP Hstep.
+      pose proof (@alloc_intro _ Σ) as Hsat.
+      eapply alloc_wsat_inst in Hsat as (HinvG & Hsat); last done.
+      eapply Halloc in Hsat as (HΛG & Hsat); last done.
+      eapply alloc_iProp_sat in Hsat.
+      unshelve eapply (@star_step_from_wp _ _ _ iProp_sat_at).
+      1: iApply Hpure.
+      1: iApply Hproto.
+      7: exact Hstep.
+      4: eapply sat_bupd, sat_frame_move, sat_sat_frame, sat_mono; last exact Hsat.
+      1: exact ⊤.
+      1-2: apply _.
+      iIntros "((_&$&$)&$)". iMod (HWP $! HinvG HΛG) as "H1"; iModIntro.
+      iApply wp_mask_mono; last first.
       all: done.
     Qed.
 

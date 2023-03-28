@@ -45,7 +45,7 @@ Definition swap_pair_ml_spec : protocol ML_lang.val Σ := (
 
 Lemma swap_pair_correct E e :
   wrap_proto swap_pair_ml_spec ⊑
-  prog_proto E swap_pair_prog (prims_proto ∅ e ⊥).
+  prog_proto E swap_pair_prog (prims_proto ∅ e swap_pair_ml_spec).
 Proof.
   iIntros (fn ws Φ) "H". iNamed "H".
   iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
@@ -133,6 +133,9 @@ Proof.
   - done.
 Qed.
 
+
+Definition main_C_program := (call: &"main" with ( ) )%CE.
+
 End C_prog.
 
 Section ML_prog.
@@ -143,12 +146,11 @@ Import melocoton.ml_lang.proofmode.
 Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ}.
 
-(* TODO: define ML_mlang? *)
 Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) :=
-  (Extern "swap_pair" [ ((#3, (#1, #2)))%MLE ]).
+  (Snd (Extern "swap_pair" [ ((#(), (#1, #2)))%MLE ])).
 
 Lemma ML_prog_correct_axiomatic E :
-  ⊢ WP swap_pair_client @ ⟨∅, swap_pair_ml_spec⟩ ; E {{v, ⌜v = (#1,#2,#3)⌝%MLV}}.
+  ⊢ WP swap_pair_client @ ⟨∅, swap_pair_ml_spec⟩ ; E {{v, ⌜v = #()⌝%MLV}}.
 Proof.
   iStartProof. unfold swap_pair_client. wp_pures.
   wp_extern.
@@ -162,36 +164,65 @@ Import melocoton.mlanguage.weakestpre.
 Lemma is_linkable_swap_pair e :
   can_link wrap_lang C_mlang
     (wrap_prog e)  (wrap_proto swap_pair_ml_spec)
-    swap_pair_prog (prims_proto ∅ e ⊥)
+    swap_pair_prog (prims_proto ∅ e swap_pair_ml_spec)
     ⊥.
 Proof.
   constructor; intros.
   - rewrite !dom_insert_L !dom_empty_L. set_solver.
   - rewrite proto_on_refines swap_pair_correct lang_to_mlang_refines //.
   - rewrite proto_on_refines wrap_refines.
-    2: { rewrite proto_on_refines //. }
-    eapply mprog_proto_mono; first set_solver.
-    apply wrap_proto_mono, proto_refines_bot_l.
+    2: { rewrite proto_on_refines. (* what?? that shouldn't be necessary to prove -- I want to make external calls here *) admit. }
+    eapply mprog_proto_mono; first set_solver. done.
   - iIntros (? ? ?) "H". rewrite /proto_except.
     iDestruct "H" as (?) "H". iNamed "H".
     iDestruct "Hproto" as (? ? ->) "H". set_solver.
   - apply prims_proto_except_dom.
-Qed.
+Admitted.
 
 Notation link_in_state := (link_in_state wrap_lang C_mlang).
-(*
-Lemma linked_prog_correct_overall E : 
-    link_in_state In1
- -∗ WP LkSE (Link.Expr1 swap_pair_client) @ linked_env; E 
-    {{ λ v, ⌜v = (#1,#2,#3)⌝%V ∗ link_in_state Boundary }}.
+
+Definition linked_lang : mlanguage Cval := link_lang wrap_lang C_mlang.
+Definition linked_prog_env : prog_environ linked_lang Σ := 
+    ⟪ link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog, ⊥ ⟫.
+Definition linked_start : expr linked_lang := LkSE (Link.Expr2 (main_C_program : expr C_mlang)).
+
+(* Unsure why this is necessary -- typeclass inference fails without this *)
+Global Instance foo : (linkableG C_mlang public_state_interp).
+Proof. apply (@lang_to_mlang_linkableG SI Σ Cval C_lang (@heapG_langG_C SI SI Σ heapG_C0)). Qed.
+Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
+
+Lemma global_c_prog_correct E : 
+(⊢ link_in_state In2
+-∗ at_init
+-∗ WP linked_start @ linked_prog_env; E {{ v, True }})%I.
 Proof.
-  iIntros "H". iApply (wp_link_run2 with "H []").
+  iIntros "H1 Hinit".
+  iApply (wp_link_run2' with "H1 [Hinit]").
   1: apply is_linkable_swap_pair.
-  wp_apply wp_wand.
-  1: iApply ML_prog_correct_lifted.
-  iIntros (v) "->". cbn. done.
+  2: iIntros (v) "(H&_)"; iApply "H".
+  (* wp_extern does not work for some reason I can't explain
+     iApply (@language.weakestpre.wp_extern _ _ C_lang _ _ _ K _ s vv)
+     already fails, which is properly invoked by the tactic *)
+
+  rewrite weakestpre.wp_unfold /weakestpre.wp_unfold.
+  iIntros (σ) "Hσ". iModIntro.
+  iRight. iLeft.
+  iExists "main", [], [].
+  iSplit; first done.
+  iSplit; first done.
+  iSplitR; first done.
+  iFrame.
+  iExists (λ r, ⌜r = #0⌝)%I. iSplitL.
+  + cbn. iApply main_refines_prims_proto.
+    iSplit; first done.
+    iSplit; first done.
+    iSplitL; first done.
+    iSplit; last done.
+    iNext. iApply @ML_prog_correct_axiomatic.
+  + iNext. iIntros (r) "(->&_)". cbn.
+    iApply weakestpre.wp_value. 1: done. done.
 Qed.
-*)
+
 End ML_prog.
 
 (*
