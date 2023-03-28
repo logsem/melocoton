@@ -128,7 +128,23 @@ Section Adequacy.
   End GenAdequacy.
 
   Section ConreteAdequacy.
-    Context `{!invGpreS Σ}.
+    Context `{!invPreG Σ}.
+    Lemma final_adequacy e σ E X:
+      (∀ `{Hinv : !invG Σ}, ⊢ ( |==> (state_interp σ ∗ WP e @ pe ; E {{Φbi}}))%I) →
+      (star_AD step (e, σ) X) →
+      (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ)).
+    Proof using All.
+      intros H1 Hstep.
+      pose proof (@alloc_intro _ Σ) as Halloc.
+      eapply alloc_wsat_inst in Halloc as (HinvG & Halloc); last done.
+      eapply alloc_iProp_sat in Halloc.
+      specialize (H1 HinvG).
+      eapply (@star_step_from_wp iProp_sat_at HinvG _ _); last done.
+      eapply sat_bupd, sat_frame_move, sat_sat_frame, sat_mono. 2: exact Halloc.
+      iIntros "(_&$&$)". iPoseProof H1 as "H1".
+      iMod "H1" as "($&Hwp)". iModIntro. iApply wp_mask_mono; last first.
+      all: done.
+    Qed.
 
   End ConreteAdequacy.
 End Adequacy.
