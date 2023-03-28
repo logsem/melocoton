@@ -27,17 +27,18 @@ Section Adequacy.
   Implicit Types e : expr Λ.
   Implicit Types X : cfg → Prop.
 
+  Context `{!mlangG val Λ Σ}.
+  (* XXX this can be strengthened to allow opening invariants (without needing to close them again annoyingly) *)
+  Hypothesis HΦ : (⊢ ∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
+  Hypothesis Hpeclosed : (⊢ ∀ f s vv, penv_proto pe f s vv -∗ False).
+
 
 
   Section GenAdequacy.
     Context {sat_at : coPset → iProp Σ → Prop}.
-    Context `{!invG Σ, !mlangG val Λ Σ}.
+    Context `{!invG Σ}.
     Context `{!SatisfiableAt sat_at}.
     Context `{SatisfiableAtExists (cfg→Prop) sat_at}.
-
-    (* XXX this can be strengthened to allow opening invariants (without needing to close them again annoyingly) *)
-    Hypothesis HΦ : (⊢ ∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
-    Hypothesis Hpeclosed : (⊢ ∀ f s vv, penv_proto pe f s vv -∗ False).
 
     Lemma value_from_wp σ v E :
       sat_at E (state_interp σ ∗ WP (of_val Λ v) @ pe; E {{Φbi}})%I
@@ -101,11 +102,33 @@ Section Adequacy.
         eapply Hsat, Hcont, Hy.
     Qed.
 
+    CoInductive star_mrel_w {A} (M : umrel A) : A → (A → Prop) → Prop :=
+    | star_refl_w x (X : A → Prop) :
+      X x → star_mrel_w M x X
+    | star_step_w x Y (X : A → Prop) :
+      M x Y →
+      (∀ y, Y y → star_mrel_w M y X) →
+      star_mrel_w M x X.
+
+    Lemma star_step_from_wp_coind σ e E:
+      sat_at E (state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
+      (star_mrel_w step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end)).
+    Proof using All.
+      revert e σ. cofix IH.
+      intros e σ Hsat.
+      destruct (to_val e) as [v|] eqn:Heq.
+      - eapply star_refl_w. eapply of_to_val in Heq; subst e.
+        rewrite to_of_val. by eapply value_from_wp.
+      - eapply one_step_from_wp in Hsat; last done.
+        destruct Hsat as (Y&HstepY&Hcont).
+        eapply star_step_w. 1: exact HstepY.
+        intros [e' σ'] Hy. eapply IH, Hcont, Hy.
+    Qed.
+
   End GenAdequacy.
 
   Section ConreteAdequacy.
     Context `{!invGpreS Σ}.
-  
 
   End ConreteAdequacy.
 End Adequacy.
