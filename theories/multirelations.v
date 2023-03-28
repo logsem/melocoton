@@ -191,6 +191,53 @@ Proof.
   specialize (HH _ HX). eauto.
 Qed.
 
+Unset Elimination Schemes.
+Inductive star_mrel_AD {A} (M : umrel A) : A → (A → Prop) → Prop :=
+  | star_refl_AD x (X : A → Prop) :
+    X x → star_mrel_AD M x X
+  | star_step_AD x X :
+    (∀ Y, M x Y → ∃ y, Y y ∧ star_mrel_AD M y X) →
+    star_mrel_AD M x X.
+Lemma star_mrel_AD_ind {A:Type} (M : umrel A) (P : A → (A → Prop) → Prop) : 
+  (∀ x(X:A→Prop), X x → P x X) →
+  (∀ x X, (∀ Y, M x Y → ∃ y, Y y ∧ star_mrel_AD M y X ∧ P y X) → P x X) →
+  ∀ y Y, star_mrel_AD M y Y → P y Y.
+Proof.
+  intros Hrefl Hstep. fix IH 3.
+  intros y Y [x X|x X H]; clear y Y.
+  1: eapply Hrefl, H.
+  eapply (Hstep x X).
+  intros Y HY. destruct (H Y HY) as (y&Hy&Hmrel).
+  exists y. split. 2:split.
+  1: apply Hy.
+  1: apply Hmrel.
+  now eapply IH.
+Qed.
+
+Program Definition star_AD {A} (M : umrel A) : umrel A :=
+  {| mrel := star_mrel_AD M |}.
+Next Obligation.
+  intros *. unfold upclosed. intros x X X'. induction 1.
+  { intros HH. eapply star_refl_AD. eauto. }
+  { intros HH. eapply star_step_AD. intros Y HY.
+    destruct (H Y HY) as (y&Hy&Hmrel&HIH).
+    exists y; split. 1: apply Hy.
+    eapply HIH. apply HH. }
+Qed.
+
+Lemma star_AD_transitive {A} (M : umrel A) x Y X :
+  star_AD M x Y →
+  (∀ y, Y y → star_AD M y X) →
+  star_AD M x X.
+Proof.
+  intros HH Hcont. induction HH as [z Z H|z Z IH].
+  - eapply Hcont, H.
+  - eapply star_step_AD. intros Y HY.
+    destruct (IH Y HY) as (y&Hy&Hmrel&HIH).
+    exists y. split. 1: apply Hy. now eapply HIH.
+Qed.
+Set Elimination Schemes.
+
 End umrel.
 
 Arguments mrel : simpl never.
