@@ -237,8 +237,7 @@ Proof using.
   iApply (weakestpre.wp_wand with "[-Cont]").
   { by iApply (wp_simulates with "Hb WPmain"). }
   cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & %Hrepr & Hsim & HΦ' & $)".
-  iDestruct "HΦ'" as "->". iDestruct "Hsim" as "->".
-  by inversion Hrepr; simplify_eq.
+  by iApply ("Cont" with "HGC HΦ' Hsim").
 Qed.
 
 Lemma wrap_refines E e Ψ :

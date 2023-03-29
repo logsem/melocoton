@@ -154,8 +154,11 @@ Section Adequacy.
       iIntros "((_&$&$)&$)". iMod (HWP $! HinvG HΛG) as "H1"; iModIntro.
       iApply wp_mask_mono; last first.
       all: done.
-    Qed.
-
+    Qed. 
+(*Locate Alloc.
+Print Alloc. Check mlangG.
+Check Alloc (mlangG val Λ Σ) (λ HGS, state_interp σ ∗ WP ∗ the other two assumptions) True.
+*)
   End ConreteAdequacy.
 End Adequacy.
 

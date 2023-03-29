@@ -252,4 +252,26 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
+Lemma wp_main e E E' p ΨML Ψ Φ :
+  p !! "main" = None →
+  main_proto E' e ΨML ⊑ Ψ →
+  {{{ at_init ∗
+      (▷ WP e @ ⟨∅, ΨML⟩; E' {{ Φ }})
+  }}}
+    (call: &"main" with ( ))%CE @ ⟨p, Ψ⟩; E
+  {{{ θ' vret lvret wret, RET wret;
+        GC θ' ∗
+        Φ vret ∗
+        lvret ~~ vret ∗
+        ⌜repr_lval θ' lvret wret⌝ }}}.
+Proof.
+  intros Hp Hproto **. iIntros "(Hinit&HWP) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /main_proto /named.
+  iExists Φ. iFrame.
+  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
+  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+Qed.
+
 End Laws.

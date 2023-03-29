@@ -140,11 +140,17 @@ Definition callback_proto E (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
                    Φ wret))%I.
 
 Definition main_proto (E: coPset) (e : ML_lang.expr) (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
+  ∃ Φ',
   "->" ∷ ⌜fn = "main"⌝ ∗
   "->" ∷ ⌜vl = []⌝ ∗
   "Hat_init" ∷ at_init ∗
-  "WPmain" ∷ ▷ WP e @ ⟨∅, Ψ⟩; E {{ λ v, ⌜v = LitV LitUnit⌝ }} ∗
-  "Cont" ∷ ▷ Φ (C_intf.LitV (C_intf.LitInt 0))
+  "WPmain" ∷ ▷ WP e @ ⟨∅, Ψ⟩; E {{ Φ' }} ∗
+  "Cont" ∷ ▷ (∀ θ' vret lvret wret,
+                   GC θ' -∗
+                   Φ' vret -∗
+                   lvret ~~ vret -∗
+                   ⌜repr_lval θ' lvret wret⌝ -∗
+                   Φ wret)
   )%I.
 
 Definition prim_proto (p : prim) E (Ψ : ML_proto) : C_proto :=
@@ -177,7 +183,7 @@ Proof using.
     iFrame. do 4 (iSplit; first done).
     iNext. iApply wp_mask_mono. 1: done.
     iFrame. }
-  { unfold main_proto, named. iFrame. do 2 (iSplit; first done).
+  { unfold main_proto, named. iExists Φ'. iFrame. do 2 (iSplit; first done).
     iNext. iApply wp_mask_mono; first done. iFrame. }
 Qed.
 

@@ -15,7 +15,7 @@ Proof. by intros ->. Qed.
 Ltac solve_lookup_fixed := let rec go := match goal with
   [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (insert ?key ?val ?rem)]] =>
     (unify key needle; rewrite (@lookup_insert _ _ _ _ _ _ _ _ _ _ _ _ rem key val)) ||
-    (rewrite (@lookup_insert_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle val); [congruence|go])
+    (rewrite (@lookup_insert_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle val); [go|congruence])
 | [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (delete ?key ?rem)]] => 
       (unify key needle; rewrite (@lookup_delete _ _ _ _ _ _ _ _ _ _ _ _ rem key)) ||
       (rewrite (@lookup_delete_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle); [go|congruence])
