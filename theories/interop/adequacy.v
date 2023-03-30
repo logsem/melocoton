@@ -3,7 +3,7 @@ From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props multirelations.
 From melocoton.language Require Import language weakestpre.
-From melocoton.interop Require Import basics basics_resources.
+From melocoton.interop Require Import basics basics_resources prims_proto.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import state lang weakestpre update_laws wp_utils wp_ext_call_laws wp_simulation.
 From melocoton.c_interop Require Import rules.
@@ -14,6 +14,15 @@ From melocoton.mlanguage Require Import weakestpre mlanguage adequacy.
 From melocoton.linking Require Import lang weakestpre.
 From transfinite.base_logic.lib Require Import satisfiable invariants ghost_map ghost_var.
 From transfinite.stepindex Require Import ordinals.
+
+
+Class totalGhostStateG `{SI: indexT} (Σ : gFunctors) : Set := TotalGhostStateG {
+  totalG_invG :> invG Σ;
+  totalG_CG :> heapG_C Σ;
+  totalG_MLG :> heapG_ML Σ;
+  totalG_wrapperG :> wrapperG Σ;
+  totalG_linkG :> linkG Σ;
+}.
 
 Section AllocBasics.
   Existing Instance ordI.
@@ -204,7 +213,93 @@ Section Alloc.
     - iExists true. iFrame.
     - iApply (HWP with "Hinit2 [$]").
   Qed.
-
 End Alloc.
-  
+
+Section Simplified.
+
+  Existing Instance ordI.
+  Context {Σ : gFunctors}.
+
+  Notation C_proto := (protocol C_intf.val Σ).
+  Notation ML_proto := (protocol ML_lang.val Σ).
+
+  Context (eML : language.expr ML_lang).
+  Context (eC  : language.expr C_lang).
+  Context (peC : lang_prog C_lang).
+  Context (ΞML : ML_proto).
+  Context (Φ   : word → Prop).
+
+  (* XXX make masks less weird so that the ∅ here can be a ⊤ *)
+  Context (Hspec : ∀ `{!totalGhostStateG Σ}, (wrap_proto ΞML ⊑ prog_proto ∅ peC (prims_proto ∅ eML ΞML))%I).
+  (* One of them seems like it would be unnecessary, but I could not figure out which *)
+  Context (HNoInternal : ∀ `{!totalGhostStateG Σ}, ΞML on (dom (prims_prog eML)) ⊑ ⊥).
+  Context (HpeC : ∀ s, is_prim_name s → peC !! s = None).
+
+  Local Definition C_env `{!totalGhostStateG Σ} : language.progenv.prog_environ C_lang Σ := {|
+    language.progenv.penv_prog := peC ;
+    language.progenv.penv_proto := (prims_proto ⊤ eML ΞML)
+  |}.
+
+  Local Definition ML_env `{!totalGhostStateG Σ} : language.progenv.prog_environ ML_lang Σ := {|
+    language.progenv.penv_prog := ∅ ;
+    language.progenv.penv_proto := ΞML
+  |}.
+
+  Local Instance LinkInstance `{!totalGhostStateG Σ} : can_link 
+    wrap_lang C_mlang
+    (wrap_prog eML) (wrap_proto ΞML) 
+    peC (prims_proto ∅ eML ΞML)
+  ⊥.
+  Proof using All. econstructor.
+    - eapply elem_of_disjoint. intros s H1%in_dom_prims_prog [x Hx]%elem_of_dom.
+      epose proof (HpeC _ H1) as HH. by rewrite HH in Hx.
+    - intros E. rewrite proto_on_refines Hspec lang_to_mlang_refines mprog_proto_mono //. solve_ndisj.
+    - intros E. rewrite proto_on_refines wrap_refines. 1: apply mprog_proto_mono; by try solve_ndisj.
+      by eapply HNoInternal.
+    - iIntros (? ? ?) "H". rewrite /proto_except.
+      iDestruct "H" as (H%not_elem_of_dom) "H".
+      iPoseProof (Hspec _ with "H") as "HH".
+      unfold prog_proto. rewrite H. done.
+    - eapply prims_proto_except_dom.
+  Qed.
+
+  Local Definition peL := link_prog wrap_lang C_mlang (wrap_prog eML) peC.
+  Notation step := (prim_step peL).
+
+  Context `{!invPreG Σ}.
+  Context `{!heapGpre_ML Σ, !heapGpre_C Σ}.
+  Context `{!wrapperBasicsGpre Σ, !wrapperGCtokGpre Σ}.
+  Context `{!linkGpre Σ}.
+
+  Lemma linking_adequacy X :
+      (∀ `{!totalGhostStateG Σ}, at_init -∗ WP eC @ ⟨ peC , (prims_proto ∅ eML ΞML) ⟩ ; ⊤ {{v, ⌜Φ v⌝}} ) →
+      (umrel.star_AD step (LkSE (Link.Expr2 eC), σ) X) →
+      (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φ v)).
+  Proof using All.
+    intros HWP.
+    eapply (@alloc_adequacy _ Λ Σ (λ v _, Φ v) ⟪ peL , ⊥ ⟫ (λ v, ⌜Φ v⌝)%I _ _ σ).
+    intros Hinv.
+    eapply allocate_linked_ml_c.
+    - by iIntros (H1 H2 H3 H4 σ v) "(_&$)".
+    - iIntros (H1 H2 H3 H4 f s vv) "[]".
+    - iIntros (H1 H2 H3 H4) "Hinit Hstate".
+      pose (TotalGhostStateG _ _ _ _ _ _ _) as HTG.
+      iApply (@wp_wand with "[Hstate Hinit]").
+      1: iApply (@wp_link_run2 _ Σ _ _ wrap_lang C_mlang _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ eC _ (@LinkInstance HTG) with "Hstate").
+      2: { cbn. iIntros (v) "(H&_)". iApply "H". }
+      iApply wp_lang_to_mlang.
+      iApply (@language.weakestpre.wp_wand with "[Hinit]").
+      1: iApply (HWP HTG with "Hinit").
+      iIntros (v) "$".
+  Qed.
+
+End Simplified.
+
+Definition σ_initial := σ.
+
+
+
+
+
+
 

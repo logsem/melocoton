@@ -13,6 +13,7 @@ From melocoton.c_lang Require notation proofmode.
 From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
+From melocoton.interop Require Import adequacy.
 
 
 Section C_prog.
@@ -159,59 +160,53 @@ Proof.
   wp_pures. done.
 Qed.
 
-Import melocoton.mlanguage.weakestpre.
-
-Lemma is_linkable_swap_pair e :
-  can_link wrap_lang C_mlang
-    (wrap_prog e)  (wrap_proto swap_pair_ml_spec)
-    swap_pair_prog (prims_proto ∅ e swap_pair_ml_spec)
-    ⊥.
+Lemma main_prog_correct E : 
+  ⊢ at_init -∗
+    WP main_C_program @ ⟨ swap_pair_prog, (prims_proto ∅ swap_pair_client swap_pair_ml_spec) ⟩ ; E
+    {{ v, ∃ θ γ, GC θ ∗ ⌜repr_lval θ (Lloc γ) v⌝ ∗ γ ↦imm (TagDefault, [Lint 1; Lint 2]) }}.
 Proof.
-  constructor; intros.
-  - rewrite !dom_insert_L !dom_empty_L. set_solver.
-  - rewrite proto_on_refines swap_pair_correct lang_to_mlang_refines //.
-  - rewrite proto_on_refines wrap_refines.
-    2: { iIntros (? ? ?). rewrite /proto_on.
-         iIntros "(% & H)". iDestruct "H" as (? ? ->) "_". exfalso.
-         by vm_compute in H. }
-    eapply mprog_proto_mono; first set_solver. done.
-  - iIntros (? ? ?) "H". rewrite /proto_except.
-    iDestruct "H" as (?) "H". iNamed "H".
-    iDestruct "Hproto" as (? ? ->) "H". set_solver.
-  - apply prims_proto_except_dom.
-Qed.
-
-Notation link_in_state := (link_in_state wrap_lang C_mlang).
-
-Definition linked_lang : mlanguage Cval := link_lang wrap_lang C_mlang.
-Definition linked_prog_env : prog_environ linked_lang Σ := 
-    ⟪ link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog, ⊥ ⟫.
-Definition linked_start : expr linked_lang := LkSE (Link.Expr2 (main_C_program : expr C_mlang)).
-
-Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
-
-
-Lemma global_c_prog_correct E : 
-(⊢ link_in_state In2
--∗ at_init
--∗ WP linked_start @ linked_prog_env; E {{ v, ∃ θ γ, GC θ ∗ ⌜repr_lval θ (Lloc γ) v⌝ ∗ γ ↦imm (TagDefault, [Lint 1; Lint 2]) }})%I.
-Proof.
-  iIntros "H1 Hinit". unfold linked_prog_env.
-  iApply (wp_link_run2' with "H1 [Hinit]").
-  1: apply is_linkable_swap_pair.
-  2: iIntros (v) "(H&_)"; iApply "H". cbn.
-  iApply wp_lang_to_mlang.
-  wp_apply (wp_main with "[Hinit]").
+  iIntros "Hinit".
+  iApply (wp_main with "[$Hinit]").
   - done.
   - rewrite main_refines_prims_proto //.
-  - iFrame. iNext. iApply ML_prog_correct_axiomatic.
-  - iIntros (θ' vret lvret wret) "(HGC&->&(%γ&%&%&->&Himm&->&->)&%HH)".
-    cbn. iSplitL; last done.
-    iExists _, _. iFrame. done.
+  - iNext. iApply ML_prog_correct_axiomatic.
+  - iNext. iIntros (θ' vret lvret wret) "(HGC&->&(%γ&%&%&->&Himm&->&->)&%HH)".
+    cbn. iExists _, _. iFrame. done.
 Qed.
 
 End ML_prog.
 
-Check @global_c_prog_correct.
-Print Assumptions global_c_prog_correct.
+Section Adequacy.
+  Existing Instance ordinals.ordI.
+  Context `{Σ : gFunctors}.
+  Context `{!invPreG Σ}.
+  Context `{!heapGpre_ML Σ, !heapGpre_C Σ}.
+  Context `{!wrapperBasicsGpre Σ, !wrapperGCtokGpre Σ}.
+  Context `{!linkGpre Σ}.
+
+  Local Definition peL := link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog.
+  Notation step := (mlanguage.prim_step peL).
+
+  Lemma adequate X :
+    (umrel.star_AD step (LkSE (Link.Expr2 (main_C_program : (mlanguage.expr C_mlang))), σ_initial) X) →
+    (∃ e σ, X (e, σ) ∧ (∀ v, mlanguage.to_val e = Some v → True)).
+  Proof using All.
+    eapply (@linking_adequacy _ _ _ _ swap_pair_ml_spec).
+    all: try apply _.
+    - intros H. apply swap_pair_correct.
+    - iIntros (H s vs Φ). rewrite /proto_on.
+      iIntros "(% & H)". iDestruct "H" as (? ? ->) "_". exfalso.
+      by vm_compute in H0.
+    - intros s [p H]; eapply not_elem_of_dom.
+      rewrite !dom_insert_L !dom_empty_L; inversion H; simplify_eq; set_solver.
+    - iIntros (H) "Hinit".
+      iApply (wp_wand with "[Hinit]").
+      1: by iApply main_prog_correct.
+      by iIntros (v) "_".
+  Qed.
+
+End Adequacy.
+
+Check @adequate.
+Print Assumptions adequate.
 
