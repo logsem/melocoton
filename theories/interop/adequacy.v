@@ -20,13 +20,6 @@ Section AllocBasics.
   Context `{Σ : gFunctors}.
   Context `{!invG Σ}. (* we already have invariants *)
 
-  Record totalGhostStateG : Set := TotalGhostStateG {
-    totalG_CG :> heapG_C Σ;
-    totalG_MLG :> heapG_ML Σ;
-    totalG_wrapperG :> wrapperG Σ;
-    totalG_linkG :> linkG Σ;
-  }.
-
   Context `{!heapGpre_ML Σ, !heapGpre_C Σ}. (* everything else still needs ghost names *)
   Context `{!wrapperBasicsGpre Σ, !wrapperGCtokGpre Σ}.
   Context `{!linkGpre Σ}.
@@ -153,8 +146,8 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
     - eapply dfrac_agree.frac_agree_op_valid_L; done.
   Qed.
 
-  Lemma alloc_linkG : @Alloc _ Σ (linkG Σ)
-      (λ _, ghost_var linkG_γ 1 Boundary ∗ ⌜linkG_preG = _⌝)%I True.
+  Lemma alloc_linkG (s:link_state_case) : @Alloc _ Σ (linkG Σ)
+      (λ _, ghost_var linkG_γ 1 s ∗ ⌜linkG_preG = _⌝)%I True.
   Proof using All.
     intros P _ Halloc.
     1: eapply alloc_fresh_res in Halloc as (γlink&Halloc).
@@ -181,8 +174,8 @@ Section Alloc.
   Context {pe : prog_environ Λ Σ}.
   Context {Φbi : word → iProp Σ}.
 
-  Local Definition σ : state Λ := @Link.St _ _ wrap_lang C_mlang _ _ 
-     (∅:c_state) {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} ().
+  Local Definition σ : state Λ := @Link.St2 _ _ wrap_lang C_mlang _ _ 
+    {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} (∅:c_state).
 
   Context (HΦ : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
             ⊢ ∀ (σ:state Λ) v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
@@ -190,25 +183,28 @@ Section Alloc.
             ⊢ ∀ f s vv, penv_proto pe f s vv -∗ False).
   Context (e : expr Λ).
   Context (HWP : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-            ⊢ at_init -∗ at_boundary wrap_lang -∗ link_state_frag Boundary -∗ WP e @ pe ; ⊤ {{Φbi}}).
-(* TODO: change to            ⊢ at_init -∗ link_in_state wrap_lang C_mlang In2 -∗ WP e @ pe ; ⊤ {{Φbi}}). *)
+            ⊢ at_init -∗ link_in_state wrap_lang C_mlang In2 -∗ WP e @ pe ; ⊤ {{Φbi}}). 
 
   Lemma allocate_linked_ml_c : @Alloc _ Σ (mlangG _ Λ Σ) 
     (λ H, @sideConds _ Λ Σ Φpure pe Φbi _ _ 
         ∗ state_interp σ ∗ WP e @ pe ; ⊤ {{Φbi}})%I True.
   Proof using All.
     intros P _ Halloc.
-    eapply alloc_linkG in Halloc as (HlinkG&Halloc); last done.
+    eapply (alloc_linkG In2) in Halloc as (HlinkG&Halloc); last done.
     eapply alloc_wrapperG in Halloc as ((HwrapperG&HheapG_ML)&Halloc); last done.
     eapply alloc_heapG_C in Halloc as (HheapG_C&Halloc); last done.
     exists (link_mlangG wrap_lang C_mlang _).
     eapply alloc_mono; last exact Halloc.
-    iIntros "((($&(Hb1&Hb2)&%Heq1)&(HσW&Hbound&Hinit&%Heq2))&HσC)". cbn.
-    unfold public_state_interp. rewrite <- !Heq1, <- !Heq2.
-    iFrame "Hb1 HσC HσW". iSplitR. 1: iSplitL.
+    iIntros "((($&(Hb1&Hb2)&%Heq1)&((%b&HσW)&Hbound&Hinit2&%Heq2))&HσC)". iNamed "HσW". cbn.
+    rewrite // /weakestpre.private_state_interp // /C_state_interp // -!Heq1 -!Heq2.
+    iPoseProof (ghost_var_agree with "SIinit Hinit2") as "->".
+    iFrame. iSplitR. 1: iSplitL. 3: iSplitL "SIinit Hinit".
     - iIntros "!>". iApply HΦ.
     - iIntros "!>". iApply Hpeclosed.
-    - iApply (HWP with "Hinit Hbound Hb2").
+    - iExists true. iFrame.
+    - iApply (HWP with "Hinit2 [$]").
   Qed.
 
 End Alloc.
+  
+
