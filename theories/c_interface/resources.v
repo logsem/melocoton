@@ -8,13 +8,18 @@ From iris.prelude Require Import options.
 
 Class heapGpre_C {SI:indexT} Σ := HeapGpre {
   heapGpre_gen_heapGpre :> gen_heapPreG loc heap_cell Σ;
-  heapGpre_inv_heapGpre :> inv_heapGpreS loc heap_cell Σ;
 }.
 
 Class heapG_C {SI:indexT} Σ := HeapG {
   heapG_gen_heapG :> gen_heapG loc heap_cell Σ;
-  heapG_inv_heapG :> inv_heapG loc heap_cell Σ;
 }.
+
+Definition heapΣ_C {SI: indexT} : gFunctors :=
+  #[gen_heapΣ loc heap_cell].
+
+Global Instance subG_heapGpre_C `{SI: indexT} Σ : subG heapΣ_C Σ → heapGpre_C Σ.
+Proof. solve_inG. Qed.
+
 
 Definition public_state_interp `{SI: indexT} {Σ: gFunctors} `{!heapG_C Σ} :
    c_state → iProp Σ := gen_heap_interp.
@@ -72,21 +77,10 @@ Section definitions.
     | Some None => Puninit
     | Some (Some v) => I v
     end.
-
-  Definition inv_mapsto_own (l : loc) (v : val) (I : val → Prop) : iProp Σ :=
-    inv_mapsto_own l (Storing v) (from_storing I False False).
-  Definition inv_mapsto (l : loc) (I : val → Prop) : iProp Σ :=
-    inv_mapsto l (from_storing I False False).
 End definitions.
 
 Global Instance: Params (@inv_mapsto_own) 4 := {}.
 Global Instance: Params (@inv_mapsto) 3 := {}.
-
-Notation inv_heap_inv := (inv_heap_inv loc heap_cell).
-Notation "l '↦C_' I □" := (inv_mapsto l I%stdpp%type)
-  (at level 20, I at level 9, format "l  '↦C_' I  '□'") : bi_scope.
-Notation "l ↦C_ I v" := (inv_mapsto_own l v I%stdpp%type)
-  (at level 20, I at level 9, format "l  ↦C_ I  v") : bi_scope.
 
 
 (** The [array] connective is a version of [mapsto] that works
@@ -141,59 +135,6 @@ Proof. apply mapsto_ne. Qed.
 
 Lemma mapsto_persist l dq v : l ↦C{dq} v ==∗ l ↦C□ v.
 Proof. apply mapsto_persist. Qed.
-
-Global Instance inv_mapsto_own_proper l v :
-  Proper (pointwise_relation _ iff ==> (≡)) (inv_mapsto_own l v).
-Proof.
-  intros I1 I2 HI. rewrite /inv_mapsto_own. f_equiv=>-[[w|]|]; [|done|done].
-  simpl. apply HI.
-Qed.
-Global Instance inv_mapsto_proper l :
-  Proper (pointwise_relation _ iff ==> (≡)) (inv_mapsto l).
-Proof.
-  intros I1 I2 HI. rewrite /inv_mapsto. f_equiv=>-[[w|]|]; [|done|done].
-  simpl. apply HI.
-Qed.
-
-Lemma make_inv_mapsto l v (I : val → Prop) E :
-  ↑inv_heapN ⊆ E →
-  I v →
-  inv_heap_inv -∗ l ↦C v ={E}=∗ l ↦C_I v.
-Proof. iIntros (??) "#HI Hl". iApply make_inv_mapsto; done. Qed.
-Lemma inv_mapsto_own_inv l v I : l ↦C_I v -∗ l ↦C_I □.
-Proof. apply inv_mapsto_own_inv. Qed.
-
-Lemma inv_mapsto_own_acc_strong E :
-  ↑inv_heapN ⊆ E →
-  inv_heap_inv ={E, E ∖ ↑inv_heapN}=∗ ∀ l v I, l ↦C_I v -∗
-    (⌜I v⌝ ∗ l ↦C v ∗ (∀ w, ⌜I w ⌝ -∗ l ↦C w ==∗
-      inv_mapsto_own l w I ∗ |={E ∖ ↑inv_heapN, E}=> True)).
-Proof.
-  iIntros (?) "#Hinv".
-  iMod (inv_mapsto_own_acc_strong with "Hinv") as "Hacc"; first done.
-  iIntros "!>" (l v I) "Hl". iDestruct ("Hacc" with "Hl") as "(% & Hl & Hclose)".
-  iFrame "%∗". iIntros (w) "% Hl". iApply "Hclose"; done.
-Qed.
-
-Lemma inv_mapsto_own_acc E l v I:
-  ↑inv_heapN ⊆ E →
-  inv_heap_inv -∗ l ↦C_I v ={E, E ∖ ↑inv_heapN}=∗
-    (⌜I v⌝ ∗ l ↦C v ∗ (∀ w, ⌜I w ⌝ -∗ l ↦C w ={E ∖ ↑inv_heapN, E}=∗ l ↦C_I w)).
-Proof.
-  iIntros (?) "#Hinv Hl".
-  iMod (inv_mapsto_own_acc with "Hinv Hl") as "(% & Hl & Hclose)"; first done.
-  iFrame "%∗". iIntros "!>" (w) "% Hl". iApply "Hclose"; done.
-Qed.
-
-Lemma inv_mapsto_acc l I E :
-  ↑inv_heapN ⊆ E →
-  inv_heap_inv -∗ l ↦C_I □ ={E, E ∖ ↑inv_heapN}=∗
-    ∃ v, ⌜I v⌝ ∗ l ↦C v ∗ (l ↦C v ={E ∖ ↑inv_heapN, E}=∗ ⌜True⌝).
-Proof.
-  iIntros (?) "#Hinv Hl".
-  iMod (inv_mapsto_acc with "Hinv Hl") as ([[v|]|]) "(% & Hl & Hclose)"; [done| |done|done].
-  iIntros "!>". iExists (v). iFrame "%∗".
-Qed.
 
 (* Arrays *)
 

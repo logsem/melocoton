@@ -20,6 +20,14 @@ Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
   wrapperG_γroots_map : gname;
 }.
 
+Definition wrapperBasicsΣ {SI: indexT} : gFunctors :=
+  #[ghost_mapΣ lloc block; ghost_mapΣ addr lval;
+    ghost_mapΣ lloc lloc_visibility].
+
+Global Instance subG_wrapperBasicsGpre `{SI: indexT} Σ :
+  subG wrapperBasicsΣ Σ → wrapperBasicsGpre Σ.
+Proof. solve_inG. Qed.
+
 Section BasicsResources.
 Context `{SI: indexT}.
 Context `{!wrapperBasicsG Σ}.

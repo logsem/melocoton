@@ -40,6 +40,14 @@ Class wrapperGCtokG `{SI: indexT} Σ := WrapperGCtokG {
   wrapperG_γat_init : gname;
 }.
 
+Definition wrapperGCtokΣ {SI: indexT} : gFunctors :=
+  #[ghost_varΣ (gsetUR loc); ghost_varΣ (leibnizO addr_map);
+    ghost_varΣ lstore; ghost_varΣ lloc_map; ghost_varΣ (leibnizO bool)].
+
+Global Instance subG_wrapperGCtokGpre `{SI: indexT} Σ :
+  subG wrapperGCtokΣ Σ → wrapperGCtokGpre Σ.
+Proof. solve_inG. Qed.
+
 Section GCtoken.
 Context `{SI: indexT}.
 Context {Σ : gFunctors}.

@@ -20,6 +20,16 @@ Class wrapperG `{!indexT} Σ := WrapperG {
   wrapperG_γat_boundary : gname;
 }.
 
+Definition wrapperΣ {SI: indexT} : gFunctors :=
+  #[wrapperBasicsΣ; wrapperGCtokΣ].
+
+Global Instance subG_wrapperΣ_wrapperBasicsGpre `{SI: indexT} Σ :
+  subG wrapperΣ Σ → wrapperBasicsGpre Σ.
+Proof. solve_inG. Qed.
+Global Instance subG_wrapperΣ_wrapperGCtokGpre `{SI: indexT} Σ :
+  subG wrapperΣ Σ → wrapperGCtokGpre Σ.
+Proof. solve_inG. Qed.
+
 Section WrapperWP.
 
 Context `{SIdx: indexT}.

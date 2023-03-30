@@ -5,7 +5,7 @@ From melocoton Require Import named_props multirelations.
 From melocoton.language Require Import language weakestpre.
 From melocoton.interop Require Import basics basics_resources prims_proto.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
-From melocoton.interop Require Import state lang weakestpre update_laws wp_utils wp_ext_call_laws wp_simulation.
+From melocoton.interop Require Import state lang weakestpre update_laws wp_utils wp_simulation.
 From melocoton.c_interop Require Import rules.
 From melocoton.ml_lang Require Import primitive_laws lang_instantiation.
 From melocoton.c_lang Require Import lang_instantiation mlang_instantiation.
@@ -16,65 +16,73 @@ From transfinite.base_logic.lib Require Import satisfiable invariants ghost_map 
 From transfinite.stepindex Require Import ordinals.
 
 
-Class totalGhostStateG `{SI: indexT} (Σ : gFunctors) : Set := TotalGhostStateG {
-  totalG_invG :> invG Σ;
-  totalG_CG :> heapG_C Σ;
-  totalG_MLG :> heapG_ML Σ;
-  totalG_wrapperG :> wrapperG Σ;
-  totalG_linkG :> linkG Σ;
+Class ffiGpre `{SI: indexT} (Σ : gFunctors) : Set := FFIGpre {
+  ffiGpre_CG :> heapGpre_C Σ;
+  ffiGpre_MLG :> heapGpre_ML Σ;
+  ffiGpre_wrapperBasicsG :> wrapperBasicsGpre Σ;
+  ffiGpre_wrapperGCtokG :> wrapperGCtokGpre Σ;
+  ffiGpre_linkG :> linkGpre Σ;
 }.
+
+Class ffiG `{SI: indexT} (Σ : gFunctors) : Set := FFIG {
+  ffiG_invG :> invG Σ;
+  ffiG_CG :> heapG_C Σ;
+  ffiG_MLG :> heapG_ML Σ;
+  ffiG_wrapperG :> wrapperG Σ;
+  ffiG_linkG :> linkG Σ;
+}.
+
+Definition ffiΣ {SI: indexT} : gFunctors :=
+  #[invΣ; heapΣ_C; heapΣ_ML; wrapperΣ; linkΣ].
+
+Global Instance subG_ffiGpre `{SI: indexT} Σ :
+  subG ffiΣ Σ → ffiGpre Σ.
+Proof. solve_inG. Qed.
+
+Global Instance subG_ffiΣ_invPreG `{SI: indexT} Σ :
+  subG ffiΣ Σ → invPreG Σ.
+Proof. solve_inG. Qed.
 
 Section AllocBasics.
   Existing Instance ordI.
   Context `{Σ : gFunctors}.
   Context `{!invG Σ}. (* we already have invariants *)
-
-  Context `{!heapGpre_ML Σ, !heapGpre_C Σ}. (* everything else still needs ghost names *)
-  Context `{!wrapperBasicsGpre Σ, !wrapperGCtokGpre Σ}.
-  Context `{!linkGpre Σ}.
+  Context `{!ffiGpre Σ}.
 
   (* TODO do we need the invariant heap *)
   Lemma alloc_heapG_ML : @Alloc _ Σ (heapG_ML Σ) 
       (λ _, state_interp (∅ : language.state ML_lang) (* ∗ ml_lang.primitive_laws.inv_heap_inv *) )%I True.
-  Proof using heapGpre_ML0.
+  Proof using ffiGpre0.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γheap&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γmeta&Halloc).
-    1: eapply alloc_fresh_res in Halloc as (γinv&Halloc).
     - pose (GenHeapG _ (option (list MLval)) _ γheap γmeta) as Hgen_heapG.
-      pose (Inv_HeapG _ (option (list MLval)) γinv) as Hinv_heapG.
-      pose (HeapG_ML _ _ Hgen_heapG Hinv_heapG) as HheapG_ML.
+      pose (HeapG_ML _ _ Hgen_heapG) as HheapG_ML.
       exists HheapG_ML. eapply alloc_mono; last exact Halloc.
-      iIntros "((($&H1)&H2)&H3)".
+      iIntros "(($&H1)&H2)".
       iExists ∅. iSplit; first done. cbn in *. iFrame.
-    - unshelve eapply (@gmap_view.gmap_view_auth_valid _ _ _ _ (leibnizO _) (∅ : gmap loc (option (list val)))).
     - eapply gmap_view.gmap_view_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.
-    Unshelve. apply _.
   Qed.
 
   Lemma alloc_heapG_C : @Alloc _ Σ (heapG_C Σ) 
       (λ _, state_interp (∅ : language.state C_lang) (* ∗ ml_lang.primitive_laws.inv_heap_inv *) )%I True.
-  Proof using heapGpre_C0.
+  Proof using ffiGpre0.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γheap&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γmeta&Halloc).
-    1: eapply alloc_fresh_res in Halloc as (γinv&Halloc).
     - pose (GenHeapG _ heap_cell _ γheap γmeta) as Hgen_heapG.
-      pose (Inv_HeapG _ heap_cell γinv) as Hinv_heapG.
-      pose (HeapG _ _ Hgen_heapG Hinv_heapG) as HheapG_ML.
+      pose (HeapG _ _ Hgen_heapG) as HheapG_ML.
       exists HheapG_ML. eapply alloc_mono; last exact Halloc.
-      iIntros "((($&H1)&H2)&H3)".
+      iIntros "(($&H1)&H2)".
       iExists ∅. iSplit; first done. cbn in *. iFrame.
-    - unshelve eapply (@gmap_view.gmap_view_auth_valid _ _ _ _ (leibnizO _) (∅ : gmap loc heap_cell)).
     - eapply gmap_view.gmap_view_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.
-    Unshelve. apply _.
   Qed.
 
   Lemma alloc_wrapperBasicsG : @Alloc _ Σ (wrapperBasicsG Σ) 
       (λ _, lstore_own_auth ∅ ∗ lloc_own_auth ∅ ∗ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval) ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
-  Proof using heapGpre_C0.
+  Proof using ffiGpre0.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γζvirt&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γχvirt&Halloc).
@@ -172,11 +180,9 @@ End AllocBasics.
 
 Section Alloc.
   Existing Instance ordI.
-  Context {Σ : gFunctors}.
+  Context `{Σ : gFunctors}.
   Context `{!invG Σ}. (* we already have invariants *)
-  Context `{!heapGpre_ML Σ, !heapGpre_C Σ}. (* everything else still needs ghost names *)
-  Context `{!wrapperBasicsGpre Σ, !wrapperGCtokGpre Σ}.
-  Context `{!linkGpre Σ}.
+  Context `{!ffiGpre Σ}.
   Local Definition Λ : mlanguage word := link_lang wrap_lang C_mlang.
 
   Context {Φpure : word → state Λ → Prop}. 
@@ -215,6 +221,7 @@ Section Alloc.
   Qed.
 End Alloc.
 
+
 Section Simplified.
 
   Existing Instance ordI.
@@ -230,22 +237,22 @@ Section Simplified.
   Context (Φ   : word → Prop).
 
   (* XXX make masks less weird so that the ∅ here can be a ⊤ *)
-  Context (Hspec : ∀ `{!totalGhostStateG Σ}, (wrap_proto ΞML ⊑ prog_proto ∅ peC (prims_proto ∅ eML ΞML))%I).
+  Context (Hspec : ∀ `{!ffiG Σ}, (wrap_proto ΞML ⊑ prog_proto ∅ peC (prims_proto ∅ eML ΞML))%I).
   (* One of them seems like it would be unnecessary, but I could not figure out which *)
-  Context (HNoInternal : ∀ `{!totalGhostStateG Σ}, ΞML on (dom (prims_prog eML)) ⊑ ⊥).
+  Context (HNoInternal : ∀ `{!ffiG Σ}, ΞML on (dom (prims_prog eML)) ⊑ ⊥).
   Context (HpeC : ∀ s, is_prim_name s → peC !! s = None).
 
-  Local Definition C_env `{!totalGhostStateG Σ} : language.progenv.prog_environ C_lang Σ := {|
+  Local Definition C_env `{!ffiG Σ} : language.progenv.prog_environ C_lang Σ := {|
     language.progenv.penv_prog := peC ;
     language.progenv.penv_proto := (prims_proto ⊤ eML ΞML)
   |}.
 
-  Local Definition ML_env `{!totalGhostStateG Σ} : language.progenv.prog_environ ML_lang Σ := {|
+  Local Definition ML_env `{!ffiG Σ} : language.progenv.prog_environ ML_lang Σ := {|
     language.progenv.penv_prog := ∅ ;
     language.progenv.penv_proto := ΞML
   |}.
 
-  Local Instance LinkInstance `{!totalGhostStateG Σ} : can_link 
+  Local Instance LinkInstance `{!ffiG Σ} : can_link 
     wrap_lang C_mlang
     (wrap_prog eML) (wrap_proto ΞML) 
     peC (prims_proto ∅ eML ΞML)
@@ -267,12 +274,10 @@ Section Simplified.
   Notation step := (prim_step peL).
 
   Context `{!invPreG Σ}.
-  Context `{!heapGpre_ML Σ, !heapGpre_C Σ}.
-  Context `{!wrapperBasicsGpre Σ, !wrapperGCtokGpre Σ}.
-  Context `{!linkGpre Σ}.
+  Context `{!ffiGpre Σ}.
 
   Lemma linking_adequacy X :
-      (∀ `{!totalGhostStateG Σ}, at_init -∗ WP eC @ ⟨ peC , (prims_proto ∅ eML ΞML) ⟩ ; ⊤ {{v, ⌜Φ v⌝}} ) →
+      (∀ `{!ffiG Σ}, at_init -∗ WP eC @ ⟨ peC , (prims_proto ∅ eML ΞML) ⟩ ; ⊤ {{v, ⌜Φ v⌝}} ) →
       (umrel.star_AD step (LkSE (Link.Expr2 eC), σ) X) →
       (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φ v)).
   Proof using All.
@@ -283,7 +288,7 @@ Section Simplified.
     - by iIntros (H1 H2 H3 H4 σ v) "(_&$)".
     - iIntros (H1 H2 H3 H4 f s vv) "[]".
     - iIntros (H1 H2 H3 H4) "Hinit Hstate".
-      pose (TotalGhostStateG _ _ _ _ _ _ _) as HTG.
+      pose (FFIG _ _ _ _ _ _ _) as HTG.
       iApply (@wp_wand with "[Hstate Hinit]").
       1: iApply (@wp_link_run2 _ Σ _ _ wrap_lang C_mlang _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ eC _ (@LinkInstance HTG) with "Hstate").
       2: { cbn. iIntros (v) "(H&_)". iApply "H". }

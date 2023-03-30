@@ -15,13 +15,17 @@ From melocoton Require Import monotone.
 
 Class heapGpre_ML {SI:indexT} Σ := HeapGpre_ML {
   heapGpre_gen_heapGpre :> gen_heapPreG loc (option (list val)) Σ;
-  heapGpre_inv_heapGpre :> inv_heapGpreS loc (option (list val)) Σ;
 }.
 
 Class heapG_ML `{SI: indexT} Σ := HeapG_ML {
   heapG_gen_heapG :> gen_heapG loc (option (list val)) Σ;
-  heapG_inv_heapG :> inv_heapG loc (option (list val)) Σ;
 }.
+
+Definition heapΣ_ML {SI: indexT} : gFunctors :=
+  #[gen_heapΣ loc (option (list val))].
+
+Global Instance subG_heapGpre_ML `{SI: indexT} Σ : subG heapΣ_ML Σ → heapGpre_ML Σ.
+Proof. solve_inG. Qed.
 
 Local Notation state := (gmap loc (option (list val))).
 
@@ -59,19 +63,6 @@ Notation "l ↦∗{# q } vs" := (mapsto (L:=loc) (V:=option (list val)) l (Dfrac
   (at level 20, format "l  ↦∗{# q }  vs") : bi_scope.
 Notation "l ↦∗ vs" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) (Some vs))
   (at level 20, format "l  ↦∗  vs") : bi_scope.
-
-(** Same for [gen_inv_heap], except that these are higher-order notations so to
-make setoid rewriting in the predicate [I] work we need actual definitions
-here. *)
-Section definitions.
-  Context `{SI: indexT}.
-  Context `{!heapG_ML Σ}.
-  Definition inv_mapsto_own (l : loc) (vs : option (list val)) (I : option (list val) → Prop) : iProp Σ :=
-    inv_mapsto_own l vs I.
-  Definition inv_mapsto (l : loc) (I : option (list val) → Prop) : iProp Σ :=
-    inv_mapsto l I.
-  (* TODO: single value version of those *)
-End definitions.
 
 Global Instance: Params (@inv_mapsto_own) 5 := {}.
 Global Instance: Params (@inv_mapsto) 4 := {}.
@@ -137,57 +128,6 @@ Proof. apply mapsto_ne. Qed.
 
 Lemma mapsto_persist l dq v : l ↦M{dq} v ==∗ l ↦M□ v.
 Proof. apply mapsto_persist. Qed.
-
-Global Instance inv_mapsto_own_proper l (vs : option _) :
-  Proper (pointwise_relation _ iff ==> (≡)) (inv_mapsto_own l vs).
-Proof.
-  intros I1 I2 HI. rewrite /inv_mapsto_own. f_equiv; done.
-Qed.
-Global Instance inv_mapsto_proper l :
-  Proper (pointwise_relation _ iff ==> (≡)) (inv_mapsto l).
-Proof.
-  intros I1 I2 HI. rewrite /inv_mapsto. f_equiv; done.
-Qed.
-
-Lemma make_inv_mapsto l vs (I : option (list val) → Prop) E :
-  ↑inv_heapN ⊆ E →
-  I (Some vs) →
-  inv_heap_inv -∗ l ↦∗ vs ={E}=∗ l ↦∗_I (Some vs).
-Proof. iIntros (??) "#HI Hl". iApply make_inv_mapsto; done. Qed.
-Lemma inv_mapsto_own_inv l vs I : l ↦∗_I (Some vs) -∗ l ↦∗_I □.
-Proof. apply inv_mapsto_own_inv. Qed.
-
-Lemma inv_mapsto_own_acc_strong E :
-  ↑inv_heapN ⊆ E →
-  inv_heap_inv ={E, E ∖ ↑inv_heapN}=∗ ∀ l vs I, l ↦∗_I (Some vs) -∗
-    (⌜I (Some vs)⌝ ∗ l ↦∗ vs ∗ (∀ ws : (list val), ⌜I (Some ws)⌝ -∗ l ↦∗ ws ==∗
-      inv_mapsto_own l (Some ws) I ∗ |={E ∖ ↑inv_heapN, E}=> True)).
-Proof.
-  iIntros (?) "#Hinv".
-  iMod (inv_mapsto_own_acc_strong with "Hinv") as "Hacc"; first done.
-  iIntros "!>" (l v I) "Hl". iDestruct ("Hacc" with "Hl") as "(% & Hl & Hclose)".
-  iFrame "Hl". iFrame (H0). iIntros "%ws %H2 HH". iApply ("Hclose" $! (Some ws) H2 with "HH").
-Qed.
-
-Lemma inv_mapsto_own_acc E l vs I:
-  ↑inv_heapN ⊆ E →
-  inv_heap_inv -∗ l ↦∗_I (Some vs) ={E, E ∖ ↑inv_heapN}=∗
-    (⌜I (Some vs)⌝ ∗ l ↦∗ vs ∗ (∀ ws, ⌜I (Some ws) ⌝ -∗ l ↦∗ ws ={E ∖ ↑inv_heapN, E}=∗ l ↦∗_I (Some ws))).
-Proof.
-  iIntros (?) "#Hinv Hl".
-  iMod (inv_mapsto_own_acc with "Hinv Hl") as "(% & Hl & Hclose)"; first done.
-  iFrame "Hl". iFrame (H0). iIntros "!> %ws %H2 HH". iApply ("Hclose" $! (Some ws) H2 with "HH").
-Qed.
-
-Lemma inv_mapsto_acc l I E :
-  ↑inv_heapN ⊆ E →
-  inv_heap_inv -∗ l ↦∗_I □ ={E, E ∖ ↑inv_heapN}=∗
-    ∃ (vs:option _), ⌜I vs⌝ ∗ mapsto l (DfracOwn 1) vs ∗ (mapsto l (DfracOwn 1) vs ={E ∖ ↑inv_heapN, E}=∗ ⌜True⌝).
-Proof.
-  iIntros (?) "#Hinv Hl".
-  iMod (inv_mapsto_acc with "Hinv Hl") as (v) "(% & Hl & Hclose)"; [done|].
-  iIntros "!>". iExists (v). iFrame "%∗".
-Qed.
 
 Lemma wp_allocN pe E v n :
   (0 ≤ n)%Z →

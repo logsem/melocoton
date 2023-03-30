@@ -19,6 +19,13 @@ Class linkG `{!indexT} Σ := LinkG {
   linkG_γ : gname;
 }.
 
+Definition linkΣ {SI: indexT} : gFunctors :=
+  #[ghost_varΣ link_state_case].
+
+Global Instance subG_linkGpre `{SI: indexT} Σ :
+  subG linkΣ Σ → linkGpre Σ.
+Proof. solve_inG. Qed.
+
 Section Linking_logic.
 Context `{SI: indexT}.
 Context {Σ : gFunctors}.
