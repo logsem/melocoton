@@ -6,8 +6,6 @@ From melocoton.mlanguage Require Import mlanguage.
 From melocoton.mlanguage Require Import weakestpre.
 From iris.proofmode Require Import proofmode.
 
-(* FIXME: the proofs in this file need cleanup *)
-
 Inductive link_state_case :=
   Boundary | In1 | In2.
 
@@ -40,6 +38,20 @@ Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : protocol val Σ.
+
+Class can_link
+  (p1 : mlang_prog Λ1) (Ψ1 : protocol val Σ)
+  (p2 : mlang_prog Λ2) (Ψ2 : protocol val Σ)
+  (Ψ : protocol val Σ)
+:= CanLink {
+  can_link_prog_disj : dom p1 ## dom p2;
+  can_link_internal1 E : Ψ1 on (dom p2) ⊑ mprog_proto E p2 Ψ2;
+  can_link_internal2 E : Ψ2 on (dom p1) ⊑ mprog_proto E p1 Ψ1;
+  can_link_external1 : Ψ1 except (dom p2) ⊑ Ψ;
+  can_link_external2 : Ψ2 except (dom p1) ⊑ Ψ;
+}.
+
+Local Notation link_prog := (link_prog Λ1 Λ2).
 
 Definition link_state_interp (st : (link_lang Λ1 Λ2).(state)) : iProp Σ :=
   match st with
@@ -126,12 +138,6 @@ Next Obligation.
   iPureIntro. eexists _, _. constructor.
 Qed.
 
-Definition link_prog
-  (p1 : mlang_prog Λ1) (p2 : mlang_prog Λ2) :
-  mlang_prog (link_lang Λ1 Λ2)
-:=
-  fmap inl p1 ∪ fmap inr p2.
-
 Lemma proj1_prog_union (p1: mlanguage.prog Λ1) (p2: mlanguage.prog Λ2) :
   dom p1 ## dom p2 →
   Link.proj1_prog _ _ (link_prog p1 p2) = p1.
@@ -157,18 +163,6 @@ Proof using.
   { rewrite lookup_omap /= lookup_fmap. by destruct (p2 !! fname). }
   { rewrite lookup_omap /= lookup_fmap. by destruct (p1 !! fname). }
 Qed.
-
-Class can_link
-  (p1 : mlang_prog Λ1) (Ψ1 : protocol val Σ)
-  (p2 : mlang_prog Λ2) (Ψ2 : protocol val Σ)
-  (Ψ : protocol val Σ)
-:= CanLink {
-  can_link_prog_disj : dom p1 ## dom p2;
-  can_link_internal1 E : Ψ1 on (dom p2) ⊑ mprog_proto E p2 Ψ2;
-  can_link_internal2 E : Ψ2 on (dom p1) ⊑ mprog_proto E p1 Ψ1;
-  can_link_external1 : Ψ1 except (dom p2) ⊑ Ψ;
-  can_link_external2 : Ψ2 except (dom p1) ⊑ Ψ;
-}.
 
 Lemma wp_link_call (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k fn vs Φ fname :
   penv_prog pe !! fname = Some fn →
