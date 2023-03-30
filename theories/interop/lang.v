@@ -206,10 +206,10 @@ Qed.
      we change back its address to private, which is not possible.
 *)
 Definition c_to_ml
-  (w : word) (ρc : wrapstateC) (mem : memory)
-  (v : val) (ρml : wrapstateML) (σ : store)
+  (ws : list word) (ρc : wrapstateC) (mem : memory)
+  (vs : list val) (ρml : wrapstateML) (σ : store)
 : Prop :=
-  ∃ σ lv v ζ ζσ,
+  ∃ σ lvs vs ζ ζσ,
     (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
        Freezing allows allocating a fresh block, mutating it, then changing
        it into an immutable block that represents an immutable ML value. *)
@@ -229,10 +229,10 @@ Definition c_to_ml
     is_store (χML ρml) ζ σ ∧
     (* Angelically pick a block-level value lv that corresponds to the
        C value w. *)
-    repr_lval (θC ρc) lv w ∧
+    Forall2 (repr_lval (θC ρc)) lvs ws ∧
     (* Angelically pick an ML value v that correspond to the
        block-level value lv. *)
-    is_val (χML ρml) ζ v lv ∧
+    Forall2 (is_val (χML ρml) ζ) vs lvs ∧
     (* Split the C memory mem into the memory for the roots and the rest
        ("private" C memory). *)
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
@@ -445,7 +445,7 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
   (* Given a C value (result of a C extcall), resume execution into ML code. *)
   | RetS w ki ρc mem v ρml σ K X :
-    c_to_ml w ρc mem v ρml σ →
+    c_to_ml [w] ρc mem [v] ρml σ →
     X (WrE (ExprML (language.fill ki (ML_lang.of_val v))) K, MLState ρml σ) →
     prim_step_mrel p (WrE (ExprV w) (ki::K), CState ρc mem) X
   (* Administrative step for resolving a call to a primitive. *)
@@ -459,10 +459,8 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
         X (WrE (ExprV w) K, CState ρc' mem')) →
     prim_step_mrel p (WrE (RunPrimitive prm ws) K, CState ρc mem) X
   (* Call to the callback primitive *)
-  | CallbackS K w w' ρc mem γ f x e v ρml σ X :
-    repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (Bclosure f x e) →
-    c_to_ml w' ρc mem v ρml σ →
+  | CallbackS K w w' ρc mem f x e v ρml σ X :
+    c_to_ml [w; w'] ρc mem [RecV f x e; v] ρml σ →
     X (WrE (ExprML (App (Val (RecV f x e)) (Val v))) K,
         MLState ρml σ) →
     prim_step_mrel p (WrE (RunPrimitive Pcallback [w; w']) K, CState ρc mem) X

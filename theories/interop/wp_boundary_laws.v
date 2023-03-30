@@ -22,21 +22,21 @@ Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.
 Context `{!wrapperG Σ}.
 
-Lemma wrap_interp_c_to_ml w ρc mem θ v lv :
-  repr_lval θ lv w →
+Lemma wrap_interp_c_to_ml ws ρc mem θ vs lvs :
+  Forall2 (repr_lval θ) lvs ws →
   wrap_state_interp (Wrap.CState ρc mem) -∗
   GC θ -∗
   at_boundary wrap_lang -∗
-  lv ~~ v -∗
+  lvs ~~∗ vs -∗
   ∃ ρml σ,
-  ⌜c_to_ml w ρc mem v ρml σ⌝ ∗
+  ⌜c_to_ml ws ρc mem vs ρml σ⌝ ∗
   |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
 Proof using.
   iIntros (Hlv) "Hσ HGC Hnb #Hblk".
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
-  iAssert (⌜is_val χvirt (ζσ ∪ ζvirt) v lv⌝)%I as "%Hval".
-  1: by iApply (block_sim_auth_is_val with "GCχvirt GCζvirt Hblk").
+  iAssert (⌜Forall2 (is_val χvirt (ζσ ∪ ζvirt)) vs lvs⌝)%I as "%Hval".
+  1: by iApply (block_sim_arr_auth_is_val with "GCχvirt GCζvirt Hblk").
   iAssert (⌜∀ k lv, roots_m !! k = Some lv →
             ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
   1: { iIntros (kk vv Hroots).

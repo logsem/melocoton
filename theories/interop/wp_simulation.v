@@ -133,8 +133,9 @@ Proof.
     iDestruct (SI_at_boundary_is_in_C with "Hst' Hb") as %(ρc'&mem'&->). simpl.
     iRight; iRight. iSplit; first done.
 
-    iDestruct (wrap_interp_c_to_ml with "Hst' HGC Hb Hsim") as (ρml' σ' Hc_to_ml) "HH";
-      first done.
+    iDestruct (wrap_interp_c_to_ml with "Hst' HGC Hb [Hsim]") as (ρml' σ' Hc_to_ml) "HH".
+    2: by iApply big_sepL2_singleton.
+    1: by constructor.
     iExists (λ '(e2, σ2),
       e2 = WrSE (ExprML (language.fill K' (Val vret))) ∧
       σ2 = MLState ρml' σ').
@@ -183,8 +184,14 @@ Proof using.
     eapply freeze_lstore_lookup_bclosure; first done.
     eapply lookup_union_Some_r; eauto. }
 
-  iDestruct (wrap_interp_c_to_ml with "Hst HGC Hb Hsim'") as (ρml' σ' Hc_to_ml) "HH";
-    first done.
+  iDestruct "Hclos" as "#Hclos".
+  iDestruct (wrap_interp_c_to_ml [w;w'] _ _ _ [RecV f x e; v']
+    with "Hst HGC Hb [Hclos Hsim']") as (ρml' σ' Hc_to_ml) "HH".
+  { repeat constructor; eauto. }
+  { iApply big_sepL2_cons. iSplit.
+    { cbn. iExists _. by iFrame "Hclos". }
+    { iApply big_sepL2_cons; iFrame. by iApply big_sepL2_nil. } }
+
   iModIntro.
   iRight; iRight. iSplit; first done.
   iExists (λ '(e2, σ2),
