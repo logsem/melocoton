@@ -286,5 +286,22 @@ Proof.
   iExists bout, vout, vrest. by iFrame.
 Qed.
 
+
+Lemma buffy_compress_spec_too_small E ℓlen (z:Z) (nlen:nat) vv1 vv2 :
+    (z < buffer_max_len (nlen))%Z →
+(⊢  ℓlen ↦C #z
+ -∗ WP (call: &buffy_compress_name with (Val vv1, Val #(nlen), Val vv2, Val #ℓlen))%CE @ buffy_prog_env; E
+    {{ v', ℓlen ↦C #z ∗ ⌜v' = #1⌝}})%I.
+Proof.
+  iIntros (Hlen) "Hℓlen".
+  wp_pures.
+  wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
+  wp_bind (FunCall _ _).
+  iApply wp_wand. 1: iApply buffy_max_len_spec; first done. cbn.
+  iIntros (?) "->".
+  wp_pures. rewrite bool_decide_decide. destruct decide; cbn in *; try lia.
+  wp_pures. iModIntro. iFrame. done.
+Qed.
+
 End CBuffers.
 

@@ -94,8 +94,8 @@ End specs.
 
 From melocoton.lang_to_mlang Require Import weakestpre.
 From melocoton.linking Require Import lang weakestpre.
-From melocoton.mlanguage Require Import weakestpre.
 From melocoton.c_lang Require Import mlang_instantiation.
+From melocoton.mlanguage Require Import weakestpre.
 
 Section linking.
 Context `{SI:indexT}.

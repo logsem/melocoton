@@ -12,68 +12,23 @@ From iris.prelude Require Import options.
 From melocoton Require Import monotone.
 
 
+
+Class heapGpre_ML {SI:indexT} Σ := HeapGpre_ML {
+  heapGpre_gen_heapGpre :> gen_heapPreG loc (option (list val)) Σ;
+  heapGpre_inv_heapGpre :> inv_heapGpreS loc (option (list val)) Σ;
+}.
+
 Class heapG_ML `{SI: indexT} Σ := HeapG_ML {
   heapG_gen_heapG :> gen_heapG loc (option (list val)) Σ;
   heapG_inv_heapG :> inv_heapG loc (option (list val)) Σ;
-  (* TODO: is this still needed? *)
-  heapG_store_domain : inG Σ (viewUR (@auth_view_rel _ (@monotoneUR SI (leibnizO (gset loc)) subseteq)));
-  heapG_store_domain_name : gname
 }.
 
 Local Notation state := (gmap loc (option (list val))).
 
-Section DomAuth.
-  Context `{SI: indexT}.
-  Context `{!heapG_ML Σ}.
-
-  Definition dom_auth (σ : state) : iProp Σ :=
-    (@own _ _ _ heapG_store_domain heapG_store_domain_name (@auth_auth _ (@monotoneUR _ (leibnizO (gset loc)) subseteq) (DfracOwn (pos_to_Qp 1)) (principal subseteq (dom σ))))%I.
-
-  Definition dom_part (σ : gset loc) : iProp Σ := 
-    (@own _ _ _ heapG_store_domain heapG_store_domain_name (@auth_frag _ (@monotoneUR _ (leibnizO (gset loc)) subseteq) (principal subseteq (σ))))%I.
-
-  Global Instance subseteq_preorder : PreOrder (subseteq : gset loc -> gset loc -> Prop).
-  Proof. repeat split; eauto. intros a b c; set_solver. Qed.
-
-  Global Instance dom_part_timeless σ : Timeless (dom_part σ).
-  Proof. apply own_timeless. apply _. Qed.
-
-  Lemma dom_auth_dom σ1 σ2 : dom σ1 = dom σ2 -> dom_auth σ1 -∗ dom_auth σ2.
-  Proof. iIntros (Hdom) "H1". unfold dom_auth; rewrite Hdom; done. Qed.
-
-  Lemma dom_auth_part_valid σ σsub : dom_auth σ -∗ dom_part σsub -∗ ⌜σsub ⊆ dom σ⌝.
-  Proof.
-    iIntros "H1 H2".
-    iPoseProof (own_valid_2 with "H1 H2") as "%Hvalid".
-    iPureIntro.
-    apply auth_both_valid in Hvalid.
-    destruct Hvalid as (Hv1 & _).
-    specialize (Hv1 (zero)). cbn in Hv1.
-    by eapply (@principal_includedN _ (leibnizO (gset loc)) _ subseteq_preorder).
-  Qed.
-
-  Lemma dom_auth_extend σ σnew : dom_auth σ -∗ ⌜dom σ ⊆ dom σnew⌝ ==∗ dom_auth σnew.
-  Proof.
-    iIntros "H1 %H2".
-    iMod (own_update with "H1") as "$"; last done. 
-    eapply auth_update_auth.
-    eapply monotone_local_update_grow. done.
-  Qed.
-
-  Lemma dom_auth_get σ σfrag : dom_auth σ -∗ ⌜σfrag ⊆ dom σ⌝ ==∗ dom_auth σ ∗ dom_part σfrag.
-  Proof.
-    iIntros "H1 %H2". 
-    iMod (own_update with "H1") as "(H1 & H2)".
-    1: eapply monotone_update; [done | apply H2].
-    iModIntro. iFrame.
-  Qed.
-
-End DomAuth.
 
 Global Program Instance heapG_langG_ML `{SI: indexT}`{heapG_ML Σ}
       : langG val ML_lang Σ := {
-  state_interp σ :=
-    (gen_heap_interp σ ∗ dom_auth σ)%I
+  state_interp σ := gen_heap_interp σ
 }.
 
 Notation "l ↦M{ dq } v" := (mapsto (L:=loc) (V:=option (list val)) l dq (Some [v%MLV]))
@@ -240,15 +195,10 @@ Lemma wp_allocN pe E v n :
   {{{ l, RET LitV (LitLoc l); l ↦∗ (replicate (Z.to_nat n) v) ∗ meta_token l ⊤ }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1) "(Hσ & Hdom)". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
+  iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
   iIntros (v2 σ2 Hstep). inv_head_step; last lia. iModIntro.
   iMod (gen_heap_alloc _ l (Some (replicate (Z.to_nat n) v)) with "Hσ") as "(Hσ & Hl & Hm)".
   { by apply not_elem_of_dom. }
-  iMod (dom_auth_extend with "Hdom []") as "Hdom"; last first.
-  1: iMod (dom_auth_get _ {[l]} with "Hdom []") as "(Hdom & #Hpart)"; first last.
-  1: iFrame "Hdom".
-  3: iPureIntro; rewrite dom_insert_L; set_solver.
-  2: iPureIntro; rewrite dom_insert_L; set_solver.
   iModIntro. iFrame. iApply "HΦ"; iFrame.
 Qed.
 
@@ -282,7 +232,7 @@ Lemma wp_loadN pe E l i dq vs v :
   {{{ RET v; l ↦∗{dq} vs }}}.
 Proof.
   iIntros (Hi Hv Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1) "(Hσ & Hdom) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   assert (σ1 !! l.[i] = Some v).
   { rewrite store_lookup_eq. case_bool_decide; [|done]. by simplify_map_eq/=. }
   iSplit; first by eauto with head_step.
@@ -297,7 +247,7 @@ Lemma wp_loadN_oob pe E l i dq vs :
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
-  iIntros (σ1) "(Hσ & Hdom) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   assert (σ1 !! l.[i] = None).
   { rewrite store_lookup_eq. case_bool_decide; [|done]. simplify_map_eq/=.
     destruct Hi; try lia. apply lookup_ge_None_2; lia. }
@@ -321,7 +271,7 @@ Lemma wp_storeN pe E l i vs w :
   {{{ RET LitV LitUnit; l ↦∗ <[ Z.to_nat i := w ]> vs }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1) "(Hσ & Hdom) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   assert (is_Some (σ1 !! l.[i])) as [? ?].
   { rewrite store_lookup_eq. case_bool_decide; [|lia]. simplify_map_eq.
     apply lookup_lt_is_Some. lia. }
@@ -329,8 +279,7 @@ Proof.
   iIntros (v2 σ2 Hstep); inv_head_step. iModIntro.
   iMod (gen_heap_update with "Hσ Hl") as "[Hσ Hl]".
   rewrite (store_insert_offset _ _ _ vs); auto; [].
-  iModIntro. iFrame "Hσ". iSplitL "Hdom"; last by iApply "HΦ".
-  iApply dom_auth_dom; last done. rewrite dom_insert_L. eapply elem_of_dom_2 in H; set_solver.
+  iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl". 
 Qed.
 
 Lemma wp_storeN_oob pe E l i vs w :
@@ -340,7 +289,7 @@ Lemma wp_storeN_oob pe E l i vs w :
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
-  iIntros (σ1) "(Hσ & Hdom) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   assert (σ1 !! l.[i] = None).
   { rewrite store_lookup_eq. case_bool_decide; [|done]. simplify_map_eq/=.
     destruct Hi; try lia. apply lookup_ge_None_2; lia. }
@@ -364,7 +313,7 @@ Lemma wp_length pe E l dq vs :
   {{{ RET LitV $ LitInt (length vs); l ↦∗{dq} vs }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
-  iIntros (σ1) "(Hσ & Hdom) !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto with head_step.
   iIntros (v2 σ2 Hstep); inv_head_step. do 2 iModIntro.
   iFrame. by iApply "HΦ".

@@ -5,13 +5,14 @@ From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.lang_to_mlang Require Import lang.
 From iris.proofmode Require Import proofmode.
+From transfinite.base_logic.lib Require Import satisfiable.
 
 Section ToMlang_logic.
 Context `{SI:indexT}.
 Context {Σ : gFunctors}.
 Context {val : Type}.
 Context (Λ: language val).
-Context `{!language.weakestpre.langG val Λ Σ, !invG Σ}.
+Context `{!langG val Λ Σ, !invG Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
@@ -78,10 +79,10 @@ Proof using.
     iNext. iIntros (v) "Hv". iApply "IH". iApply "Hr". iFrame.
   - iRight. iRight. iModIntro.
     inversion Hstep; simplify_eq.
-    specialize (H3 Hval).
+    specialize (H2 Hval).
     iSplit; first done.
     iIntros (σ' e' Hstep').
-    iMod ("H3" $! _ _ (H5 _ _ Hstep')) as "H3".
+    iMod ("H3" $! _ _ (H4 _ _ Hstep')) as "H3".
     do 2 iModIntro. iMod "H3" as "[Hσ HWP]". iModIntro.
     iFrame. by iApply "IH".
 Qed.

@@ -77,7 +77,6 @@ Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map)
   ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χ⌝
   ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
 
-Definition public_state_interp : memory → iProp Σ := gen_heap_interp.
 Definition private_state_interp : wrapstateC → iProp Σ :=
   (λ ρc, C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc))%I.
 
@@ -87,7 +86,7 @@ Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
       "HσC" ∷ public_state_interp mem ∗
       "SIC" ∷ private_state_interp ρc
   | Wrap.MLState ρml σ =>
-      "(HσML & HσMLdom)" ∷ state_interp (σ:language.language.state ML_lang) ∗
+      "HσML" ∷ state_interp (σ:language.language.state ML_lang) ∗
       "SIML"             ∷ ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml)
 end.
 

@@ -11,8 +11,13 @@ From iris.proofmode Require Import proofmode.
 Inductive link_state_case :=
   Boundary | In1 | In2.
 
-Class linkG `{!indexT} Σ := LinkG {
+
+Class linkGpre `{!indexT} Σ := LinkGpre {
   linkG_inG :> ghost_varG Σ link_state_case;
+}.
+
+Class linkG `{!indexT} Σ := LinkG {
+  linkG_preG :> linkGpre Σ;
   linkG_γ : gname;
 }.
 

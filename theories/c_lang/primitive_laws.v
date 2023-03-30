@@ -12,7 +12,7 @@ From iris.prelude Require Import options.
 
 Global Program Instance heapG_langG_C {SI:indexT} `{heapG_C Σ}
       : langG val C_lang Σ := {
-  state_interp σ := gen_heap_interp σ
+  state_interp σ := public_state_interp σ
 }.
 
 Section lifting.

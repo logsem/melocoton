@@ -9,13 +9,23 @@ From transfinite.stepindex Require Import ordinals.
 Import uPred.
 Import umrel.
 
+Section CoinductiveSteps.
+    CoInductive star_mrel_w {A} (M : umrel A) : A → (A → Prop) → Prop :=
+    | star_refl_w x (X : A → Prop) :
+      X x → star_mrel_w M x X
+    | star_step_w x Y (X : A → Prop) :
+      M x Y →
+      (∀ y, Y y → star_mrel_w M y X) →
+      star_mrel_w M x X.
+End CoinductiveSteps.
+
 Section Adequacy.
   Existing Instance ordI.
   Context {val : Type}.
   Context {Λ : mlanguage val}.
   Context {Σ : gFunctors}.
 
-  Context {Φpure : val → state Λ → Prop}.
+  Context {Φpure : val → state Λ → Prop}. 
   Context {pe : prog_environ Λ Σ}.
   Context {Φbi : val → iProp Σ}.
 
@@ -27,63 +37,56 @@ Section Adequacy.
   Implicit Types e : expr Λ.
   Implicit Types X : cfg → Prop.
 
-
+  Definition sideConds `{!invG Σ, !mlangG val Λ Σ} : iProp Σ := 
+    □ (∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝)
+  ∗ □ (∀ f s vv, penv_proto pe f s vv -∗ False).
 
   Section GenAdequacy.
-    Context `{!mlangG val Λ Σ}.
-    (* XXX this can be strengthened to allow opening invariants (without needing to close them again annoyingly) *)
-    Hypothesis HΦ : (⊢ ∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
-    Hypothesis Hpeclosed : (⊢ ∀ f s vv, penv_proto pe f s vv -∗ False).
-
-    Context {sat_at : coPset → iProp Σ → Prop}.
-    Context `{!invG Σ}.
+    Context `{!mlangG val Λ Σ, !invG Σ}.
+    Context (sat_at : coPset → iProp Σ → Prop).
     Context `{!SatisfiableAt sat_at}.
     Context `{SatisfiableAtExists (cfg→Prop) sat_at}.
 
     Lemma value_from_wp σ v E :
-      sat_at E (state_interp σ ∗ WP (of_val Λ v) @ pe; E {{Φbi}})%I
+      sat_at E (sideConds ∗ state_interp σ ∗ WP (of_val Λ v) @ pe; E {{Φbi}})%I
     → Φpure v σ.
     Proof using All.
-      intros Hsat. eapply sat_mono in Hsat.
-      2: {
-        iIntros "(Hσ&HWP)".
-        rewrite wp_unfold /wp_pre.
-        iPoseProof ("HWP" $! σ with "Hσ") as "HWP". iAccu. }
-      eapply sat_fupd, sat_mono in Hsat.
-      2: { iIntros "[(%z & %HH & H)|[(%s & %vv & %K & %is_call & H2 & Hb & Hσ & (%Ξ & Hprot & _))|(%Hnv&_)]]".
-        - apply of_val_inj in HH. subst z.
-          iPoseProof (HΦ $! σ v with "H") as "H". iAccu.
-        - iExFalso. iApply Hpeclosed. iApply "Hprot".
-        - by rewrite to_of_val in Hnv. }
-      by eapply sat_bupd, sat_elim in Hsat.
+      intros Hsat. eapply sat_mono in Hsat. 1: eapply sat_fupd, sat_elim in Hsat; eapply Hsat.
+      iIntros "(#(HΦ&Hproto)&Hσ&HWP)".
+      rewrite wp_unfold /wp_pre.
+      iPoseProof ("HWP" $! σ with "Hσ") as "HWP".
+      iMod "HWP" as "[(%z & %HH & H)|[(%s & %vv & %K & %is_call & H2 & Hb & Hσ & (%Ξ & Hprot & _))|(%Hnv&H3)]]".
+      - apply of_val_inj in HH. subst z.
+        iApply ("HΦ" $! σ v with "H").
+      - iExFalso. iApply "Hproto". iApply "Hprot".
+      - by rewrite to_of_val in Hnv.
     Qed.
 
     Lemma one_step_from_wp σ e E:
       (to_val e = None) →
-      sat_at E (state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
-      ∃ X, step (e,σ) X ∧ ∀ e' σ', X (e', σ') → sat_at E (state_interp σ' ∗ WP e' @ pe; E {{Φbi}}).
+      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
+      ∃ X, step (e,σ) X ∧ ∀ e' σ', X (e', σ') → sat_at E (sideConds ∗ state_interp σ' ∗ WP e' @ pe; E {{Φbi}}).
     Proof using All.
       intros Hnv Hsat.
       eapply sat_mono in Hsat.
+      1: eapply sat_fupd, sat_exists in Hsat;
+         destruct Hsat as (X&(Hstep%sat_elim & Hsat)%sat_sep).
       2: {
-        iIntros "(Hσ&HWP)".
+        iIntros "(Hsides&Hσ&HWP)".
         rewrite wp_unfold /wp_pre.
-        iPoseProof ("HWP" $! σ with "Hσ") as "HWP". iAccu. }
-      eapply sat_fupd, sat_mono in Hsat.
-      2: { iIntros "[(%z & %HH & H)|[(%s & %vv & %K & %is_call & H2 & Hb & Hσ & (%Ξ & Hprot & _))|(_&H3)]]".
-        - subst e. by rewrite to_of_val in Hnv.
-        - iExFalso. iApply Hpeclosed. iApply "Hprot".
-        - iAccu. }
-      eapply sat_exists in Hsat. destruct Hsat as (X&(Hstep%sat_elim&Hsat)%sat_sep).
+        iMod ("HWP" $! σ with "Hσ") as "[(%z & %HH & H)|[(%s & %vv & %K & %is_call & H2 & Hb & Hσ & (%Ξ & Hprot & _))|(_&%X&Hpure&H3)]]".
+        - exfalso. subst e. by rewrite to_of_val in Hnv.
+        - iExFalso. iDestruct "Hsides"  as "(_&Hproto)". iApply "Hproto". iApply "Hprot".
+        - iModIntro. iApply (exist_intro X). iFrame; iAccu. }
       exists X; split; first done.
       intros e' σ' Hcfg'.
-      eapply (sat_forall e'), (sat_forall σ'), sat_wand in Hsat.
-      2: iIntros "_"; by iPureIntro.
-      eapply sat_fupd, sat_later, sat_fupd in Hsat. done.
+      eapply sat_mono in Hsat; first (eapply sat_fupd, sat_later, sat_fupd in Hsat; exact Hsat).
+      iIntros "(Hside&H3)". iFrame. iMod ("H3" $! e' σ' Hcfg') as "H3".
+      iModIntro. iNext. iApply "H3".
     Qed.
 
     Lemma star_step_from_wp σ e E X:
-      sat_at E (state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
+      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
       (star_AD step (e, σ) X) →
       (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ)).
     Proof using All.
@@ -102,16 +105,8 @@ Section Adequacy.
         eapply Hsat, Hcont, Hy.
     Qed.
 
-    CoInductive star_mrel_w {A} (M : umrel A) : A → (A → Prop) → Prop :=
-    | star_refl_w x (X : A → Prop) :
-      X x → star_mrel_w M x X
-    | star_step_w x Y (X : A → Prop) :
-      M x Y →
-      (∀ y, Y y → star_mrel_w M y X) →
-      star_mrel_w M x X.
-
     Lemma star_step_from_wp_coind σ e E:
-      sat_at E (state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
+      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
       (star_mrel_w step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end)).
     Proof using All.
       revert e σ. cofix IH.
@@ -127,38 +122,42 @@ Section Adequacy.
 
   End GenAdequacy.
 
+
   Section ConreteAdequacy.
     Context `{!invPreG Σ}.
 
-    (* XXX this is definitely wrong, but how to set it up properly? *)
-    Lemma final_adequacy σ e E X:
-      (Alloc (mlangG val Λ Σ) (λ H, state_interp σ) (invG Σ)) →
-      (⊢(∀ (Hinv : invG Σ) (Hmlang : mlangG val Λ Σ) σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝))%I →
-      (⊢(∀ (Hinv : invG Σ) (Hmlang : mlangG val Λ Σ) f s vv, penv_proto pe f s vv -∗ False))%I →
-      (⊢(∀ (Hinv : invG Σ) (Hmlang : mlangG val Λ Σ), |==> WP e @ pe ; E {{Φbi}})%I) →
+    Context (e : Λ.(expr)).
+    Context (σ : Λ.(state)).
+    Context (Halloc : ∀ `{!invG Σ}, Alloc (mlangG val Λ Σ) (λ H,
+      sideConds ∗ state_interp σ ∗ WP e @ pe ; ⊤ {{Φbi}})%I True).
+
+    Lemma alloc_adequacy X:
       (star_AD step (e, σ) X) →
       (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ)).
     Proof using All.
-      intros Halloc Hpure Hproto HWP Hstep.
       pose proof (@alloc_intro _ Σ) as Hsat.
-      eapply alloc_wsat_inst in Hsat as (HinvG & Hsat); last done.
-      eapply Halloc in Hsat as (HΛG & Hsat); last done.
+      eapply alloc_wsat_inst in Hsat as (HinvG&Hsat); last done.
+      eapply (Halloc HinvG) in Hsat as (HmlangG&Hsat); last done.
       eapply alloc_iProp_sat in Hsat.
-      unshelve eapply (@star_step_from_wp _ _ _ iProp_sat_at).
-      1: iApply Hpure.
-      1: iApply Hproto.
-      7: exact Hstep.
-      4: eapply sat_bupd, sat_frame_move, sat_sat_frame, sat_mono; last exact Hsat.
-      1: exact ⊤.
-      1-2: apply _.
-      iIntros "((_&$&$)&$)". iMod (HWP $! HinvG HΛG) as "H1"; iModIntro.
-      iApply wp_mask_mono; last first.
-      all: done.
-    Qed. 
-(*Locate Alloc.
-Print Alloc. Check mlangG.
-Check Alloc (mlangG val Λ Σ) (λ HGS, state_interp σ ∗ WP ∗ the other two assumptions) True.
-*)
+      eapply (star_step_from_wp iProp_sat_at).
+      unfold iProp_sat_at, sat_frame.
+      eapply sat_mono; last exact Hsat.
+      iIntros "((_&$)&$)".
+    Qed.
+
+    Lemma alloc_adequacy_coind X:
+      (star_mrel_w step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end)).
+    Proof using All.
+      pose proof (@alloc_intro _ Σ) as Hsat.
+      eapply alloc_wsat_inst in Hsat as (HinvG&Hsat); last done.
+      eapply (Halloc HinvG) in Hsat as (HmlangG&Hsat); last done.
+      eapply alloc_iProp_sat in Hsat.
+      eapply (star_step_from_wp_coind iProp_sat_at).
+      unfold iProp_sat_at, sat_frame.
+      eapply sat_mono; last exact Hsat.
+      iIntros "((_&$)&$)".
+    Qed.
+
   End ConreteAdequacy.
 End Adequacy.
 

@@ -19,7 +19,7 @@ Section C_prog.
 Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
 Context `{SI:indexT}.
-Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
+Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !wrapperG Σ}.
 
 
 Definition swap_pair_code (x : expr) : expr :=
@@ -188,9 +188,6 @@ Definition linked_prog_env : prog_environ linked_lang Σ :=
     ⟪ link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog, ⊥ ⟫.
 Definition linked_start : expr linked_lang := LkSE (Link.Expr2 (main_C_program : expr C_mlang)).
 
-(* Unsure why this is necessary -- typeclass inference fails without this *)
-Global Instance foo : (linkableG C_mlang public_state_interp).
-Proof. apply (@lang_to_mlang_linkableG SI Σ Cval C_lang (@heapG_langG_C SI SI Σ heapG_C0)). Qed.
 Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
 

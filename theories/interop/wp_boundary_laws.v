@@ -58,7 +58,7 @@ Proof using.
   iMod (set_to_none with "HσC GCrootspto") as "(HσC & GCrootspto)"; first done.
 
   iModIntro. iSplitR "SIbound"; last by iFrame "SIbound".
-  rewrite /= /named. iFrame "GCσMLv GCσdom".
+  rewrite /= /named. iFrame "GCσMLv".
   unfold private_state_interp, ML_state_interp, GC_token_remnant, named; cbn.
   iFrame. iPureIntro; split_and!.
   1: destruct Hχvirt as (_ & HHH); apply HHH.

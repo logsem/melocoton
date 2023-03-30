@@ -44,9 +44,6 @@ Proof using.
   { rewrite /GC /named.
     iExists ζ, ζfreeze, (delete ll ζσ), (<[ll:=(Bvblock (Mut, (TagDefault, lvs)))]> ζvirt).
     iExists χ, χvirt, (<[ℓ:=None]> σMLvirt), roots_s, roots_m. iFrame.
-    iSplitL "GCσdom".
-    { iApply (dom_auth_dom with "GCσdom").
-      rewrite dom_insert_L. eapply elem_of_dom_2 in Hlσ. set_solver. }
     iSplit.
     { rewrite (pub_locs_in_lstore_insert_lstore_pub _ _ _ ℓ) //.
       iApply big_sepM_insert; eauto. by iFrame. }
@@ -85,9 +82,6 @@ Proof using.
   { rewrite /GC /named.
     iExists ζ, ζfreeze, (<[γ:=(Bvblock (Mut, (TagDefault, lvs)))]> ζσ), (delete γ ζvirt).
     iExists χ, χvirt, (<[ℓ := Some vs]> σMLvirt), roots_s, roots_m. iFrame.
-    iSplitL "GCσdom".
-    { iApply (dom_auth_dom with "GCσdom").
-      rewrite dom_insert_L; eapply elem_of_dom_2 in Hlσ; set_solver. }
     iSplit; first by rewrite pub_locs_in_lstore_delete_lstore //.
     iPureIntro; split_and!; eauto.
   + erewrite (union_insert_delete ζσ ζvirt). 2: eapply map_disjoint_Some_r. all: eauto.
@@ -123,8 +117,6 @@ Proof using.
   1: by eapply not_elem_of_dom_1.
   iPoseProof (big_sepM_insert _ _ γ ℓ with "[$GCχNone $HℓNone]") as "GCχNone".
   { eapply map_filter_lookup_None. left. eapply lloc_map_pubs_lookup_None; eauto. }
-  iMod (dom_auth_extend _ (<[ ℓ := None ]> σMLvirt) with "GCσdom []") as "GCσdom".
-  1: iPureIntro; rewrite dom_insert_L; set_solver.
   iModIntro. iSplitR "Hℓγ Hmtζ".
   2: { iApply lstore_own_vblock_M_as_mut. iFrame "Hmtζ". eauto. }
   rewrite /GC /named.

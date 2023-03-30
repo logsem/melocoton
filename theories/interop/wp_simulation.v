@@ -71,7 +71,7 @@ Proof.
   iDestruct (SI_not_at_boundary_is_in_ML with "Hst Hnb") as %(ρml&σ&->).
   iNamed "Hst". iNamed "SIML".
   iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as %Hpublocs.
-  iMod ("HWP" $! σ with "[$HσML $HσMLdom]") as "[HWP|[HWP|HWP]]".
+  iMod ("HWP" $! σ with "[$HσML]") as "[HWP|[HWP|HWP]]".
   (* value *)
   + iDestruct "HWP" as "(%x & -> & Hσ & Hret)".
     iPoseProof (wp_to_val _ E x with "Hnb") as "Hwp".

@@ -6,10 +6,18 @@ From iris.prelude Require Import options.
 
 (** Separation logic resources for the C heap *)
 
+Class heapGpre_C {SI:indexT} Σ := HeapGpre {
+  heapGpre_gen_heapGpre :> gen_heapPreG loc heap_cell Σ;
+  heapGpre_inv_heapGpre :> inv_heapGpreS loc heap_cell Σ;
+}.
+
 Class heapG_C {SI:indexT} Σ := HeapG {
   heapG_gen_heapG :> gen_heapG loc heap_cell Σ;
   heapG_inv_heapG :> inv_heapG loc heap_cell Σ;
 }.
+
+Definition public_state_interp `{SI: indexT} {Σ: gFunctors} `{!heapG_C Σ} :
+   c_state → iProp Σ := gen_heap_interp.
 
 (** Since we use an [option val] instance of [gen_heap], we need to overwrite
 the notations.  That also helps for scopes and coercions. *)
