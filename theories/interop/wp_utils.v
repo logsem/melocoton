@@ -146,8 +146,7 @@ Proof.
   erewrite <- (insert_delete roots_2 a v2); last done. f_equiv.
   - destruct (Hr2' a v2 Heq) as (ww & Heqw & Hrepr).
     rewrite lookup_insert in Heqw. injection Heqw; intros ->.
-    inversion H; subst; inversion Hrepr; subst; try congruence.
-    f_equiv. eapply Hinj; done.
+    by eapply repr_lval_inj_1.
   - eapply IHHr1.
     + rewrite dom_delete_L. rewrite <- H1. set_solver.
     + done.

@@ -212,8 +212,8 @@ Section Specs.
               {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz znew ∗ Ψframe (z+1)%Z
                                ∗ isBufferRecordML vbuf ℓbuf (Pb (z+1)%Z) cap}})
     ∗ "Hframe" ∷ Ψframe i
-    ∗ "HMergeInitial" ∷ (Ψframe i ∗ isBufferRecordML vbuf ℓbuf (Pb i) cap ==∗ Ψ i)
     ∗ "Hrecord" ∷ isBufferRecordML vbuf ℓbuf (Pb i) cap
+    ∗ "HMergeInitial" ∷ (Ψframe i ∗ isBufferRecordML vbuf ℓbuf (Pb i) cap ==∗ Ψ i)
     ∗ "Cont" ∷ ▷ (Ψ j -∗ Φ #()).
 
 End Specs.

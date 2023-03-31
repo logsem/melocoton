@@ -246,9 +246,11 @@ Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
 
 (* C representation of block-level values, roots and memory *)
 
+Definition code_int (z:Z) : word := (C_intf.LitV (C_intf.LitInt (2*z + 1))).
+
 Inductive repr_lval : addr_map → lval → C_intf.val → Prop :=
   | repr_lint θ x :
-    repr_lval θ (Lint x) (C_intf.LitV (C_intf.LitInt x))
+    repr_lval θ (Lint x) (code_int x)
   | repr_lloc θ γ a :
     θ !! γ = Some a →
     repr_lval θ (Lloc γ) (C_intf.LitV (C_intf.LitLoc a)).
@@ -983,6 +985,11 @@ Proof.
   + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots.
 Qed.
 
+Lemma code_int_inj z1 z2 : code_int z1 = code_int z2 → z1 = z2.
+Proof.
+  intros H; simplify_eq; lia.
+Qed.
+
 Lemma repr_lval_inj θ v w w' : repr_lval θ v w -> repr_lval θ v w' -> w = w'.
 Proof.
   induction 1; inversion 1.
@@ -992,8 +999,9 @@ Qed.
 
 Lemma repr_lval_inj_1 θ v v' w : gmap_inj θ → repr_lval θ v w -> repr_lval θ v' w -> v = v'.
 Proof.
+  unfold code_int.
   intros H; induction 1; inversion 1.
-  + done.
+  + f_equal; lia.
   + subst. f_equal. by eapply H.
 Qed.
 
@@ -1007,6 +1015,9 @@ Proof.
   intros H; induction 1; econstructor.
   eapply lookup_weaken; done.
 Qed.
+
+(* The development is generic over the precise encoding of ints *)
+Opaque code_int.
 
 Lemma repr_mono θ θ' roots_m privmem mem : θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
 Proof.
