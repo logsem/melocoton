@@ -118,44 +118,42 @@ Section Specs.
     penv_prog  := buf_lib_prog ;
     penv_proto := prims_proto E e Ψ |}.
 
-  Definition isBufferForeignBlock (γ : lloc) (b:buffer) cap fid : iProp Σ := 
-      ∃ (ℓbuf : loc) vused vrest, 
+  Definition isBufferForeignBlock (γ : lloc) (ℓbuf : loc) (Pb : list (option Z) → iProp Σ) cap fid : iProp Σ := 
+      ∃ vcontent, 
         "Hγfgnpto" ∷ γ ↦foreign (#ℓbuf)
       ∗ "#Hγfgnsim" ∷ γ ~foreign~ fid
-      ∗ "Hℓbuf" ∷ ℓbuf ↦C∗ (vused++vrest)
-      ∗ "%HisBuf" ∷ ⌜isBuffer vused b⌝
-      ∗ "<-" ∷ ⌜length (vused++vrest) = cap⌝.
+      ∗ "Hℓbuf" ∷ ℓbuf ↦C∗ (map (option_map (λ (z:Z), #z)) vcontent)
+      ∗ "HContent" ∷ Pb vcontent
+      ∗ "->" ∷ ⌜cap = length vcontent⌝.
 
-  Definition isBufferRecord (lv : lval) (b:buffer) (cap:nat) : iProp Σ :=
+  Definition isBufferRecord (lv : lval) (ℓbuf : loc) (Pb : nat → list (option Z) → iProp Σ) (cap:nat) : iProp Σ :=
     ∃ (γ γref γaux γfgn : lloc) (used : nat) fid,
         "->" ∷ ⌜lv = Lloc γ⌝
       ∗ "#Hγbuf" ∷ γ ↦imm (TagDefault, [Lloc γref; Lloc γaux])
       ∗ "Hγusedref" ∷ γref ↦mut (TagDefault, [Lint used])
       ∗ "#Hγaux" ∷ γaux ↦imm (TagDefault, [Lint cap; Lloc γfgn])
-      ∗ "Hbuf" ∷ isBufferForeignBlock γfgn b cap fid
-      ∗ "->" ∷ ⌜used = length b⌝.
+      ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap fid.
 
-  Definition isBufferRecordML (v : MLval) (b:buffer) (cap:nat) : iProp Σ :=
+  Definition isBufferRecordML (v : MLval) (ℓbuf : loc)  (Pb : nat → list (option Z) → iProp Σ) (cap:nat) : iProp Σ :=
     ∃ (ℓML:loc) (used fid:nat) γfgn, 
       "->" ∷ ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV cap, ML_lang.LitV (LitForeign fid)))%MLV⌝ 
     ∗ "HℓbufML" ∷ ℓML ↦M ML_lang.LitV used
-    ∗ "Hbuf" ∷ isBufferForeignBlock γfgn b cap fid
-    ∗ "->" ∷ ⌜used = length b⌝.
+    ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap fid.
 
-  Lemma bufToML lv b c θ:
+  Lemma bufToML lv ℓbuf Pb c θ:
       GC θ
-   -∗ isBufferRecord lv b c
-  ==∗ GC θ ∗ ∃ v, isBufferRecordML v b c ∗ lv ~~ v.
+   -∗ isBufferRecord lv ℓbuf Pb c
+  ==∗ GC θ ∗ ∃ v, isBufferRecordML v ℓbuf Pb c ∗ lv ~~ v.
   Proof.
     iIntros "HGC H". iNamed "H". iNamed "Hbuf".
-    iMod (mut_to_ml _ ([ML_lang.LitV (length b)]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
+    iMod (mut_to_ml _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
     1: by cbn.
     iModIntro. iFrame "HGC".
     iExists _. iSplitL.
     { iExists ℓML, _, fid, γfgn. unfold named.
-      iSplit; first done. iFrame "HℓbufML". iSplit; last done.
-      iExists ℓbuf, vused, vrest.
-      unfold named. by iFrame "Hγfgnpto Hℓbuf Hγfgnsim". }
+      iSplit; first done. iFrame "HℓbufML".
+      iExists vcontent.
+      unfold named. by iFrame "Hγfgnpto Hℓbuf Hγfgnsim HContent". }
     { cbn. iExists _, _, _. iSplitL; first done.
       iFrame "Hγbuf".
       iSplitL; first (iExists _; iSplit; done).
@@ -164,11 +162,11 @@ Section Specs.
       iExists _; iSplit; done. }
   Qed.
 
-  Lemma bufToC v b c lv θ:
+  Lemma bufToC v ℓbuf Pb c lv θ:
       GC θ
-   -∗ isBufferRecordML v b c
+   -∗ isBufferRecordML v ℓbuf Pb c
    -∗ lv ~~ v
-  ==∗ GC θ ∗ isBufferRecord lv b c.
+  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c.
   Proof.
     iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
     iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
@@ -184,22 +182,50 @@ Section Specs.
     iSplitL "Hγusedref".
     { destruct ℓvs as [|ℓvs [|??]]; cbn; try done.
       all: iDestruct "Hγrefsim" as "[-> ?]"; try done. }
-    { iSplit; last done.
-      cbn. iExists _, _, _. unfold named. iFrame "Hγfgnpto Hγfgnsim Hℓbuf".
+    { cbn. iExists _. unfold named. iFrame "Hγfgnpto Hγfgnsim Hℓbuf HContent".
       iPureIntro; done. }
   Qed.
 
 
   Import melocoton.ml_lang.notation.
-
+  Definition buf_alloc_res_buffer z cap (b : list (option Z)) : iProp Σ := ⌜cap = 0⌝ ∗ ⌜b = replicate (Z.to_nat z) None⌝.
   Definition buf_alloc_spec_ML s vv Φ : iProp Σ :=
     ∃ (z:Z),
       ⌜(0 < z)%Z⌝
     ∗ ⌜s = buf_alloc_name⌝
     ∗ ⌜vv = [ #z ]⌝
-    ∗ ▷ (∀ v, isBufferRecordML v [] (Z.to_nat z) -∗ Φ v).
+    ∗ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ Φ v).
+
+  Definition buf_alloc1_spec idx vnew Pbold cap (b : list (option Z)) : iProp Σ :=
+    ∃ bold (capold:nat) , ⌜b = <[ Z.to_nat idx := Some vnew ]> bold⌝ ∗ ⌜cap = max capold (Z.to_nat (idx+1))⌝ ∗ Pbold capold bold.
+  Definition buf_update_spec_ML (protoCB : (protocol ML_lang.val Σ)) s vv Φ: iProp Σ :=
+    ∃ (Ψ Ψframe : Z → iProp Σ) (Φz : Z → iProp Σ) (i j : Z) ℓbuf (cap:nat) (Pb : Z → nat → _ → iProp Σ) vbuf (F : ML_lang.expr),
+      "->" ∷ ⌜s = buf_alloc_name⌝
+    ∗ "->" ∷ ⌜vv = [ vbuf ]⌝
+    ∗ "%Hb1" ∷ ⌜0%Z ≤ i⌝%Z
+    ∗ "%Hb2" ∷ ⌜i ≤ j⌝%Z
+    ∗ "%Hb3" ∷ ⌜j < cap⌝%Z
+    ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψframe z -∗ Φz vnew -∗
+          isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ z)
+    ∗ "#HWP" ∷ (□ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
+              WP F #z @ ⟨ ∅, protoCB ⟩ ; ∅ 
+              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz znew ∗ Ψframe (z+1)%Z
+                               ∗ isBufferRecordML vbuf ℓbuf (Pb (z+1)%Z) cap}})
+    ∗ "Hframe" ∷ Ψframe i
+    ∗ "HMergeInitial" ∷ (Ψframe i ∗ isBufferRecordML vbuf ℓbuf (Pb i) cap ==∗ Ψ i)
+    ∗ "Hrecord" ∷ isBufferRecordML vbuf ℓbuf (Pb i) cap
+    ∗ "Cont" ∷ ▷ (Ψ j -∗ Φ #()).
 
 End Specs.
+
+Section LemmasThatShouldBeInStdPP.
+
+  Lemma map_replicate {A B : Type} (f : A → B) (v:A) n : map f (replicate n v) = replicate n (f v).
+  Proof.
+    induction n as [|n IH]; cbn; firstorder congruence.
+  Qed.
+
+End LemmasThatShouldBeInStdPP.
 
 Section Proofs.
 
@@ -207,16 +233,17 @@ Section Proofs.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
   Lemma buf_alloc_correct E1 E2 e Ψ :
-    wrap_proto buf_alloc_spec_ML ⊑ prog_proto E2 buf_lib_prog (prims_proto E1 e Ψ).
+    prims_proto E1 e Ψ ||- buf_lib_prog @ E2 :: wrap_proto buf_alloc_spec_ML.
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iDestruct "Hproto" as "(%cap&%Hcap&->&->&HΦ')".
-    cbn. unfold prog_proto. solve_lookup_fixed.
+    cbn. unfold progwp. solve_lookup_fixed.
     destruct lvs as [|lv [|??]]; first done.
     all: cbn; iDestruct "Hsim" as "(->&H)"; try done.
     destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons_inv_l in Hrepr as (wcap&?&Hlval&_&?); simplify_eq.
-    cbn. iExists _. solve_lookup_fixed.
+    cbn. iExists _. iSplit; first done.
+    iExists _. cbn. solve_lookup_fixed.
     iSplit; first done. iNext.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓbk) "(HGC&Hℓbk)"; wp_pures.
@@ -295,18 +322,23 @@ Section Proofs.
     iMod (freeze_to_immut with "[$HGC $Hγbf]") as "(HGC&Hγbf)".
     iMod (freeze_to_immut with "[$HGC $Hγbf2]") as "(HGC&Hγbf2)".
     iMod (freeze_to_mut with "[$HGC $Hγbfref]") as "(HGC&Hγbfref)".
-    iAssert (isBufferRecord (Lloc γbf) [] (Z.to_nat cap)) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
+    iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer cap) (Z.to_nat cap)) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
     { iDestruct "Hγbk" as "(Hγbk'&%fid&#Hfid)".
       assert (∃ k, Z.of_nat k = cap) as (ncap&<-) by (exists (Z.to_nat cap); lia).
       rewrite !Nat2Z.id.
       iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame.
-      iSplit; first done. iSplit; last done.
-      iExists ℓbts, [], (replicate ncap None). unfold named, lstore_own_foreign.
-      iFrame. iFrame "Hfid". iSplitL; first by iExists fid. iPureIntro; split_and!.
+      iSplit; first done.
+      iExists (replicate ncap None). unfold named, lstore_own_foreign.
+      rewrite map_replicate; cbn.
+      iFrame. iFrame "Hfid". iSplitR; first by iExists fid.
+      iPureIntro; split_and!.
+      Search replicate repeat.
       1: done.
+      1: f_equal; lia.
       cbn. by rewrite replicate_length. }
     iMod (bufToML with "HGC Hbuffer") as "(HGC&%vv&Hbuffer&#Hsim)".
     iModIntro. iApply ("Cont" with "HGC (HΦ' Hbuffer) Hsim [//]").
   Qed.
+
 
 End Proofs.

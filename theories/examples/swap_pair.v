@@ -217,7 +217,7 @@ Section Adequacy.
   Qed.
 
 End Adequacy.
-
+(*
 Check @adequate.
 Print Assumptions adequate.
-
+*)
