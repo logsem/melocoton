@@ -17,6 +17,28 @@ Context `{!wrapperGCtokG Σ}.
 Notation C_proto := (protocol C_intf.val Σ).
 Notation ML_proto := (protocol ML_lang.val Σ).
 
+(* TODO: move *)
+Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
+  ∃ θ vs lvs Φ',
+    "HGC" ∷ GC θ ∗
+    "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
+    "Hsim" ∷ lvs ~~∗ vs ∗
+    "Hproto" ∷ Ψ f vs Φ' ∗
+    "Cont" ∷ ▷ (∀ θ' vret lvret wret,
+      GC θ' -∗
+      Φ' vret -∗
+      lvret ~~ vret -∗
+      ⌜repr_lval θ' lvret wret⌝ -∗
+      Φ wret)
+)%I.
+
+Lemma wrap_proto_mono Ψ Ψ' : Ψ ⊑ Ψ' → wrap_proto Ψ ⊑ wrap_proto Ψ'.
+Proof using.
+  iIntros (Hre ? ? ?) "H". unfold wrap_proto. iNamed "H".
+  rewrite /named. iExists _, _, _, _. iFrame. iSplit; first done.
+  by iApply Hre.
+Qed.
+
 Definition int2val_proto : C_proto := (λ fn vl Φ,
    ∃ θ z,
      "->" ∷ ⌜fn = "int2val"⌝ ∗

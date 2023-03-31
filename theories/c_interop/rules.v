@@ -4,6 +4,7 @@ From melocoton.interop Require Import basics basics_resources gctoken update_law
 From melocoton.ml_lang Require Import lang_instantiation primitive_laws.
 From melocoton.c_interface Require Export defs resources.
 From melocoton.c_lang Require Import primitive_laws tactics notation proofmode.
+From melocoton.c_interop Require Import notation.
 From iris.prelude Require Import options.
 
 (* Derived WP rules for C<->ML interop.
@@ -272,6 +273,29 @@ Proof.
   iExists Φ. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+Qed.
+
+(* Macro Laws *)
+Lemma wp_CAMLlocal n e2 E p Ψ Φ θ :
+  p !! "int2val" = None →
+  int2val_proto ⊑ Ψ →
+  p !! "registerroot" = None →
+  registerroot_proto ⊑ Ψ →
+  (⊢ GC θ -∗ 
+     (▷ ∀ (l:loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := #l]} e2) @ ⟨ p, Ψ ⟩; E {{Φ}}) -∗
+     WP (CAMLlocal: n in e2)%CE @ ⟨ p, Ψ ⟩ ; E
+     {{Φ}}%CE)%I.
+Proof.
+  iIntros (????) "HGC Cont". unfold CAMLlocal.
+  wp_apply wp_Malloc. 1-2: done. change (Z.to_nat 1) with 1. cbn.
+  iIntros (l) "((Hl&_)&_)". rewrite loc_add_0.
+  wp_pures. wp_apply (wp_int2val with "[$]"); [try done..|].
+  iIntros (w) "(HGC&%Hrepr)".
+  wp_apply (wp_store with "Hl"). iIntros "Hl".
+  wp_pures.
+  wp_apply (wp_registerroot with "[$]"); [try done..|].
+  iIntros "(HGC&Hroot)". wp_pures.
+  iApply "Cont". iFrame.
 Qed.
 
 End Laws.

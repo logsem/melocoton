@@ -78,6 +78,16 @@ Proof.
     rewrite IH2. unfold buffer_max_len. lia.
 Qed.
 
+Lemma compression_makes_shorter n : ∃ b, length b ≥ n ∧ length (compress_buffer b) < length b.
+Proof.
+  exists (repeat 0%Z (2*(S n))).
+  rewrite repeat_length. split; first lia.
+  induction n as [|n IH].
+  - cbn. lia.
+  - cbn. rewrite -!Nat.succ_lt_mono. cbn -[repeat] in IH. etransitivity.
+    1: erewrite Nat.add_succ_r; exact IH. lia.
+Qed.
+
 End SemBuffers.
 
 Section CBuffers.

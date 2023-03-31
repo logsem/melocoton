@@ -49,7 +49,7 @@ Notation "'if:' e1 'then' e2 'else' e3" := (If e1%CE e2%CE e3%CE)
 Notation "'while:' e1 'do' e2" := (While e1%CE e2%CE)
   (at level 200, e1, e2 at level 200) : c_expr_scope.
 
-Notation "'call:' ff 'with' '(' e1 , .. , en ')'" := (FunCall ff%CE (cons e1%CE .. (cons en%CE nil) ..))
+Notation "'call:' ff 'with' '(' e1 , .. , en ')'" := (FunCall ff%CE (@cons expr e1%CE .. (@cons expr en%CE nil) ..))
   (at level 200, ff, e1, en at level 99) : c_expr_scope.
 
 Notation "'call:' ff 'with' '(' ')'" := (FunCall ff%CE nil)
