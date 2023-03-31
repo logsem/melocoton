@@ -145,11 +145,12 @@ Lemma buffy_compress_rec_spec E ℓin ℓout vin bin vspace :
 (⊢  ℓin  ↦C∗ vin
  -∗ ℓout ↦C∗ vspace -∗
     WP (call: &buffy_compress_rec_name with (Val #ℓin, Val #(length bin), Val #ℓout))%CE @ buffy_prog_env; E
-    {{ v', ∃ bout vout vrest,
+    {{ v', ∃ bout vout vrest voverwritten,
              ⌜isBuffer vout bout⌝
            ∗ ⌜bout = compress_buffer bin⌝
            ∗ ⌜v' = #(length vout)⌝
-           ∗ (∃ voverwritten, ⌜vspace = voverwritten ++ vrest⌝)
+           ∗ ⌜vspace = voverwritten ++ vrest⌝
+           ∗ ⌜length voverwritten = length vout⌝
            ∗ ℓout ↦C∗ (vout ++ vrest)
            ∗ ℓin  ↦C∗ vin }})%I.
 Proof.
@@ -159,8 +160,7 @@ Proof.
   destruct bin as [|bfst bin].
   { cbn. rewrite bool_decide_decide. destruct decide; last lia.
     wp_pures. iModIntro.
-    iExists [], [], vspace. iFrame. iPureIntro. split_and!; try done.
-    exists nil. done. }
+    iExists [], [], vspace, []. iFrame. iPureIntro. split_and!; try done. }
   cbn. rewrite bool_decide_decide. destruct decide; first lia.
   wp_pures.
   destruct bin as [|bsnd bin]; cbn; rewrite bool_decide_decide; destruct decide; try lia.
@@ -173,11 +173,10 @@ Proof.
     wp_pure _. 1: apply ptr_offset_add.
     wp_apply (wp_load with "Hℓin"); iIntros "Hℓin".
     wp_apply (wp_store with "Hℓout2"); iIntros "Hℓout2"; wp_pures.
-    iModIntro. iExists [1%Z; bfst], _, vsrest.
+    iModIntro. iExists [1%Z; bfst], _, vsrest, [_; _].
     iSplit; first done. cbn. rewrite !loc_add_0. iFrame. iPureIntro.
     split_and!; try done.
-    1: by repeat case_match.
-    eexists [_; _]. done. }
+    1: by repeat case_match. }
   wp_pures. unfold isBuffer in HBuffer. subst vin.
   cbn in Hlength. rewrite !Nat.add_succ_r in Hlength. cbn.
   iDestruct "Hℓin" as "(Hℓin0&Hℓin1&HℓinR)". rewrite !loc_add_0.
@@ -201,13 +200,15 @@ Proof.
            replace (Z.of_nat (S k)) with (1 + k)%Z by lia. done. }
       iPureIntro. cbn in *. lia. }
     { cbn. iClear "IH". unfold isBuffer.
-      iIntros (v) "(%bout&%vout&%vrest&->&->&->&(%vov&->)&HℓouR&HℓinR)".
+      iIntros (v) "(%bout&%vout&%vrest&%vov&->&->&->&->&%Hlen&HℓouR&HℓinR)".
       wp_pures. iModIntro.
-      iExists (0%Z :: compress_buffer bin), _, vrest. iSplit; first done. iFrame.
+      iExists (0%Z :: compress_buffer bin), _, vrest, (vsp1 :: vov).
+      iSplit; first done. iFrame.
       repeat iSplit; try iPureIntro.
       - done.
       - cbn. do 2 f_equal. lia.
-      - cbn. by exists (vsp1 :: vov).
+      - done.
+      - cbn. by rewrite Hlen.
       - unfold array. iApply (big_sepL_wand with "HℓinR").
         iApply big_sepL_intro. iIntros "!> % % % H". rewrite loc_add_assoc.
            replace (Z.of_nat (S (S k))) with (2 + k)%Z by lia. done.
@@ -245,13 +246,15 @@ Proof.
            replace (Z.of_nat (S (S k))) with (2 + k)%Z by lia. done. }
       iPureIntro. cbn in *. lia. }
     { cbn. iClear "IH". unfold isBuffer.
-      iIntros (v) "(%bout&%vout&%vrest&->&->&->&(%vov&->)&HℓouR&Hℓin1&HℓinR)".
+      iIntros (v) "(%bout&%vout&%vrest&%vov&->&->&->&->&%Hlen&HℓouR&Hℓin1&HℓinR)".
       wp_pures. iModIntro.
-      iExists (1%Z :: bfst :: compress_buffer (bsnd :: bin)), _, vrest. iSplit; first done.
-      repeat iSplit; try iPureIntro. 4: cbn; iFrame.
+      iExists (1%Z :: bfst :: compress_buffer (bsnd :: bin)), _, vrest, (vsp1 :: vsp2 :: vov).
+      iSplit; first done.
+      repeat iSplit; try iPureIntro. 5: cbn; iFrame.
       - do 4 (cbn in *; case_match; try (exfalso; by eapply Hnn); simplify_eq; try congruence).
       - cbn. do 2 f_equal. repeat case_match; cbn in *; lia.
-      - cbn. by exists (vsp1 :: vsp2 :: vov).
+      - done.
+      - cbn. rewrite Hlen. done.
       - rewrite !loc_add_0. iFrame "Hℓou0 Hℓin1". iSplitL "HℓouR".
         + unfold array. iApply (big_sepL_wand with "HℓouR").
           iApply big_sepL_intro. iIntros "!> % % % H". rewrite loc_add_assoc.
@@ -270,11 +273,12 @@ Lemma buffy_compress_spec E ℓin ℓout ℓlen vin bin vspace :
  -∗ ℓout ↦C∗ vspace
  -∗ ℓlen ↦C  #(length vspace)
  -∗ WP (call: &buffy_compress_name with (Val #ℓin, Val #(length bin), Val #ℓout, Val #ℓlen))%CE @ buffy_prog_env; E
-    {{ v', ∃ bout vout vrest,
+    {{ v', ∃ bout vout vrest voverwritten,
              ⌜isBuffer vout bout⌝
            ∗ ⌜bout = compress_buffer bin⌝
            ∗ ⌜v' = #0⌝
-           ∗ (∃ voverwritten, ⌜vspace = voverwritten ++ vrest⌝)
+           ∗ ⌜vspace = voverwritten ++ vrest⌝
+           ∗ ⌜length voverwritten = length vout⌝
            ∗ ℓout ↦C∗ (vout ++ vrest)
            ∗ ℓin  ↦C∗ vin 
            ∗ ℓlen ↦C  #(length vout)}})%I.
@@ -290,10 +294,10 @@ Proof.
   iApply (wp_wand with "[Hℓin Hℓout]").
   1: by iApply (buffy_compress_rec_spec with "[Hℓin]").
   cbn.
-  iIntros (v) "(%bout&%vout&%vrest&Hbuf&HH1&->&HH3&HℓouR&HℓinR)".
+  iIntros (v) "(%bout&%vout&%vrest&%vov&HH1&HH2&->&HH3&%Hlen&HℓouR&HℓinR)".
   wp_apply (wp_store with "Hℓlen"); iIntros "Hℓlen".
   wp_pures. iModIntro.
-  iExists bout, vout, vrest. by iFrame.
+  iExists bout, vout, vrest, vov. by iFrame.
 Qed.
 
 

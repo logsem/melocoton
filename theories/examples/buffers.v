@@ -46,6 +46,10 @@ Since we don't have records, only two-value pairs, our value looks as follows (a
 Additionally, we do not CAMLparam/CAMLlocal variables that
 * are integers
 * don't have to survive an allocation
+
+Finally, note that the Store_field(&Field(x,y,z)) is syntactic sugar -- no addresses are being taken.
+In general, our toy version of C does not have local variables, nor the notion of "taking an address".
+Instead, everything that needs to be mutable must be heap-allocated (and freed at the end).
 *)
 
 Definition buf_alloc_code (cap : expr) : expr :=
@@ -64,7 +68,7 @@ Definition buf_alloc_code (cap : expr) : expr :=
   Store_field ( &Field( *"bf2", #0), cap) ;;
   Store_field ( &Field( *"bf2", #1), *"bk") ;;
   free ("bfref", #1) ;;
-  CAMLreturn: * "bf" unregistering ["bk", "bf", "bf2", "bfref"].
+  CAMLreturn: * "bf" unregistering ["bk", "bf", "bf2"].
 Definition buf_alloc_fun := Fun [BNamed "cap"] (buf_alloc_code "cap") .
 Definition buf_alloc_name := "buf_alloc".
 
@@ -88,8 +92,8 @@ Definition buf_upd_fun := Fun [BNamed "iv"; BNamed "jv"; BNamed "f_arg"; BNamed 
                               (buf_upd_code "iv" "jv" "f_arg" "bf_arg").
 Definition buf_upd_name := "buf_upd".
 
-Definition wrap_max_len_code (i : expr) :=
-  (Val_int (call: &buffy_max_len_name with (Int_val (i))))%CE.
+Definition wrap_max_len_code (i : expr) : expr :=
+   Val_int (call: &buffy_max_len_name with (Int_val (i))).
 Definition wrap_max_len_fun := Fun [BNamed "i"] (wrap_max_len_code "i").
 Definition wrap_max_len_name := "wrap_max_len".
 
