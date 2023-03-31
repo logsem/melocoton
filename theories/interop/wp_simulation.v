@@ -165,12 +165,12 @@ Proof.
     iApply ("IH" with "Hnb HWP'").
 Qed.
 
-Lemma callback_proto_refines E emain Ψ :
+Lemma callback_correct E emain Ψ :
   Ψ on (dom (prims_prog emain)) ⊑ ⊥ →
-  callback_proto E Ψ ⊑ mprog_proto E (prims_prog emain) (wrap_proto Ψ).
+  wrap_proto Ψ |- prims_prog emain @ E :: callback_proto E Ψ.
 Proof using.
-  iIntros (Hnprim ? ? ?) "Hproto". unfold weakestpre.prog_proto. iNamed "Hproto".
-  iExists _. iSplit; first done. iIntros "!> Hb".
+  iIntros (Hnprim ? ? ?) "Hproto". iNamed "Hproto".
+  do 2 (iExists _; iSplit; first done). iIntros "!> Hb".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (st) "Hst".
   iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
@@ -206,12 +206,12 @@ Proof using.
   iApply ("Cont" with "[$] [$] [$]"); eauto.
 Qed.
 
-Lemma main_proto_refines E emain Ψ :
+Lemma main_correct E emain Ψ :
   Ψ on (dom (prims_prog emain)) ⊑ ⊥ →
-  main_proto E emain Ψ ⊑ mprog_proto E (prims_prog emain) (wrap_proto Ψ).
+  wrap_proto Ψ |- prims_prog emain @ E :: main_proto E emain Ψ.
 Proof using.
-  iIntros (Hnprim ? ? ?) "Hproto". unfold weakestpre.prog_proto. iNamed "Hproto".
-  iExists _. iSplit; first done. iIntros "!> Hb".
+  iIntros (Hnprim ? ? ?) "Hproto". iNamed "Hproto".
+  do 2 (iExists _; iSplit; first done). iIntros "!> Hb".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (st) "Hst".
   iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
@@ -247,17 +247,17 @@ Proof using.
   by iApply ("Cont" with "HGC HΦ' Hsim").
 Qed.
 
-Lemma wrap_refines E e Ψ :
+Lemma wrap_correct E e Ψ :
   Ψ on (dom (wrap_prog e)) ⊑ ⊥ →
-  prims_proto E e Ψ ⊑ mprog_proto E (wrap_prog e) (wrap_proto Ψ).
+  wrap_proto Ψ |- wrap_prog e @ E :: prims_proto E e Ψ.
 Proof using.
   intros Hnprim.
   iIntros (? ? ?) "H". iDestruct "H" as (p Hp) "H".
-  destruct p; try by iApply (base_prim_proto_refines with "H").
-  { by iApply (callback_proto_refines with "H"). }
+  destruct p; try by iApply (base_prim_correct with "H").
+  { by iApply (callback_correct with "H"). }
   { iAssert (⌜e = e0⌝)%I as %->.
     { iNamed "H". iClear "∗". vm_compute in Hp. by simplify_eq. }
-    by iApply (main_proto_refines with "H"). }
+    by iApply (main_correct with "H"). }
 Qed.
 
 End Simulation.

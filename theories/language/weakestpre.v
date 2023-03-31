@@ -83,14 +83,24 @@ Notation "'WPCall' F 'with' args @ s ; E {{ v , Q } }" := (wp_for_call F args%V 
   (at level 20, F, args, Q at level 200,
    format "'[hv' 'WPCall'  F  'with'  args  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
-Definition prog_proto `{!indexT, !langG val Λ Σ, !invG Σ}
+Definition progwp `{!indexT, !langG val Λ Σ, !invG Σ}
   E (p : lang_prog Λ) (Ψ : protocol val Σ) : protocol val Σ
 :=
   (λ fname vs Φ,
-    match p !! fname with
-    | Some fn => ∃ e, ⌜apply_func fn vs = Some e⌝ ∗ ▷ WP e @ ⟨p, Ψ⟩; E {{ Φ }}
-    | None => False
-    end)%I.
+    ∃ fn, ⌜p !! fname = Some fn⌝ ∗
+    ∃ e, ⌜apply_func fn vs = Some e⌝ ∗ ▷ WP e @ ⟨p, Ψ⟩; E {{ Φ }})%I.
+
+Notation "Ψext '||-' p @ E '::' Ψp" := (Ψp ⊑ progwp E p Ψext)
+  (at level 50, p, E, Ψp at level 51).
+
+Notation "Ψext '||-' p '::' Ψp" := (Ψext ||- p @ ⊤ :: Ψp)
+  (at level 50, p, Ψp at level 51).
+
+Notation "'||-' p @ E '::' Ψp" := (∀ Ψext, Ψext ||- p @ E :: Ψp)
+  (at level 50, p, E, Ψp at level 51).
+
+Notation "'||-' p '::' Ψp" := (||- p @ ⊤ :: Ψp)
+  (at level 50, p, Ψp at level 51).
 
 Section wp.
 Context `{SI:indexT, !langG val Λ Σ, !invG Σ}.

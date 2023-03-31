@@ -34,7 +34,7 @@ Definition is_even_proto : protocol val Σ := (λ fn vs Φ,
   ⌜fn = "is_even"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
   Φ (# (Z.even x)))%I.
 
-Lemma is_even_correct (x:Z) E :
+Lemma wp_is_even (x:Z) E :
   (0 ≤ x)%Z →
   ⊢ WP subst "x" (#x) (is_even_code "x") @ ⟨is_even_prog, is_odd_proto⟩; E
       {{ λ v, ⌜v = #(Z.even x)⌝ }}.
@@ -54,15 +54,15 @@ Proof.
   wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.odd_pred //.
 Qed.
 
-Lemma is_even_refines E : is_even_proto ⊑ prog_proto E is_even_prog is_odd_proto.
+Lemma is_even_correct E : is_odd_proto ||- is_even_prog @ E :: is_even_proto.
 Proof.
-  unfold prog_proto, is_even_proto.
+  unfold progwp, is_even_proto.
   iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
-  rewrite lookup_insert. iExists _. iSplit; first done. iNext.
-  iApply wp_wand; first by iApply is_even_correct. by iIntros (? ->).
+  rewrite lookup_insert. do 2 (iExists _; iSplit; first done). iNext.
+  iApply wp_wand; first by iApply wp_is_even. by iIntros (? ->).
 Qed.
 
-Lemma is_odd_correct (x:Z) E :
+Lemma wp_is_odd (x:Z) E :
   (0 ≤ x)%Z →
   ⊢ WP subst "x" (#x) (is_odd_code "x") @ ⟨is_odd_prog, is_even_proto⟩; E
       {{ λ v, ⌜v = #(Z.odd x)⌝ }}.
@@ -82,12 +82,12 @@ Proof.
   wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.even_pred //.
 Qed.
 
-Lemma is_odd_refines E : is_odd_proto ⊑ prog_proto E is_odd_prog is_even_proto.
+Lemma is_odd_correct E : is_even_proto ||- is_odd_prog @ E :: is_odd_proto.
 Proof.
-  unfold prog_proto, is_odd_proto.
+  unfold progwp, is_odd_proto.
   iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
-  rewrite lookup_insert. iExists _. iSplit; first done. iNext.
-  iApply wp_wand; first by iApply is_odd_correct. by iIntros (? ->).
+  rewrite lookup_insert. do 2 (iExists _; iSplit; first done). iNext.
+  iApply wp_wand; first by iApply wp_is_odd. by iIntros (? ->).
 Qed.
 
 End specs.
@@ -113,19 +113,18 @@ Instance can_link_even_odd :
 Proof.
   constructor; intros.
   - set_solver.
-  - rewrite proto_on_refines is_odd_refines lang_to_mlang_refines //.
-  - rewrite proto_on_refines is_even_refines lang_to_mlang_refines //.
+  - apply lang_to_mlang_correct. rewrite proto_on_refines. apply is_odd_correct.
+  - apply lang_to_mlang_correct. rewrite proto_on_refines. apply is_even_correct.
   - iIntros (? ? ?) "[% [-> _]]". exfalso. naive_solver.
   - iIntros (? ? ?) "[% [-> _]]". exfalso. naive_solver.
 Qed.
 
 (* The full program implements both is_even and is_odd, without making external calls *)
-Lemma fullprog_refines_even_odd E :
-  is_even_proto ⊔ is_odd_proto ⊑ mprog_proto E fullprog ⊥.
+Lemma fullprog_correct E : ⊥ |- fullprog @ E :: is_even_proto ⊔ is_odd_proto.
 Proof.
-  rewrite -link_refines. apply proto_join_mono.
-  - rewrite is_even_refines lang_to_mlang_refines //.
-  - rewrite is_odd_refines lang_to_mlang_refines //.
+  intros. eapply link_correct; first typeclasses eauto; apply lang_to_mlang_correct.
+  - apply is_even_correct.
+  - apply is_odd_correct.
 Qed.
 
 (* From this we can derive that calling is_even/is_odd in fullprog satisfies
@@ -138,7 +137,7 @@ Lemma is_even_linked_spec (x:Z) E :
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
   iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]"); try done.
-  { iApply fullprog_refines_even_odd. iLeft. iSplit; first done.
+  { iApply fullprog_correct. iLeft. iSplit; first done.
     instantiate (1 := (λ y, ⌜y = #(Z.even x)⌝)%I). eauto. }
   iNext. iIntros (? ->) "?". cbn. iApply (wp_value ⟪fullprog, ⊥⟫); eauto.
   by iApply "HΦ".
@@ -152,7 +151,7 @@ Lemma is_odd_linked_spec (x:Z) E :
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
   iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]"); try done.
-  { iApply fullprog_refines_even_odd. iRight. iSplit; first done.
+  { iApply fullprog_correct. iRight. iSplit; first done.
     instantiate (1 := (λ y, ⌜y = #(Z.odd x)⌝)%I). eauto. }
   iNext. iIntros (? ->) "?". cbn. iApply (wp_value ⟪fullprog, ⊥⟫); eauto.
   by iApply "HΦ".

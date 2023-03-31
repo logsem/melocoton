@@ -59,10 +59,10 @@ Proof using.
   iMod "HWP" as "(Hσ & HWP)". by iFrame.
 Qed.
 
-Lemma int2val_proto_refines E e Ψ : int2val_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma int2val_correct E e : |- prims_prog e @ E :: int2val_proto.
 Proof using.
-  iIntros (? ? ?) "H". rewrite /mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -77,10 +77,10 @@ Proof using.
   do 9 iExists _; rewrite /named; iFrame. eauto.
 Qed.
 
-Lemma val2int_proto_refines E e Ψ : val2int_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma val2int_correct E e : |- prims_prog e @ E :: val2int_proto.
 Proof using.
-  iIntros (? ? ?) "H". rewrite /mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -96,10 +96,10 @@ Proof using.
   do 9 iExists _; rewrite /named; iFrame. eauto.
 Qed.
 
-Lemma registerroot_proto_refines E e Ψ : registerroot_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma registerroot_correct E e : |- prims_prog e @ E :: registerroot_proto.
 Proof using.
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -131,10 +131,10 @@ Proof using.
     inv_repr_lval. by eapply elem_of_dom_2.
 Qed.
 
-Lemma unregisterroot_proto_refines E e Ψ : unregisterroot_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma unregisterroot_correct E e : |- prims_prog e @ E :: unregisterroot_proto.
 Proof using.
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -159,10 +159,10 @@ Proof using.
   - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
 Qed.
 
-Lemma modify_proto_refines E e Ψ : modify_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma modify_correct E e : |- prims_prog e @ E :: modify_proto.
 Proof using.
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -229,10 +229,10 @@ Proof using.
      iSplit. 1: inv_modify_block; simplify_map_eq. 1: iFrame. eauto. }
 Qed.
 
-Lemma readfield_proto_refines E e Ψ : readfield_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma readfield_correct E e : |- prims_prog e @ E :: readfield_proto.
 Proof using.
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -268,10 +268,10 @@ Proof using.
 Qed.
 
 
-Lemma alloc_proto_refines E e Ψ : alloc_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma alloc_correct E e : |- prims_prog e @ E :: alloc_proto.
 Proof using.
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -370,10 +370,10 @@ Proof using.
 Qed.
 
 (* TODO: refactor to share proof with wp_prim_alloc *)
-Lemma alloc_foreign_proto_refines E e Ψ : alloc_foreign_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma alloc_foreign_correct E e : |- prims_prog e @ E :: alloc_foreign_proto.
 Proof using.
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -476,10 +476,10 @@ Proof using.
   - eapply GC_correct_transport; done.
 Qed.
 
-Lemma read_foreign_proto_refines E e Ψ : read_foreign_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma read_foreign_correct E e : |- prims_prog e @ E :: read_foreign_proto.
 Proof using.
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -503,11 +503,11 @@ Proof using.
   iFrame. iPureIntro; split_and!; eauto. done.
 Qed.
 
-Lemma write_foreign_proto_refines E e Ψ : write_foreign_proto ⊑ mprog_proto E (prims_prog e) Ψ.
+Lemma write_foreign_correct E e : |- prims_prog e @ E :: write_foreign_proto.
 Proof using.
   (* TODO: refactor to share lemmas with prim_modify *)
-  iIntros (? ? ?) "H". unfold mprog_proto. iNamed "H".
-  iExists _. iSplit; first done. iNext.
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  do 2 (iExists _; iSplit; first done). iNext.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "Hb %σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
@@ -563,23 +563,23 @@ Proof using.
   { done. }
 Qed.
 
-Lemma base_prim_proto_refines (p : prim) E e Ψ Ψ' :
+Lemma base_prim_correct (p : prim) E e Ψ :
   p ≠ Pcallback →
   (∀ e, p ≠ Pmain e) →
-  prim_proto p E Ψ ⊑ mprog_proto E (prims_prog e) Ψ'.
+  |- prims_prog e @ E :: prim_proto p E Ψ.
 Proof using.
   intros Hncb Hnmain.
   (destruct p; try by congruence); unfold prim_proto.
-  - apply alloc_proto_refines.
-  - apply registerroot_proto_refines.
-  - apply unregisterroot_proto_refines.
-  - apply modify_proto_refines.
-  - apply readfield_proto_refines.
-  - apply val2int_proto_refines.
-  - apply int2val_proto_refines.
-  - apply alloc_foreign_proto_refines.
-  - apply write_foreign_proto_refines.
-  - apply read_foreign_proto_refines.
+  - apply alloc_correct.
+  - apply registerroot_correct.
+  - apply unregisterroot_correct.
+  - apply modify_correct.
+  - apply readfield_correct.
+  - apply val2int_correct.
+  - apply int2val_correct.
+  - apply alloc_foreign_correct.
+  - apply write_foreign_correct.
+  - apply read_foreign_correct.
 Qed.
 
 End Laws.

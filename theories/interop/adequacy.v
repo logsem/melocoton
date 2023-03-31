@@ -233,40 +233,32 @@ Section Simplified.
   Context (eML : language.expr ML_lang).
   Context (eC  : language.expr C_lang).
   Context (peC : lang_prog C_lang).
-  Context (ΞML : ML_proto).
+  Context (ΨML : ML_proto).
   Context (Φ   : word → Prop).
 
   (* XXX make masks less weird so that the ∅ here can be a ⊤ *)
-  Context (Hspec : ∀ `{!ffiG Σ}, (wrap_proto ΞML ⊑ prog_proto ∅ peC (prims_proto ∅ eML ΞML))%I).
+  Context (Hspec : ∀ `{!ffiG Σ}, (prims_proto ∅ eML ΨML ||- peC @ ∅ :: wrap_proto ΨML)).
   (* One of them seems like it would be unnecessary, but I could not figure out which *)
-  Context (HNoInternal : ∀ `{!ffiG Σ}, ΞML on (dom (prims_prog eML)) ⊑ ⊥).
+  Context (HNoInternal : ∀ `{!ffiG Σ}, ΨML on (dom (prims_prog eML)) ⊑ ⊥).
   Context (HpeC : ∀ s, is_prim_name s → peC !! s = None).
 
-  Local Definition C_env `{!ffiG Σ} : language.progenv.prog_environ C_lang Σ := {|
-    language.progenv.penv_prog := peC ;
-    language.progenv.penv_proto := (prims_proto ⊤ eML ΞML)
-  |}.
-
-  Local Definition ML_env `{!ffiG Σ} : language.progenv.prog_environ ML_lang Σ := {|
-    language.progenv.penv_prog := ∅ ;
-    language.progenv.penv_proto := ΞML
-  |}.
-
-  Local Instance LinkInstance `{!ffiG Σ} : can_link 
+  Local Instance LinkInstance `{!ffiG Σ} : can_link
     wrap_lang C_mlang
-    (wrap_prog eML) (wrap_proto ΞML) 
-    peC (prims_proto ∅ eML ΞML)
+    (wrap_prog eML) (wrap_proto ΨML)
+    peC (prims_proto ∅ eML ΨML)
   ⊥.
   Proof using All. econstructor.
     - eapply elem_of_disjoint. intros s H1%in_dom_prims_prog [x Hx]%elem_of_dom.
       epose proof (HpeC _ H1) as HH. by rewrite HH in Hx.
-    - intros E. rewrite proto_on_refines Hspec lang_to_mlang_refines mprog_proto_mono //. solve_ndisj.
-    - intros E. rewrite proto_on_refines wrap_refines. 1: apply mprog_proto_mono; by try solve_ndisj.
-      by eapply HNoInternal.
+    - intros E. rewrite proto_on_refines. eapply prog_triple_mono_mask.
+      2: by eapply lang_to_mlang_correct. solve_ndisj.
+    - intros E. rewrite proto_on_refines.
+      eapply (prog_triple_mono_mask ∅ _); first solve_ndisj.
+      eapply wrap_correct. by eapply HNoInternal.
     - iIntros (? ? ?) "H". rewrite /proto_except.
-      iDestruct "H" as (H%not_elem_of_dom) "H".
-      iPoseProof (Hspec _ with "H") as "HH".
-      unfold prog_proto. rewrite H. done.
+      iDestruct "H" as (HH1%not_elem_of_dom) "H".
+      iPoseProof (Hspec _ with "H") as (? HH2 ? ?) "HH"; simplify_eq.
+      apply elem_of_dom_2 in HH2. apply not_elem_of_dom_2 in HH1. done.
     - eapply prims_proto_except_dom.
   Qed.
 
@@ -277,7 +269,7 @@ Section Simplified.
   Context `{!ffiGpre Σ}.
 
   Lemma linking_adequacy X :
-      (∀ `{!ffiG Σ}, at_init -∗ WP eC @ ⟨ peC , (prims_proto ∅ eML ΞML) ⟩ ; ⊤ {{v, ⌜Φ v⌝}} ) →
+      (∀ `{!ffiG Σ}, at_init -∗ WP eC @ ⟨ peC , (prims_proto ∅ eML ΨML) ⟩ ; ⊤ {{v, ⌜Φ v⌝}} ) →
       (umrel.star_AD step (LkSE (Link.Expr2 eC), σ) X) →
       (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φ v)).
   Proof using All.

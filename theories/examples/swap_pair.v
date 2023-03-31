@@ -45,18 +45,17 @@ Definition swap_pair_ml_spec : protocol ML_lang.val Σ := (
 )%I.
 
 Lemma swap_pair_correct E e :
-  wrap_proto swap_pair_ml_spec ⊑
-  prog_proto E swap_pair_prog (prims_proto ∅ e swap_pair_ml_spec).
+  prims_proto E e swap_pair_ml_spec ||- swap_pair_prog @ E :: wrap_proto swap_pair_ml_spec.
 Proof.
   iIntros (fn ws Φ) "H". iNamed "H".
   iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
-  rewrite /prog_proto lookup_insert.
+  rewrite /progwp lookup_insert.
   iAssert (⌜length lvs = 1⌝)%I with "[Hsim]" as %Hlen.
   { by iDestruct (big_sepL2_length with "Hsim") as %?. }
   destruct lvs as [|lv []]; try by (exfalso; eauto with lia); []. clear Hlen.
   destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
   apply Forall2_cons_1 in Hrepr as [Hrepr _].
-  iExists _. iSplit; first done. iNext.
+  do 2 (iExists _; iSplit; first done). iNext.
   iPoseProof (big_sepL2_cons_inv_l with "Hsim") as (l lr ?) "[Hsim _]".
   simplify_eq.
 

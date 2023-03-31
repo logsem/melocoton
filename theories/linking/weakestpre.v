@@ -52,8 +52,8 @@ Class can_link
   (Ψ : protocol val Σ)
 := CanLink {
   can_link_prog_disj : dom p1 ## dom p2;
-  can_link_internal1 E : Ψ1 on (dom p2) ⊑ mprog_proto E p2 Ψ2;
-  can_link_internal2 E : Ψ2 on (dom p1) ⊑ mprog_proto E p1 Ψ1;
+  can_link_internal1 E : Ψ2 |- p2 @ E :: Ψ1 on (dom p2);
+  can_link_internal2 E : Ψ1 |- p1 @ E :: Ψ2 on (dom p1);
   can_link_external1 : Ψ1 except (dom p2) ⊑ Ψ;
   can_link_external2 : Ψ2 except (dom p1) ⊑ Ψ;
 }.
@@ -203,7 +203,7 @@ Proof using.
   iRight; iRight.
   iPoseProof (can_link_internal2 _ _ _ with "[HTΞ]") as "H".
   { rewrite /proto_on. iFrame. iPureIntro. by eapply elem_of_dom_2. }
-  rewrite /mprog_proto Hfn. iDestruct "H" as (? Happlyfunc) "Hwpcall".
+  rewrite /mprogwp Hfn. iDestruct "H" as (? ? ? Happlyfunc) "Hwpcall". simplify_eq.
   iDestruct "Hσ" as "(Hob & Hpubσ & Hprivσ1 & Hprivσ2)".
   iMod (state_interp_join with "Hpubσ Hprivσ1") as (σ1) "(Hσ1 & %Hsplit)". iModIntro.
   iSplit; first done.
@@ -235,7 +235,7 @@ Proof using.
   iRight; iRight.
   iPoseProof (can_link_internal1 _ _ _ with "[HTΞ]") as "H".
   { rewrite /proto_on. iFrame. iPureIntro. by eapply elem_of_dom_2. }
-  rewrite /mprog_proto Hfn. iDestruct "H" as (? Happlyfunc) "Hwpcall".
+  rewrite /mprogwp Hfn. iDestruct "H" as (? ? ? Happlyfunc) "Hwpcall". simplify_eq.
   iDestruct "Hσ" as "(Hob & Hpubσ & Hprivσ1 & Hprivσ2)".
   iMod (state_interp_join with "Hpubσ Hprivσ2") as (σ2) "(Hσ2 & %Hsplit)". iModIntro.
   iSplit; first done.
@@ -626,32 +626,37 @@ Proof using.
   iIntros "!>!>!>". iFrame. iApply ("Hwp" with "[-Hb2] Hb2"). iFrame.
 Qed.
 
-Lemma link_refines E p1 Ψ1 p2 Ψ2 Ψ :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
-  mprog_proto E p1 Ψ1 ⊔ mprog_proto E p2 Ψ2 ⊑ mprog_proto E (link_prog p1 p2) Ψ.
+Lemma link_correct E p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 Ψext :
+  can_link p1 Ψext1 p2 Ψext2 Ψext →
+  Ψext1 |- p1 @ E :: Ψ1 →
+  Ψext2 |- p2 @ E :: Ψ2 →
+   Ψext |- (link_prog p1 p2) @ E :: Ψ1 ⊔ Ψ2.
 Proof using.
-  iIntros (Hcanlink ? ? ?) "H".
-  rewrite /join /proto_join_join /proto_join /mprog_proto.
+  iIntros (Hcanlink Hp1 Hp2 ? ? ?) "H".
+  rewrite /join /proto_join_join /proto_join /mprogwp.
   destruct (p1 !! s) as [fn|] eqn:HH1.
   { destruct (p2 !! s) eqn:HH2; first exfalso.
     { destruct Hcanlink. apply elem_of_dom_2 in HH1, HH2. set_solver. }
     assert (link_prog p1 p2 !! s = Some (inl fn)) as HH3.
     { rewrite /link_prog lookup_union_l lookup_fmap //.
       1: rewrite HH1 //. rewrite HH2 //. (*TODO: lemma*) }
-    iApply (bi.or_elim with "H"); iIntros "H"; last done.
-    iDestruct "H" as (? ?) "H". rewrite HH3.
-    iExists _. iSplit; first done. iNext. iIntros "Hb".
+    do 2 (iExists _; iSplit; first done).
+    iDestruct "H" as "[H|H]".
+    2: { iPoseProof (Hp2 s vs Φ with "H") as (? ? ? ?) "?". simplify_eq. }
+    iPoseProof (Hp1 s vs Φ with "H") as (? ? ? ?) "H". simplify_eq.
+    iNext. iIntros "Hb".
     iApply (wp_link_run_function1 with "Hb"); first done.
     iNext. iIntros "Hin Hb".
     iApply (wp_link_run1 with "Hin"). iApply ("H" with "Hb"). }
-  { destruct (p2 !! s) as [fn|] eqn:HH2.
-    2: { iExFalso. iApply (bi.or_elim with "H"); by iIntros. }
+  { iDestruct "H" as "[H|H]";
+      [ iPoseProof (Hp1 s vs Φ with "H") as (? ? ? ?) "H"
+      | iPoseProof (Hp2 s vs Φ with "H") as (? HH2 ? ?) "H" ];
+      simplify_eq; [].
     assert (link_prog p1 p2 !! s = Some (inr fn)) as HH3.
     { rewrite /link_prog lookup_union_r lookup_fmap //.
       1: rewrite HH2 //. rewrite HH1 //. (*TODO: lemma*) }
-    iApply (bi.or_elim with "H"); iIntros "H"; first done.
-    iDestruct "H" as (? ?) "H". rewrite HH3.
-    iExists _. iSplit; first done. iNext. iIntros "Hb".
+    do 2 (iExists _; iSplit; first done).
+    iNext. iIntros "Hb".
     iApply (wp_link_run_function2 with "Hb"); first done.
     iNext. iIntros "Hin Hb".
     iApply (wp_link_run2 with "Hin"). iApply ("H" with "Hb"). }
