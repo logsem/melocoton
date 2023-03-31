@@ -87,7 +87,7 @@ Notation "e1 ≠ e2" := (UnOp NegOp (BinOp EqOp e1%MLE e2%MLE)) : ml_expr_scope.
 
 Notation "~ e" := (UnOp NegOp e%MLE) (at level 75, right associativity) : ml_expr_scope.
 (* The unicode ← is already part of the notation "_ ← _; _" for bind. *)
-Notation "e1 <- e2" := (Store e1%MLE e2%MLE) (at level 80) : ml_expr_scope.
+Notation "e1 <- e2" := (Store e1%MLE e2%MLE) (at level 80, e2 at level 78) : ml_expr_scope.
 
 (* The breaking point '/  ' makes sure that the body of the rec is indented
 by two spaces in case the whole rec does not fit on a single line. *)

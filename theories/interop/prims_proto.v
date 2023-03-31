@@ -118,9 +118,9 @@ Definition alloc_foreign_proto : C_proto := (λ fn vl Φ,
     "HGC" ∷ GC θ ∗
     "->" ∷ ⌜vl = [ ]⌝ ∗
     "Cont" ∷ ▷ (∀ θ' γ w, GC θ' -∗
-                           γ ↦foreignO None -∗
-                           ⌜repr_lval θ' (Lloc γ) w⌝ -∗
-                           Φ w))%I.
+                          γ ↦foreignO None -∗
+                          ⌜repr_lval θ' (Lloc γ) w⌝ -∗
+                          Φ w))%I.
 
 Definition write_foreign_proto : C_proto := (λ fn vl Φ,
   ∃ θ γ w wo w',

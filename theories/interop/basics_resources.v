@@ -624,6 +624,8 @@ Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
 Notation "γ ~ℓ~/" := (lloc_own_priv γ)
   (at level 20, format "γ  ~ℓ~/").
+Notation "γ ~foreign~ id" := (lloc_own_foreign γ id)
+  (at level 20, format "γ  ~foreign~  id").
 
 Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
 Notation "lvs  ~~∗  vs" := (block_sim_arr vs lvs) (at level 20).

@@ -41,7 +41,8 @@ Notation "e1 < e2" := (BinOp LtOp e1%CE e2%CE) : c_expr_scope.
 Notation "e1 = e2" := (BinOp EqOp e1%CE e2%CE) : c_expr_scope.
 Notation "e1 ≠ e2" := (UnOp NegOp (BinOp EqOp e1%CE e2%CE)) : c_expr_scope.
 (* The unicode ← is already part of the notation "_ ← _; _" for bind. *)
-Notation "e1 <- e2" := (Store e1%CE e2%CE) (at level 80) : c_expr_scope.
+Notation "e1 <- e2" := (Store e1%CE e2%CE) (at level 80, e2 at level 78) : c_expr_scope.
+
 
 Notation "'if:' e1 'then' e2 'else' e3" := (If e1%CE e2%CE e3%CE)
   (at level 200, e1, e2, e3 at level 200) : c_expr_scope.
@@ -50,10 +51,10 @@ Notation "'while:' e1 'do' e2" := (While e1%CE e2%CE)
   (at level 200, e1, e2 at level 200) : c_expr_scope.
 
 Notation "'call:' ff 'with' '(' e1 , .. , en ')'" := (FunCall ff%CE (@cons expr e1%CE .. (@cons expr en%CE nil) ..))
-  (at level 200, ff, e1, en at level 99) : c_expr_scope.
+  (at level 70) : c_expr_scope.
 
 Notation "'call:' ff 'with' '(' ')'" := (FunCall ff%CE nil)
-  (at level 200, ff at level 99) : c_expr_scope.
+  (at level 70) : c_expr_scope.
 
 Notation "'let:' x := e1 'in' e2" := (Let x%binder e1%CE e2%CE)
   (at level 200, x at level 1, e1, e2 at level 200,

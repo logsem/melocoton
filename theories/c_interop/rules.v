@@ -155,7 +155,7 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_alloc E p Ψ θ tg tgnum sz :
+Lemma wp_alloc tg E p Ψ θ tgnum sz :
   p !! "alloc" = None →
   alloc_proto ⊑ Ψ →
   (0 ≤ sz)%Z →
@@ -296,6 +296,21 @@ Proof.
   wp_apply (wp_registerroot with "[$]"); [try done..|].
   iIntros "(HGC&Hroot)". wp_pures.
   iApply "Cont". iFrame.
+Qed.
+
+Lemma wp_CAMLunregister1 (l:loc) lv E p θ Ψ :
+  p !! "unregisterroot" = None →
+  unregisterroot_proto ⊑ Ψ →
+  {{{ GC θ ∗ l ↦roots lv}}}
+    (CAMLunregister1 (#l))%CE @ ⟨p, Ψ⟩; E
+  {{{ RET (#0); GC θ }}}.
+Proof.
+  iIntros (???) "Hin Cont".
+  unfold CAMLunregister1.
+  wp_apply (wp_unregisterroot with "Hin"); [done..|].
+  iIntros (w) "(HGC&Hw&_)".
+  wp_pures. wp_apply (wp_free with "Hw").
+  iIntros "_". iApply "Cont". iApply "HGC".
 Qed.
 
 End Laws.

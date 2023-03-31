@@ -96,6 +96,7 @@ Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 
+(* XXX seal this *)
 Definition isBuffer (vl : list (option val)) (b : buffer) := vl = map (λ x:Z, Some (#x)) b.
 
 Definition buffy_max_len_name : string := "buffy_max_compressed_length".
@@ -316,6 +317,9 @@ Proof.
   wp_pures. rewrite bool_decide_decide. destruct decide; cbn in *; try lia.
   wp_pures. iModIntro. iFrame. done.
 Qed.
+
+(* XXX use sealing *)
+Opaque isBuffer.
 
 End CBuffers.
 

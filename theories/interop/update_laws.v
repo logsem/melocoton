@@ -203,4 +203,38 @@ Proof using.
   iFrame. eauto.
 Qed.
 
+Lemma lloc_own_pub_inj θ γ1 γ2 ℓ1 ℓ2 :
+    γ1 ~ℓ~ ℓ1
+ -∗ γ2 ~ℓ~ ℓ2
+ -∗ GC θ
+ -∗ GC θ ∗ ⌜γ1 = γ2 ↔ ℓ1 = ℓ2⌝.
+Proof.
+  iIntros "#Hsim1 #Hsim2 HGC". iNamed "HGC".
+  iPoseProof (lloc_own_pub_of with "[$] Hsim1") as "%HH1".
+  iPoseProof (lloc_own_pub_of with "[$] Hsim2") as "%HH2".
+  iSplit.
+  1: (repeat iExists _; iFrame; done).
+  iPureIntro; split; intros ->.
+  - by simplify_eq.
+  - destruct Hχvirt as [_ [H _]]. by eapply H.
+Qed.
+
+Lemma lloc_own_foreign_inj θ γ1 γ2 fid1 fid2 :
+    γ1 ~foreign~ fid1
+ -∗ γ2 ~foreign~ fid2
+ -∗ GC θ
+ -∗ GC θ ∗ ⌜γ1 = γ2 ↔ fid1 = fid2⌝.
+Proof.
+  iIntros "#Hsim1 #Hsim2 HGC". iNamed "HGC".
+  iPoseProof (lloc_own_foreign_of with "[$] Hsim1") as "%HH1".
+  iPoseProof (lloc_own_foreign_of with "[$] Hsim2") as "%HH2".
+  iSplit.
+  1: (repeat iExists _; iFrame; done).
+  iPureIntro; split; intros ->.
+  - by simplify_eq.
+  - destruct Hχvirt as [_ [H _]]. by eapply H.
+Qed.
+
+
+
 End UpdateLaws.

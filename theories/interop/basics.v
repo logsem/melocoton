@@ -997,6 +997,11 @@ Proof.
   + subst. f_equal. by eapply H.
 Qed.
 
+Lemma repr_lval_lint θ1 θ2 z w : repr_lval θ1 (Lint z) w → repr_lval θ2 (Lint z) w.
+Proof.
+  inversion 1; simplify_eq; by econstructor.
+Qed.
+
 Lemma repr_lval_mono θ θ' v w: θ ⊆ θ' -> repr_lval θ v w -> repr_lval θ' v w.
 Proof.
   intros H; induction 1; econstructor.

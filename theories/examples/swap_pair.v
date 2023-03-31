@@ -10,7 +10,7 @@ From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
 From melocoton.ml_lang Require proofmode.
 From melocoton.c_lang Require notation proofmode.
-From melocoton.mlanguage Require Import progenv.
+From melocoton.mlanguage Require Import progenv.       
 From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.interop Require Import adequacy.
@@ -86,7 +86,7 @@ Proof.
   iIntros "(HGC & H2r)". wp_pures.
 
   (* alloc *)
-  wp_apply (wp_alloc _ _ _ _ TagDefault with "HGC"); [done..|].
+  wp_apply (wp_alloc TagDefault with "HGC"); [done..|].
   iIntros (θ' γnew wnew) "(HGC & Hnew & %Hreprnew)".
   wp_pures. change (Z.to_nat 2) with 2. cbn [repeat].
 
