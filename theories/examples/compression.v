@@ -123,16 +123,21 @@ Definition buffy_env : gmap string function :=
                                    (buffy_compress_code "inbuf" "inlen" "outbuf" "outlenp")]>
   ∅)).
 
+Context (p : lang_prog C_lang).
+Context (Hp : buffy_env ⊆ p).
+
 Definition buffy_prog_env : prog_environ C_lang Σ := {|
-  penv_prog := buffy_env ;
+  penv_prog := p ;
   penv_proto := λ _ _ _, False
 |}%I.
 
 Lemma buffy_max_len_spec E n (v:val) :
   v = #(Z.of_nat n) →
  (⊢ WP (call: &buffy_max_len_name with (Val v))%CE @ buffy_prog_env; E {{λ v', ⌜v' = #(Z.of_nat (buffer_max_len n))⌝}})%I.
-Proof.
-  iIntros (->). wp_pures. iModIntro. iPureIntro. do 2 f_equal. cbn. lia.
+Proof using Hp.
+  iIntros (->). wp_pures. wp_pure _.
+  1: split; first (eapply lookup_weaken, Hp); done.
+  wp_pures. iModIntro. iPureIntro. do 2 f_equal. cbn. lia.
 Qed.
 
 Lemma ptr_offset_add (ℓ:loc) (z:Z) : bin_op_eval PtrOffsetOp #ℓ #z = Some (LitLoc (loc_add ℓ z)).
@@ -154,9 +159,11 @@ Lemma buffy_compress_rec_spec E ℓin ℓout vin bin vspace :
            ∗ ⌜length voverwritten = length vout⌝
            ∗ ℓout ↦C∗ (vout ++ vrest)
            ∗ ℓin  ↦C∗ vin }})%I.
-Proof.
+Proof using Hp.
   iIntros (HBuffer Hlength) "Hℓin Hℓout".
   iLöb as "IH" forall (ℓin ℓout vin bin vspace HBuffer Hlength).
+  wp_pures. wp_pure _.
+  1: split; first (eapply lookup_weaken, Hp); done.
   wp_pures.
   destruct bin as [|bfst bin].
   { cbn. rewrite bool_decide_decide. destruct decide; last lia.
@@ -283,8 +290,10 @@ Lemma buffy_compress_spec E ℓin ℓout ℓlen vin bin vspace :
            ∗ ℓout ↦C∗ (vout ++ vrest)
            ∗ ℓin  ↦C∗ vin 
            ∗ ℓlen ↦C  #(length vout)}})%I.
-Proof.
+Proof using Hp.
   iIntros (HBuffer Hlength) "Hℓin Hℓout Hℓlen".
+  wp_pures. wp_pure _.
+  1: split; first (eapply lookup_weaken, Hp); done.
   wp_pures.
   wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
   wp_bind (FunCall _ _).
@@ -307,8 +316,10 @@ Lemma buffy_compress_spec_too_small E ℓlen (z:Z) (nlen:nat) vv1 vv2 :
 (⊢  ℓlen ↦C #z
  -∗ WP (call: &buffy_compress_name with (Val vv1, Val #(nlen), Val vv2, Val #ℓlen))%CE @ buffy_prog_env; E
     {{ v', ℓlen ↦C #z ∗ ⌜v' = #1⌝}})%I.
-Proof.
+Proof using Hp.
   iIntros (Hlen) "Hℓlen".
+  wp_pures. wp_pure _.
+  1: split; first (eapply lookup_weaken, Hp); done.
   wp_pures.
   wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
   wp_bind (FunCall _ _).

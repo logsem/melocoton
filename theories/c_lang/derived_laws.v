@@ -67,7 +67,6 @@ Lemma wp_store_offset s E l off vs (v:val) :
 Proof.
   iIntros (Hlength Φ) ">Hl HΦ".
   destruct (lookup_lt_is_Some_2 _ _ Hlength) as [vv Hlookup].
-  Search lookup length.
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
   iApply (wp_store with "Hl1"). iModIntro. iIntros "Hl1".
   iApply "HΦ". iApply "Hl2". iApply "Hl1".
