@@ -62,10 +62,12 @@ Proof.
 Qed.
 
 Lemma wp_store_offset s E l off vs (v:val) :
-  is_Some (vs !! off) →
+  off < length vs →
   {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ <[off:=Some v]> vs }}}%CE.
 Proof.
-  iIntros ([w Hlookup] Φ) ">Hl HΦ".
+  iIntros (Hlength Φ) ">Hl HΦ".
+  destruct (lookup_lt_is_Some_2 _ _ Hlength) as [vv Hlookup].
+  Search lookup length.
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
   iApply (wp_store with "Hl1"). iModIntro. iIntros "Hl1".
   iApply "HΦ". iApply "Hl2". iApply "Hl1".
@@ -75,7 +77,7 @@ Lemma wp_store_offset_vec s E l sz (off : fin sz) (vs : vec (option val) sz) (v:
   {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ vinsert off (Some v) vs }}}%CE.
 Proof.
   setoid_rewrite vec_to_list_insert. apply wp_store_offset.
-  eexists. by apply vlookup_lookup.
+  rewrite vec_to_list_length. apply fin_to_nat_lt.
 Qed.
 
 

@@ -489,7 +489,7 @@ Inductive head_step (p : program) : expr → c_state → expr → c_state → Pr
      asTruth v0 = false →
      head_step p (If (Val v0) e1 e2) σ e2 σ
   | WhileS e1 e2 σ :
-     head_step p (While e1 e2) σ (If e1 (Let BAnon e1 (While e1 e2)) (Val $ LitV $ LitInt 0)) σ
+     head_step p (While e1 e2) σ (If e1 (Let BAnon e2 (While e1 e2)) (Val $ LitV $ LitInt 0)) σ
   | FunCallS s va args res e σ :
      (p : gmap string function) !! s = Some (Fun args e) →
      apply_function (Fun args e) va = Some res →

@@ -43,7 +43,7 @@ Section pure_exec.
   Proof. apply pure_if_zero. Qed.
 
   Global Instance pure_while e1 e2 : 
-    PureExec True 1 p (While e1 e2) (If e1 (Let BAnon e1 (While e1 e2)) (Val $ LitV $ LitInt 0)).
+    PureExec True 1 p (While e1 e2) (If e1 (Let BAnon e2 (While e1 e2)) (Val $ LitV $ LitInt 0)).
   Proof. solve_pure_exec. Qed.
 
   Global Instance pure_let x (v1:val) e2 : 

@@ -50,14 +50,13 @@ Proof.
   iIntros (fn ws Φ) "H". iNamed "H".
   iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
   rewrite /progwp lookup_insert.
-  iAssert (⌜length lvs = 1⌝)%I with "[Hsim]" as %Hlen.
+  iAssert (⌜length lvs = 1⌝)%I as %Hlen.
   { by iDestruct (big_sepL2_length with "Hsim") as %?. }
   destruct lvs as [|lv []]; try by (exfalso; eauto with lia); []. clear Hlen.
   destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
   apply Forall2_cons_1 in Hrepr as [Hrepr _].
-  do 2 (iExists _; iSplit; first done). iNext.
-  iPoseProof (big_sepL2_cons_inv_l with "Hsim") as (l lr ?) "[Hsim _]".
-  simplify_eq.
+  do 2 (iExists _; iSplit; first done). iNext. cbn.
+  iDestruct "Hsim" as "[Hsim _]".
 
   wp_pures.
   wp_alloc rr as "H"; first done.

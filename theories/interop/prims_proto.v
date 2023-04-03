@@ -17,12 +17,11 @@ Context `{!wrapperGCtokG Σ}.
 Notation C_proto := (protocol C_intf.val Σ).
 Notation ML_proto := (protocol ML_lang.val Σ).
 
-(* TODO: move *)
 Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
   ∃ θ vs lvs Φ',
     "HGC" ∷ GC θ ∗
     "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
-    "Hsim" ∷ lvs ~~∗ vs ∗
+    "#Hsim" ∷ lvs ~~∗ vs ∗
     "Hproto" ∷ Ψ f vs Φ' ∗
     "Cont" ∷ ▷ (∀ θ' vret lvret wret,
       GC θ' -∗
@@ -35,7 +34,7 @@ Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
 Lemma wrap_proto_mono Ψ Ψ' : Ψ ⊑ Ψ' → wrap_proto Ψ ⊑ wrap_proto Ψ'.
 Proof using.
   iIntros (Hre ? ? ?) "H". unfold wrap_proto. iNamed "H".
-  rewrite /named. iExists _, _, _, _. iFrame. iSplit; first done.
+  rewrite /named. iExists _, _, _, _. iFrame. iFrame "Hsim". iSplit; first done.
   by iApply Hre.
 Qed.
 
@@ -134,14 +133,14 @@ Definition write_foreign_proto : C_proto := (λ fn vl Φ,
                  Φ (C_intf.LitV (C_intf.LitInt 0))))%I.
 
 Definition read_foreign_proto : C_proto := (λ fn vl Φ,
-  ∃ θ γ w w',
+  ∃ θ γ w w' dq,
     "->" ∷ ⌜fn = "read_foreign"⌝ ∗
     "HGC" ∷ GC θ ∗
     "->" ∷ ⌜vl = [ w ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ γ ↦foreign w' ∗
+    "Hpto" ∷ γ ↦foreign{dq} w' ∗
     "Cont" ∷ ▷ (GC θ -∗
-                 γ ↦foreign w' -∗
+                 γ ↦foreign{dq} w' -∗
                  Φ w'))%I.
 
 Definition callback_proto E (Ψ : ML_proto) : C_proto := (λ fn vl Φ,

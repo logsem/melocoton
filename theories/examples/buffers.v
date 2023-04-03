@@ -9,7 +9,7 @@ From melocoton.c_interop Require Import rules notation.
 From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
 From melocoton.ml_lang Require primitive_laws proofmode.
-From melocoton.c_lang Require Import notation proofmode.
+From melocoton.c_lang Require Import notation proofmode derived_laws.
 From melocoton.examples Require Import compression.
 
 
@@ -42,7 +42,7 @@ Additionally, we do not CAMLparam/CAMLlocal variables that
 
 Finally, note that the Store_field(&Field(x,y,z)) is syntactic sugar -- no addresses are being taken.
 In general, our toy version of C does not have local variables, nor the notion of "taking an address".
-Instead, everything that needs to be mutable must be heap-allocated (and freed at the end).
+Instead, everything that needs to be mutable must be heap-allocated (and preferably freed at the end).
 *)
 
 Definition buf_alloc_code (cap : expr) : expr :=
@@ -67,18 +67,18 @@ Definition buf_alloc_name := "buf_alloc".
 Definition buf_upd_code (iv jv f_arg bf_arg : expr) : expr :=
   CAMLlocal: "f" in "f" <- f_arg ;;
   CAMLlocal: "bf" in "bf" <- bf_arg ;;
-  let: "bts" := Custom_contents(Field(Field("bf", #1), #1)) in
+  let: "bts" := Custom_contents(Field(Field( *"bf", #1), #1)) in
   let: "j" := Int_val ( jv ) in
   let: "i" := malloc ( #1 ) in
   "i" <- Int_val ( iv ) ;;
-  while: * "i" ≤ "j" do
+ (while: * "i" ≤ "j" do
     ( "bts" +ₗ ( *"i") <- Int_val (call: &"callback" with ( *"f", Val_int ( *"i"))) ;;
-      if: Int_val(Field(Field("bf", #0), #0)) < *"i" + #1
-      then Store_field (&Field(Field("bf", #0), #0), Val_int ( *"i" + #1))
-      else Skip ;;
-      "i" <- *"i" + #1 ) ;;
+     (if: Int_val(Field(Field( *"bf", #0), #0)) < *"i" + #1
+      then Store_field (&Field(Field( *"bf", #0), #0), Val_int ( *"i" + #1))
+      else Skip) ;;
+      "i" <- *"i" + #1 )) ;;
   free ("i", #1);;
-  CAMLreturn: Int_val (#0) unregistering ["f", "bf"].
+  CAMLreturn: Val_int (#0) unregistering ["f", "bf"].
 Definition buf_upd_fun := Fun [BNamed "iv"; BNamed "jv"; BNamed "f_arg"; BNamed "bf_arg"]
                               (buf_upd_code "iv" "jv" "f_arg" "bf_arg").
 Definition buf_upd_name := "buf_upd".
@@ -166,7 +166,7 @@ Section Specs.
       GC θ
    -∗ isBufferRecordML v ℓbuf Pb c
    -∗ lv ~~ v
-  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c.
+  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c ∗ ∃ (ℓML:loc) fid, ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝.
   Proof.
     iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
     iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
@@ -175,7 +175,7 @@ Section Specs.
     iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(HGC&(%ℓvs&%γref2&Hγusedref&#Hsim2&#Hγrefsim))".
     iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim [$]") as "(HGC&%Hiff)".
     destruct Hiff as [_ ->]; last done.
-    iModIntro. iFrame "HGC".
+    iModIntro. iFrame "HGC". iSplit; last by repeat iExists _. 
     iExists _, _, _, _, _, _. unfold named.
     iSplit; first done.
     iFrame "Hγbuf". iFrame "Hγaux".
@@ -186,6 +186,44 @@ Section Specs.
       iPureIntro; done. }
   Qed.
 
+  Lemma bufToC_fixed ℓbuf Pb (c:nat) ℓML fid lv θ:
+      GC θ
+   -∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c
+   -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
+  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c.
+  Proof.
+    iIntros "HGC H #Hsim".
+    iMod (bufToC with "HGC H Hsim") as "($&$&%ℓML1&%fid1&%Href)". done.
+  Qed.
+
+  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) fid θ:
+      GC θ
+   -∗ isBufferRecord lv ℓbuf Pb c
+   -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
+  ==∗ GC θ ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c.
+  Proof.
+    iIntros "HGC H #Hsim".
+    iMod (bufToML with "HGC H") as "(HGC&%&HML&#Hsim2)".
+    iAssert (⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝)%I as "->"; last by iFrame.
+    iNamed "HML".
+    cbn.
+    iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
+    iDestruct "Hsim2" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
+    simplify_eq.
+    unfold lstore_own_vblock, lstore_own_elem; cbn.
+    iDestruct "Hγbuf" as "(Hγbuf&_)".
+    iDestruct "Hγbuf2" as "(Hγbuf2&_)".
+    iDestruct "Hγaux" as "(Hγaux&_)".
+    iDestruct "Hγaux2" as "(Hγaux2&_)".
+    iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
+    iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
+    iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
+    iPoseProof (lloc_own_pub_inj with "Hsim Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
+    iPureIntro. f_equal; repeat f_equal.
+    - symmetry; by eapply Heq2.
+    - symmetry; by eapply Heq1.
+  Qed.
+
 
   Import melocoton.ml_lang.notation.
   Definition buf_alloc_res_buffer z cap (b : list (option Z)) : iProp Σ := ⌜cap = 0⌝ ∗ ⌜b = replicate (Z.to_nat z) None⌝.
@@ -194,27 +232,27 @@ Section Specs.
       ⌜(0 < z)%Z⌝
     ∗ ⌜s = buf_alloc_name⌝
     ∗ ⌜vv = [ #z ]⌝
-    ∗ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ Φ v).
+    ∗ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ meta_token ℓbuf ⊤ -∗ Φ v).
 
   Definition buf_alloc1_spec idx vnew Pbold cap (b : list (option Z)) : iProp Σ :=
     ∃ bold (capold:nat) , ⌜b = <[ Z.to_nat idx := Some vnew ]> bold⌝ ∗ ⌜cap = max capold (Z.to_nat (idx+1))⌝ ∗ Pbold capold bold.
-  Definition buf_update_spec_ML (protoCB : (protocol ML_lang.val Σ)) s vv Φ: iProp Σ :=
-    ∃ (Ψ Ψframe : Z → iProp Σ) (Φz : Z → iProp Σ) (i j : Z) ℓbuf (cap:nat) (Pb : Z → nat → _ → iProp Σ) vbuf (F : ML_lang.expr),
-      "->" ∷ ⌜s = buf_alloc_name⌝
-    ∗ "->" ∷ ⌜vv = [ vbuf ]⌝
+  Definition buf_update_spec_ML (protoCB : (protocol ML_lang.val Σ)) E s vv Φ: iProp Σ :=
+    ∃ (Ψ Ψframe : Z → iProp Σ) (Φz : Z → iProp Σ) (i j : Z) ℓbuf (cap:nat) (Pb : Z → nat → _ → iProp Σ) vbuf b1 b2 (F : ML_lang.expr),
+      "->" ∷ ⌜s = buf_upd_name⌝
+    ∗ "->" ∷ ⌜vv = [ #i; #j; (RecV b1 b2 F); vbuf ]⌝
     ∗ "%Hb1" ∷ ⌜0%Z ≤ i⌝%Z
-    ∗ "%Hb2" ∷ ⌜i ≤ j⌝%Z
+    ∗ "%Hb2" ∷ ⌜i ≤ j+1⌝%Z
     ∗ "%Hb3" ∷ ⌜j < cap⌝%Z
-    ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψframe z -∗ Φz vnew -∗
-          isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ z)
+    ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j+1⌝%Z -∗ Ψframe z -∗ Φz vnew -∗
+          isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ (z+1)%Z)
     ∗ "#HWP" ∷ (□ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
-              WP F #z @ ⟨ ∅, protoCB ⟩ ; ∅ 
-              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz znew ∗ Ψframe (z+1)%Z
-                               ∗ isBufferRecordML vbuf ℓbuf (Pb (z+1)%Z) cap}})
+              WP (RecV b1 b2 F) #z @ ⟨ ∅, protoCB ⟩ ; E 
+              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz znew ∗ Ψframe (z)%Z
+                               ∗ isBufferRecordML vbuf ℓbuf (Pb (z)%Z) cap}})
     ∗ "Hframe" ∷ Ψframe i
     ∗ "Hrecord" ∷ isBufferRecordML vbuf ℓbuf (Pb i) cap
     ∗ "HMergeInitial" ∷ (Ψframe i ∗ isBufferRecordML vbuf ℓbuf (Pb i) cap ==∗ Ψ i)
-    ∗ "Cont" ∷ ▷ (Ψ j -∗ Φ #()).
+    ∗ "HCont" ∷ ▷ (Ψ (j+1)%Z -∗ Φ #()).
 
 End Specs.
 
@@ -223,6 +261,19 @@ Section LemmasThatShouldBeInStdPP.
   Lemma map_replicate {A B : Type} (f : A → B) (v:A) n : map f (replicate n v) = replicate n (f v).
   Proof.
     induction n as [|n IH]; cbn; firstorder congruence.
+  Qed.
+
+  Lemma map_insert {A B : Type} (vpre : A) (f : A → B) (k : nat) (v : B) lst :
+    v = f vpre →
+    k < length lst →
+    <[ k := v ]> (map f lst) = map f (<[ k := vpre ]> lst).
+  Proof.
+    intros Hv.
+    induction lst as [|lh lr IH] in k|-*.
+    1: cbn; lia.
+    destruct k as [|k].
+    - intros _. cbn. by subst v.
+    - cbn. intros H%Nat.succ_lt_mono. by rewrite IH.
   Qed.
 
 End LemmasThatShouldBeInStdPP.
@@ -234,7 +285,7 @@ Section Proofs.
 
   Lemma buf_alloc_correct E1 E2 e Ψ :
     prims_proto E1 e Ψ ||- buf_lib_prog @ E2 :: wrap_proto buf_alloc_spec_ML.
-  Proof.
+  Proof using.
     iIntros (s ws Φ) "H". iNamed "H".
     iDestruct "Hproto" as "(%cap&%Hcap&->&->&HΦ')".
     cbn. unfold progwp. solve_lookup_fixed.
@@ -261,7 +312,7 @@ Section Proofs.
     1: by eapply repr_lval_lint.
     iIntros "HGC".
     wp_apply (wp_Malloc); [try done..|].
-    iIntros (ℓbts) "(Hbts&_)".
+    iIntros (ℓbts) "(Hbts&Hstuff)".
     wp_apply (wp_write_foreign with "[$HGC $Hγbk]"); [try done..|].
     iIntros "(HGC&Hγbk)". wp_pure _.
     wp_apply (wp_alloc TagDefault with "HGC"); [done..|].
@@ -322,23 +373,210 @@ Section Proofs.
     iMod (freeze_to_immut with "[$HGC $Hγbf]") as "(HGC&Hγbf)".
     iMod (freeze_to_immut with "[$HGC $Hγbf2]") as "(HGC&Hγbf2)".
     iMod (freeze_to_mut with "[$HGC $Hγbfref]") as "(HGC&Hγbfref)".
-    iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer cap) (Z.to_nat cap)) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
-    { iDestruct "Hγbk" as "(Hγbk'&%fid&#Hfid)".
-      assert (∃ k, Z.of_nat k = cap) as (ncap&<-) by (exists (Z.to_nat cap); lia).
-      rewrite !Nat2Z.id.
-      iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame.
+
+    iPoseProof "Hγbk" as "((Hγbk&%Hγbk)&%fid&#Hfid)".
+
+    assert (∃ k, Z.of_nat k = cap) as (ncap&<-) by (exists (Z.to_nat cap); lia).
+    rewrite !Nat2Z.id.
+    iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer ncap) ncap) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
+    { iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame.
       iSplit; first done.
       iExists (replicate ncap None). unfold named, lstore_own_foreign.
       rewrite map_replicate; cbn.
-      iFrame. iFrame "Hfid". iSplitR; first by iExists fid.
+      iFrame. iFrame "Hfid". iSplit; first (iSplit; first done; by iExists fid).
       iPureIntro; split_and!.
-      Search replicate repeat.
       1: done.
       1: f_equal; lia.
       cbn. by rewrite replicate_length. }
     iMod (bufToML with "HGC Hbuffer") as "(HGC&%vv&Hbuffer&#Hsim)".
-    iModIntro. iApply ("Cont" with "HGC (HΦ' Hbuffer) Hsim [//]").
+    iAssert (meta_token ℓbts ⊤) with "[Hstuff]" as "Hmeta".
+    { destruct ncap as [|ncap]; first lia.
+      cbn. rewrite loc_add_0. iDestruct "Hstuff" as "($&_)". }
+    iModIntro. iApply ("Cont" with "HGC (HΦ' Hbuffer Hmeta) Hsim [//]").
   Qed.
 
+
+  Lemma buf_upd_correct E e Ψ :
+    prims_proto E e Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_update_spec_ML Ψ E).
+  Proof.
+    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
+    cbn. unfold progwp. solve_lookup_fixed.
+    destruct lvs as [|lvi [|lvj [| lvF [| lvbuf [|??]]]]]; try done.
+    all: cbn; iDestruct "Hsim" as "(->&Hsim)"; try done.
+    all: cbn; iDestruct "Hsim" as "(->&Hsim)"; try done.
+    all: cbn; iDestruct "Hsim" as "((%γF&->&HγF)&Hsim)"; try done.
+    all: cbn; iDestruct "Hsim" as "(Hsim&?)"; try done.
+    destruct ws as [|wi [|wj [|wF [|wbuf [|??]]]]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
+    eapply Forall2_cons in Hrepr as (Hrepri&Hrepr).
+    eapply Forall2_cons in Hrepr as (Hreprj&Hrepr).
+    eapply Forall2_cons in Hrepr as (HreprF&Hrepr).
+    eapply Forall2_cons in Hrepr as (Hreprbuf&_).
+    cbn. iExists _. iSplit; first done.
+    iExists _. cbn. solve_lookup_fixed.
+    iSplit; first done. iNext.
+    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
+    iIntros (ℓF) "(HGC&HℓF)"; wp_pures.
+    wp_apply (store_to_root with "[$HGC $HℓF]"); [done..|].
+    iIntros "(HGC&HℓF)". wp_pures.
+    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
+    iIntros (ℓbf) "(HGC&Hℓbf)"; wp_pures.
+    wp_apply (store_to_root with "[$HGC $Hℓbf]"); [done..|].
+    iIntros "(HGC&Hℓbf)". wp_pure _.
+    iMod (bufToC with "HGC Hrecord Hsim") as "(HGC&Hrecord&%&%&->)".
+    iNamed "Hrecord". iNamed "Hbuf".
+
+    wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
+    iIntros (wγ1) "(Hℓbf&HGC&%Hwγ1)".
+    wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
+    iIntros (? wγaux1) "(HGC&_&%Heq&%Hγaux'1)"; cbv in Heq; simplify_eq.
+    wp_apply (wp_readfield with "[$HGC $Hγaux]"); [done..|].
+    iIntros (? wγfgn1) "(HGC&_&%Heq&%Hγfgn'1)"; cbv in Heq; simplify_eq.
+    wp_apply (wp_read_foreign with "[$HGC $Hγfgnpto]"); [done..|].
+    iIntros "(HGC&Hγfgnpto)". wp_pure _.
+    wp_apply (wp_val2int with "HGC"); [done..|].
+    iIntros "HGC". wp_pure _.
+    wp_apply (wp_Malloc); [done..|].
+    change (Z.to_nat 1) with 1; cbn.
+    iIntros (ℓi) "((Hℓi&_)&_)". rewrite !loc_add_0. wp_pure _.
+    wp_apply (wp_val2int with "HGC"); [done..|].
+    iIntros "HGC".
+    wp_apply (wp_store with "Hℓi").
+    iIntros "Hℓi". wp_pure _.
+
+    iMod (bufToML_fixed (Lloc γ) ℓbuf (Pb i) (length vcontent)
+         with "HGC [Hγusedref Hℓbuf HContent Hγfgnpto] Hsim") as "(HGC&HBufML)".
+    { iExists _, _, _, _, _, _. unfold named. iSplit; first done.
+      iFrame "Hγusedref Hγbuf Hγaux".
+      iExists _. unfold named. by iFrame "Hγfgnpto Hγfgnsim Hℓbuf HContent". }
+    iMod ("HMergeInitial" with "[$Hframe $HBufML]") as "HΨ".
+    wp_bind (While _ _).
+
+    repeat match goal with [H : repr_lval _ _ ?x |- _] => clear H; try clear x end.
+
+    Ltac iPosePure H c := let t := type of H in iAssert (⌜t⌝)%I as c; [iPureIntro; exact H|clear H].
+    iRevert (Hb1 Hb2); iIntros "#Hb1 #Hb2".
+    revert Hb3.
+    generalize (length vcontent) as vcontent_length. intros vcontent_length Hb3.
+    clear vcontent.
+
+    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ ∗ GC θ ∗ Ψ0 (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
+              with "[HℓF Hℓbf Hℓi HGC HΨ]").
+    { iRevert "HMerge HWP Hb1 Hb2". iLöb as "IH" forall (i θ).
+      iIntros "#HMerge #HWP %Hb1 %Hb2".
+      wp_pure _.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pure _.
+      rewrite bool_decide_decide. destruct decide; last first.
+      { wp_pures. iModIntro.
+        assert (i=j+1)%Z as -> by lia. iExists _. iFrame. }
+      wp_pure _.
+
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pure _. 1: apply ptr_offset_add.
+      wp_apply (load_from_root with "[$HGC $HℓF]").
+      iIntros (wγF) "(HℓF&HGC&%HwγF)".
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi".
+      wp_apply (wp_int2val with "HGC"); [done..|].
+      iIntros (wi) "(HGC&%Hwi)".
+      wp_apply (wp_callback _ _ _ _ _ _ _ _ _ _ _ _ (ML_lang.LitV i) with "[$HGC $HγF HΨ]"); [done..| |].
+      { cbn. iSplit; first done.
+        iNext. by iApply ("HWP" with "[] [] HΨ"). } cbn.
+      cbn.
+      iIntros (θ' vret lvret wret) "(HGC&(%zret&->&HΦz&HΨframe&HBuffer)&->&%Hzrep)".
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC". iRename "Hγfgnsim" into "Hγfgnsim2". clear used.
+      iDestruct "HBuffer" as "(%ℓML0&%&%&%&%Heq&HℓbufML&Hbuf)". simplify_eq. unfold named.
+      iNamed "Hbuf".
+      assert (∃ (ni:nat), Z.of_nat ni = i) as (ni&<-) by (exists (Z.to_nat i); lia).
+      wp_apply (wp_store_offset with "Hℓbuf").
+      1: rewrite map_length; lia.
+      iIntros "Hℓbuf". erewrite (map_insert (Some zret)); [|done|lia].
+
+      wp_pure _.
+      wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
+      iIntros (wbf1) "(Hℓbf&HGC&%Hwbf1)".
+      wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
+      iIntros (vγref wγref) "(HGC&_&%Heq&%Hvwγref)". cbv in Heq. simplify_eq.
+
+      iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(HGC&%&%&HℓbufML&#Hsim2&HHsim2)".
+      destruct lvs as [|? [|??]].
+      1: cbn; done.
+      all: iDestruct "HHsim2" as "(->&HHr)"; try done. iClear "HHr".
+
+      iAssert (⌜fid1 = fid0⌝ ∗ ⌜γfgn0 = γfgn⌝ ∗ ⌜γ0 = γref⌝)%I as "(->&->&->)".
+      { iDestruct "Hsim" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim3)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
+        simplify_eq.
+        unfold lstore_own_vblock, lstore_own_elem; cbn.
+        iDestruct "Hγbuf" as "(Hγbuf&_)".
+        iDestruct "Hγbuf2" as "(Hγbuf2&_)".
+        iDestruct "Hγaux" as "(Hγaux&_)".
+        iDestruct "Hγaux2" as "(Hγaux2&_)".
+        iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
+        iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
+        iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
+        iPoseProof (lloc_own_foreign_inj with "Hγfgnsim Hγfgnsim3 HGC") as "(HGC&%Heq1b)"; simplify_eq.
+        iPoseProof (lloc_own_pub_inj with "Hsim3 Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
+        iPureIntro. split_and!. 1: symmetry; by eapply Heq1.
+        1: by eapply Heq1b. 1: symmetry; by eapply Heq2. }
+
+      wp_apply (wp_readfield with "[$HGC $HℓbufML]"); [done..|].
+      iIntros (vγbuf wγbuf) "(HGC&HℓbufML&%Heq&%Hvwγbuf)". change (Z.to_nat 0) with 0 in Heq. cbn in Heq. simplify_eq.
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC".
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". do 2 wp_pure _.
+      wp_bind (If _ _ _).
+      iApply (wp_wand _ _ _ (λ _, _ ∗ γref ↦mut (TagDefault, [Lint (max used (Z.to_nat (ni+1)))%Z]))%I with "[HGC Hℓi Hℓbf HℓbufML]").
+      { rewrite bool_decide_decide. destruct decide; last first.
+        { do 2 wp_pure _. rewrite max_l; last lia.
+          iFrame "HℓbufML". iModIntro. iAccu. }
+        { wp_pure _.
+          wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
+          iIntros (wbf2) "(Hℓbf&HGC&%Hwbf2)".
+          wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
+          iIntros (vγref2 wγref2) "(HGC&_&%Heq&%Hvwγref2)". cbv in Heq. simplify_eq.
+          wp_apply (wp_load with "Hℓi").
+          iIntros "Hℓi". wp_pure _.
+          wp_apply (wp_int2val with "HGC"); [done..|].
+          iIntros (vnp1) "(HGC&%Hnp1)".
+          wp_apply (wp_modify with "[$HGC $HℓbufML]"); [done..|].
+          iIntros "(HGC&HℓbufML)". iFrame "HGC Hℓbf Hℓi".
+          rewrite max_r; last lia. change (Z.to_nat 0) with 0; cbn.
+          rewrite Z2Nat.id; last lia. done. }
+      }
+      iIntros (vv) "((HGC&Hℓi&Hℓbf)&HℓbufML)". wp_pure _.
+      wp_apply (wp_load with "Hℓi"). iIntros "Hℓi". wp_pure _.
+      wp_apply (wp_store with "Hℓi"). iIntros "Hℓi". wp_pure _.
+      iMod (mut_to_ml _ [ ML_lang.LitV (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
+      iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2 HGC") as "(HGC&%Heq3)"; simplify_eq.
+      replace ℓML2 with ℓML0 by by eapply Heq3.
+      iMod ("HMerge" with "[] [] HΨframe HΦz [Hγfgnpto HContent Hℓbuf HℓbufML]") as "HH". 1-2: iPureIntro; lia.
+      { iExists _, _, _, _. unfold named. iSplit; first done. iFrame "HℓbufML".
+        iExists _. unfold named. iFrame "Hγfgnpto Hγfgnsim Hℓbuf".
+        rewrite insert_length. iSplit; last done.
+        iExists vcontent, _. iFrame "HContent". iPureIntro. rewrite Nat2Z.id. split; first done.
+        reflexivity. }
+      iApply ("IH" with "HℓF Hℓbf Hℓi HGC HH").
+      - iIntros "!> %z1 %z2 %HH1 %HH2". iApply "HMerge".
+        all: iPureIntro; lia.
+      - iIntros "!> %z1 %HH1 %HH2". iApply "HWP".
+        all: iPureIntro; lia.
+      - iPureIntro; lia.
+      - iPureIntro; lia.
+    }
+    iIntros (vvv) "(%θ' & HℓF & Hℓbf & HGC & HΨ & Hℓi)".
+    wp_pure _.
+    wp_apply (wp_free with "Hℓi"). iIntros "_".
+    wp_pure _.
+    wp_apply (wp_int2val with "HGC"); [done..|].
+    iIntros (v0) "(HGC&%Hrepr)".
+    wp_pure _.
+    wp_apply (wp_CAMLunregister1 with "[$HGC $HℓF]"); [done..|].
+    iIntros "HGC"; wp_pure _.
+    wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbf]"); [done..|].
+    iIntros "HGC"; wp_pure _.
+    iModIntro. iApply ("Cont" with "HGC (HCont HΨ) [//] [//]").
+  Qed.
 
 End Proofs.

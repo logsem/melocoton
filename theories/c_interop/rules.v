@@ -210,19 +210,19 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_read_foreign E p Ψ θ w γ a :
+Lemma wp_read_foreign E p Ψ θ w γ a dq :
   p !! "read_foreign" = None →
   read_foreign_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
-  {{{ GC θ ∗ γ ↦foreign a }}}
+  {{{ GC θ ∗ γ ↦foreign{dq} a }}}
     (call: &"read_foreign" with (Val w))%CE @ ⟨p, Ψ⟩; E
-  {{{ RET a; GC θ ∗ γ ↦foreign a }}}.
+  {{{ RET a; GC θ ∗ γ ↦foreign{dq} a }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & ?) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /read_foreign_proto /named.
-  do 4 iExists _. iFrame.
+  do 5 iExists _. iFrame.
   do 3 (iSplit; first by eauto with lia). iIntros "!> ? ?".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
