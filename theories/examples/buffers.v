@@ -83,6 +83,17 @@ Definition buf_upd_fun := Fun [BNamed "iv"; BNamed "jv"; BNamed "f_arg"; BNamed 
                               (buf_upd_code "iv" "jv" "f_arg" "bf_arg").
 Definition buf_upd_name := "buf_upd".
 
+Definition buf_free_code (bf : expr) : expr :=
+  let: "bts" := Custom_contents(Field(Field( bf, #1), #1)) in
+  let: "cap" := Int_val ( Field(Field( bf, #1), #0) ) in
+  (if: "bts" ≠ #LitNull
+      then free("bts", "cap") else Skip );;
+  (Custom_contents(Field(Field( bf, #1), #1)) := #LitNull) ;;
+  Store_field (&Field(Field( bf, #0), #0), # -1 ) ;;
+  Val_int (#0).
+Definition buf_free_fun := Fun [BNamed "bf"] (buf_free_code "bf").
+Definition buf_free_name := "buf_free".
+
 Definition wrap_max_len_code (i : expr) : expr :=
    Val_int (call: &buffy_max_len_name with (Int_val (i))).
 Definition wrap_max_len_fun := Fun [BNamed "i"] (wrap_max_len_code "i").
@@ -298,6 +309,19 @@ Section Specs.
                                                       ∗ Pb2 zold (vov ++ vrest)) cap2
                    -∗ Φ #true).
 
+  Definition buf_free_ML s vv Φ : iProp Σ :=
+    ∃ v ℓ Pb cap,
+      "->" ∷ ⌜s = buf_free_name⌝
+    ∗ "->" ∷ ⌜vv = [ v ]⌝
+    ∗ "%Hcap" ∷ ⌜buffer_max_len (length vcompress) ≤ cap2⌝
+    ∗ "HBuf1" ∷ isBufferRecordML v1 ℓ1 (λ z vb, ⌜vb = map Some vcompress ++ vrest1⌝ ∗ ⌜length vcompress = z⌝ ∗ Pb1 z vb) cap1
+    ∗ "HBuf2" ∷ isBufferRecordML v2 ℓ2 Pb2 cap2
+    ∗ "HCont" ∷ ▷   ( isBufferRecordML v1 ℓ1 (λ z vb, ⌜vb = map Some vcompress ++ vrest1⌝ ∗ ⌜length vcompress = z⌝ ∗ Pb1 z vb) cap1
+                   -∗ isBufferRecordML v2 ℓ2 (λ z vb, ∃ vov vrest zold, ⌜vb = map Some (compress_buffer vcompress) ++ vrest⌝  
+                                                      ∗ ⌜length (compress_buffer vcompress) = z⌝ ∗ ⌜length vov = z⌝
+                                                      ∗ Pb2 zold (vov ++ vrest)) cap2
+                   -∗ Φ #true).
+
 
 End Specs.
 
@@ -498,7 +522,6 @@ Section Proofs.
 
     repeat match goal with [H : repr_lval _ _ ?x |- _] => clear H; try clear x end.
 
-    Ltac iPosePure H c := let t := type of H in iAssert (⌜t⌝)%I as c; [iPureIntro; exact H|clear H].
     iRevert (Hb1 Hb2); iIntros "#Hb1 #Hb2".
     revert Hb3.
     generalize (length vcontent) as vcontent_length. intros vcontent_length Hb3.
@@ -767,3 +790,8 @@ Section Proofs.
   Qed.
 
 End Proofs.
+
+
+
+
+
