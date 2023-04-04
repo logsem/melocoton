@@ -100,6 +100,28 @@ Definition readfield_proto : C_proto := (λ fn vl Φ,
                            ⌜repr_lval θ v' w'⌝ -∗
                            Φ w'))%I.
 
+Definition isblock_proto : C_proto := (λ fn vl Φ,
+   ∃ θ lv w,
+     "->" ∷ ⌜fn = "isblock"⌝ ∗
+     "HGC" ∷ GC θ ∗
+     "->" ∷ ⌜vl = [ w ]⌝ ∗
+     "%Hreprw" ∷ ⌜repr_lval θ lv w⌝ ∗
+     "Cont" ∷ ▷ (GC θ -∗ Φ (C_intf.LitV $ C_intf.LitInt 
+                  (match lv with Lloc _ => 1 | _ => 0 end))))%I.
+
+
+Definition read_tag_proto : C_proto := (λ fn vl Φ,
+  ∃ θ γ w dq bl tg,
+    "->" ∷ ⌜fn = "read_tag"⌝ ∗
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜vl = [ w ]⌝ ∗
+    "->" ∷ ⌜tg = block_tag bl⌝ ∗
+    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+    "Hpto" ∷ lstore_own_elem γ dq bl ∗
+    "Cont" ∷ ▷ (GC θ -∗
+                 lstore_own_elem γ dq bl -∗
+                 Φ (C_intf.LitV $ C_intf.LitInt $ (tag_as_int tg))))%I.
+
 Definition alloc_proto : C_proto := (λ fn vl Φ,
    ∃ θ tg sz,
      "->" ∷ ⌜fn = "alloc"⌝ ∗
@@ -182,6 +204,8 @@ Definition prim_proto (p : prim) E (Ψ : ML_proto) : C_proto :=
   | Punregisterroot => unregisterroot_proto
   | Pmodify => modify_proto
   | Preadfield => readfield_proto
+  | Pisblock => isblock_proto
+  | Pread_tag => read_tag_proto
   | Palloc => alloc_proto
   | Pallocforeign => alloc_foreign_proto
   | Pwriteforeign => write_foreign_proto
@@ -214,7 +238,7 @@ Proof using.
   iIntros (? ? ?) "H". rewrite /proto_except.
   iDestruct "H" as (Hdom p ?) "H".
   apply not_elem_of_dom in Hdom.
-  destruct p; unfold prim_proto; iNamed "H"; by exfalso.
+  destruct p; by rewrite Hdom in H.
 Qed.
 
 (* some boilerplate *)
@@ -232,6 +256,10 @@ Lemma modify_refines_prims_proto E e Ψ : modify_proto ⊑ prims_proto E e Ψ.
 Proof using. tac Pmodify. Qed.
 Lemma readfield_refines_prims_proto E e Ψ : readfield_proto ⊑ prims_proto E e Ψ.
 Proof using. tac Preadfield. Qed.
+Lemma isblock_refines_prims_proto E e Ψ : isblock_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pisblock. Qed.
+Lemma read_tag_refines_prims_proto E e Ψ : read_tag_proto ⊑ prims_proto E e Ψ.
+Proof using. tac Pread_tag. Qed.
 Lemma alloc_refines_prims_proto E e Ψ : alloc_proto ⊑ prims_proto E e Ψ.
 Proof using. tac Palloc. Qed.
 Lemma alloc_foreign_refines_prims_proto E e Ψ : alloc_foreign_proto ⊑ prims_proto E e Ψ.
@@ -253,6 +281,8 @@ Global Hint Resolve registerroot_refines_prims_proto : core.
 Global Hint Resolve unregisterroot_refines_prims_proto : core.
 Global Hint Resolve modify_refines_prims_proto : core.
 Global Hint Resolve readfield_refines_prims_proto : core.
+Global Hint Resolve isblock_refines_prims_proto : core.
+Global Hint Resolve read_tag_refines_prims_proto : core.
 Global Hint Resolve alloc_refines_prims_proto : core.
 Global Hint Resolve alloc_foreign_refines_prims_proto : core.
 Global Hint Resolve write_foreign_refines_prims_proto : core.

@@ -117,6 +117,16 @@ Definition mutability (b: block) : ismut :=
   | Bforeign _ => Mut
   end.
 
+Definition vblock_get_tag (vb: vblock) : vblock_tag :=
+  let '(_,(tg,_)) := vb in tg.
+
+Definition block_tag (b: block) : tag :=
+  match b with
+  | Bvblock vblk => TagVblock (vblock_get_tag vblk)
+  | Bclosure _ _ _ => TagClosure
+  | Bforeign _ => TagForeign
+  end.
+
 Inductive lval_in_block : block → lval → Prop :=
   | ValInVblock v m tg vs :
     v ∈ vs → lval_in_block (Bvblock (m, (tg, vs))) v.

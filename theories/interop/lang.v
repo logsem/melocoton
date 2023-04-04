@@ -294,6 +294,21 @@ Inductive c_prim_step :
     repr_lval (θC ρc) lv w' →
     Y w' ρc mem →
     c_prim_step Preadfield [w; CIntV i] ρc mem Y
+  | PrimIsblockTrueS ρc mem w γ Y :
+    repr_lval (θC ρc) (Lloc γ) w →
+    Y (CIntV 1) ρc mem →
+    c_prim_step Pisblock [w] ρc mem Y
+  | PrimIsblockFalseS ρc mem w z Y :
+    repr_lval (θC ρc) (Lint z) w →
+    Y (CIntV 0) ρc mem →
+    c_prim_step Pisblock [w] ρc mem Y
+  | PrimReadTagS ρc mem w γ bl tg tgnum Y :
+    repr_lval (θC ρc) (Lloc γ) w →
+    (ζC ρc) !! γ = Some bl →
+    tg = block_tag bl →
+    tgnum = tag_as_int tg →
+    Y (CIntV tgnum) ρc mem →
+    c_prim_step Pread_tag [w] ρc mem Y
   | PrimVal2intS ρc mem w x Y :
     repr_lval (θC ρc) (Lint x) w →
     Y (CIntV x) ρc mem →
@@ -334,7 +349,7 @@ Lemma c_prim_step_covariant_in_Y prm ws ρc mem Y Y' :
   c_prim_step prm ws ρc mem Y →
   (∀ w ρc' mem', Y w ρc' mem' → Y' w ρc' mem') →
   c_prim_step prm ws ρc mem Y'.
-Proof. intros HH Hsub. inversion HH; econstructor; eauto. Qed.
+Proof. intros HH Hsub. inversion HH; try (econstructor; eauto; fail). Qed.
 
 Lemma c_prim_step_no_NB prm ws ρc mem Y :
   c_prim_step prm ws ρc mem Y →

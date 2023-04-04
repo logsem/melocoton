@@ -5,6 +5,7 @@ From melocoton.ml_lang Require Import lang.
 Inductive prim :=
   | Palloc | Pregisterroot | Punregisterroot
   | Pmodify | Preadfield | Pval2int | Pint2val
+  | Pisblock | Pread_tag
   | Pallocforeign | Pwriteforeign | Preadforeign
   | Pcallback
   | Pmain (e : ML_lang.expr).
@@ -17,6 +18,8 @@ Inductive is_prim : string → prim → Prop :=
   | readfield_is_prim : is_prim "readfield" Preadfield
   | val2int_is_prim : is_prim "val2int" Pval2int
   | int2val_is_prim : is_prim "int2val" Pint2val
+  | isblock_is_prim : is_prim "isblock" Pisblock
+  | read_tag_is_prim : is_prim "read_tag" Pread_tag
   | allocforeign_is_prim : is_prim "alloc_foreign" Pallocforeign
   | writeforeign_is_prim : is_prim "write_foreign" Pwriteforeign
   | readforeign_is_prim : is_prim "read_foreign" Preadforeign
@@ -51,6 +54,8 @@ Proof.
   destruct (decide (s = "readfield")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "val2int")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "int2val")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "isblock")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "read_tag")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "alloc_foreign")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "write_foreign")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "read_foreign")) as [->|]. left; eexists; constructor.
@@ -69,6 +74,8 @@ Definition prims_prog e : gmap string prim :=
       ("readfield", Preadfield);
       ("val2int", Pval2int);
       ("int2val", Pint2val);
+      ("isblock", Pisblock);
+      ("read_tag", Pread_tag);
       ("alloc_foreign", Pallocforeign);
       ("write_foreign", Pwriteforeign);
       ("read_foreign", Preadforeign);
