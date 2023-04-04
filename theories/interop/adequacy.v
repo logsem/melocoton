@@ -177,32 +177,137 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
 
 End AllocBasics.
 
+Local Definition melocoton_lang {SI:indexT} : mlanguage word :=
+  link_lang wrap_lang C_mlang.
 
+Local Definition σ_init {SI:indexT} : state melocoton_lang :=
+  @Link.St _ _ wrap_lang C_mlang _ _
+    (∅:c_state) {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} ().
+
+Section MainAlloc.
+  Existing Instance ordI.
+  Context `{Σ : gFunctors}.
+  Context `{!invG Σ}. (* we already have invariants *)
+  Context `{!ffiGpre Σ}.
+  Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
+  Notation MLIntV x := (LitV (LitInt x)).
+
+  Notation Φpure Φ := (λ w _, ∃ x, w = code_int x ∧ Φ x).
+  Notation Φbi Φ := (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I.
+
+  Lemma alloc_main p ΨML Φ :
+    (∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
+       ⊥ |- p :: main_proto ΨML (λ v, ∃ x, ⌜v = MLIntV x ∧ Φ x⌝)%I) →
+    @Alloc _ Σ (mlangG word melocoton_lang Σ)
+      (λ HH : mlangG word melocoton_lang Σ,
+         (sideConds melocoton_lang (Φpure Φ) p ⊥ (Φbi Φ)) ∗
+          state_interp σ_init ∗
+          (WP (LkCall "main" []) @ ⟪p,⊥⟫; ⊤ {{ w, ∃ x : Z, ⌜w = code_int x ∧ Φ x⌝ }}))%I
+      True.
+  Proof using All.
+    intros Hspec P _ Halloc.
+    eapply (alloc_linkG Boundary) in Halloc as (HlinkG&Halloc); last done.
+    eapply alloc_wrapperG in Halloc as ((HwrapperG&HheapG_ML)&Halloc); last done.
+    eapply alloc_heapG_C in Halloc as (HheapG_C&Halloc); last done.
+    exists (link_mlangG wrap_lang C_mlang _).
+    eapply alloc_mono; last exact Halloc.
+    iIntros "((($&(Hb1&Hb2)&%Heq1)&((%b&HσW)&Hbound&Hinit2&%Heq2))&HσC)". iNamed "HσW". cbn.
+    rewrite // /weakestpre.private_state_interp // /C_state_interp // -!Heq1 -!Heq2.
+    iPoseProof (ghost_var_agree with "SIinit Hinit2") as "->".
+    iFrame. iSplitR. 2: iSplitL "SIinit Hinit".
+    2: { iExists true. iFrame. }
+    { iSplit; iIntros "!>".
+      - by iIntros (? ?) "[? %H] !>".
+      - iIntros (? ? ?). done. }
+    pose (FFIG _ _ _ _ _ _ _) as FFI.
+    specialize (Hspec _ _ _ _ "main" [] (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I).
+    iDestruct (Hspec with "[Hinit2]") as "Hmain".
+    { rewrite /main_proto /named. do 2 (iSplit; first done). iFrame.
+      iIntros "!>" (? ? ? ?) "? H". iDestruct "H" as (? ->) "%".
+      iIntros "-> %Hrepr". inversion Hrepr; simplify_eq. eauto. }
+    iApply (@wp_internal_call_at_boundary with "[Hb1 SIbound] Hmain");
+      [done|by iFrame|].
+    iIntros "!>" (? (? & -> & ?)) "?".
+    iApply @wp_value; first done. eauto.
+  Qed.
+
+End MainAlloc.
+
+Section MainAdequacy.
+
+  Existing Instance ordI.
+  Let Σ := ffiΣ.
+
+  Notation C_proto := (protocol C_intf.val Σ).
+  Notation ML_proto := (protocol ML_lang.val Σ).
+  Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
+  Notation MLIntV x := (LitV (LitInt x)).
+
+  Context (p : mlang_prog (link_lang wrap_lang C_mlang)).
+  Context (ΨML : ML_proto).
+  Context (Φ   : Z → Prop).
+
+  Context (Hspec : ∀ `{!ffiG Σ},
+    ⊥ |- p :: main_proto ΨML (λ v, ∃ (x:Z), ⌜v = MLIntV x ∧ Φ x⌝)%I
+  ).
+
+  Lemma main_adequacy_trace :
+    umrel.trace (prim_step p) (LkCall "main" [], σ_init)
+      (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Φ x).
+  Proof using All.
+    eapply umrel_upclosed.
+    1: eapply (@alloc_adequacy_coind _ melocoton_lang Σ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
+                 (λ w, ∃ (x:Z), ⌜w = code_int x ∧ Φ x⌝)%I).
+    { apply _. }
+    2: { intros [? ?] (? & ? & HH). naive_solver. }
+    intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
+    by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
+  Qed.
+
+  Lemma main_adequacy_star X :
+    umrel.star_AD (prim_step p) (LkCall "main" [], σ_init) X →
+    ∃ e σ, X (e, σ) ∧ (∀ x, to_val e = Some (code_int x) → Φ x).
+  Proof using All.
+    intros HWP.
+    unshelve epose proof (@alloc_adequacy _ melocoton_lang Σ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
+              (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I _ (LkCall "main" []) σ_init _ _ HWP)
+      as HH.
+    2: { destruct HH as (? & ? & ? & HH). eexists _, _. split; eauto.
+         intros y Hy. destruct (HH (code_int y)) as (? & ?%code_int_inj & ?); eauto.
+         by simplify_eq. }
+    intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
+    by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
+  Qed.
+
+End MainAdequacy.
+
+(*
 Section Alloc.
   Existing Instance ordI.
   Context `{Σ : gFunctors}.
   Context `{!invG Σ}. (* we already have invariants *)
   Context `{!ffiGpre Σ}.
-  Local Definition Λ : mlanguage word := link_lang wrap_lang C_mlang.
 
-  Context {Φpure : word → state Λ → Prop}. 
-  Context {pe : prog_environ Λ Σ}.
+  Context {Φpure : word → state melocoton_lang → Prop}.
+  Context {p : mlang_prog melocoton_lang}.
+  Context {Ψ : protocol word Σ}.
   Context {Φbi : word → iProp Σ}.
 
-  Local Definition σ : state Λ := @Link.St2 _ _ wrap_lang C_mlang _ _ 
-    {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} (∅:c_state).
-
   Context (HΦ : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-            ⊢ ∀ (σ:state Λ) v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
+            ⊢ ∀ (σ:state melocoton_lang) v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
   Context (Hpeclosed : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-            ⊢ ∀ f s vv, penv_proto pe f s vv -∗ False).
-  Context (e : expr Λ).
+            ⊢ ∀ f s vv, penv_proto ⟪p,Ψ⟫ f s vv -∗ False).
+  Context (e : expr melocoton_lang).
   Context (HWP : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-            ⊢ at_init -∗ link_in_state wrap_lang C_mlang In2 -∗ WP e @ pe ; ⊤ {{Φbi}}). 
+            ⊢ at_init -∗ link_in_state wrap_lang C_mlang In2 -∗ WP e @ ⟪p,Ψ⟫ ; ⊤ {{Φbi}}).
 
-  Lemma allocate_linked_ml_c : @Alloc _ Σ (mlangG _ Λ Σ) 
-    (λ H, @sideConds _ Λ Σ Φpure pe Φbi _ _ 
-        ∗ state_interp σ ∗ WP e @ pe ; ⊤ {{Φbi}})%I True.
+  Local Definition σ0 {SI:indexT} : state melocoton_lang :=
+    @Link.St2 _ _ wrap_lang C_mlang _ _
+      {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} (∅:c_state).
+
+  Lemma allocate_linked_ml_c : @Alloc _ Σ (mlangG _ melocoton_lang Σ)
+    (λ H, @sideConds _ melocoton_lang Σ Φpure p Ψ Φbi _ _
+        ∗ state_interp σ0 ∗ WP e @ ⟪p,Ψ⟫ ; ⊤ {{Φbi}})%I True.
   Proof using All.
     intros P _ Halloc.
     eapply (alloc_linkG In2) in Halloc as (HlinkG&Halloc); last done.
@@ -221,7 +326,6 @@ Section Alloc.
   Qed.
 End Alloc.
 
-
 Section Simplified.
 
   Existing Instance ordI.
@@ -237,7 +341,7 @@ Section Simplified.
   Context (Φ   : word → Prop).
 
   (* XXX make masks less weird so that the ∅ here can be a ⊤ *)
-  Context (Hspec : ∀ `{!ffiG Σ}, (prims_proto ∅ eML ΨML ||- peC @ ∅ :: wrap_proto ΨML)).
+  Context (Hspec : ∀ `{!ffiG Σ}, (prims_proto ∅ ΨML ||- peC @ ∅ :: wrap_proto ΨML)).
   (* One of them seems like it would be unnecessary, but I could not figure out which *)
   Context (HNoInternal : ∀ `{!ffiG Σ}, ΨML on (dom (prims_prog eML)) ⊑ ⊥).
   Context (HpeC : ∀ s, is_prim_name s → peC !! s = None).
@@ -293,3 +397,4 @@ Section Simplified.
 End Simplified.
 
 Definition σ_initial := σ.
+*)

@@ -115,9 +115,9 @@ Section Specs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Definition wrap_funcs_code E e Ψ : prog_environ C_lang Σ := {|
+  Definition wrap_funcs_code E Ψ : prog_environ C_lang Σ := {|
     penv_prog  := buf_lib_prog ;
-    penv_proto := prims_proto E e Ψ |}.
+    penv_proto := prims_proto E Ψ |}.
 
   Definition isBufferForeignBlock (γ : lloc) (ℓbuf : loc) (Pb : list (option Z) → iProp Σ) cap fid : iProp Σ := 
       ∃ vcontent, 
@@ -328,8 +328,8 @@ Section Proofs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Lemma buf_alloc_correct E1 E2 e Ψ :
-    prims_proto E1 e Ψ ||- buf_lib_prog @ E2 :: wrap_proto buf_alloc_spec_ML.
+  Lemma buf_alloc_correct E1 E2 Ψ :
+    prims_proto E1 Ψ ||- buf_lib_prog @ E2 :: wrap_proto buf_alloc_spec_ML.
   Proof using.
     iIntros (s ws Φ) "H". iNamed "H".
     iDestruct "Hproto" as "(%cap&%Hcap&->&->&HΦ')".
@@ -441,8 +441,8 @@ Section Proofs.
   Qed.
 
 
-  Lemma buf_upd_correct E e Ψ :
-    prims_proto E e Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_update_spec_ML Ψ E).
+  Lemma buf_upd_correct E Ψ :
+    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_update_spec_ML Ψ E).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     cbn. unfold progwp. solve_lookup_fixed.
@@ -625,8 +625,8 @@ Section Proofs.
   Qed.
 
 
-  Lemma wrap_max_len_correct E e Ψ :
-    prims_proto E e Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_max_len_ML).
+  Lemma wrap_max_len_correct E Ψ :
+    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_max_len_ML).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iNamed "Hproto".
@@ -653,8 +653,8 @@ Section Proofs.
     iApply ("Cont" with "HGC HCont [//] [//]").
   Qed.
 
-  Lemma wrap_compress_correct E e Ψ :
-    prims_proto E e Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_compress_ML).
+  Lemma wrap_compress_correct E Ψ :
+    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_compress_ML).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iNamed "Hproto".

@@ -216,6 +216,7 @@ Arguments Link.St2 {_ _ _ _ _ _} _ _.
 
 Arguments Link.LkE {_ _ _} _ _.
 Notation LkSE se := (Link.LkE se []).
+Notation LkCall f vs := (LkSE (Link.ExprCall f vs)).
 
 Canonical Structure link_lang {val public_state} Λ1 Λ2 {lk1 lk2} : mlanguage val :=
   Mlanguage (@Link.mlanguage_mixin val public_state Λ1 Λ2 lk1 lk2).

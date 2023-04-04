@@ -12,14 +12,15 @@ Import umrel.
 Section Adequacy.
   Existing Instance ordI.
   Context {val : Type}.
-  Context {Λ : mlanguage val}.
+  Context (Λ : mlanguage val).
   Context {Σ : gFunctors}.
 
-  Context {Φpure : val → state Λ → Prop}. 
-  Context {pe : prog_environ Λ Σ}.
-  Context {Φbi : val → iProp Σ}.
+  Context (Φpure : val → state Λ → Prop).
+  Context (p : mlang_prog Λ).
+  Context (Ψ : protocol val Σ).
+  Context (Φbi : val → iProp Σ).
 
-  Notation step := (prim_step (penv_prog pe)).
+  Notation step := (prim_step p).
   Notation cfg := (prod (expr Λ) (state Λ)).
 
   Implicit Types σ : state Λ.
@@ -29,7 +30,7 @@ Section Adequacy.
 
   Definition sideConds `{!invG Σ, !mlangG val Λ Σ} : iProp Σ := 
     □ (∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝)
-  ∗ □ (∀ f s vv, penv_proto pe f s vv -∗ False).
+  ∗ □ (∀ f s vv, penv_proto ⟪p,Ψ⟫ f s vv -∗ False).
 
   Section GenAdequacy.
     Context `{!mlangG val Λ Σ, !invG Σ}.
@@ -38,7 +39,7 @@ Section Adequacy.
     Context `{SatisfiableAtExists (cfg→Prop) sat_at}.
 
     Lemma value_from_wp σ v E :
-      sat_at E (sideConds ∗ state_interp σ ∗ WP (of_val Λ v) @ pe; E {{Φbi}})%I
+      sat_at E (sideConds ∗ state_interp σ ∗ WP (of_val Λ v) @ ⟪p,Ψ⟫; E {{Φbi}})%I
     → Φpure v σ.
     Proof using All.
       intros Hsat. eapply sat_mono in Hsat. 1: eapply sat_fupd, sat_elim in Hsat; eapply Hsat.
@@ -54,8 +55,8 @@ Section Adequacy.
 
     Lemma one_step_from_wp σ e E:
       (to_val e = None) →
-      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
-      ∃ X, step (e,σ) X ∧ ∀ e' σ', X (e', σ') → sat_at E (sideConds ∗ state_interp σ' ∗ WP e' @ pe; E {{Φbi}}).
+      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ ⟪p,Ψ⟫; E {{Φbi}})%I →
+      ∃ X, step (e,σ) X ∧ ∀ e' σ', X (e', σ') → sat_at E (sideConds ∗ state_interp σ' ∗ WP e' @ ⟪p,Ψ⟫; E {{Φbi}}).
     Proof using All.
       intros Hnv Hsat.
       eapply sat_mono in Hsat.
@@ -76,7 +77,7 @@ Section Adequacy.
     Qed.
 
     Lemma star_step_from_wp σ e E X:
-      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
+      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ ⟪p,Ψ⟫; E {{Φbi}})%I →
       (star_AD step (e, σ) X) →
       (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ)).
     Proof using All.
@@ -96,14 +97,14 @@ Section Adequacy.
     Qed.
 
     Lemma trace_step_from_wp σ e E:
-      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
-      trace step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end).
+      sat_at E (sideConds ∗ state_interp σ ∗ WP e @ ⟪p,Ψ⟫; E {{Φbi}})%I →
+      trace step (e, σ) (λ '(e', σ'), ∃ v, to_val e' = Some v ∧ Φpure v σ').
     Proof using All.
       revert e σ. cofix IH.
       intros e σ Hsat.
       destruct (to_val e) as [v|] eqn:Heq.
       - eapply trace_refl. eapply of_to_val in Heq; subst e.
-        rewrite to_of_val. by eapply value_from_wp.
+        rewrite to_of_val. eexists; split; eauto. by eapply value_from_wp.
       - eapply one_step_from_wp in Hsat; last done.
         destruct Hsat as (Y&HstepY&Hcont).
         eapply trace_step. 1: exact HstepY.
@@ -119,7 +120,7 @@ Section Adequacy.
     Context (e : Λ.(expr)).
     Context (σ : Λ.(state)).
     Context (Halloc : ∀ `{!invG Σ}, Alloc (mlangG val Λ Σ) (λ H,
-      sideConds ∗ state_interp σ ∗ WP e @ pe ; ⊤ {{Φbi}})%I True).
+      sideConds ∗ state_interp σ ∗ WP e @ ⟪p,Ψ⟫ ; ⊤ {{Φbi}})%I True).
 
     Lemma alloc_adequacy X:
       star_AD step (e, σ) X →
@@ -135,8 +136,8 @@ Section Adequacy.
       iIntros "((_&$)&$)".
     Qed.
 
-    Lemma alloc_adequacy_coind X:
-      trace step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end).
+    Lemma alloc_adequacy_coind :
+      trace step (e, σ) (λ '(e', σ'), ∃ v, to_val e' = Some v ∧ Φpure v σ').
     Proof using All.
       pose proof (@alloc_intro _ Σ) as Hsat.
       eapply alloc_wsat_inst in Hsat as (HinvG&Hsat); last done.

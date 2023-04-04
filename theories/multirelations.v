@@ -238,13 +238,24 @@ Proof.
 Qed.
 Set Elimination Schemes.
 
-CoInductive trace {A} (M : umrel A) : A → (A → Prop) → Prop :=
+CoInductive trace_mrel {A} (M : umrel A) : A → (A → Prop) → Prop :=
 | trace_refl x (X : A → Prop) :
-  X x → trace M x X
+  X x → trace_mrel M x X
 | trace_step x Y (X : A → Prop) :
   M x Y →
-  (∀ y, Y y → trace M y X) →
-  trace M x X.
+  (∀ y, Y y → trace_mrel M y X) →
+  trace_mrel M x X.
+
+Program Definition trace {A} (M : umrel A) : umrel A :=
+  {| mrel := trace_mrel M |}.
+Next Obligation.
+  intros *. unfold upclosed. cofix IH.
+  intros x X X'. inversion 1; subst.
+  { intros HH. eapply trace_refl. apply HH; assumption. }
+  { intros HH. eapply trace_step.
+    { eassumption. }
+    { intros y Hy. eapply IH; clear IH; eauto. } }
+Qed.
 
 End umrel.
 

@@ -56,7 +56,7 @@ Proof using.
 Qed.
 
 Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) E eml emain Φ :
-  Ψ on (dom (prims_prog emain)) ⊑ ⊥ → (* Ψ does not use primitive names *)
+  Ψ on prim_names ⊑ ⊥ →
   not_at_boundary -∗
   WP eml @ ⟨ ∅, Ψ ⟩; E {{ Φ }} -∗
   WP (WrSE (ExprML eml)) @ ⟪ prims_prog emain, wrap_proto Ψ ⟫; E {{ w,
@@ -85,7 +85,7 @@ Proof.
     iAssert (⌜¬ is_prim_name fn_name⌝)%I with "[HT]" as "%Hnprim".
     { destruct (decide (is_prim_name fn_name)) as [His|]; last by eauto.
       cbn -[prims_prog]. iDestruct (Hnprims with "[HT]") as "%"; last done.
-      rewrite /proto_on. iFrame. iPureIntro. by eapply in_dom_prims_prog. }
+      rewrite /proto_on. iFrame. iPureIntro. by eapply elem_of_prim_names. }
 
     (* take an administrative step in the wrapper *)
 
@@ -99,7 +99,7 @@ Proof.
     { iPureIntro.
       eapply MakeCallS with (YC := (λ ws ρc mem, ml_to_c_core vs ρml σ ws ρc mem)); eauto.
       { done. }
-      { rewrite /= lookup_prims_prog_None //. }
+      { apply not_elem_of_dom. rewrite dom_prims_prog not_elem_of_prim_names //. }
       { split_and!; eauto. }
       { intros. do 3 eexists. split_and!; eauto. } }
     iIntros (? ? (ws & ρc & mem & Hcore & -> & ->)).
@@ -117,7 +117,9 @@ Proof.
 
     iModIntro. iRight; iLeft. iExists fn_name, ws, [K'].
     iSplit; first done.
-    iSplit; first by rewrite /= lookup_prims_prog_None //.
+    iSplit.
+    { iPureIntro. apply not_elem_of_dom.
+      rewrite dom_prims_prog not_elem_of_prim_names //. }
     iFrame "Hb Hst'".
     iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
     iSplitL "HGC HT".
@@ -166,7 +168,7 @@ Proof.
 Qed.
 
 Lemma callback_correct E emain Ψ :
-  Ψ on (dom (prims_prog emain)) ⊑ ⊥ →
+  Ψ on prim_names ⊑ ⊥ →
   wrap_proto Ψ |- prims_prog emain @ E :: callback_proto E Ψ.
 Proof using.
   iIntros (Hnprim ? ? ?) "Hproto". iNamed "Hproto".
@@ -206,11 +208,12 @@ Proof using.
   iApply ("Cont" with "[$] [$] [$]"); eauto.
 Qed.
 
-Lemma main_correct E emain Ψ :
-  Ψ on (dom (prims_prog emain)) ⊑ ⊥ →
-  wrap_proto Ψ |- prims_prog emain @ E :: main_proto E emain Ψ.
+Lemma main_correct E emain Ψ Φ :
+  Ψ on prim_names ⊑ ⊥ →
+  {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ v, RET v; Φ v }}} →
+  wrap_proto Ψ |- prims_prog emain @ E :: main_proto Ψ Φ.
 Proof using.
-  iIntros (Hnprim ? ? ?) "Hproto". iNamed "Hproto".
+  iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamed "Hproto".
   do 2 (iExists _; iSplit; first done). iIntros "!> Hb".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (st) "Hst".
@@ -242,22 +245,23 @@ Proof using.
   rewrite big_sepS_empty. iSplit; first by iPureIntro.
 
   iApply (weakestpre.wp_wand with "[-Cont]").
-  { by iApply (wp_simulates with "Hb WPmain"). }
+  { iApply (wp_simulates with "Hb []"); first done.
+    iApply Hmain; first done. iIntros "!>" (?) "H". iApply "H". }
   cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & %Hrepr & Hsim & HΦ' & $)".
   by iApply ("Cont" with "HGC HΦ' Hsim").
 Qed.
 
-Lemma wrap_correct E e Ψ :
-  Ψ on (dom (wrap_prog e)) ⊑ ⊥ →
-  wrap_proto Ψ |- wrap_prog e @ E :: prims_proto E e Ψ.
+Lemma wrap_correct E emain Ψ Φ :
+  Ψ on prim_names ⊑ ⊥ →
+  {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ v, RET v; Φ v }}} →
+  wrap_proto Ψ |- wrap_prog emain @ E :: prims_proto E Ψ ⊔ main_proto Ψ Φ.
 Proof using.
-  intros Hnprim.
-  iIntros (? ? ?) "H". iDestruct "H" as (p Hp) "H".
-  destruct p; try by iApply (base_prim_correct with "H").
-  { by iApply (callback_correct with "H"). }
-  { iAssert (⌜e = e0⌝)%I as %->.
-    { iNamed "H". iClear "∗". vm_compute in Hp. by simplify_eq. }
-    by iApply (main_correct with "H"). }
+  intros Hnprim Hmain.
+  iIntros (? ? ?) "[Hprim|Hmain]".
+  { iDestruct "Hprim" as (p) "H".
+    destruct p; last (by iExFalso); try by iApply (base_prim_correct with "H").
+    by iApply (callback_correct with "H"). }
+  { by iApply (main_correct with "Hmain"). }
 Qed.
 
 End Simulation.

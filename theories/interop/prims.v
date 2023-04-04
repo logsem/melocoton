@@ -83,18 +83,28 @@ Definition prims_prog e : gmap string prim :=
       ("main", Pmain e)
   ].
 
-Lemma in_dom_prims_prog e s :
-  s ∈ dom (prims_prog e) ↔ is_prim_name s.
+Definition prim_names : gset string :=
+  dom (prims_prog inhabitant).
+
+Lemma dom_prims_prog e :
+  dom (prims_prog e) = prim_names.
 Proof.
-  rewrite /prims_prog.
+  rewrite /prim_names /prims_prog.
+  rewrite !dom_list_to_map_L //.
+Qed.
+
+Lemma elem_of_prim_names s :
+  s ∈ prim_names ↔ is_prim_name s.
+Proof.
+  rewrite /prim_names /prims_prog.
   cbn. rewrite !dom_insert_L dom_empty_L. split.
   { rewrite !elem_of_union !elem_of_singleton. intros HH.
     destruct_or!; subst; eexists; try econstructor; [].
     exfalso. set_solver. }
   { intros [? Hprim]. inversion Hprim; set_solver. }
-  Unshelve. { exfalso. set_solver. } { auto. }
+  Unshelve. { exfalso. set_solver. } { apply inhabitant. }
 Qed.
 
-Lemma lookup_prims_prog_None e s :
-  prims_prog e !! s = None ↔ ¬ is_prim_name s.
-Proof. rewrite -not_elem_of_dom in_dom_prims_prog //. Qed.
+Lemma not_elem_of_prim_names s :
+  s ∉ prim_names ↔ ¬ is_prim_name s.
+Proof. rewrite elem_of_prim_names //. Qed.

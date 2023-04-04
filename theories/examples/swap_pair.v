@@ -10,7 +10,7 @@ From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
 From melocoton.ml_lang Require proofmode.
 From melocoton.c_lang Require notation proofmode.
-From melocoton.mlanguage Require Import progenv.       
+From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.interop Require Import adequacy.
@@ -20,7 +20,7 @@ Section C_prog.
 Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
 Context `{SI:indexT}.
-Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !wrapperG Σ}.
+Context `{!ffiG Σ}.
 
 
 Definition swap_pair_code (x : expr) : expr :=
@@ -44,8 +44,8 @@ Definition swap_pair_ml_spec : protocol ML_lang.val Σ := (
   λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
 )%I.
 
-Lemma swap_pair_correct E e :
-  prims_proto E e swap_pair_ml_spec ||- swap_pair_prog @ E :: wrap_proto swap_pair_ml_spec.
+Lemma swap_pair_correct E :
+  prims_proto E swap_pair_ml_spec ||- swap_pair_prog @ E :: wrap_proto swap_pair_ml_spec.
 Proof.
   iIntros (fn ws Φ) "H". iNamed "H".
   iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
@@ -132,91 +132,69 @@ Proof.
   - done.
 Qed.
 
-
-Definition main_C_program := (call: &"val2int" with (call: &"readfield" with (call: &"main" with ( ), Val #0)))%CE.
-
 End C_prog.
 
-Section ML_prog.
-
-Context `{SI:indexT}.
-Context `{!heapG_C Σ, !invG Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ}.
-
 Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) :=
-  (Fst (Extern "swap_pair" [ ((#3, (#1, #2)))%MLE ])).
+  (Fst (Fst (Extern "swap_pair" [ ((#3, (#1, #2)))%MLE ]))).
 
 Section JustML.
-Import melocoton.c_lang.primitive_laws.
+Context `{SI:indexT}.
+Context `{!ffiG Σ}.
+
+(* Import melocoton.c_lang.primitive_laws. *)
 Import melocoton.ml_lang.proofmode.
 
 Lemma ML_prog_correct_axiomatic E :
-  ⊢ WP swap_pair_client @ ⟨∅, swap_pair_ml_spec⟩ ; E {{v, ⌜v = (#1, #2)⌝%MLV}}.
+  {{{ True }}} swap_pair_client @ ⟨∅, swap_pair_ml_spec⟩ ; E {{{v, RET v; ⌜v = #1⌝%MLV}}}.
 Proof.
-  iStartProof. unfold swap_pair_client. wp_pures.
+  unfold swap_pair_client. iIntros (? _) "HΦ". wp_pures.
   wp_extern.
   iModIntro. cbn. do 2 iExists _.
   do 2 (iSplitR; first done).
-  wp_pures. done.
+  wp_pures. iModIntro. by iApply "HΦ".
 Qed.
 
 End JustML.
-Section JustC.
-Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
-Lemma main_prog_correct E : 
-  ⊢ at_init -∗
-    WP main_C_program @ ⟨ swap_pair_prog, (prims_proto ∅ swap_pair_client swap_pair_ml_spec) ⟩ ; E
-    {{ v, ∃ θ γ, GC θ ∗ ⌜v = #1⌝ ∗ γ ↦imm (TagDefault, [Lint 1; Lint 2]) }}.
+Section FullProg.
+Import melocoton.mlanguage.weakestpre.
+Context `{SI:indexT}.
+Context `{!ffiG Σ}.
+
+Definition fullprog : mlang_prog (link_lang wrap_lang C_mlang) :=
+  link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog.
+
+Lemma fullprog_correct :
+  ⊥ |- fullprog :: main_proto swap_pair_ml_spec (λ v, ⌜v = #1⌝%MLV)%I.
 Proof.
-  iIntros "Hinit". unfold main_C_program.
-  wp_apply (wp_main with "[$Hinit]").
-  1: done.
-  1: rewrite main_refines_prims_proto //.
-  1: iNext; iApply ML_prog_correct_axiomatic.
-  iIntros (θ' vret lvret wret) "(HGC&->&(%γ&%&%&->&Himm&->&->)&%HH)".
-
-  wp_apply (wp_readfield with "[$HGC $Himm]"); [done..|].
-  iIntros (v w) "(HGC & Himm & %Heq & %Hrepr2)".
-  change (Z.to_nat 0) with 0 in Heq. cbn in *. simplify_eq.
-
-  wp_apply (wp_val2int with "[$HGC]"); [done..|].
-  iIntros "HGC".
-  
-  cbn. iExists _, _. iFrame. done.
+  eapply prog_triple_mono_r; swap 1 2.
+  { eapply link_close_correct.
+    { rewrite dom_prims_prog. set_solver. }
+    3: { apply wrap_correct.
+         2: { iIntros (? _) "HΦ". by iApply ML_prog_correct_axiomatic. }
+         { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
+           exfalso. set_solver. } }
+    3: { apply lang_to_mlang_correct, swap_pair_correct. }
+    1: done.
+    apply proto_refines_join_l. }
+  { rewrite -proto_refines_join_l -proto_refines_join_r //. }
 Qed.
-End JustC.
-
-End ML_prog.
+End FullProg.
 
 Section Adequacy.
-  Import melocoton.c_lang.notation.
   Existing Instance ordinals.ordI.
-  Let Σ : gFunctors := ffiΣ.
-  Local Instance Hin : subG Σ ffiΣ := subG_refl _.
-  
-  Local Definition peL := link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog.
-  Notation step := (mlanguage.prim_step peL).
 
-  Lemma adequate X :
-    (umrel.star_AD step (LkSE (Link.Expr2 (main_C_program : (mlanguage.expr C_mlang))), σ_initial) X) →
-    (∃ e σ, X (e, σ) ∧ (∀ v, mlanguage.to_val e = Some v → v = #1)).
+  Lemma swap_pair_adequate :
+    umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
+      (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
   Proof.
-    eapply (@linking_adequacy Σ _ _ _ swap_pair_ml_spec).
-    all: try apply _.
-    - intros H. apply swap_pair_correct.
-    - iIntros (H s vs Φ). rewrite /proto_on.
-      iIntros "(% & H)". iDestruct "H" as (? ? ->) "_". exfalso.
-      by vm_compute in H0.
-    - intros s [p H]; eapply not_elem_of_dom.
-      rewrite !dom_insert_L !dom_empty_L; inversion H; simplify_eq; set_solver.
-    - iIntros (H) "Hinit".
-      iApply (wp_wand with "[Hinit]").
-      1: by iApply main_prog_correct. cbn.
-      iIntros (v) "(%θ&%γ&HGC&$&Himm)".
+    eapply umrel_upclosed.
+    1: eapply (@adequacy.main_adequacy_trace fullprog swap_pair_ml_spec (λ x, x = 1)).
+    2: { intros [? ?]. by intros (? & ? & ->). }
+    intros ?. rewrite -fullprog_correct. apply main_proto_mono_post; eauto.
   Qed.
-
 End Adequacy.
 (*
-Check @adequate.
-Print Assumptions adequate.
+Check @swap_pair_adequate.
+Print Assumptions swap_pair_adequate.
 *)
