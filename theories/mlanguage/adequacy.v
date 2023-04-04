@@ -9,16 +9,6 @@ From transfinite.stepindex Require Import ordinals.
 Import uPred.
 Import umrel.
 
-Section CoinductiveSteps.
-    CoInductive star_mrel_w {A} (M : umrel A) : A → (A → Prop) → Prop :=
-    | star_refl_w x (X : A → Prop) :
-      X x → star_mrel_w M x X
-    | star_step_w x Y (X : A → Prop) :
-      M x Y →
-      (∀ y, Y y → star_mrel_w M y X) →
-      star_mrel_w M x X.
-End CoinductiveSteps.
-
 Section Adequacy.
   Existing Instance ordI.
   Context {val : Type}.
@@ -105,18 +95,18 @@ Section Adequacy.
         eapply Hsat, Hcont, Hy.
     Qed.
 
-    Lemma star_step_from_wp_coind σ e E:
+    Lemma trace_step_from_wp σ e E:
       sat_at E (sideConds ∗ state_interp σ ∗ WP e @ pe; E {{Φbi}})%I →
-      (star_mrel_w step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end)).
+      trace step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end).
     Proof using All.
       revert e σ. cofix IH.
       intros e σ Hsat.
       destruct (to_val e) as [v|] eqn:Heq.
-      - eapply star_refl_w. eapply of_to_val in Heq; subst e.
+      - eapply trace_refl. eapply of_to_val in Heq; subst e.
         rewrite to_of_val. by eapply value_from_wp.
       - eapply one_step_from_wp in Hsat; last done.
         destruct Hsat as (Y&HstepY&Hcont).
-        eapply star_step_w. 1: exact HstepY.
+        eapply trace_step. 1: exact HstepY.
         intros [e' σ'] Hy. eapply IH, Hcont, Hy.
     Qed.
 
@@ -132,8 +122,8 @@ Section Adequacy.
       sideConds ∗ state_interp σ ∗ WP e @ pe ; ⊤ {{Φbi}})%I True).
 
     Lemma alloc_adequacy X:
-      (star_AD step (e, σ) X) →
-      (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ)).
+      star_AD step (e, σ) X →
+      ∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ).
     Proof using All.
       pose proof (@alloc_intro _ Σ) as Hsat.
       eapply alloc_wsat_inst in Hsat as (HinvG&Hsat); last done.
@@ -146,13 +136,13 @@ Section Adequacy.
     Qed.
 
     Lemma alloc_adequacy_coind X:
-      (star_mrel_w step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end)).
+      trace step (e, σ) (λ '(e, σ), match to_val e with Some v => Φpure v σ | _ => False end).
     Proof using All.
       pose proof (@alloc_intro _ Σ) as Hsat.
       eapply alloc_wsat_inst in Hsat as (HinvG&Hsat); last done.
       eapply (Halloc HinvG) in Hsat as (HmlangG&Hsat); last done.
       eapply alloc_iProp_sat in Hsat.
-      eapply (star_step_from_wp_coind iProp_sat_at).
+      eapply (trace_step_from_wp iProp_sat_at).
       unfold iProp_sat_at, sat_frame.
       eapply sat_mono; last exact Hsat.
       iIntros "((_&$)&$)".

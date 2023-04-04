@@ -293,10 +293,3 @@ Section Simplified.
 End Simplified.
 
 Definition σ_initial := σ.
-
-
-
-
-
-
-

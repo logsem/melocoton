@@ -238,6 +238,14 @@ Proof.
 Qed.
 Set Elimination Schemes.
 
+CoInductive trace {A} (M : umrel A) : A → (A → Prop) → Prop :=
+| trace_refl x (X : A → Prop) :
+  X x → trace M x X
+| trace_step x Y (X : A → Prop) :
+  M x Y →
+  (∀ y, Y y → trace M y X) →
+  trace M x X.
+
 End umrel.
 
 Arguments mrel : simpl never.
