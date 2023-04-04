@@ -109,7 +109,6 @@ Definition isblock_proto : C_proto := (λ fn vl Φ,
      "Cont" ∷ ▷ (GC θ -∗ Φ (C_intf.LitV $ C_intf.LitInt 
                   (match lv with Lloc _ => 1 | _ => 0 end))))%I.
 
-
 Definition read_tag_proto : C_proto := (λ fn vl Φ,
   ∃ θ γ w dq bl tg,
     "->" ∷ ⌜fn = "read_tag"⌝ ∗
@@ -121,6 +120,17 @@ Definition read_tag_proto : C_proto := (λ fn vl Φ,
     "Cont" ∷ ▷ (GC θ -∗
                  lstore_own_elem γ dq bl -∗
                  Φ (C_intf.LitV $ C_intf.LitInt $ (tag_as_int tg))))%I.
+
+Definition length_proto : C_proto := (λ fn vl Φ,
+  ∃ θ γ w a dq bl,
+    "->" ∷ ⌜fn = "length"⌝ ∗
+    "HGC" ∷ GC θ ∗
+    "->" ∷ ⌜vl = [ w ]⌝ ∗
+    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+    "Hpto" ∷ γ ↦vblk[ a ]{ dq } bl ∗
+    "Cont" ∷ ▷ (GC θ -∗
+                 γ ↦vblk[ a ]{ dq } bl -∗
+                 Φ (C_intf.LitV $ C_intf.LitInt $ length $ snd $ bl)))%I.
 
 Definition alloc_proto : C_proto := (λ fn vl Φ,
    ∃ θ tg sz,
@@ -204,6 +214,7 @@ Definition prim_proto (p : prim) E (Ψ : ML_proto) : C_proto :=
   | Preadfield => readfield_proto
   | Pisblock => isblock_proto
   | Pread_tag => read_tag_proto
+  | Plength => length_proto
   | Palloc => alloc_proto
   | Pallocforeign => alloc_foreign_proto
   | Pwriteforeign => write_foreign_proto
@@ -265,6 +276,8 @@ Lemma isblock_refines_prims_proto E Ψ : isblock_proto ⊑ prims_proto E Ψ.
 Proof using. tac Pisblock. Qed.
 Lemma read_tag_refines_prims_proto E Ψ : read_tag_proto ⊑ prims_proto E Ψ.
 Proof using. tac Pread_tag. Qed.
+Lemma length_refines_prims_proto E Ψ : length_proto ⊑ prims_proto E Ψ.
+Proof using. tac Plength. Qed.
 Lemma alloc_refines_prims_proto E Ψ : alloc_proto ⊑ prims_proto E Ψ.
 Proof using. tac Palloc. Qed.
 Lemma alloc_foreign_refines_prims_proto E Ψ : alloc_foreign_proto ⊑ prims_proto E Ψ.
@@ -286,6 +299,7 @@ Global Hint Resolve modify_refines_prims_proto : core.
 Global Hint Resolve readfield_refines_prims_proto : core.
 Global Hint Resolve isblock_refines_prims_proto : core.
 Global Hint Resolve read_tag_refines_prims_proto : core.
+Global Hint Resolve length_refines_prims_proto : core.
 Global Hint Resolve alloc_refines_prims_proto : core.
 Global Hint Resolve alloc_foreign_refines_prims_proto : core.
 Global Hint Resolve write_foreign_refines_prims_proto : core.

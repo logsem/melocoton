@@ -1,7 +1,8 @@
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop.wp_prims Require Export
-  alloc alloc_foreign int2val isblock modify readfield read_foreign
-  read_tag registerroot unregisterroot val2int write_foreign.
+  alloc alloc_foreign int2val isblock length modify readfield
+  read_foreign read_tag registerroot unregisterroot val2int
+  write_foreign.
 
 Section Laws.
 
@@ -27,6 +28,7 @@ Proof using.
   - apply int2val_correct.
   - apply isblock_correct.
   - apply read_tag_correct.
+  - apply length_correct.
   - apply alloc_foreign_correct.
   - apply write_foreign_correct.
   - apply read_foreign_correct.

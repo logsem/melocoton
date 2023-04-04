@@ -155,6 +155,76 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
+Lemma wp_isblock_true E p Ψ θ γ w :
+  p !! "isblock" = None →
+  isblock_proto ⊑ Ψ →
+  repr_lval θ (Lloc γ) w →
+  {{{ GC θ }}}
+    (call: &"isblock" with (Val w))%CE @ ⟨p, Ψ⟩; E
+  {{{ RET #1; GC θ }}}.
+Proof.
+  intros Hp Hproto **. iIntros "HGC Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /isblock_proto /named.
+  do 3 iExists _. iFrame "HGC".
+  do 3 (iSplit; first done). iNext.
+  iIntros "HGC". wp_pures. iApply ("Cont" with "HGC").
+Qed.
+
+Lemma wp_isblock_false E p Ψ θ z w :
+  p !! "isblock" = None →
+  isblock_proto ⊑ Ψ →
+  repr_lval θ (Lint z) w →
+  {{{ GC θ }}}
+    (call: &"isblock" with (Val w))%CE @ ⟨p, Ψ⟩; E
+  {{{ RET #0; GC θ }}}.
+Proof.
+  intros Hp Hproto **. iIntros "HGC Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /isblock_proto /named.
+  do 3 iExists _. iFrame "HGC".
+  do 3 (iSplit; first done). iNext.
+  iIntros "HGC". wp_pures. iApply ("Cont" with "HGC").
+Qed.
+
+Lemma wp_read_tag E p Ψ θ γ w dq bl :
+  p !! "read_tag" = None →
+  read_tag_proto ⊑ Ψ →
+  repr_lval θ (Lloc γ) w →
+  {{{ GC θ ∗ lstore_own_elem γ dq bl}}}
+    (call: &"read_tag" with (Val w))%CE @ ⟨p, Ψ⟩; E
+  {{{ RET #(tag_as_int (block_tag bl)); GC θ ∗ lstore_own_elem γ dq bl }}}.
+Proof.
+  intros Hp Hproto **. iIntros "(HGC&Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /read_tag_proto /named.
+  do 6 iExists _. iFrame "HGC Hpto".
+  do 4 (iSplit; first done). iNext.
+  iIntros "HGC Hpto". wp_pures. iApply ("Cont" with "[$]").
+Qed.
+
+Lemma wp_length E p Ψ θ γ w m dq tg vs :
+  p !! "length" = None →
+  length_proto ⊑ Ψ →
+  repr_lval θ (Lloc γ) w →
+  {{{ GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}
+    (call: &"length" with (Val w))%CE @ ⟨p, Ψ⟩; E
+  {{{ RET #(length vs);
+        GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}.
+Proof.
+  intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /length_proto /named.
+  do 6 iExists _. iFrame.
+  do 3 (iSplit; first by eauto with lia). iIntros "!> HGC Hpto".
+  cbn.
+  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+Qed.
+
 Lemma wp_alloc tg E p Ψ θ tgnum sz :
   p !! "alloc" = None →
   alloc_proto ⊑ Ψ →
@@ -253,10 +323,12 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_main E p ΨML Ψ Φ :
+Lemma wp_main e E E' p ΨML Ψ Φ :
   p !! "main" = None →
-  main_proto ΨML Φ ⊑ Ψ →
-  {{{ at_init }}}
+  main_proto E' e ΨML ⊑ Ψ →
+  {{{ at_init ∗
+      (▷ WP e @ ⟨∅, ΨML⟩; E' {{ Φ }})
+  }}}
     (call: &"main" with ( ))%CE @ ⟨p, Ψ⟩; E
   {{{ θ' vret lvret wret, RET wret;
         GC θ' ∗
@@ -264,12 +336,12 @@ Lemma wp_main E p ΨML Ψ Φ :
         lvret ~~ vret ∗
         ⌜repr_lval θ' lvret wret⌝ }}}.
 Proof.
-  intros Hp Hproto **. iIntros "Hinit Cont".
+  intros Hp Hproto **. iIntros "(Hinit&HWP) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /main_proto /named.
-  do 2 (iSplit; first by eauto with lia). iFrame "Hinit".
-  iIntros "!>" (? ? ? ?) "? ? ? %".
+  iExists Φ. iFrame.
+  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 

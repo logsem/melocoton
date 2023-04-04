@@ -309,6 +309,11 @@ Inductive c_prim_step :
     tgnum = tag_as_int tg →
     Y (CIntV tgnum) ρc mem →
     c_prim_step Pread_tag [w] ρc mem Y
+  | PrimLengthS ρc mem w γ mut tag lvs Y :
+    repr_lval (θC ρc) (Lloc γ) w →
+    (ζC ρc) !! γ = Some (Bvblock (mut, (tag, lvs))) →
+    Y (CIntV (length lvs)) ρc mem →
+    c_prim_step Plength [w] ρc mem Y
   | PrimVal2intS ρc mem w x Y :
     repr_lval (θC ρc) (Lint x) w →
     Y (CIntV x) ρc mem →
