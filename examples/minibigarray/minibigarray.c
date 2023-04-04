@@ -68,6 +68,7 @@ value buf_free(value bf) {
   unsigned char* bts = Custom_contents(bk);
   if (bts != NULL) free(bts);
   Custom_contents(bk) = NULL;
+  Store_field(bf, 1, Val_int(-1)); // deallocated marker
   return Val_unit;
 }
 
