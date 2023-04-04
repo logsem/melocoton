@@ -105,26 +105,12 @@ Context `{!linkG Σ}.
 Definition fullprog : mlang_prog (link_lang C_mlang C_mlang) :=
   link_prog C_mlang C_mlang is_even_prog is_odd_prog.
 
-Instance can_link_even_odd :
-  can_link C_mlang C_mlang
-    is_even_prog is_odd_proto
-    is_odd_prog  is_even_proto
-    ⊥. (* there are no external calls left after linking *)
-Proof.
-  constructor; intros.
-  - set_solver.
-  - apply lang_to_mlang_correct. rewrite proto_on_refines. apply is_odd_correct.
-  - apply lang_to_mlang_correct. rewrite proto_on_refines. apply is_even_correct.
-  - iIntros (? ? ?) "[% [-> _]]". exfalso. naive_solver.
-  - iIntros (? ? ?) "[% [-> _]]". exfalso. naive_solver.
-Qed.
-
 (* The full program implements both is_even and is_odd, without making external calls *)
 Lemma fullprog_correct E : ⊥ |- fullprog @ E :: is_even_proto ⊔ is_odd_proto.
 Proof.
-  intros. eapply link_correct; first typeclasses eauto; apply lang_to_mlang_correct.
-  - apply is_even_correct.
-  - apply is_odd_correct.
+  intros. eapply link_close_correct; [set_solver|done|done|..].
+  - apply lang_to_mlang_correct, is_even_correct.
+  - apply lang_to_mlang_correct, is_odd_correct.
 Qed.
 
 (* From this we can derive that calling is_even/is_odd in fullprog satisfies

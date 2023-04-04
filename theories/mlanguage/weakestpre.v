@@ -398,6 +398,12 @@ Lemma prog_triple_mono_r E Ψ1 Ψ2 Ψ2' p :
   Ψ2' ⊑ Ψ2 → Ψ1 |- p @ E :: Ψ2 → Ψ1 |- p @ E :: Ψ2'.
 Proof. intros. by eapply prog_triple_mono. Qed.
 
+Lemma mprogwp_except_dom E p Ψ : (mprogwp E p Ψ) except (dom p) ⊑ ⊥.
+Proof.
+  iIntros (? ? ?). rewrite /proto_except /=. iIntros "[% H]".
+  iDestruct "H" as (? Hinp) "?". by apply elem_of_dom_2 in Hinp.
+Qed.
+
 End wp.
 
 (** Proofmode class instances *)

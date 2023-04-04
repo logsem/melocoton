@@ -63,6 +63,18 @@ Lemma proto_except_refines val Σ (Ψ : protocol val Σ) (fns : gset string) :
   Ψ except fns ⊑ Ψ.
 Proof. by iIntros (? ? ?) "[_ H]". Qed.
 
+Lemma proto_except_mono_l {val Σ} (Ψ Ψ' : protocol val Σ) S :
+  Ψ ⊑ Ψ' →
+  Ψ except S ⊑ Ψ' except S.
+Proof.
+  iIntros (Hsub ? ? ?). rewrite /proto_except.
+  iIntros "[% ?]". iSplit; first done. by iApply Hsub.
+Qed.
+
+Global Instance proto_except_proper {val Σ} :
+  Proper ((@proto_refines val Σ) ==> eq ==> (@proto_refines val Σ)) proto_except.
+Proof. intros ? ? ? ? ? ->. by apply proto_except_mono_l. Qed.
+
 (* Restricting a protocol on a set of function names. *)
 Definition proto_on {val Σ}
   (Ψ : protocol val Σ) (on : gset string) : protocol val Σ
@@ -74,6 +86,18 @@ Notation "Ψ 'on' fns" := (proto_on Ψ fns) (at level 10).
 Lemma proto_on_refines val Σ (Ψ : protocol val Σ) (fns : gset string) :
   Ψ on fns ⊑ Ψ.
 Proof. by iIntros (? ? ?) "[_ H]". Qed.
+
+Lemma proto_on_mono_l {val Σ} (Ψ Ψ' : protocol val Σ) S :
+  Ψ ⊑ Ψ' →
+  Ψ on S ⊑ Ψ' on S.
+Proof.
+  iIntros (Hsub ? ? ?). rewrite /proto_except.
+  iIntros "[% ?]". iSplit; first done. by iApply Hsub.
+Qed.
+
+Global Instance proto_on_proper {val Σ} :
+  Proper ((@proto_refines val Σ) ==> eq ==> (@proto_refines val Σ)) proto_on.
+Proof. intros ? ? ? ? ? ->. by apply proto_on_mono_l. Qed.
 
 (* We can also define a meet and join operation on protocols. *)
 

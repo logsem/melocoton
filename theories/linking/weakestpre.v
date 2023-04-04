@@ -46,14 +46,14 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : protocol val Σ.
 
-Class can_link
+Class can_link E
   (p1 : mlang_prog Λ1) (Ψ1 : protocol val Σ)
   (p2 : mlang_prog Λ2) (Ψ2 : protocol val Σ)
   (Ψ : protocol val Σ)
 := CanLink {
   can_link_prog_disj : dom p1 ## dom p2;
-  can_link_internal1 E : Ψ2 |- p2 @ E :: Ψ1 on (dom p2);
-  can_link_internal2 E : Ψ1 |- p1 @ E :: Ψ2 on (dom p1);
+  can_link_internal1 : Ψ2 |- p2 @ E :: Ψ1 on (dom p2);
+  can_link_internal2 : Ψ1 |- p1 @ E :: Ψ2 on (dom p1);
   can_link_external1 : Ψ1 except (dom p2) ⊑ Ψ;
   can_link_external2 : Ψ2 except (dom p1) ⊑ Ψ;
 }.
@@ -186,7 +186,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_run_function_1 p1 p2 Ψ1 Ψ2 Ψ E k2 k fn arg fname Φ Ξ :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   p1 !! fname = Some fn →
   link_state_frag Boundary -∗
   at_boundary Λ1 -∗
@@ -218,7 +218,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_run_function_2 p1 p2 Ψ1 Ψ2 Ψ E k1 k fn arg fname Φ Ξ :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   p2 !! fname = Some fn →
   link_state_frag Boundary -∗
   at_boundary Λ2 -∗
@@ -288,7 +288,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_extcall_1 p1 p2 Ψ1 Ψ2 Ψ E k1 fn_name arg Φ Ξ :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   p1 !! fn_name = None →
   p2 !! fn_name = None →
   Ψ1 fn_name arg Ξ -∗
@@ -317,7 +317,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_extcall_2 p1 p2 Ψ1 Ψ2 Ψ E k2 fn_name arg Φ Ξ :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   p1 !! fn_name = None →
   p2 !! fn_name = None →
   Ψ2 fn_name arg Ξ -∗
@@ -346,7 +346,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_run_mut p1 p2 Ψ1 Ψ2 Ψ E :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   ⊢ □ (
     (∀ e1 Φ, WP e1 @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗ link_in_state In1 -∗
              WP (LkSE (Link.Expr1 e1)) @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ link_in_state Boundary }}) ∗
@@ -532,7 +532,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_run1 p1 p2 Ψ1 Ψ2 Ψ E e1 Φ :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In1 -∗
   WP e1 @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
   WP LkSE (Link.Expr1 e1) @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ link_in_state Boundary }}.
@@ -542,7 +542,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_run1' p1 p2 Ψ1 Ψ2 Ψ E e1 Φ Φ' :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In1 -∗
   WP e1 @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
   (∀ v, Φ v ∗ link_in_state Boundary -∗ Φ' v) -∗
@@ -554,7 +554,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_run2 p1 p2 Ψ1 Ψ2 Ψ E e2 Φ :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In2 -∗
   WP e2 @ ⟪p2, Ψ2⟫; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
   WP LkSE (Link.Expr2 e2) @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ link_in_state Boundary }}.
@@ -564,7 +564,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_run2' p1 p2 Ψ1 Ψ2 Ψ E e2 Φ Φ' :
-  can_link p1 Ψ1 p2 Ψ2 Ψ →
+  can_link E p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In2 -∗
   WP e2 @ ⟪p2, Ψ2⟫; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
   (∀ v, Φ v ∗ link_in_state Boundary -∗ Φ' v) -∗
@@ -627,7 +627,7 @@ Proof using.
 Qed.
 
 Lemma link_correct E p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 Ψext :
-  can_link p1 Ψext1 p2 Ψext2 Ψext →
+  can_link E p1 Ψext1 p2 Ψext2 Ψext →
   Ψext1 |- p1 @ E :: Ψ1 →
   Ψext2 |- p2 @ E :: Ψ2 →
    Ψext |- (link_prog p1 p2) @ E :: Ψ1 ⊔ Ψ2.
@@ -662,6 +662,22 @@ Proof using.
     iApply (wp_link_run2 with "Hin"). iApply ("H" with "Hb"). }
 Qed.
 
+Lemma link_close_correct E p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 :
+  dom p1 ## dom p2 →
+  Ψext1 ⊑ Ψ2 →
+  Ψext2 ⊑ Ψ1 →
+  Ψext1 |- p1 @ E :: Ψ1 →
+  Ψext2 |- p2 @ E :: Ψ2 →
+      ⊥ |- (link_prog p1 p2) @ E :: Ψ1 ⊔ Ψ2.
+Proof using.
+  intros Hlink He1 He2 H1 H2. eapply link_correct; eauto.
+  constructor; first done.
+  { rewrite -H2 proto_on_refines //. }
+  { rewrite -H1 proto_on_refines //. }
+  { rewrite He1 H2. apply mprogwp_except_dom. }
+  { rewrite He2 H1. apply mprogwp_except_dom. }
+Qed.
+
 End Linking_logic.
 
-Global Arguments can_link {_ _ _} _ _ {_ _ _} p1 Ψ1 p2 Ψ2 Ψ.
+Global Arguments can_link {_ _ _} _ _ {_ _ _} E p1 Ψ1 p2 Ψ2 Ψ.

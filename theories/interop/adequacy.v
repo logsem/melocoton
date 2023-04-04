@@ -242,17 +242,17 @@ Section Simplified.
   Context (HNoInternal : ∀ `{!ffiG Σ}, ΨML on (dom (prims_prog eML)) ⊑ ⊥).
   Context (HpeC : ∀ s, is_prim_name s → peC !! s = None).
 
-  Local Instance LinkInstance `{!ffiG Σ} : can_link
-    wrap_lang C_mlang
+  Local Instance LinkInstance `{!ffiG Σ} E : can_link
+    wrap_lang C_mlang E
     (wrap_prog eML) (wrap_proto ΨML)
     peC (prims_proto ∅ eML ΨML)
   ⊥.
   Proof using All. econstructor.
     - eapply elem_of_disjoint. intros s H1%in_dom_prims_prog [x Hx]%elem_of_dom.
       epose proof (HpeC _ H1) as HH. by rewrite HH in Hx.
-    - intros E. rewrite proto_on_refines. eapply prog_triple_mono_mask.
+    - rewrite proto_on_refines. eapply prog_triple_mono_mask.
       2: by eapply lang_to_mlang_correct. solve_ndisj.
-    - intros E. rewrite proto_on_refines.
+    - rewrite proto_on_refines.
       eapply (prog_triple_mono_mask ∅ _); first solve_ndisj.
       eapply wrap_correct. by eapply HNoInternal.
     - iIntros (? ? ?) "H". rewrite /proto_except.
@@ -282,7 +282,7 @@ Section Simplified.
     - iIntros (H1 H2 H3 H4) "Hinit Hstate".
       pose (FFIG _ _ _ _ _ _ _) as HTG.
       iApply (@wp_wand with "[Hstate Hinit]").
-      1: iApply (@wp_link_run2 _ Σ _ _ wrap_lang C_mlang _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ eC _ (@LinkInstance HTG) with "Hstate").
+      1: iApply (@wp_link_run2 _ Σ _ _ wrap_lang C_mlang _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ eC _ (@LinkInstance HTG _) with "Hstate").
       2: { cbn. iIntros (v) "(H&_)". iApply "H". }
       iApply wp_lang_to_mlang.
       iApply (@language.weakestpre.wp_wand with "[Hinit]").
