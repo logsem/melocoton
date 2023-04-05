@@ -2,7 +2,9 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
-From melocoton.interop Require Import basics basics_resources.
+From melocoton.linking Require Import lang weakestpre.
+From melocoton.lang_to_mlang Require Import lang weakestpre.
+From melocoton.interop Require Import basics basics_resources wp_simulation.
 From melocoton.interop Require Import lang weakestpre update_laws wp_utils prims_proto.
 From melocoton.language Require Import weakestpre progenv.
 From melocoton.c_interop Require Import rules notation.
@@ -11,6 +13,7 @@ From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
 From melocoton.ml_lang Require primitive_laws proofmode.
 From melocoton.c_lang Require Import notation proofmode derived_laws.
 From melocoton.examples Require Import compression.
+From melocoton.interop Require Import adequacy.
 
 
 Section C_code.
@@ -266,10 +269,10 @@ Section Specs.
   Definition buf_alloc_res_buffer z cap (b : list (option Z)) : iProp Σ := ⌜cap = 0⌝ ∗ ⌜b = replicate (Z.to_nat z) None⌝.
   Definition buf_alloc_spec_ML s vv Φ : iProp Σ :=
     ∃ (z:Z),
-      ⌜(0 < z)%Z⌝
-    ∗ ⌜s = buf_alloc_name⌝
-    ∗ ⌜vv = [ #z ]⌝
-    ∗ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ meta_token ℓbuf ⊤ -∗ Φ v).
+      "%Hb1" ∷ ⌜(0 < z)%Z⌝
+    ∗ "->" ∷ ⌜s = buf_alloc_name⌝
+    ∗ "->" ∷ ⌜vv = [ #z ]⌝
+    ∗ "HCont" ∷ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ meta_token ℓbuf ⊤ -∗ Φ v).
 
   Definition buf_alloc1_spec idx vnew Pbold cap (b : list (option Z)) : iProp Σ :=
     ∃ bold (capold:nat) , ⌜b = <[ Z.to_nat idx := Some vnew ]> bold⌝ ∗ ⌜cap = max capold (Z.to_nat (idx+1))⌝ ∗ Pbold capold bold.
@@ -282,7 +285,7 @@ Section Specs.
     ∗ "%Hb3" ∷ ⌜j < cap⌝%Z
     ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j+1⌝%Z -∗ Ψframe z -∗ Φz z vnew -∗
           isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ (z+1)%Z)
-    ∗ "#HWP" ∷ (□ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
+    ∗ "#HWP" ∷ (□ ▷ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
               WP (RecV b1 b2 F) #z @ ⟨ ∅, protoCB ⟩ ; E 
               {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz z znew ∗ Ψframe (z)%Z
                                ∗ isBufferRecordML vbuf ℓbuf (Pb (z)%Z) cap}})
@@ -319,8 +322,25 @@ Section Specs.
                                             γfgn ~foreign~ fid -∗ ℓML ↦M #(-1) -∗
                                             γfgn ↦foreign (C_intf.LitV LitNull) -∗ Φ #()).
 
-  Definition buf_library_spec_ML (protoCB : (protocol ML_lang.val Σ)) E :=
+  Definition buf_library_spec_ML_pre E : (protocol ML_lang.val Σ) -d> (protocol ML_lang.val Σ) := λ (protoCB : (protocol ML_lang.val Σ)),
     buf_alloc_spec_ML ⊔ buf_update_spec_ML protoCB E ⊔ buf_free_spec_ML ⊔ wrap_compress_spec_ML ⊔ wrap_max_len_spec_ML.
+
+  Global Instance buf_library_spec_ML_contractive E : Contractive (buf_library_spec_ML_pre E).
+  Proof.
+    rewrite /buf_library_spec_ML_pre /= => n pp1 pp2 Hpp.
+    do 4 f_equiv.
+    unfold buf_update_spec_ML, named.
+    do 35 first [intros ?|f_equiv]. f_contractive.
+    do 5 first [intros ?|f_equiv].
+    eapply wp_ne_proto. done.
+  Qed.
+
+  Definition buf_library_spec_ML E := fixpoint (buf_library_spec_ML_pre E).
+  Lemma buf_library_spec_ML_unfold E s vv Φ :
+   ( buf_library_spec_ML E s vv Φ ⊣⊢ buf_library_spec_ML_pre E (buf_library_spec_ML E) s vv Φ)%I.
+  Proof.
+    apply (fixpoint_unfold (buf_library_spec_ML_pre E)).
+  Qed.
 
 End Specs.
 
@@ -354,8 +374,7 @@ Section Proofs.
   Lemma buf_alloc_correct E1 E2 Ψ :
     prims_proto E1 Ψ ||- buf_lib_prog @ E2 :: wrap_proto buf_alloc_spec_ML.
   Proof using.
-    iIntros (s ws Φ) "H". iNamed "H".
-    iDestruct "Hproto" as "(%cap&%Hcap&->&->&HΦ')".
+    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     cbn. unfold progwp. solve_lookup_fixed.
     destruct lvs as [|lv [|??]]; first done.
     all: cbn; iDestruct "Hsim" as "(->&H)"; try done.
@@ -444,7 +463,7 @@ Section Proofs.
 
     iPoseProof "Hγbk" as "((Hγbk&%Hγbk)&%fid&#Hfid)".
 
-    assert (∃ k, Z.of_nat k = cap) as (ncap&<-) by (exists (Z.to_nat cap); lia).
+    assert (∃ k, Z.of_nat k = z) as (ncap&<-) by (exists (Z.to_nat z); lia).
     rewrite !Nat2Z.id.
     iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer ncap) ncap) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
     { iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame.
@@ -460,12 +479,12 @@ Section Proofs.
     iAssert (meta_token ℓbts ⊤) with "[Hstuff]" as "Hmeta".
     { destruct ncap as [|ncap]; first lia.
       cbn. rewrite loc_add_0. iDestruct "Hstuff" as "($&_)". }
-    iModIntro. iApply ("Cont" with "HGC (HΦ' Hbuffer Hmeta) Hsim [//]").
+    iModIntro. iApply ("Cont" with "HGC (HCont Hbuffer Hmeta) Hsim [//]").
   Qed.
 
 
-  Lemma buf_upd_correct E Ψ :
-    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_update_spec_ML Ψ E).
+  Lemma buf_upd_correct E Ψcb :
+    prims_proto E Ψcb ||- buf_lib_prog @ E :: wrap_proto (buf_update_spec_ML Ψcb E).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     cbn. unfold progwp. solve_lookup_fixed.
@@ -526,7 +545,7 @@ Section Proofs.
     generalize (length vcontent) as vcontent_length. intros vcontent_length Hb3.
     clear vcontent.
 
-    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ ∗ GC θ ∗ Ψ0 (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
+    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ ∗ GC θ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
               with "[HℓF Hℓbf Hℓi HGC HΨ]").
     { iRevert "HMerge HWP Hb1 Hb2". iLöb as "IH" forall (i θ).
       iIntros "#HMerge #HWP %Hb1 %Hb2".
@@ -860,10 +879,11 @@ Section Proofs.
     iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
   Qed.
 
-  Lemma library_correct E Ψ :
-    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_library_spec_ML Ψ E).
+  Lemma library_correct E :
+    prims_proto E (buf_library_spec_ML E) ||- buf_lib_prog @ E :: wrap_proto (buf_library_spec_ML E).
   Proof with (iExists _, _, _, _; by iFrame "HGC H Cont Hsim").
     iIntros (s ws Φ) "H". iNamed "H".
+    rewrite buf_library_spec_ML_unfold.
     iDestruct "Hproto" as "[[[[H|H]|H]|H]|H]".
     - iApply buf_alloc_correct...
     - iApply buf_upd_correct...
@@ -886,7 +906,7 @@ Section MLclient.
 
   Definition ML_client_env : prog_environ ML_lang Σ := {|
     penv_prog  := ∅ ;
-    penv_proto := buf_library_spec_ML protoCB E |}.
+    penv_proto := buf_library_spec_ML E |}.
 
   Definition ML_client_code : MLval := 
     λ: "vbuf",
@@ -913,28 +933,28 @@ Section MLclient.
     {{{ RET #(if is_compressible zz then true else false); ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}.
   Proof.
     iIntros (Hlen Φ) "Hℓ Cont".
-    unfold ML_client_code. wp_pures.
+    unfold ML_client_code, ML_client_env. wp_pures.
     wp_apply (wp_length with "Hℓ"); iIntros "Hℓ". wp_pures.
 
-    wp_extern. iModIntro. do 4 iLeft. rewrite !map_length.
+    wp_extern. iModIntro. cbn. rewrite buf_library_spec_ML_unfold. do 4 iLeft. rewrite !map_length.
     iExists (length zz). iSplit; first (iPureIntro; lia).
     iSplit; first done. iSplit; first done.
     iNext. iIntros (vin ℓinbuf) "Hinbuf _". wp_finish.
     wp_pures.
 
-    wp_extern. iModIntro. iRight.
+    wp_extern. iModIntro. rewrite /= buf_library_spec_ML_unfold. iRight.
     iExists _.
     iSplit; first done. iSplit; first done.
     iNext. wp_pures.
 
-    wp_extern. iModIntro. do 4 iLeft.
+    wp_extern. iModIntro. rewrite /= buf_library_spec_ML_unfold. do 4 iLeft.
     iExists _. iSplit.
     2: iSplit; first done. 2: iSplit; first done.
     1: iPureIntro; lia.
     iNext. iIntros (vout ℓoutbuf) "Houtbuf _". wp_finish.
     wp_pures.
 
-    wp_extern. iModIntro. do 3 iLeft; iRight.
+    wp_extern. iModIntro. rewrite /= buf_library_spec_ML_unfold. do 3 iLeft; iRight.
 
     pose (λ (idx:Z) (used:nat) (b : list (option Z)), 
         ∃ zpre zopost zzpost, ⌜b = map Some zpre ++ zopost⌝ ∗ ⌜length zopost = length zzpost⌝ ∗ 
@@ -974,7 +994,7 @@ Section MLclient.
       - lia.
       - rewrite app_length /=; lia.
     }
-    { iIntros "!> %z %Hz0 %Hzlen (Hbuf&Hℓ)".
+    { iIntros "!> !> %z %Hz0 %Hzlen (Hbuf&Hℓ)".
       assert (exists zvres, zz !! (Z.to_nat z) = Some zvres) as [zvres Heq].
       1: apply lookup_lt_is_Some_2; lia.
       wp_pures. wp_apply (wp_loadN with "Hℓ"). 1: lia.
@@ -995,7 +1015,7 @@ Section MLclient.
       destruct zzpost; last done. destruct zopost; last done.
       by rewrite !app_nil_r. }
 
-    wp_extern. iModIntro. iLeft. iRight.
+    wp_extern. iModIntro. rewrite /= buf_library_spec_ML_unfold. iLeft. iRight.
     iExists _, _, _, _, zz, nil, (λ _ _, True)%I. do 3 iExists _. unfold named.
     iSplit; first done.
     iSplit; first done.
@@ -1018,14 +1038,14 @@ Section MLclient.
     iAssert (⌜used2 = length (compress_buffer zz)⌝)%I as "->".
     { iNamed "Hbuf2". unfold named. iDestruct "HContent" as "(%&%&%&_&%&_)"; done. }
 
-    wp_extern. do 2 iLeft. iRight.
+    wp_extern. rewrite /= buf_library_spec_ML_unfold. do 2 iLeft. iRight.
     iModIntro. iExists _, _, (λ _ _, _)%I, _.
     do 2 (iSplit; first done).
     iSplitL "Hbuf HℓbufML".
     { do 4 iExists _. iSplit; first done. iFrame. }
     iIntros "!> % % % _ _ _ _". wp_pures.
 
-    wp_extern. do 2 iLeft. iRight.
+    wp_extern. rewrite /= buf_library_spec_ML_unfold. do 2 iLeft. iRight.
     iModIntro. iExists _, _, (λ _ _, _)%I, _.
     do 2 (iSplit; first done).
     iSplitL "Hbuf2 HℓbufMLout".
@@ -1036,6 +1056,63 @@ Section MLclient.
     all: iApply ("Cont" with "Hℓ").
   Qed.
 
+  Definition ML_client_applied_code : expr := if: ML_client_code (AllocN #256 #0) then #1 else #0.
+  Lemma ML_client_applied_spec :
+    {{{ True }}}
+      ML_client_applied_code @ ML_client_env ; E
+    {{{ x, RET #x ; ⌜x=1%Z⌝ }}}.
+  Proof.
+    iIntros (Φ) "_ Cont".
+    unfold ML_client_applied_code.
+    wp_apply (wp_allocN); [done..|].
+    iIntros (ℓ) "(Hℓ&_)".
+    wp_apply (ML_client_spec _ _ (replicate 256 (0:Z)) with "Hℓ"). 1: rewrite replicate_length; lia.
+    iIntros "_". wp_pures. by iApply "Cont".
+  Qed.
+
 End MLclient.
+
+Section FullProg.
+Import melocoton.mlanguage.weakestpre.
+Context `{SI:indexT}.
+Context `{!ffiG Σ}.
+
+Definition fullprog : mlang_prog (link_lang wrap_lang C_mlang) :=
+  link_prog wrap_lang C_mlang (wrap_prog ML_client_applied_code) buf_lib_prog.
+
+Lemma fullprog_correct :
+  ⊥ |- fullprog :: main_proto (λ ret, ret = 1).
+Proof.
+  eapply prog_triple_mono_r; swap 1 2.
+  { eapply link_close_correct.
+    { rewrite dom_prims_prog. set_solver. }
+    3: { apply wrap_correct.
+         2: { iIntros (? _) "HΦ". by iApply ML_client_applied_spec. }
+         { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
+           rewrite !dom_insert dom_empty /= in H.
+           rewrite buf_library_spec_ML_unfold.
+           iDestruct "H" as "[[[[H|H]|H]|H]|H]".
+           all: iNamed "H"; exfalso; cbn in H; set_solver. } }
+    3: { apply lang_to_mlang_correct, library_correct. }
+    1: done.
+    apply proto_refines_join_l. }
+  { rewrite -proto_refines_join_l -proto_refines_join_r //. }
+Qed.
+End FullProg.
+
+Section Adequacy.
+  Existing Instance ordinals.ordI.
+
+  Lemma buffers_adequate :
+    umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
+      (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
+  Proof.
+    eapply umrel_upclosed.
+    1: eapply (@adequacy.main_adequacy_trace fullprog (λ x, x = 1)).
+    2: { intros [? ?]. by intros (? & ? & ->). }
+    intros ?. rewrite -fullprog_correct. apply main_proto_mono; eauto.
+  Qed.
+  Print Assumptions buffers_adequate.
+End Adequacy.
 
 

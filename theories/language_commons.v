@@ -114,6 +114,12 @@ Proof. iIntros (? ? ?) "H". by iApply bi.and_elim_l. Qed.
 Lemma proto_refines_meet_r val Σ (Ψ1 Ψ2 : protocol val Σ) : Ψ1 ⊓ Ψ2 ⊑ Ψ2.
 Proof. iIntros (? ? ?) "H". by iApply bi.and_elim_r. Qed.
 
+Global Instance proto_meet_ne val Σ : NonExpansive2 (@proto_meet val Σ).
+Proof.
+  rewrite /proto_meet /= => n pp1 pp2 Hpp qq1 qq2 Hqq.
+  repeat first [intros ?|f_equiv]. 1: apply Hpp. 1: apply Hqq.
+Qed.
+
 (* "Join" operation en protocols. *)
 Definition proto_join {val Σ} (Ψ1 Ψ2 : protocol val Σ) : protocol val Σ :=
   (λ s vs Φ, Ψ1 s vs Φ ∨ Ψ2 s vs Φ)%I.
@@ -134,6 +140,12 @@ Proof.
   iApply (bi.or_elim with "H"); iIntros "H".
   { iApply bi.or_intro_l. by iApply Hre1. }
   { iApply bi.or_intro_r. by iApply Hre2. }
+Qed.
+
+Global Instance proto_join_ne val Σ : NonExpansive2 (@proto_join val Σ).
+Proof.
+  rewrite /proto_join /= => n pp1 pp2 Hpp qq1 qq2 Hqq.
+  repeat first [intros ?|f_equiv]. 1: apply Hpp. 1: apply Hqq.
 Qed.
 
 End Protocols.

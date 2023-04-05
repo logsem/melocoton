@@ -60,6 +60,7 @@ Global Existing Instance wp'.
 Local Lemma wp_unseal `{SI:indexT, !langG val Λ Σ, !invG Σ} : wp = @wp_def SI val Λ Σ _ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
+
 Definition wp_func `{!indexT, !langG val Λ Σ, !invG Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
   match apply_func F vv with
     Some e' => |={E}=> ▷ |={E}=> wp' pe E e' Φ
@@ -133,6 +134,20 @@ Global Instance wp_proper pe E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) pe E e).
 Proof.
   by intros Φ Φ' ?; apply equiv_dist=>n; apply wp_ne=>v; apply equiv_dist.
+Qed.
+Lemma wp_ne_proto n prog E e Φ:
+  Proper ((dist n) ==> dist n) (λ (x:(string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)), wp (Penv prog x) E e Φ).
+Proof.
+  revert E e Φ. induction (index_lt_wf n) as [n _ IH]=> e Φ Ψ.
+  intros pp1 pp2 Hpp.
+  rewrite !wp_unfold /wp_pre /=.
+  do 13 f_equiv. 1: do 6 f_equiv. 1: apply Hpp.
+  all: f_contractive.
+  all: f_equiv.
+  all: f_equiv.
+  1: f_equiv.
+  all: apply IH; eauto; intros k; eapply dist_le', Hpp; eauto.
+  all: by eapply index_lt_le_subrel.
 Qed.
 
 
