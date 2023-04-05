@@ -192,7 +192,7 @@ Definition callback_proto E (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
                    ⌜repr_lval θ' lvret wret⌝ -∗
                    Φ wret))%I.
 
-Definition main_proto (Ψ : ML_proto) (Φ' : Z → Prop) : C_proto := (λ fn vl Φ,
+Definition main_proto (Φ' : Z → Prop) : C_proto := (λ fn vl Φ,
   "->" ∷ ⌜fn = "main"⌝ ∗
   "->" ∷ ⌜vl = []⌝ ∗
   "Hat_init" ∷ at_init ∗
@@ -241,9 +241,9 @@ Proof using.
   done.
 Qed.
 
-Lemma main_proto_mono_post Ψ (Φ Φ' : Z → Prop) :
+Lemma main_proto_mono (Φ Φ' : Z → Prop) :
   (∀ x, Φ x → Φ' x) →
-  main_proto Ψ Φ' ⊑ main_proto Ψ Φ.
+  main_proto Φ' ⊑ main_proto Φ.
 Proof.
   iIntros (Himpl ? ? ?) "H". iNamed "H".
   rewrite /main_proto /named. do 2 (iSplit; first done).

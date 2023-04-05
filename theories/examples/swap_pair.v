@@ -165,7 +165,7 @@ Definition fullprog : mlang_prog (link_lang wrap_lang C_mlang) :=
   link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog.
 
 Lemma fullprog_correct :
-  ⊥ |- fullprog :: main_proto swap_pair_ml_spec (λ ret, ret = 1).
+  ⊥ |- fullprog :: main_proto (λ ret, ret = 1).
 Proof.
   eapply prog_triple_mono_r; swap 1 2.
   { eapply link_close_correct.
@@ -189,9 +189,9 @@ Section Adequacy.
       (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
   Proof.
     eapply umrel_upclosed.
-    1: eapply (@adequacy.main_adequacy_trace fullprog swap_pair_ml_spec (λ x, x = 1)).
+    1: eapply (@adequacy.main_adequacy_trace fullprog (λ x, x = 1)).
     2: { intros [? ?]. by intros (? & ? & ->). }
-    intros ?. rewrite -fullprog_correct. apply main_proto_mono_post; eauto.
+    intros ?. rewrite -fullprog_correct. apply main_proto_mono; eauto.
   Qed.
 End Adequacy.
 (*

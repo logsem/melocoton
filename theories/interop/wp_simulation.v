@@ -211,7 +211,7 @@ Qed.
 Lemma main_correct E emain Ψ (Φ : Z → Prop) :
   Ψ on prim_names ⊑ ⊥ →
   {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ x, RET (LitV (LitInt x)); ⌜Φ x⌝ }}} →
-  wrap_proto Ψ |- prims_prog emain @ E :: main_proto Ψ Φ.
+  wrap_proto Ψ |- prims_prog emain @ E :: main_proto Φ.
 Proof using.
   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamed "Hproto".
   do 2 (iExists _; iSplit; first done). iIntros "!> Hb".
@@ -256,7 +256,7 @@ Qed.
 Lemma wrap_correct E emain Ψ (Φ : Z → Prop) :
   Ψ on prim_names ⊑ ⊥ →
   {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ x, RET (LitV (LitInt x)); ⌜Φ x⌝ }}} →
-  wrap_proto Ψ |- wrap_prog emain @ E :: prims_proto E Ψ ⊔ main_proto Ψ Φ.
+  wrap_proto Ψ |- wrap_prog emain @ E :: prims_proto E Ψ ⊔ main_proto Φ.
 Proof using.
   intros Hnprim Hmain.
   iIntros (? ? ?) "[Hprim|Hmain]".

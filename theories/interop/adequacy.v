@@ -195,9 +195,9 @@ Section MainAlloc.
   Notation Φpure Φ := (λ w _, ∃ x, w = code_int x ∧ Φ x).
   Notation Φbi Φ := (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I.
 
-  Lemma alloc_main p ΨML Φ :
+  Lemma alloc_main p Φ :
     (∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-       ⊥ |- p :: main_proto ΨML Φ) →
+       ⊥ |- p :: main_proto Φ) →
     @Alloc _ Σ (mlangG word melocoton_lang Σ)
       (λ HH : mlangG word melocoton_lang Σ,
          (sideConds melocoton_lang (Φpure Φ) p ⊥ (Φbi Φ)) ∗
@@ -234,8 +234,8 @@ End MainAlloc.
 
 Local Existing Instance ordI.
 
-Lemma main_adequacy_trace (p : mlang_prog melocoton_lang) ΨML Φ :
-  (∀ `{!ffiG ffiΣ}, ⊥ |- p :: main_proto ΨML Φ) →
+Lemma main_adequacy_trace (p : mlang_prog melocoton_lang) Φ :
+  (∀ `{!ffiG ffiΣ}, ⊥ |- p :: main_proto Φ) →
   umrel.trace (prim_step p) (LkCall "main" [], σ_init)
     (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Φ x).
 Proof using All.
@@ -244,12 +244,12 @@ Proof using All.
                (λ w, ∃ (x:Z), ⌜w = code_int x ∧ Φ x⌝)%I).
   { apply _. }
   2: { intros [? ?] (? & ? & HH). naive_solver. }
-  intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
+  intros Hinv. eapply (alloc_main p). intros Hffi ? ? ?.
   by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
 Qed.
 
-Lemma main_adequacy_star (p : mlang_prog melocoton_lang) ΨML Φ X :
-  (∀ `{!ffiG ffiΣ}, ⊥ |- p :: main_proto ΨML Φ) →
+Lemma main_adequacy_star (p : mlang_prog melocoton_lang) Φ X :
+  (∀ `{!ffiG ffiΣ}, ⊥ |- p :: main_proto Φ) →
   umrel.star_AD (prim_step p) (LkCall "main" [], σ_init) X →
   ∃ e σ, X (e, σ) ∧ (∀ x, to_val e = Some (code_int x) → Φ x).
 Proof using All.
@@ -260,7 +260,7 @@ Proof using All.
   2: { destruct HH as (? & ? & ? & HH). eexists _, _. split; eauto.
        intros y Hy. destruct (HH (code_int y)) as (? & ?%code_int_inj & ?); eauto.
        by simplify_eq. }
-  intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
+  intros Hinv. eapply (alloc_main p). intros Hffi ? ? ?.
   by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
 Qed.
 

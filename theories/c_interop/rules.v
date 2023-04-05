@@ -323,9 +323,9 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_main E p ΨML Ψ Φ :
+Lemma wp_main E p Ψ Φ :
   p !! "main" = None →
-  main_proto ΨML Φ ⊑ Ψ →
+  main_proto Φ ⊑ Ψ →
   {{{ at_init }}}
     (call: &"main" with ( ))%CE @ ⟨p, Ψ⟩; E
   {{{ x, RET (code_int x); ⌜Φ x⌝ }}}.
