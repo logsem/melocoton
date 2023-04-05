@@ -145,7 +145,7 @@ Context `{!ffiG Σ}.
 Import melocoton.ml_lang.proofmode.
 
 Lemma ML_prog_correct_axiomatic E :
-  {{{ True }}} swap_pair_client @ ⟨∅, swap_pair_ml_spec⟩ ; E {{{v, RET v; ⌜v = #1⌝%MLV}}}.
+  {{{ True }}} swap_pair_client @ ⟨∅, swap_pair_ml_spec⟩ ; E {{{ x, RET (#x); ⌜x = 1%Z⌝}}}.
 Proof.
   unfold swap_pair_client. iIntros (? _) "HΦ". wp_pures.
   wp_extern.
@@ -165,7 +165,7 @@ Definition fullprog : mlang_prog (link_lang wrap_lang C_mlang) :=
   link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog.
 
 Lemma fullprog_correct :
-  ⊥ |- fullprog :: main_proto swap_pair_ml_spec (λ v, ⌜v = #1⌝%MLV)%I.
+  ⊥ |- fullprog :: main_proto swap_pair_ml_spec (λ ret, ret = 1).
 Proof.
   eapply prog_triple_mono_r; swap 1 2.
   { eapply link_close_correct.

@@ -197,7 +197,7 @@ Section MainAlloc.
 
   Lemma alloc_main p ΨML Φ :
     (∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-       ⊥ |- p :: main_proto ΨML (λ v, ∃ x, ⌜v = MLIntV x ∧ Φ x⌝)%I) →
+       ⊥ |- p :: main_proto ΨML Φ) →
     @Alloc _ Σ (mlangG word melocoton_lang Σ)
       (λ HH : mlangG word melocoton_lang Σ,
          (sideConds melocoton_lang (Φpure Φ) p ⊥ (Φbi Φ)) ∗
@@ -223,8 +223,7 @@ Section MainAlloc.
     specialize (Hspec _ _ _ _ "main" [] (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I).
     iDestruct (Hspec with "[Hinit2]") as "Hmain".
     { rewrite /main_proto /named. do 2 (iSplit; first done). iFrame.
-      iIntros "!>" (? ? ? ?) "? H". iDestruct "H" as (? ->) "%".
-      iIntros "-> %Hrepr". inversion Hrepr; simplify_eq. eauto. }
+      iIntros "!>" (? ?). eauto. }
     iApply (@wp_internal_call_at_boundary with "[Hb1 SIbound] Hmain");
       [done|by iFrame|].
     iIntros "!>" (? (? & -> & ?)) "?".
@@ -233,53 +232,37 @@ Section MainAlloc.
 
 End MainAlloc.
 
-Section MainAdequacy.
+Local Existing Instance ordI.
 
-  Existing Instance ordI.
-  Let Σ := ffiΣ.
+Lemma main_adequacy_trace (p : mlang_prog melocoton_lang) ΨML Φ :
+  (∀ `{!ffiG ffiΣ}, ⊥ |- p :: main_proto ΨML Φ) →
+  umrel.trace (prim_step p) (LkCall "main" [], σ_init)
+    (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Φ x).
+Proof using All.
+  intros Hspec. eapply umrel_upclosed.
+  1: eapply (@alloc_adequacy_coind _ melocoton_lang ffiΣ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
+               (λ w, ∃ (x:Z), ⌜w = code_int x ∧ Φ x⌝)%I).
+  { apply _. }
+  2: { intros [? ?] (? & ? & HH). naive_solver. }
+  intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
+  by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
+Qed.
 
-  Notation C_proto := (protocol C_intf.val Σ).
-  Notation ML_proto := (protocol ML_lang.val Σ).
-  Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
-  Notation MLIntV x := (LitV (LitInt x)).
-
-  Context (p : mlang_prog (link_lang wrap_lang C_mlang)).
-  Context (ΨML : ML_proto).
-  Context (Φ   : Z → Prop).
-
-  Context (Hspec : ∀ `{!ffiG Σ},
-    ⊥ |- p :: main_proto ΨML (λ v, ∃ (x:Z), ⌜v = MLIntV x ∧ Φ x⌝)%I
-  ).
-
-  Lemma main_adequacy_trace :
-    umrel.trace (prim_step p) (LkCall "main" [], σ_init)
-      (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Φ x).
-  Proof using All.
-    eapply umrel_upclosed.
-    1: eapply (@alloc_adequacy_coind _ melocoton_lang Σ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
-                 (λ w, ∃ (x:Z), ⌜w = code_int x ∧ Φ x⌝)%I).
-    { apply _. }
-    2: { intros [? ?] (? & ? & HH). naive_solver. }
-    intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
-    by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
-  Qed.
-
-  Lemma main_adequacy_star X :
-    umrel.star_AD (prim_step p) (LkCall "main" [], σ_init) X →
-    ∃ e σ, X (e, σ) ∧ (∀ x, to_val e = Some (code_int x) → Φ x).
-  Proof using All.
-    intros HWP.
-    unshelve epose proof (@alloc_adequacy _ melocoton_lang Σ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
-              (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I _ (LkCall "main" []) σ_init _ _ HWP)
-      as HH.
-    2: { destruct HH as (? & ? & ? & HH). eexists _, _. split; eauto.
-         intros y Hy. destruct (HH (code_int y)) as (? & ?%code_int_inj & ?); eauto.
-         by simplify_eq. }
-    intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
-    by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
-  Qed.
-
-End MainAdequacy.
+Lemma main_adequacy_star (p : mlang_prog melocoton_lang) ΨML Φ X :
+  (∀ `{!ffiG ffiΣ}, ⊥ |- p :: main_proto ΨML Φ) →
+  umrel.star_AD (prim_step p) (LkCall "main" [], σ_init) X →
+  ∃ e σ, X (e, σ) ∧ (∀ x, to_val e = Some (code_int x) → Φ x).
+Proof using All.
+  intros Hspec HWP.
+  unshelve epose proof (@alloc_adequacy _ melocoton_lang ffiΣ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
+            (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I _ (LkCall "main" []) σ_init _ _ HWP)
+    as HH.
+  2: { destruct HH as (? & ? & ? & HH). eexists _, _. split; eauto.
+       intros y Hy. destruct (HH (code_int y)) as (? & ?%code_int_inj & ?); eauto.
+       by simplify_eq. }
+  intros Hinv. eapply (alloc_main p ΨML). intros Hffi ? ? ?.
+  by specialize (Hspec (FFIG _ _ _ _ _ _ _)).
+Qed.
 
 (*
 Section Alloc.

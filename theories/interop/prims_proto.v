@@ -192,17 +192,11 @@ Definition callback_proto E (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
                    ⌜repr_lval θ' lvret wret⌝ -∗
                    Φ wret))%I.
 
-Definition main_proto (Ψ : ML_proto) (Φ' : ML_lang.val → iProp Σ) : C_proto := (λ fn vl Φ,
+Definition main_proto (Ψ : ML_proto) (Φ' : Z → Prop) : C_proto := (λ fn vl Φ,
   "->" ∷ ⌜fn = "main"⌝ ∗
   "->" ∷ ⌜vl = []⌝ ∗
   "Hat_init" ∷ at_init ∗
-  "Cont" ∷ ▷ (∀ θ' vret lvret wret,
-                   GC θ' -∗
-                   Φ' vret -∗
-                   lvret ~~ vret -∗
-                   ⌜repr_lval θ' lvret wret⌝ -∗
-                   Φ wret)
-  )%I.
+  "Cont" ∷ ▷ (∀ x, ⌜Φ' x⌝ -∗ Φ (code_int x)))%I.
 
 Definition prim_proto (p : prim) E (Ψ : ML_proto) : C_proto :=
   match p with
@@ -247,14 +241,13 @@ Proof using.
   done.
 Qed.
 
-Lemma main_proto_mono_post Ψ Φ Φ' :
-  (∀ v, Φ v -∗ Φ' v) →
+Lemma main_proto_mono_post Ψ (Φ Φ' : Z → Prop) :
+  (∀ x, Φ x → Φ' x) →
   main_proto Ψ Φ' ⊑ main_proto Ψ Φ.
 Proof.
   iIntros (Himpl ? ? ?) "H". iNamed "H".
   rewrite /main_proto /named. do 2 (iSplit; first done).
-  iFrame. iIntros "!>" (? ? ? ?) "H1 H2 H3 H4".
-  iApply ("Cont" with "H1 [H2] H3 H4"). by iApply Himpl.
+  iFrame. iIntros "!>" (? ?). iApply "Cont". iPureIntro. eauto.
 Qed.
 
 (* some boilerplate *)

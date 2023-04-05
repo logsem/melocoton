@@ -323,26 +323,20 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_main e E E' p ΨML Ψ Φ :
+Lemma wp_main E p ΨML Ψ Φ :
   p !! "main" = None →
-  main_proto E' e ΨML ⊑ Ψ →
-  {{{ at_init ∗
-      (▷ WP e @ ⟨∅, ΨML⟩; E' {{ Φ }})
-  }}}
+  main_proto ΨML Φ ⊑ Ψ →
+  {{{ at_init }}}
     (call: &"main" with ( ))%CE @ ⟨p, Ψ⟩; E
-  {{{ θ' vret lvret wret, RET wret;
-        GC θ' ∗
-        Φ vret ∗
-        lvret ~~ vret ∗
-        ⌜repr_lval θ' lvret wret⌝ }}}.
+  {{{ x, RET (code_int x); ⌜Φ x⌝ }}}.
 Proof.
-  intros Hp Hproto **. iIntros "(Hinit&HWP) Cont".
+  intros Hp Hproto **. iIntros "Hinit Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /main_proto /named.
-  iExists Φ. iFrame.
-  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  do 2 (iSplit; first by eauto with lia). iFrame.
+  iIntros "!>" (? ?).
+  iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
 (* Macro Laws *)

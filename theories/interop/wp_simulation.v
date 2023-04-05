@@ -208,9 +208,9 @@ Proof using.
   iApply ("Cont" with "[$] [$] [$]"); eauto.
 Qed.
 
-Lemma main_correct E emain Ψ Φ :
+Lemma main_correct E emain Ψ (Φ : Z → Prop) :
   Ψ on prim_names ⊑ ⊥ →
-  {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ v, RET v; Φ v }}} →
+  {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ x, RET (LitV (LitInt x)); ⌜Φ x⌝ }}} →
   wrap_proto Ψ |- prims_prog emain @ E :: main_proto Ψ Φ.
 Proof using.
   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamed "Hproto".
@@ -246,14 +246,16 @@ Proof using.
 
   iApply (weakestpre.wp_wand with "[-Cont]").
   { iApply (wp_simulates with "Hb []"); first done.
-    iApply Hmain; first done. iIntros "!>" (?) "H". iApply "H". }
+    iApply (Hmain (λ v, ∃ x, ⌜v = LitV (LitInt x) ∧ Φ x⌝)%I); first done.
+    iIntros "!>" (? ?). eauto. }
   cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & %Hrepr & Hsim & HΦ' & $)".
-  by iApply ("Cont" with "HGC HΦ' Hsim").
+  iDestruct "HΦ'" as (? ->) "%". iDestruct "Hsim" as "->". inversion Hrepr; simplify_eq.
+  by iApply "Cont".
 Qed.
 
-Lemma wrap_correct E emain Ψ Φ :
+Lemma wrap_correct E emain Ψ (Φ : Z → Prop) :
   Ψ on prim_names ⊑ ⊥ →
-  {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ v, RET v; Φ v }}} →
+  {{{ True }}} emain @ ⟨∅, Ψ⟩; E {{{ x, RET (LitV (LitInt x)); ⌜Φ x⌝ }}} →
   wrap_proto Ψ |- wrap_prog emain @ E :: prims_proto E Ψ ⊔ main_proto Ψ Φ.
 Proof using.
   intros Hnprim Hmain.
