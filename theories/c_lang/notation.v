@@ -39,7 +39,7 @@ Notation "e1 'bxor' e2" := (BinOp XorOp e1%CE e2%CE) (at level 47) : c_expr_scop
 Notation "e1 ≤ e2" := (BinOp LeOp e1%CE e2%CE) : c_expr_scope.
 Notation "e1 < e2" := (BinOp LtOp e1%CE e2%CE) : c_expr_scope.
 Notation "e1 = e2" := (BinOp EqOp e1%CE e2%CE) : c_expr_scope.
-Notation "e1 ≠ e2" := (UnOp NegOp (BinOp EqOp e1%CE e2%CE)) : c_expr_scope.
+Notation "e1 ≠ e2" := (UnOp NotOp (BinOp EqOp e1%CE e2%CE)) : c_expr_scope.
 (* The unicode ← is already part of the notation "_ ← _; _" for bind. *)
 Notation "e1 <- e2" := (Store e1%CE e2%CE) (at level 80, e2 at level 78) : c_expr_scope.
 

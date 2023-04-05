@@ -89,7 +89,7 @@ Definition buf_free_code (bf : expr) : expr :=
   (if: "bts" ≠ #LitNull
       then free("bts", "cap") else Skip );;
   (Custom_contents(Field(Field( bf, #1), #1)) := #LitNull) ;;
-  Store_field (&Field(Field( bf, #0), #0), # -1 ) ;;
+  Store_field (&Field(Field( bf, #0), #0), Val_int (#-1) ) ;;
   Val_int (#0).
 Definition buf_free_fun := Fun [BNamed "bf"] (buf_free_code "bf").
 Definition buf_free_name := "buf_free".
@@ -115,9 +115,10 @@ Definition wrap_compress_name := "wrap_compress".
 Definition buf_lib_prog : lang_prog C_lang :=
   <[wrap_compress_name := wrap_compress_fun]> (
   <[wrap_max_len_name  := wrap_max_len_fun]> (
+  <[buf_free_name      := buf_free_fun]> (
   <[buf_upd_name       := buf_upd_fun]> (
   <[buf_alloc_name     := buf_alloc_fun]>
-    buffy_env ))).
+    buffy_env )))).
 
 End C_code.
 
@@ -139,11 +140,11 @@ Section Specs.
       ∗ "->" ∷ ⌜cap = length vcontent⌝.
 
   Lemma isBufferForeignBlock_ext γ ℓbuf Pb1 Pb2 cap fid :
-     (∀ lst, □ (Pb1 lst -∗ Pb2 lst))
+     (∀ lst, (Pb1 lst -∗ Pb2 lst))
   -∗ isBufferForeignBlock γ ℓbuf Pb1 cap fid
   -∗ isBufferForeignBlock γ ℓbuf Pb2 cap fid.
   Proof.
-    iIntros "#Hiff Hbuf". iNamed "Hbuf".
+    iIntros "Hiff Hbuf". iNamed "Hbuf".
     iExists vcontent; unfold named; iFrame.
     iFrame "Hγfgnsim". iSplit; last done.
     by iApply "Hiff".
@@ -165,14 +166,14 @@ Section Specs.
 
 
   Lemma isBufferRecordML_ext v ℓbuf Pb1 Pb2 cap :
-     (∀ z lst, □ (Pb1 z lst -∗ Pb2 z lst))
+     (∀ z lst, (Pb1 z lst -∗ Pb2 z lst))
   -∗ isBufferRecordML v ℓbuf Pb1 cap
   -∗ isBufferRecordML v ℓbuf Pb2 cap.
   Proof.
-    iIntros "#Hiff Hbuf". iNamed "Hbuf".
+    iIntros "Hiff Hbuf". iNamed "Hbuf".
     iExists ℓML, used, fid, γfgn; unfold named; iFrame.
     iSplit; first done.
-    iApply (isBufferForeignBlock_ext with "[] Hbuf").
+    iApply (isBufferForeignBlock_ext with "[Hiff] Hbuf").
     iApply "Hiff".
   Qed.
 
@@ -273,30 +274,30 @@ Section Specs.
   Definition buf_alloc1_spec idx vnew Pbold cap (b : list (option Z)) : iProp Σ :=
     ∃ bold (capold:nat) , ⌜b = <[ Z.to_nat idx := Some vnew ]> bold⌝ ∗ ⌜cap = max capold (Z.to_nat (idx+1))⌝ ∗ Pbold capold bold.
   Definition buf_update_spec_ML (protoCB : (protocol ML_lang.val Σ)) E s vv Φ: iProp Σ :=
-    ∃ (Ψ Ψframe : Z → iProp Σ) (Φz : Z → iProp Σ) (i j : Z) ℓbuf (cap:nat) (Pb : Z → nat → _ → iProp Σ) vbuf b1 b2 (F : ML_lang.expr),
+    ∃ (Ψ Ψframe : Z → iProp Σ) (Φz : Z → Z → iProp Σ) (i j : Z) ℓbuf (cap:nat) (Pb : Z → nat → _ → iProp Σ) vbuf b1 b2 (F : ML_lang.expr),
       "->" ∷ ⌜s = buf_upd_name⌝
     ∗ "->" ∷ ⌜vv = [ #i; #j; (RecV b1 b2 F); vbuf ]⌝
     ∗ "%Hb1" ∷ ⌜0%Z ≤ i⌝%Z
     ∗ "%Hb2" ∷ ⌜i ≤ j+1⌝%Z
     ∗ "%Hb3" ∷ ⌜j < cap⌝%Z
-    ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j+1⌝%Z -∗ Ψframe z -∗ Φz vnew -∗
+    ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j+1⌝%Z -∗ Ψframe z -∗ Φz z vnew -∗
           isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ (z+1)%Z)
     ∗ "#HWP" ∷ (□ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
               WP (RecV b1 b2 F) #z @ ⟨ ∅, protoCB ⟩ ; E 
-              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz znew ∗ Ψframe (z)%Z
+              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz z znew ∗ Ψframe (z)%Z
                                ∗ isBufferRecordML vbuf ℓbuf (Pb (z)%Z) cap}})
     ∗ "Hframe" ∷ Ψframe i
     ∗ "Hrecord" ∷ isBufferRecordML vbuf ℓbuf (Pb i) cap
     ∗ "HMergeInitial" ∷ (Ψframe i ∗ isBufferRecordML vbuf ℓbuf (Pb i) cap ==∗ Ψ i)
     ∗ "HCont" ∷ ▷ (Ψ (j+1)%Z -∗ Φ #()).
 
-  Definition wrap_max_len_ML s vv Φ : iProp Σ :=
+  Definition wrap_max_len_spec_ML s vv Φ : iProp Σ :=
     ∃ (n:nat),
       "->" ∷ ⌜s = wrap_max_len_name⌝
     ∗ "->" ∷ ⌜vv = [ #n ]⌝
     ∗ "HCont" ∷ ▷ Φ #(buffer_max_len n).
 
-  Definition wrap_compress_ML s vv Φ : iProp Σ :=
+  Definition wrap_compress_spec_ML s vv Φ : iProp Σ :=
     ∃ v1 v2 ℓ1 ℓ2 (vcompress:buffer) vrest1 Pb1 Pb2 cap1 cap2,
       "->" ∷ ⌜s = wrap_compress_name⌝
     ∗ "->" ∷ ⌜vv = [ v1 ; v2 ]⌝
@@ -309,19 +310,17 @@ Section Specs.
                                                       ∗ Pb2 zold (vov ++ vrest)) cap2
                    -∗ Φ #true).
 
-  Definition buf_free_ML s vv Φ : iProp Σ :=
+  Definition buf_free_spec_ML s vv Φ : iProp Σ :=
     ∃ v ℓ Pb cap,
       "->" ∷ ⌜s = buf_free_name⌝
     ∗ "->" ∷ ⌜vv = [ v ]⌝
-    ∗ "%Hcap" ∷ ⌜buffer_max_len (length vcompress) ≤ cap2⌝
-    ∗ "HBuf1" ∷ isBufferRecordML v1 ℓ1 (λ z vb, ⌜vb = map Some vcompress ++ vrest1⌝ ∗ ⌜length vcompress = z⌝ ∗ Pb1 z vb) cap1
-    ∗ "HBuf2" ∷ isBufferRecordML v2 ℓ2 Pb2 cap2
-    ∗ "HCont" ∷ ▷   ( isBufferRecordML v1 ℓ1 (λ z vb, ⌜vb = map Some vcompress ++ vrest1⌝ ∗ ⌜length vcompress = z⌝ ∗ Pb1 z vb) cap1
-                   -∗ isBufferRecordML v2 ℓ2 (λ z vb, ∃ vov vrest zold, ⌜vb = map Some (compress_buffer vcompress) ++ vrest⌝  
-                                                      ∗ ⌜length (compress_buffer vcompress) = z⌝ ∗ ⌜length vov = z⌝
-                                                      ∗ Pb2 zold (vov ++ vrest)) cap2
-                   -∗ Φ #true).
+    ∗ "Hbuf" ∷ isBufferRecordML v ℓ Pb cap
+    ∗ "HCont" ∷ ▷   ( ∀ (ℓML:loc) fid γfgn, ⌜v = (# ℓML, (# cap, # (LitForeign fid)))%MLV⌝ -∗
+                                            γfgn ~foreign~ fid -∗ ℓML ↦M #(-1) -∗
+                                            γfgn ↦foreign (C_intf.LitV LitNull) -∗ Φ #()).
 
+  Definition buf_library_spec_ML (protoCB : (protocol ML_lang.val Σ)) E :=
+    buf_alloc_spec_ML ⊔ buf_update_spec_ML protoCB E ⊔ buf_free_spec_ML ⊔ wrap_compress_spec_ML ⊔ wrap_max_len_spec_ML.
 
 End Specs.
 
@@ -649,7 +648,7 @@ Section Proofs.
 
 
   Lemma wrap_max_len_correct E Ψ :
-    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_max_len_ML).
+    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_max_len_spec_ML).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iNamed "Hproto".
@@ -668,7 +667,7 @@ Section Proofs.
     iApply wp_proto_mono. 2: iApply wp_wand.
     2: iApply buffy_max_len_spec.
     1: iIntros (???) "[]".
-    1: by do 4 (apply insert_subseteq_r; [done|]).
+    1: by do 5 (apply insert_subseteq_r; [done|]).
     1: done.
     iIntros (v) "->".
     wp_apply (wp_int2val with "HGC"); [done..|].
@@ -677,7 +676,7 @@ Section Proofs.
   Qed.
 
   Lemma wrap_compress_correct E Ψ :
-    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_compress_ML).
+    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_compress_spec_ML).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iNamed "Hproto".
@@ -739,7 +738,7 @@ Section Proofs.
     2: iApply (wp_wand with "[Hℓbuf Hℓbuf2 Hℓcap2]").
     2: iApply (buffy_compress_spec with "Hℓbuf Hℓbuf2 [Hℓcap2]").
     - iIntros (???) "[]".
-    - by do 4 (apply insert_subseteq_r; [done|]).
+    - by do 5 (apply insert_subseteq_r; [done|]).
     - by rewrite map_map.
     - rewrite map_length; lia.
     - rewrite map_length. iApply "Hℓcap2".
@@ -789,9 +788,254 @@ Section Proofs.
         rewrite map_app. iApply array_app. rewrite !map_length. iFrame. }
   Qed.
 
+  Lemma buf_free_correct E Ψ :
+    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_free_spec_ML).
+  Proof.
+    iIntros (s ws Φ) "H". iNamed "H".
+    iNamed "Hproto".
+    cbn. unfold progwp. solve_lookup_fixed.
+    destruct lvs as [|lv [|??]]; first done.
+    all: cbn; iDestruct "Hsim" as "(Hsim&H)"; try done.
+    destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
+    eapply Forall2_cons_inv_l in Hrepr as (wγ&?&Hlγ&_&?); simplify_eq.
+    cbn. iExists _. iSplit; first done.
+    iExists _. cbn. solve_lookup_fixed.
+    iSplit; first done. iNext.
+
+    iMod (bufToC with "HGC Hbuf Hsim") as "(HGC&HBuf1&%&%&->)".
+    iNamed "HBuf1". iNamed "Hbuf".
+    wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
+    iIntros (vγaux1 wγaux1) "(HGC&_&%Heq1&%Hreprγaux1)". cbv in Heq1; simplify_eq.
+    wp_apply (wp_readfield with "[$HGC $Hγaux]"); [done..|].
+    iIntros (vγfgn1 wγfgn1) "(HGC&_&%Heq1&%Hreprγfgn1)". cbv in Heq1; simplify_eq.
+    wp_apply (wp_read_foreign with "[$HGC $Hγfgnpto]"); [done..|].
+    iIntros "(HGC&Hγfgnpto)". wp_pure _.
+
+    wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
+    iIntros (vγref1 wγref1) "(HGC&_&%Heq1&%Hreprγref1)". cbv in Heq1; simplify_eq.
+    wp_apply (wp_readfield with "[$HGC $Hγaux]"); [done..|].
+    iIntros (vv wcap) "(HGC&_&%Heq1&%Hreprwcap)". change (Z.to_nat 0) with 0 in Heq1; cbn in Heq1; simplify_eq.
+    wp_apply (wp_val2int with "HGC"); [done..|].
+    iIntros "HGC". wp_pure _.
+    wp_pure _; first by destruct ℓ. do 2 wp_pure _.
+    replace (length vcontent) with 
+      (length (map (option_map (λ z : Z, #z)) vcontent)) by by rewrite map_length.
+    wp_apply (wp_free_array with "Hℓbuf"). iIntros "_".
+    wp_pure _.
+
+    wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
+    iIntros (vγaux2 wγaux2) "(HGC&_&%Heq1&%Hreprγaux2)". cbv in Heq1; simplify_eq.
+    wp_apply (wp_readfield with "[$HGC $Hγaux]"); [done..|].
+    iIntros (vγfgn2 wγfgn2) "(HGC&_&%Heq1&%Hreprγfgn2)". cbv in Heq1; simplify_eq.
+    wp_apply (wp_write_foreign with "[$HGC $Hγfgnpto]"); [done..|].
+    iIntros "(HGC&Hγfgnpto)". wp_pure _.
+
+    wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
+    iIntros (vγref2 wγref2) "(HGC&_&%Heq1&%Hreprγref2)". cbv in Heq1; simplify_eq.
+    wp_apply (wp_int2val with "HGC"); [done..|].
+    iIntros (wnum) "(HGC&%Hreprm1)".
+    wp_apply (wp_modify with "[$HGC $Hγusedref]"); [done..|].
+    change (Z.to_nat 0) with 0. cbn.
+    iIntros "(HGC&Hγusedref)". wp_pure _.
+    iApply (wp_post_mono with "[HGC]").
+    1: wp_apply (wp_int2val with "HGC"); [done..|iIntros (w) "?"; iAccu].
+    iIntros (w) "(HGC&%Hwunit)".
+    iMod (mut_to_ml _ [ ML_lang.LitV (-1)%Z ] _ with "[$HGC $Hγusedref]") as "(HGC&%ℓML'&Hγusedref&#Hsim')". 1: cbn; iFrame; done.
+
+    iAssert (⌜ℓML' = ℓML⌝ ∗ ⌜fid0 = fid⌝)%I as "(->&->)".
+    { iDestruct "Hsim" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
+      simplify_eq.
+      unfold lstore_own_vblock, lstore_own_elem; cbn.
+      iDestruct "Hγbuf" as "(Hγbuf&_)".
+      iDestruct "Hγbuf2" as "(Hγbuf2&_)".
+      iDestruct "Hγaux" as "(Hγaux&_)".
+      iDestruct "Hγaux2" as "(Hγaux2&_)".
+      iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
+      iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
+      iPoseProof (lloc_own_foreign_inj with "Hγfgnsim Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
+      iPoseProof (lloc_own_pub_inj with "Hsim' Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
+      iSplit; iPureIntro; [eapply Heq2|eapply Heq1]; done.
+    }
+    iModIntro.
+    iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
+  Qed.
+
+  Lemma library_correct E Ψ :
+    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_library_spec_ML Ψ E).
+  Proof with (iExists _, _, _, _; by iFrame "HGC H Cont Hsim").
+    iIntros (s ws Φ) "H". iNamed "H".
+    iDestruct "Hproto" as "[[[[H|H]|H]|H]|H]".
+    - iApply buf_alloc_correct...
+    - iApply buf_upd_correct...
+    - iApply buf_free_correct...
+    - iApply wrap_compress_correct...
+    - iApply wrap_max_len_correct...
+  Qed.
+
 End Proofs.
 
+Section MLclient.
+
+  Context `{SI:indexT}.
+  Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
+  Import melocoton.ml_lang.notation melocoton.ml_lang.lang_instantiation
+         melocoton.ml_lang.primitive_laws melocoton.ml_lang.proofmode.
+
+  Context (E : coPset).
+  Context (protoCB : (protocol ML_lang.val Σ)).
+
+  Definition ML_client_env : prog_environ ML_lang Σ := {|
+    penv_prog  := ∅ ;
+    penv_proto := buf_library_spec_ML protoCB E |}.
+
+  Definition ML_client_code : MLval := 
+    λ: "vbuf",
+      let: "len"  := Length "vbuf" in
+      let: "inp"  := extern: buf_alloc_name with ("len") in
+      let: "outp" := extern: buf_alloc_name with (extern: wrap_max_len_name with ("len")) in
+      let: <>     := extern: buf_upd_name with (#0, "len" - #1, λ: "i", LoadN "vbuf" "i", "inp") in
+      let: <>     := extern: wrap_compress_name with ("inp", "outp") in
+      let: "shrn" := ! (Fst "outp") < ! (Fst "inp") in
+      let: <>     := extern: buf_free_name with ("inp") in
+      let: <>     := extern: buf_free_name with ("outp") in
+      "shrn".
+
+  Definition is_compressible (zz : buffer) :=
+    let P := length (compress_buffer zz) < length zz
+    in decide P.
 
 
+
+  Lemma ML_client_spec ℓ dq (zz : buffer) :
+    0 < length zz →
+    {{{ ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}
+      ML_client_code #ℓ @ ML_client_env ; E
+    {{{ RET #(if is_compressible zz then true else false); ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}.
+  Proof.
+    iIntros (Hlen Φ) "Hℓ Cont".
+    unfold ML_client_code. wp_pures.
+    wp_apply (wp_length with "Hℓ"); iIntros "Hℓ". wp_pures.
+
+    wp_extern. iModIntro. do 4 iLeft. rewrite !map_length.
+    iExists (length zz). iSplit; first (iPureIntro; lia).
+    iSplit; first done. iSplit; first done.
+    iNext. iIntros (vin ℓinbuf) "Hinbuf _". wp_finish.
+    wp_pures.
+
+    wp_extern. iModIntro. iRight.
+    iExists _.
+    iSplit; first done. iSplit; first done.
+    iNext. wp_pures.
+
+    wp_extern. iModIntro. do 4 iLeft.
+    iExists _. iSplit.
+    2: iSplit; first done. 2: iSplit; first done.
+    1: iPureIntro; lia.
+    iNext. iIntros (vout ℓoutbuf) "Houtbuf _". wp_finish.
+    wp_pures.
+
+    wp_extern. iModIntro. do 3 iLeft; iRight.
+
+    pose (λ (idx:Z) (used:nat) (b : list (option Z)), 
+        ∃ zpre zopost zzpost, ⌜b = map Some zpre ++ zopost⌝ ∗ ⌜length zopost = length zzpost⌝ ∗ 
+        ⌜zz = zpre ++ zzpost⌝ ∗ ⌜Z.of_nat used = idx⌝ ∗ ⌜Z.of_nat (length zpre) = idx⌝ : iProp Σ)%I as Hbufatidx.
+
+    pose (λ (idx:Z), isBufferRecordML vin ℓinbuf (Hbufatidx idx) (length zz) ∗ (ℓ ↦∗{dq} map (λ x : Z, #x) zz))%I as Ψ.
+    pose (λ (idx:Z), (ℓ ↦∗{dq} map (λ x : Z, #x) zz))%I as Ψframe.
+    pose (λ (idx:Z) (z:Z), ∃ n, ⌜Z.of_nat n = idx⌝ ∗ ⌜zz !! n = Some z⌝ : iProp Σ)%I as Φz.
+    iExists Ψ, Ψframe, Φz, _, _, _, _. iExists Hbufatidx, _, _, _, _. unfold named.
+    iSplit; first done.
+    iSplit; first done.
+    iSplit; first done.
+    iSplit; first (iPureIntro; lia).
+    iPoseProof (isBufferRecordML_ext with "[] Hinbuf") as "Hinbuf".
+    2: iFrame "Hinbuf Hℓ".
+    { iIntros (z lst) "(->&->)". iExists nil, _, _. cbn. repeat (iSplit; first done). iSplit. 2: iSplit; first done. 2: done.
+      rewrite replicate_length. iPureIntro; lia. }
+    iSplit; first (iPureIntro; lia).
+    iSplit; last iSplit; last iSplitR.
+    all: unfold Ψframe, Φz, Ψ; rewrite !Nat2Z.id.
+    { iIntros "!> %z %vnew %Hz0 %Hzlen Hframe (%n&<-&%Hz) HBuffer".
+      iModIntro. iFrame "Hframe". iApply (isBufferRecordML_ext with "[] HBuffer").
+      iIntros (z lst). unfold buf_alloc1_spec, Hbufatidx.
+      iIntros "(%bold&%capold&->&->&%zpre&%zopost&%zzpost&->&%Hzzlen&->&%Heq1&%Heq2)".
+      apply Nat2Z.inj' in Heq2. subst n.
+      destruct zzpost as [|vnew' zzpost].
+      { exfalso. rewrite app_nil_r in Hz. apply lookup_lt_Some in Hz. lia. }
+      rewrite lookup_app_r in Hz; last lia. 
+      rewrite Nat.sub_diag in Hz. cbn in Hz. simplify_eq.
+      destruct zopost as [|zoh zopost]; first done.
+      iExists (zpre ++ [vnew]), zopost, zzpost.
+      rewrite !Nat2Z.id !map_app -!app_assoc /=.
+      iPureIntro; split_and!; try done.
+      - replace (length zpre) with (length (map Some zpre) + 0) by (rewrite map_length; lia).
+        rewrite insert_app_r. done.
+      - cbn in Hzzlen; lia.
+      - lia.
+      - rewrite app_length /=; lia.
+    }
+    { iIntros "!> %z %Hz0 %Hzlen (Hbuf&Hℓ)".
+      assert (exists zvres, zz !! (Z.to_nat z) = Some zvres) as [zvres Heq].
+      1: apply lookup_lt_is_Some_2; lia.
+      wp_pures. wp_apply (wp_loadN with "Hℓ"). 1: lia.
+      1: change (map ?f zz) with (fmap f zz); rewrite list_lookup_fmap Heq /= //.
+      iIntros "Hℓ". iExists _.
+      iSplit; first done. iFrame.
+      iExists (Z.to_nat z). iSplit; first (iPureIntro; lia).
+      done.
+    }
+    { by iIntros "($&$)". }
+    iIntros "!> (Hinbuf&Hℓ)". wp_finish.
+    wp_pures.
+
+    iPoseProof (isBufferRecordML_ext _ _ _ (λ z b, ⌜z = length zz⌝ ∗ ⌜b = map Some zz⌝)%I with "[] Hinbuf") as "Hinbuf".
+    { iIntros (z lst) "(%zpre&%zopost&%zzpost&->&%Hlenpost&->&%HH&%Hlenpre)".
+      assert (z = length (zpre ++ zzpost)) as -> by lia. iSplit; first done.
+      rewrite app_length in Hlenpre. assert (length zzpost = 0) as Hlen0 by lia.
+      destruct zzpost; last done. destruct zopost; last done.
+      by rewrite !app_nil_r. }
+
+    wp_extern. iModIntro. iLeft. iRight.
+    iExists _, _, _, _, zz, nil, (λ _ _, True)%I. do 3 iExists _. unfold named.
+    iSplit; first done.
+    iSplit; first done.
+    iFrame "Houtbuf". iSplit; first (cbn; iPureIntro; lia).
+    iSplitL "Hinbuf".
+    { iApply (isBufferRecordML_ext with "[] Hinbuf").
+      iIntros (z lst) "(->&->)". rewrite app_nil_r. done. }
+    iIntros "!> Hinbuf Houtbuf".
+    wp_pures.
+
+    iNamed "Hinbuf".
+    iDestruct "Houtbuf" as "(%ℓMLout&%used2&%fid2&%γfgn2&->&HℓbufMLout&Hbuf2)".
+    unfold named. wp_pures.
+    wp_apply (wp_load with "HℓbufML").
+    iIntros "HℓbufML". wp_pures.
+    wp_apply (wp_load with "HℓbufMLout").
+    iIntros "HℓbufMLout". wp_pures.
+    iAssert (⌜used = length zz⌝)%I as "->".
+    { iNamed "Hbuf". unfold named. iDestruct "HContent" as "(_&%&_)"; done. }
+    iAssert (⌜used2 = length (compress_buffer zz)⌝)%I as "->".
+    { iNamed "Hbuf2". unfold named. iDestruct "HContent" as "(%&%&%&_&%&_)"; done. }
+
+    wp_extern. do 2 iLeft. iRight.
+    iModIntro. iExists _, _, (λ _ _, _)%I, _.
+    do 2 (iSplit; first done).
+    iSplitL "Hbuf HℓbufML".
+    { do 4 iExists _. iSplit; first done. iFrame. }
+    iIntros "!> % % % _ _ _ _". wp_pures.
+
+    wp_extern. do 2 iLeft. iRight.
+    iModIntro. iExists _, _, (λ _ _, _)%I, _.
+    do 2 (iSplit; first done).
+    iSplitL "Hbuf2 HℓbufMLout".
+    { do 4 iExists _. iSplit; first done. iFrame. }
+    iIntros "!> % % % _ _ _ _". wp_pures.
+    unfold is_compressible. rewrite bool_decide_decide.
+    repeat destruct decide; cbn in *; try lia.
+    all: iApply ("Cont" with "Hℓ").
+  Qed.
+
+End MLclient.
 
 

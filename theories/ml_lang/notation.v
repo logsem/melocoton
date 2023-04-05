@@ -153,6 +153,12 @@ Notation "'match:' e0 'with' 'SOME' x => e2 | 'NONE' => e1 'end'" :=
   (Match e0 BAnon e1 x%binder e2)
   (e0, e1, x, e2 at level 200, only parsing) : ml_expr_scope.
 
+Notation "'extern:' s 'with' '(' e1 , .. , en ')'" := (Extern s (@cons expr e1%MLE .. (@cons expr en%MLE nil) ..))
+  (at level 70) : ml_expr_scope.
+
+Notation "'extern:' s 'with' '(' ')'" := (Extern s nil)
+  (at level 70) : ml_expr_scope.
+
 
 Definition TLam e := ((λ: <>, e%MLE)%MLE).
 Definition TLamV v := ((λ: <>, v%MLV)%MLV).
