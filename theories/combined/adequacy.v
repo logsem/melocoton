@@ -44,6 +44,28 @@ Global Instance subG_ffiΣ_invPreG `{SI: indexT} Σ :
   subG ffiΣ Σ → invPreG Σ.
 Proof. solve_inG. Qed.
 
+Lemma combined_correct `{indexT} `{!ffiG Σ} E
+  (e : ML_lang.expr) (p : lang_prog C_lang)
+  (Ψ : ∀ `{!ffiG Σ} (E: coPset), protocol ML_lang.val Σ)
+  (Pret : Z → Prop)
+:
+  Ψ E on prim_names ⊑ ⊥ →
+  dom p ## prim_names →
+  {{{ True }}} e @ ⟨∅, Ψ E⟩; E {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} →
+  prims_proto E (Ψ E) ||- p @ E :: wrap_proto (Ψ E) →
+  ⊥ |- combined_prog e p @ E :: main_proto Pret.
+Proof.
+  intros.
+  eapply prog_triple_mono_r; swap 1 2.
+  { eapply link_close_correct.
+    { rewrite dom_prims_prog. set_solver. }
+    3: { by apply wrap_correct. }
+    3: { by apply lang_to_mlang_correct. }
+    1: done.
+    apply proto_refines_join_l. }
+  { rewrite -proto_refines_join_l -proto_refines_join_r //. }
+Qed.
+
 Section AllocBasics.
   Existing Instance ordI.
   Context `{Σ : gFunctors}.
@@ -284,14 +306,7 @@ Lemma combined_adequacy_trace
 Proof.
   intros Hspec. apply main_adequacy_trace. intros Σ Hffi.
   specialize (Hspec Σ Hffi ⊤) as (HΨ & Hdomp & He & Hp).
-  eapply prog_triple_mono_r; swap 1 2.
-  { eapply link_close_correct.
-    { rewrite dom_prims_prog. set_solver. }
-    3: { apply wrap_correct; first done. apply He. }
-    3: { apply lang_to_mlang_correct, Hp. }
-    1: done.
-    apply proto_refines_join_l. }
-  { rewrite -proto_refines_join_l -proto_refines_join_r //. }
+  by eapply combined_correct.
 Qed.
 
 (*
