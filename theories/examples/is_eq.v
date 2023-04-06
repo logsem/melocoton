@@ -10,30 +10,41 @@ From melocoton.c_interop Require Import rules notation.
 From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
 From melocoton.ml_lang Require primitive_laws proofmode.
-From melocoton.ml_lang.logrel Require Import persistent_pred typing.
-From melocoton.ml_lang.logrel Require logrel fundamental.
+From melocoton.ml_lang.logrel Require Import persistent_pred.
+From melocoton.ml_lang.logrel Require typing logrel fundamental.
 From melocoton.c_lang Require Import notation proofmode derived_laws.
-
-Fixpoint valid_is_eq_type (τ : type) : Prop :=
-  match τ with
-  | TUnit | TNat | TBool => True
-  | TArray τ => valid_is_eq_type τ
-  | TProd τ1 τ2 | TSum τ1 τ2 => valid_is_eq_type τ1 ∧ valid_is_eq_type τ2
-  | TArrow _ _ | TRec _ | TVar _ | TForall _ | TExist _ => False
-  end.
 
 Definition is_eq_code (x_arg y_arg : expr) : C_lang.expr :=
   let: "bx" := call: &"isblock" with (x_arg) in
-  let: "by" := call: &"isblock" with (y_arg) in
   let: "res" := (
-    if: "bx" ≠ "by" then #false else
-      if: ! "bx" then
-        (call: &"val2int" with (x_arg)) = (call: &"val2int" with (y_arg))
-      else
-        (* TODO *)
-        #false
+    (* Both values must agree whether they are a block since they have the same type. *)
+    if: ! "bx" then
+      (call: &"val2int" with (x_arg)) = (call: &"val2int" with (y_arg))
+    else
+      (* TODO *)
+      if: (call: &"read_tag" with (x_arg)) ≠ (call: &"read_tag" with (y_arg)) then #false else
+      let: "lengthx" := (call: &"length" with (x_arg)) in
+      let: "lengthy" := (call: &"length" with (y_arg)) in
+      if: "lengthx" ≠ "lengthy" then #false else
+      let: "i" := malloc ( #1 ) in "i" <- #0;;
+      let: "r" := malloc ( #1 ) in "r" <- #true;;
+      (while: * "i" < "lengthx" do
+         let: "res" := call: &"is_eq" with (Field(x_arg, *"i"), Field(y_arg, *"i")) in
+         if: !(call: &"val2int" with ("res")) then
+           "r" <- #false;;
+           "i" <- "lengthx"
+         else
+           "i" <- *"i" + #1);;
+        let: "res" := *"r" in
+        free ("i", #1);; free ("r", #1);;
+        "res"
    ) in
    call: &"int2val" with ("res").
+
+Lemma is_eq_code_subst (wx wy : val) :
+  C_lang.subst_all (<["x_arg":=wx]> (<["y_arg":=wy]> ∅)) (is_eq_code "x_arg" "y_arg")
+  = (is_eq_code wx wy).
+Proof. done. Qed.
 
 Definition is_eq_prog : lang_prog C_lang :=
   {[ "is_eq" := Fun [BNamed "x_arg"; BNamed "y_arg"] (is_eq_code "x_arg" "y_arg") ]}.
@@ -42,6 +53,16 @@ Section C_specs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
   Context `{!logrel.logrelG Σ}.
+
+  Import melocoton.ml_lang.logrel.typing.
+  Fixpoint valid_is_eq_type (τ : type) : Prop :=
+    match τ with
+    | TUnit | TNat | TBool => True
+    | TArray τ => valid_is_eq_type τ
+    | TProd τ1 τ2 | TSum τ1 τ2 => valid_is_eq_type τ1 ∧ valid_is_eq_type τ2
+    | TArrow _ _ | TRec _ | TVar _ | TForall _ | TExist _ => False
+    end.
+
 
   Notation "⟦ τ ⟧  x" := (logrel.interp x τ) (at level 10).
 
@@ -68,10 +89,15 @@ Section C_specs.
     destruct ws as [|wx [|wy [|??]]]; decompose_Forall.
     iExists _. iSplit; first done.
     iExists _. solve_lookup_fixed. iSplit; first done. iNext.
-    rewrite -/(is_eq_code _ _).
+    rewrite -/(is_eq_code wx _).
     iDestruct "Hx" as "-#Hx". iDestruct "Hy" as "-#Hy".
-    iLöb as "IH" forall (τ x lvx wx y lvy wy Hτ H1 H2).
-    destruct τ => //=; unfold is_eq_code.
+    iAssert (∀ wret, GC θ -∗
+       ⌜repr_lval θ (Lint (bool_to_Z (bool_decide (x = y)))) wret⌝ -∗
+       Φ wret)%I with "[Cont Hcont]" as "Cont". {
+      iIntros (?) "?". iIntros (?). iApply ("Cont" with "[$] [$] [] [//]"). done.
+    }
+    iLöb as "IH" forall (τ x lvx wx y lvy wy Φ Hτ H1 H2).
+    destruct τ => //=; iEval (unfold is_eq_code).
     - (* TUnit *)
       iDestruct "Hτx" as %->.
       iDestruct "Hτy" as %->.
@@ -79,6 +105,17 @@ Section C_specs.
       iDestruct "Hy" as %->.
       wp_apply (wp_isblock with "HGC"); [done..|].
       iIntros "HGC". wp_pures.
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC".
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC". wp_pures => /=.
+      wp_apply (wp_int2val with "HGC"); [done..|].
+      iIntros (w) "[HGC %]". by iApply ("Cont" with "HGC").
+    - (* TNat *)
+      iDestruct "Hτx" as %[? ->].
+      iDestruct "Hτy" as %[? ->].
+      iDestruct "Hx" as %->.
+      iDestruct "Hy" as %->.
       wp_apply (wp_isblock with "HGC"); [done..|].
       iIntros "HGC". wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
@@ -86,12 +123,137 @@ Section C_specs.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]".
-      iApply ("Cont" with "HGC Hcont [] [//]").
-      done.
-    - (* TNat *) admit.
-    - (* TBool *) admit.
-    - (* TProd *) admit.
+      iIntros (w) "[HGC %]". iApply ("Cont" with "HGC").
+      iPureIntro. repeat case_bool_decide; naive_solver.
+    - (* TBool *)
+      iDestruct "Hτx" as %[? ->].
+      iDestruct "Hτy" as %[? ->].
+      iDestruct "Hx" as %->.
+      iDestruct "Hy" as %->.
+      wp_apply (wp_isblock with "HGC"); [done..|].
+      iIntros "HGC". wp_pures.
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC".
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC". wp_pures => /=.
+      wp_apply (wp_int2val with "HGC"); [done..|].
+      iIntros (w) "[HGC %]". iApply ("Cont" with "HGC").
+      iPureIntro. repeat case_match; naive_solver.
+    - (* TProd *)
+      destruct Hτ as [??].
+      iDestruct "Hτx" as (?? ->) "[Hτx1 Hτx2]".
+      iDestruct "Hτy" as (?? ->) "[Hτy1 Hτy2]". simpl.
+      iDestruct "Hx" as (γx ?? ?) "[#Hγx [#? #?]]".
+      iDestruct "Hy" as (γy ?? ?) "[#Hγy [#? #?]]". simplify_eq.
+      wp_apply (wp_isblock with "HGC"); [done..|].
+      iIntros "HGC". wp_pures.
+      wp_bind (if: _ then _ else _)%CE.
+      wp_apply (wp_read_tag with "[$HGC ]"); [done..| |].
+      { by iDestruct "Hγx" as "[??]". }
+      iIntros "[HGC _]". wp_pures.
+      wp_apply (wp_read_tag with "[$HGC ]"); [done..| |].
+      { by iDestruct "Hγy" as "[??]". }
+      iIntros "[HGC _]". wp_pures.
+      wp_apply (wp_length with "[$HGC ]"); [done..|].
+      iIntros "[HGC _]". wp_pures.
+      wp_apply (wp_length with "[$HGC ]"); [done..|].
+      iIntros "[HGC _]". wp_pures.
+      wp_apply (wp_Malloc); [done..|].
+      change (Z.to_nat 1) with 1; cbn.
+      iIntros (ℓi) "((Hℓi&_)&_)". rewrite !loc_add_0. wp_pure _.
+      wp_apply (wp_store with "Hℓi").
+      iIntros "Hℓi". wp_pure _.
+      wp_apply (wp_Malloc); [done..|].
+      change (Z.to_nat 1) with 1; cbn.
+      iIntros (ℓr) "((Hℓr&_)&_)". rewrite !loc_add_0. wp_pure _.
+      wp_apply (wp_store with "Hℓr").
+
+      iIntros "Hℓr". wp_pures.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
+      iIntros (??) "(HGC&_&%&%)". simplify_eq.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
+      iIntros (??) "(HGC&_&%&%)". simplify_eq.
+      wp_bind (FunCall _ _). wp_call. iApply prove_wp_call.
+      { by simplify_map_eq. } { done. }
+      rewrite is_eq_code_subst.
+      iApply ("IH" with "[] [] [] HGC Hτx1 Hτy1"); [done..|].
+      iIntros (?) "HGC". iIntros (?). wp_pures.
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC". case_bool_decide. 2: {
+        wp_pures.
+        wp_apply (wp_store with "Hℓr").
+        iIntros "Hℓr". wp_pures.
+        wp_apply (wp_store with "Hℓi").
+        iIntros "Hℓi". wp_pures.
+        wp_apply (wp_load with "Hℓi").
+        iIntros "Hℓi". wp_pures.
+        wp_apply (wp_load with "Hℓr").
+        iIntros "Hℓr". wp_pures.
+        wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
+        wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
+        wp_apply (wp_int2val with "HGC"); [done..|].
+        iIntros (w) "[HGC %]". iApply ("Cont" with "HGC").
+        iPureIntro. repeat case_bool_decide; naive_solver.
+      }
+      wp_pures.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_store with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
+      iIntros (??) "(HGC&_&%&%)". simplify_eq.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
+      iIntros (??) "(HGC&_&%&%)". simplify_eq.
+      wp_bind (FunCall _ _). wp_call. iApply prove_wp_call.
+      { by simplify_map_eq. } { done. }
+      rewrite is_eq_code_subst.
+      iApply ("IH" with "[] [] [] HGC Hτx2 Hτy2"); [done..|].
+      iIntros (?) "HGC". iIntros (?). wp_pures.
+      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros "HGC". case_bool_decide. 2: {
+        wp_pures.
+        wp_apply (wp_store with "Hℓr").
+        iIntros "Hℓr". wp_pures.
+        wp_apply (wp_store with "Hℓi").
+        iIntros "Hℓi". wp_pures.
+        wp_apply (wp_load with "Hℓi").
+        iIntros "Hℓi". wp_pures.
+        wp_apply (wp_load with "Hℓr").
+        iIntros "Hℓr". wp_pures.
+        wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
+        wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
+        wp_apply (wp_int2val with "HGC"); [done..|].
+        iIntros (w) "[HGC %]". iApply ("Cont" with "HGC").
+        iPureIntro. repeat case_bool_decide; naive_solver.
+      }
+      wp_pures.
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_store with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+
+      wp_apply (wp_load with "Hℓi").
+      iIntros "Hℓi". wp_pures.
+      wp_apply (wp_load with "Hℓr").
+      iIntros "Hℓr". wp_pures.
+      wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
+      wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
+      wp_apply (wp_int2val with "HGC"); [done..|].
+      iIntros (w) "[HGC %]". iApply ("Cont" with "HGC").
+      iPureIntro. repeat case_bool_decide; naive_solver.
     - (* TSum *) admit.
     - (* TArray *) admit.
   Admitted.
