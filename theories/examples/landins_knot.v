@@ -29,27 +29,25 @@ Section C_specs.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
   Import melocoton.ml_lang.notation.
-  Definition tie_knot_spec_ML (protoCB : (protocol ML_lang.val Σ)) E : protocol ML_lang.val Σ :=
+  Definition tie_knot_spec_ML (protoCB : (protocol ML_lang.val Σ)) : protocol ML_lang.val Σ :=
     λ s vv Φ,
     (∃ (l : loc) x b1 b2 (F : ML_lang.expr),
       "->" ∷ ⌜s = "tie_knot"⌝
     ∗ "->" ∷ ⌜vv = [ #l; x ]⌝
     ∗ "Hl" ∷ l ↦∗ [(RecV b1 b2 F)]
-    ∗ "HWP" ∷ (l ↦∗ [(RecV b1 b2 F)] -∗ WP (RecV b1 b2 F) x @ ⟨ ∅, protoCB ⟩ ; E {{res, Φ res}}))%I.
+    ∗ "HWP" ∷ (l ↦∗ [(RecV b1 b2 F)] -∗ ▷ WP (RecV b1 b2 F) x @ ⟨ ∅, protoCB ⟩ ; ⊤ {{res, Φ res}}))%I.
 
-  Lemma tie_knot_correct E Ψ :
-    prims_proto E Ψ ||- tie_knot_prog @ E :: wrap_proto (tie_knot_spec_ML Ψ E).
+  Lemma tie_knot_correct Ψ :
+    prims_proto ⊤ Ψ ||- tie_knot_prog @ ⊤ :: wrap_proto (tie_knot_spec_ML Ψ).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     cbn. unfold progwp, tie_knot_prog. solve_lookup_fixed.
     destruct lvs as [|lvl [|lvx [|??]]]; try done.
     all: cbn; iDestruct "Hsim" as "([%γ [-> #Hγ]]&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hx&?)"; try done.
-    destruct ws as [|wl [|wx [|??]]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
-    eapply Forall2_cons in Hrepr as (Hrepri&Hrepr).
-    eapply Forall2_cons in Hrepr as (Hreprj&Hrepr).
-    cbn. iExists _. iSplit; first done.
-    iExists _. cbn. solve_lookup_fixed. iSplit; first done. iNext.
+    destruct ws as [|wl [|wx [|??]]]; decompose_Forall.
+    iExists _. iSplit; first done.
+    iExists _. solve_lookup_fixed. iSplit; first done. iNext.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓf) "(HGC&Hℓf)"; wp_pures.
     wp_apply (store_to_root with "[$HGC $Hℓf]"); [done..|].
@@ -86,24 +84,27 @@ Section C_specs.
     iIntros "HGC"; wp_pure _.
     iModIntro. iApply ("Cont" with "HGC HΦ' Hvret [//]").
   Qed.
+
+  Global Instance tie_knot_spec_ML_contractive :
+    Contractive (tie_knot_spec_ML).
+  Proof.
+    solve_proper_prepare. unfold named.
+    do 14 f_equiv. f_contractive.
+    by eapply wp_ne_proto.
+  Qed.
+
 End C_specs.
 
 Section ML_code.
 
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
+  Context `{!logrel.logrelG Σ}.
   Import melocoton.ml_lang.notation melocoton.ml_lang.lang_instantiation
          melocoton.ml_lang.primitive_laws melocoton.ml_lang.proofmode.
 
-  (* We cannot Import logrel as this breaks notations. *)
+  (* TODO: We cannot Import logrel as this breaks notations so we redeclare na_tok. *)
   Notation na_tok := (na_own logrel.logrel_nais ⊤).
-
-  Context (protoCB : (protocol ML_lang.val Σ)).
-  Context `{!logrel.logrelG Σ}.
-
-  Definition ML_knot_env : prog_environ ML_lang Σ := {|
-    penv_prog  := ∅ ;
-    penv_proto := tie_knot_spec_ML protoCB ⊤ ⊔ protoCB |}.
 
   Definition knot_code : MLval :=
     λ: "f",
@@ -111,15 +112,17 @@ Section ML_code.
     "l" <- (λ: "x", "f" (λ: "x", extern: "tie_knot" with ("l", ML_lang.Var "x")) "x");;
     (λ: "x", extern: "tie_knot" with ("l", "x")).
 
-  Lemma knot_code_spec (f : val) :
-    ⊢ WP knot_code f @ ML_knot_env ; ⊤ {{ rc,
+  Lemma knot_code_spec p (f : val) :
+    tie_knot_spec_ML p.(penv_proto) ⊑ p.(penv_proto) →
+    p.(penv_prog) = ∅ →
+    ⊢ WP knot_code f @ p ; ⊤ {{ rc,
     □ (∀ Φ Ψ,
-    □ (∀ rec : val, □ (∀ v : val, Ψ v -∗ na_tok -∗ WP rec v @ ML_knot_env; ⊤ {{ v, na_tok ∗ Φ v }}) -∗
-       ∀ v : val, Ψ v -∗ na_tok -∗ WP f rec v @ ML_knot_env; ⊤ {{ v, na_tok ∗ Φ v }}) -∗
-    ∀ (v : val), Ψ v -∗ na_tok -∗ WP (rc : val) v @ ML_knot_env ; ⊤ {{ v, na_tok ∗ Φ v }} )
- }}.
+      □ (∀ rec : val, □ (∀ v : val, Ψ v -∗ na_tok -∗ WP rec v @ p ; ⊤ {{ v, Φ v ∗ na_tok }}) -∗
+         ∀ v : val, Ψ v -∗ na_tok -∗ WP f rec v @ p; ⊤ {{ v, Φ v ∗ na_tok }}) -∗
+      ∀ (v : val), Ψ v -∗ na_tok -∗ WP (rc : val) v @ p ; ⊤ {{ v, Φ v ∗ na_tok }} )
+    }}.
   Proof.
-    unfold knot_code. wp_pures.
+    intros Hproto ?. destruct p. simplify_eq/=. unfold knot_code. wp_pures.
     wp_apply (wp_allocN); [done..|] => /=.
     iIntros (l) "[Hl _]". wp_pures.
     wp_apply (wp_store with "Hl").
@@ -130,47 +133,38 @@ Section ML_code.
     iLöb as "IH" forall (v).
     wp_extern.
     iMod (na_inv_acc_open_timeless with "HL Htok") as "(Hl&Htok&Hclose)"; [done..|].
-    iModIntro. simpl. iLeft. unfold tie_knot_spec_ML.
+    iModIntro. simpl. iApply Hproto. unfold tie_knot_spec_ML.
     iExists _, _, _, _, _. iFrame. iSplit; [done|]. iSplit; [done|]. unfold named.
-    iIntros "Hl". wp_pures.
+    iIntros "Hl !>". wp_pures.
     iMod ("Hclose" with "[$Hl $Htok]") as "Htok".
-    (* TODO: make ML_knot_env recursive to fix this *)
-    change_no_check ({| penv_prog := ∅; penv_proto := protoCB |}) with ML_knot_env.
-    iApply (wp_wand (val:=val) with "[-]").
+    iApply (wp_wand (val:=val) with "[-]"). (* TODO: Why does wp_wand need (val:=val) ? *)
     - iApply ("Hf" with "[] HΨ Htok"). iIntros "!>" (v') "HΨ Htok". wp_pures.
       iApply ("IH" with "HΨ Htok").
     - iIntros (v') "Hv'". wp_pures. by iModIntro.
-  Admitted.
+  Qed.
 
 
   Import melocoton.ml_lang.logrel.logrel melocoton.ml_lang.logrel.fundamental.
 
-  Lemma sem_typed_knot P Γ τ1 τ2 :
-    ⊢ log_typed (p:=ML_knot_env) P Γ knot_code
+  Lemma sem_typed_knot p P Γ τ1 τ2 :
+    tie_knot_spec_ML p.(penv_proto) ⊑ p.(penv_proto) →
+    p.(penv_prog) = ∅ →
+    ⊢ log_typed (p:=p) P Γ knot_code
       (* ((τ1 -> τ2) -> (τ1 -> τ2)) -> (τ1 -> τ2) *)
       (TArrow (TArrow (TArrow τ1 τ2) (TArrow τ1 τ2)) (TArrow τ1 τ2)).
   Proof.
-    iIntros "!>" (Δ vs) "HΔ Hvs".
-    iIntros "?". simpl. wp_pures. iModIntro. iFrame. iModIntro. iIntros (?) "#Hv".
-    iIntros "Htok".
-    iApply (wp_wand (val:=val)). { iApply knot_code_spec. }
-    iIntros (rc) "#Hwp". iFrame. iIntros "!>" (v'') "#Ht1 Htok".
-    iApply (wp_wand (val:=val) with "[Htok] []").
-    1: iApply ("Hwp" $! ((⟦ τ2 ⟧ ML_knot_env) Δ) ((⟦ τ1 ⟧ ML_knot_env) Δ) with "[] [//] Htok").
-    2: { iIntros (?) "[$ $]". }
+    intros ??. iIntros "!>" (Δ vs) "HΔ Hvs".
+    iIntros "?". simpl. wp_pures. iModIntro. iFrame. iIntros "!>" (f) "#Hf Htok".
+    iApply (wp_wand (val:=val)). { by iApply knot_code_spec. }
+    iIntros (rc) "#Hrc". iFrame. iIntros "!>" (v) "#Hv Htok".
+    iApply ("Hrc" $! ((⟦ τ2 ⟧ p) Δ) ((⟦ τ1 ⟧ p) Δ) with "[] [//] Htok").
     iIntros "!>" (rec) "#Hx".
-    iIntros (v''') "#Hv''' Htok".
-    wp_bind (App v _).
+    iIntros (v') "#Hv' Htok".
+    wp_bind (App f _).
     iApply (wp_wand (val:=val) with "[Htok] []").
-    { iApply "Hv"; [|done]. iIntros "!>" (?) "#? Htok".
-      iApply (wp_wand (val:=val) with "[Htok] []").
-      { by iApply "Hx". }
-      iIntros (?) "[$ $]".
-    }
+    { iApply "Hf"; [|done]. iIntros "!>" (?) "#? Htok". by iApply "Hx". }
     iIntros (?) "[#Hwp' Htok]".
-    iApply (wp_wand (val:=val) with "[Htok] []").
-    { by iApply ("Hwp'"). }
-    iIntros (?) "[$ $]".
+    by iApply ("Hwp'").
   Qed.
 
 End ML_code.
