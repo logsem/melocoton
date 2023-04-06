@@ -12,7 +12,6 @@ From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
 From melocoton.ml_lang Require primitive_laws proofmode.
 From melocoton.ml_lang.logrel Require logrel fundamental.
 From melocoton.c_lang Require Import notation proofmode derived_laws.
-From melocoton.examples Require Import compression.
 
 Definition tie_knot_code (l_arg x_arg : string) : C_lang.expr :=
   CAMLlocal: "l" in "l" <- l_arg ;;

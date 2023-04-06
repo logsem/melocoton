@@ -155,6 +155,23 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
+Lemma wp_isblock E p Ψ θ lv w :
+  p !! "isblock" = None →
+  isblock_proto ⊑ Ψ →
+  repr_lval θ lv w →
+  {{{ GC θ }}}
+    (call: &"isblock" with (Val w))%CE @ ⟨p, Ψ⟩; E
+  {{{ RET #(match lv return Z with | Lloc _ => 1 | _ => 0 end); GC θ }}}.
+Proof.
+  intros Hp Hproto **. iIntros "HGC Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /isblock_proto /named.
+  do 3 iExists _. iFrame "HGC".
+  do 3 (iSplit; first done). iNext.
+  iIntros "HGC". wp_pures. iApply ("Cont" with "HGC").
+Qed.
+
 Lemma wp_isblock_true E p Ψ θ γ w :
   p !! "isblock" = None →
   isblock_proto ⊑ Ψ →
@@ -164,12 +181,8 @@ Lemma wp_isblock_true E p Ψ θ γ w :
   {{{ RET #1; GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
-  wp_pures. wp_extern; first done.
-  iModIntro. cbn. iApply Hproto.
-  rewrite /isblock_proto /named.
-  do 3 iExists _. iFrame "HGC".
-  do 3 (iSplit; first done). iNext.
-  iIntros "HGC". wp_pures. iApply ("Cont" with "HGC").
+  iApply (wp_isblock with "HGC"); [done..|].
+  iIntros "!> HGC". by iApply "Cont".
 Qed.
 
 Lemma wp_isblock_false E p Ψ θ z w :
@@ -181,12 +194,8 @@ Lemma wp_isblock_false E p Ψ θ z w :
   {{{ RET #0; GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
-  wp_pures. wp_extern; first done.
-  iModIntro. cbn. iApply Hproto.
-  rewrite /isblock_proto /named.
-  do 3 iExists _. iFrame "HGC".
-  do 3 (iSplit; first done). iNext.
-  iIntros "HGC". wp_pures. iApply ("Cont" with "HGC").
+  iApply (wp_isblock with "HGC"); [done..|].
+  iIntros "!> HGC". by iApply "Cont".
 Qed.
 
 Lemma wp_read_tag E p Ψ θ γ w dq bl :
@@ -345,7 +354,7 @@ Lemma wp_CAMLlocal n e2 E p Ψ Φ θ :
   int2val_proto ⊑ Ψ →
   p !! "registerroot" = None →
   registerroot_proto ⊑ Ψ →
-  (⊢ GC θ -∗ 
+  (⊢ GC θ -∗
      (▷ ∀ (l:loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := #l]} e2) @ ⟨ p, Ψ ⟩; E {{Φ}}) -∗
      WP (CAMLlocal: n in e2)%CE @ ⟨ p, Ψ ⟩ ; E
      {{Φ}}%CE)%I.
