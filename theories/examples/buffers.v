@@ -13,7 +13,7 @@ From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
 From melocoton.ml_lang Require primitive_laws proofmode.
 From melocoton.c_lang Require Import notation proofmode derived_laws.
 From melocoton.examples Require Import compression.
-From melocoton.interop Require Import adequacy.
+From melocoton.combined Require Import adequacy.
 
 
 Section C_code.
@@ -1072,47 +1072,27 @@ Section MLclient.
 
 End MLclient.
 
-Section FullProg.
-Import melocoton.mlanguage.weakestpre.
-Context `{SI:indexT}.
-Context `{!ffiG Σ}.
+Local Existing Instance ordinals.ordI.
 
-Definition fullprog : mlang_prog (link_lang wrap_lang C_mlang) :=
-  link_prog wrap_lang C_mlang (wrap_prog ML_client_applied_code) buf_lib_prog.
+Definition fullprog : mlang_prog combined_lang :=
+  combined_prog ML_client_applied_code buf_lib_prog.
 
-Lemma fullprog_correct :
-  ⊥ |- fullprog :: main_proto (λ ret, ret = 1).
+Lemma buffers_adequate :
+  umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
+    (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
 Proof.
-  eapply prog_triple_mono_r; swap 1 2.
-  { eapply link_close_correct.
-    { rewrite dom_prims_prog. set_solver. }
-    3: { apply wrap_correct.
-         2: { iIntros (? _) "HΦ". by iApply ML_client_applied_spec. }
-         { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
-           rewrite !dom_insert dom_empty /= in H.
-           rewrite buf_library_spec_ML_unfold.
-           iDestruct "H" as "[[[[H|H]|H]|H]|H]".
-           all: iNamed "H"; exfalso; cbn in H; set_solver. } }
-    3: { apply lang_to_mlang_correct, library_correct. }
-    1: done.
-    apply proto_refines_join_l. }
-  { rewrite -proto_refines_join_l -proto_refines_join_r //. }
+  eapply umrel_upclosed.
+  { eapply combined_adequacy_trace. intros Σ Hffi E. split_and!.
+    3: apply ML_client_applied_spec.
+    3: apply library_correct.
+    { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
+      rewrite !dom_insert dom_empty /= in H.
+      rewrite buf_library_spec_ML_unfold.
+      iDestruct "H" as "[[[[H|H]|H]|H]|H]".
+      all: iNamed "H"; exfalso; cbn in H; set_solver. }
+    { set_solver. } }
+  { by intros [? ?] (? & ? & ->). }
 Qed.
-End FullProg.
-
-Section Adequacy.
-  Existing Instance ordinals.ordI.
-
-  Lemma buffers_adequate :
-    umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-      (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
-  Proof.
-    eapply umrel_upclosed.
-    1: eapply (@adequacy.main_adequacy_trace fullprog (λ x, x = 1)).
-    2: { intros [? ?]. by intros (? & ? & ->). }
-    intros ?. rewrite -fullprog_correct. apply main_proto_mono; eauto.
-  Qed.
-  Print Assumptions buffers_adequate.
-End Adequacy.
-
-
+(*
+Print Assumptions buffers_adequate.
+*)

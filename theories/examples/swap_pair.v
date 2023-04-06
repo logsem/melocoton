@@ -13,7 +13,7 @@ From melocoton.c_lang Require notation proofmode.
 From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
-From melocoton.interop Require Import adequacy.
+From melocoton.combined Require Import adequacy.
 
 
 Section C_prog.
@@ -141,7 +141,6 @@ Section JustML.
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
 
-(* Import melocoton.c_lang.primitive_laws. *)
 Import melocoton.ml_lang.proofmode.
 
 Lemma ML_prog_correct_axiomatic E :
@@ -156,44 +155,24 @@ Qed.
 
 End JustML.
 
-Section FullProg.
-Import melocoton.mlanguage.weakestpre.
-Context `{SI:indexT}.
-Context `{!ffiG Σ}.
+Local Existing Instance ordinals.ordI.
 
-Definition fullprog : mlang_prog (link_lang wrap_lang C_mlang) :=
-  link_prog wrap_lang C_mlang (wrap_prog swap_pair_client) swap_pair_prog.
+Definition fullprog : mlang_prog combined_lang :=
+  combined_prog swap_pair_client swap_pair_prog.
 
-Lemma fullprog_correct :
-  ⊥ |- fullprog :: main_proto (λ ret, ret = 1).
+Lemma swap_pair_adequate :
+  umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
+    (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
 Proof.
-  eapply prog_triple_mono_r; swap 1 2.
-  { eapply link_close_correct.
-    { rewrite dom_prims_prog. set_solver. }
-    3: { apply wrap_correct.
-         2: { iIntros (? _) "HΦ". by iApply ML_prog_correct_axiomatic. }
-         { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
-           exfalso. set_solver. } }
-    3: { apply lang_to_mlang_correct, swap_pair_correct. }
-    1: done.
-    apply proto_refines_join_l. }
-  { rewrite -proto_refines_join_l -proto_refines_join_r //. }
+  eapply umrel_upclosed.
+  { eapply combined_adequacy_trace. intros Σ Hffi E. split_and!.
+    3: apply ML_prog_correct_axiomatic.
+    3: apply swap_pair_correct.
+    { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
+      exfalso. set_solver. }
+    { set_solver. } }
+  { by intros [? ?] (? & ? & ->). }
 Qed.
-End FullProg.
-
-Section Adequacy.
-  Existing Instance ordinals.ordI.
-
-  Lemma swap_pair_adequate :
-    umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-      (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
-  Proof.
-    eapply umrel_upclosed.
-    1: eapply (@adequacy.main_adequacy_trace fullprog (λ x, x = 1)).
-    2: { intros [? ?]. by intros (? & ? & ->). }
-    intros ?. rewrite -fullprog_correct. apply main_proto_mono; eauto.
-  Qed.
-End Adequacy.
 (*
 Check @swap_pair_adequate.
 Print Assumptions swap_pair_adequate.
