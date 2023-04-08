@@ -179,8 +179,9 @@ Section C_specs.
       iIntros "Hℓi". wp_pures.
       wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
       iIntros (??) "(HGC&_&%&%)". simplify_eq.
-      wp_bind (FunCall _ _). wp_call. iApply prove_wp_call.
-      { by simplify_map_eq. } { done. }
+      wp_bind (FunCall _ _).
+      iApply (wp_call _ "is_eq" _ _ _ [w'; w'0]).
+      1: done. 1: done.
       rewrite is_eq_code_subst.
       iApply ("IH" with "[] [] [] HGC Hτx1 Hτy1"); [done..|].
       iIntros (?) "HGC". iIntros (?). wp_pures.
@@ -217,8 +218,9 @@ Section C_specs.
       iIntros "Hℓi". wp_pures.
       wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
       iIntros (??) "(HGC&_&%&%)". simplify_eq.
-      wp_bind (FunCall _ _). wp_call. iApply prove_wp_call.
-      { by simplify_map_eq. } { done. }
+      wp_bind (FunCall _ _). 
+      iApply (wp_call _ "is_eq" _ _ _ [_; _]).
+      1: done. 1: done.
       rewrite is_eq_code_subst.
       iApply ("IH" with "[] [] [] HGC Hτx2 Hτy2"); [done..|].
       iIntros (?) "HGC". iIntros (?). wp_pures.
