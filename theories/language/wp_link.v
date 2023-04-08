@@ -19,22 +19,6 @@ Implicit Types Ψ : protocol val Σ.
 Implicit Types prog : lang_prog Λ.
 Implicit Types pe : prog_environ Λ Σ.
 
-(*
-Definition program_fulfills
-  (Ψin : protocol val Σ) (p : mixin_prog (func Λ)) (Ψshould : protocol val Σ) : iProp Σ :=
-  ∀ s vv Φ, Ψshould s vv Φ -∗ ⌜p !! s <> None⌝ ∗ WP (of_class _ (ExprCall s vv)) @ ⟨p, Ψin⟩; ⊤ {{ Φ }}.
-
-Definition env_fulfills
-  (p:prog_environ Λ Σ) (Ψshould : protocol val Σ) := program_fulfills p.(penv_proto) p.(penv_prog) Ψshould.
-
-Notation "Ψin '|-' p '::' Ψshould" := (program_fulfills Ψin p Ψshould) (at level 25, p, Ψshould at level 26) : bi_scope.
-
-Definition spec_union (p1 p2 : protocol val Σ) : protocol val Σ :=
-  λ s vv Φ, (p1 s vv Φ ∨ p2 s vv Φ)%I.
-Definition spec_inters (p1 p2 : protocol val Σ) : protocol val Σ :=
-  λ s vv Φ, (p1 s vv Φ ∧ p2 s vv Φ)%I.
-*)
-
 Class can_link E (Ψ1 Ψ2 Ψaxiom Ψres : protocol val Σ) (p1 p2 p3 : lang_prog Λ) : Prop := {
   p1_p2_disjoint : dom p1 ## dom p2;
   Ψres_is_union : ⊢ (∀ s vv Φ, Ψres s vv Φ -∗ (Ψ1 ⊔ Ψ2) s vv Φ)%I;

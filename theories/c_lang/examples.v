@@ -51,16 +51,16 @@ Definition FibRightSpec := FibSpec "fib_right".
 Definition SimpleEnv : prog_environ C_lang Σ :=
   ⟨ exampleProgram "fib_impl" "fib_impl", StoreItSpec ⟩.
 
-Definition FinalSpec := spec_union (FibLeftSpec) FibRightSpec.
+Definition FinalSpec := (FibLeftSpec) ⊔ FibRightSpec.
 
 
 Definition LeftEnv : prog_environ C_lang Σ :=
   ⟨ exampleProgram "fib_left" "fib_right", (* function called fib_left calls fib_right *)
-    spec_union FibRightSpec StoreItSpec ⟩.
+    FibRightSpec ⊔ StoreItSpec ⟩.
 
 Definition RightEnv : prog_environ C_lang Σ :=
   ⟨ exampleProgram "fib_right" "fib_left", (* function called fib_right calls fib_left *)
-    spec_union FibLeftSpec StoreItSpec ⟩.
+    FibLeftSpec ⊔ StoreItSpec ⟩.
 
 Definition FinalEnv : prog_environ C_lang Σ :=
   ⟨ {[ "fib_right" := fib_func "fib_left"; "fib_left" := fib_func "fib_right" ]},
@@ -98,27 +98,6 @@ Proof.
   change (l + 1)%Z with (l + 1%nat)%Z.
   wp_bind (FunCall _ _).
   change 3 with (Z.of_nat 3).
-(*
-
-
-
-Tactic Notation "mwp_extern" :=
-  iStartProof;
-  lazymatch goal with
-  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
-    let e := eval simpl in e in
-    reshape_expr e ltac:(fun K e' => match e' with FunCall (Val (& ?s)) (map Val ?vv) =>
-      iApply (@wp_extern _ _ C_lang _ _ _ K _ s vv); [iPureIntro; vm_compute; reflexivity | ] end)
-    || fail "wp_extern: expression not a call"
-  | _ => fail "wp_extern: not a 'wp'"
-  end.
-Set Ltac Debug.
-iApply (@wp_extern _ _ C_lang _ _ _ [] _ "fib_left" [(#3)%V]).
-1: iPureIntro; vm_compute.
-mwp_extern.
-
-
-  Locate wp_extern. *)
   wp_extern. cbn. iLeft. cbn. iModIntro.
   iSplitR; first (iPureIntro; lia). wp_pures. 
   wp_bind (FunCall _ _).
@@ -162,17 +141,15 @@ Section linking.
                     try (destruct b8; try t; eauto))))))))). 
 
 
-
-
-
-Lemma fib_left_correct : ⊢ env_fulfills LeftEnv FibLeftSpec.
+Lemma fib_left_correct :
+  (FibRightSpec ⊔ StoreItSpec) ||- exampleProgram "fib_left" "fib_right" :: FibLeftSpec.
 Proof.
-  iStartProof. unfold env_fulfills. unfold program_fulfills.
-  iIntros (s vv Φ) "Hvv"; unfold FibLeftSpec.
-  Ltac ft := (iDestruct "Hvv" as "%Hvv"; exfalso; done).
+  iIntros (s vv Φ) "H". unfold FibLeftSpec.
+  Local Ltac ft := (iDestruct "H" as "%H"; exfalso; done).
   string_resolve s ft. destruct vv as [|[[z| | |]] []]; try ft.
-  iSplitR; first (iPureIntro; done).
-  iDestruct "Hvv" as "(%Hnp & Hvv)".
+  iExists _. iSplit; first done.
+  iExists _. iSplit; first done. iNext.
+  iDestruct "H" as "(%Hnp & Hvv)".
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
   wp_pures.
@@ -192,13 +169,16 @@ Proof.
     cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add. iApply "Hvv".
 Qed.
 
-Lemma fib_right_correct : ⊢ env_fulfills RightEnv FibRightSpec.
+
+Lemma fib_right_correct :
+  (FibLeftSpec ⊔ StoreItSpec) ||- exampleProgram "fib_right" "fib_left" :: FibRightSpec.
 Proof.
-  iStartProof.
-  iIntros (s vv Φ) "Hvv". unfold FibRightSpec.
-  string_resolve s ft. destruct vv as [|[[z| | |]] []]; try ft.
-  iSplitR; first (iPureIntro; done).
-  iDestruct "Hvv" as "(%Hnp & Hvv)".
+  iIntros (s vv Φ) "H". unfold FibLeftSpec.
+  Local Ltac ft' := (iDestruct "H" as "%H"; exfalso; done).
+  string_resolve s ft'. destruct vv as [|[[z| | |]] []]; try ft'.
+  iExists _. iSplit; first done.
+  iExists _. iSplit; first done. iNext.
+  iDestruct "H" as "(%Hnp & Hvv)".
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
   wp_pures.
@@ -218,7 +198,7 @@ Proof.
     cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add. iApply "Hvv".
 Qed.
 
-Lemma example_can_link : can_link FibLeftSpec FibRightSpec StoreItSpec (spec_union FibLeftSpec FibRightSpec)
+Lemma example_can_link : can_link ⊤ FibLeftSpec FibRightSpec StoreItSpec (FibLeftSpec ⊔ FibRightSpec)
          (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left") (penv_prog FinalEnv).
 Proof.
   assert (
@@ -237,17 +217,15 @@ Proof.
   - iIntros (s vv Φ) "Hvv".
     unfold StoreItSpec.
     string_resolve s ft.
-  - iApply fib_left_correct.
-  - iApply fib_right_correct.
+  - apply fib_left_correct.
+  - apply fib_right_correct.
   - unfold FinalEnv. cbn. rewrite Heq. done.
 Qed.
 
-Lemma fib_link_correct : ⊢ env_fulfills FinalEnv FinalSpec.
+Lemma fib_link_correct :
+  StoreItSpec ||- {[ "fib_right" := fib_func "fib_left"; "fib_left" := fib_func "fib_right" ]} :: FinalSpec.
 Proof.
-  iStartProof.
-  iApply (wp_link_progs).
-  apply can_link_can_link_all.
-  apply example_can_link.
+  eapply wp_link_progs, can_link_can_link_all, example_can_link.
 Qed.
 
 

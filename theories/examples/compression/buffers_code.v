@@ -5,7 +5,7 @@ From melocoton Require Import named_props.
 From melocoton.interop Require Import basics basics_resources basics_constructions.
 From melocoton.interop Require Import lang weakestpre prims_proto.
 From melocoton.language Require Import weakestpre progenv.
-From melocoton.c_interop Require Import rules notation.
+From melocoton.c_interop Require Import notation.
 From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import lang_instantiation.
 From melocoton.ml_lang Require primitive_laws proofmode.

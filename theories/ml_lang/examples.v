@@ -55,11 +55,11 @@ Proof.
   iModIntro. iSplitL; done.
 Qed.
 
-Lemma left_correct : ⊢ env_fulfills AxiomEnv ⊥.
+Lemma left_correct : IncrementSpec ||- ∅ :: ⊥.
 Proof.
   iStartProof. iIntros (s vv Φ []).
 Qed.
-
+(*
 Ltac string_resolve s t := 
     let b1 := fresh "b1" in
     let b2 := fresh "b2" in
@@ -80,15 +80,15 @@ Ltac string_resolve s t :=
                   try (destruct b8; try t; eauto))))))))). 
 
 Ltac ft := (iDestruct "Hvv" as "%Hvv"; exfalso; done).
-Lemma right_correct : ⊢ env_fulfills SpecifiedEnv IncrementSpec.
+Lemma right_correct : ||- {[ "inc" := inc_func ]} :: IncrementSpec.
 Proof.
-  iStartProof. iIntros (s vv Φ) "Hvv". unfold IncrementSpec.
+  iStartProof. iIntros (Ψ s vv Φ) "Hvv". unfold IncrementSpec.
   string_resolve s ft.
   destruct vv as [ | [[l| | | |]| | | |] [|[[z| | | |]| | | |] []]]; try ft.
-  iSplitR; first done. cbn.
-  iDestruct "Hvv" as "(%z & Hz & Hres)".
-  wp_apply (wp_wand with "[Hz] [Hres]").
-  + wp_apply (inc_correct with "Hz").
+  do 2 (iExists _; iSplit; first done). iNext.
+  iDestruct "Hvv" as "(%z & Hz & Hres)". wp_finish.
+  iApply (wp_wand with "[Hz] [Hres]").
+  + iApply (inc_correct with "Hz").
   + iIntros (v) "(Hv & ->)". iApply ("Hres" with "Hv").
 Qed.
 
@@ -115,5 +115,6 @@ Proof.
   iIntros (s vv Φ) "Hvv". cbn -[IncrementSpec].
   iLeft. iExists 1. cbn [nth_error]. iSplitR; done.
 Qed.
+*)
 
 End examples.
