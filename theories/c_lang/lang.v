@@ -421,8 +421,8 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option base_lit :=
   | EqOp, LitV (LitLoc _),    LitV LitNull       => Some $ LitBool false
   | EqOp, LitV (LitFunPtr _), LitV LitNull       => Some $ LitBool false
   | EqOp, LitV LitNull,       LitV LitNull       => Some $ LitBool true
-  | PtrOffsetOp, LitV (LitLoc (Loc n1)), LitV (LitInt n2) => Some $ LitLoc $ Loc $ (n1 + n2)
-  | PtrOffsetOp, LitV (LitInt n1), LitV (LitLoc (Loc n2)) => Some $ LitLoc $ Loc $ (n1 + n2)
+  | PtrOffsetOp, LitV (LitLoc l1), LitV (LitInt n2) => Some $ LitLoc $ loc_add l1 n2
+  | PtrOffsetOp, LitV (LitInt n1), LitV (LitLoc l2) => Some $ LitLoc $ loc_add l2 n1
   | PtrDiffOp, LitV (LitLoc (Loc n1)), LitV (LitLoc (Loc n2)) => Some $ LitInt $ (n1 - n2)
   | _, _, _ => None
   end%Z.

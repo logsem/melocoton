@@ -145,7 +145,7 @@ Tactic Notation "wp_inj" := wp_pure (InjL _) || wp_pure (InjR _).
 Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
 
-
+(*
 Lemma tac_wp_call `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ fn vv e1 :
   (e1 = of_class _ (ExprCall fn vv)) →
   envs_entails Δ (WPCall fn with vv @ s; E {{ Φ }}) →
@@ -170,6 +170,7 @@ Tactic Notation "wp_call" :=
     || fail "wp_pure:" e "is not a call! Use wp_bind first!"
   | _ => fail "wp_pure: not a 'wp'"
   end.
+*)
 
 Tactic Notation "wp_extern" :=
   iStartProof;

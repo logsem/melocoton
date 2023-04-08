@@ -127,6 +127,7 @@ Tactic Notation "wp_while" := wp_pure (While _ _).
 Tactic Notation "wp_call_direct" := wp_pure (FunCall _ _).
 
 
+(*
 Lemma tac_wp_call {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E Φ fn vv e1 :
   (e1 = of_class _ (ExprCall fn vv)) →
   envs_entails Δ (WPCall fn with vv @ s; E {{ Φ }}) →
@@ -151,7 +152,7 @@ Tactic Notation "wp_call" :=
     || fail "wp_pure:" e "is not a call! Use wp_bind first!"
   | _ => fail "wp_pure: not a 'wp'"
   end.
-
+*)
 Tactic Notation "wp_extern" :=
   iStartProof;
   lazymatch goal with
@@ -161,6 +162,17 @@ Tactic Notation "wp_extern" :=
       iApply (@wp_extern _ _ C_lang _ _ _ K _ s vv); [iPureIntro; try by (vm_compute; reflexivity) | ] end)
     || fail "wp_extern: expression not a call"
   | _ => fail "wp_extern: not a 'wp'"
+  end.
+
+Tactic Notation "wp_progwp" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?pe ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' => match e' with FunCall (Val (& ?s)) (map Val ?vv) =>
+      iApply (@wp_progwp _ _ C_lang _ _ _ pe s vv E _ Q K); [ | ] end)
+    || fail "wp_progwp: expression not a call"
+  | _ => fail "wp_progwp: not a 'wp'"
   end.
 
 

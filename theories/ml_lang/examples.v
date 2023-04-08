@@ -46,7 +46,8 @@ Definition SpecifiedEnv : prog_environ ML_lang Σ :=
 Lemma inc_correct l (z:Z)
  : ⊢ l ↦M #z -∗ (WP Extern "inc" [ Val #l ] @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}})%I.
 Proof.
-  iStartProof. iIntros "Hz". wp_call. iApply prove_wp_call; [done|done|]. wp_finish.
+  iStartProof. iIntros "Hz".
+  wp_pures.
   wp_apply (wp_load with "Hz"); iIntros "Hz".
   wp_pures.
   wp_apply (wp_store with "Hz"); iIntros "Hz".

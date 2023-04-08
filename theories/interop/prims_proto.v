@@ -220,15 +220,15 @@ Definition prim_proto (p : prim) E (Ψ : ML_proto) : C_proto :=
 Definition prims_proto E (Ψ : ML_proto) : C_proto :=
   (λ fn vs Φ, ∃ p, prim_proto p E Ψ fn vs Φ)%I.
 
-Lemma proto_prim_mask_mono E1 E2 Ψ : E1 ⊆ E2 →
-  ∀ fn vl Φ, prims_proto E1 Ψ fn vl Φ -∗ prims_proto E2 Ψ fn vl Φ.
+Lemma proto_prim_mono E1 E2 Ψ1 Ψ2 : Ψ1 ⊑ Ψ2 → E1 ⊆ E2 →
+  prims_proto E1 Ψ1 ⊑ prims_proto E2 Ψ2.
 Proof using.
-  iIntros (H fn vl Φ) "H". iDestruct "H" as (p) "H". iExists p.
+  iIntros (H1 H2 s vv Φ) "H". iDestruct "H" as (p) "H". iExists p.
   destruct p; try done. all: cbn; iNamed "H".
   { do 10 iExists _; unfold named.
     iFrame. do 4 (iSplit; first done).
-    iNext. iApply wp_mask_mono. 1: done.
-    iFrame. }
+    iNext. iApply (wp_strong_mono with "[-] []"). 1-2: done.
+    1: iFrame. by iIntros (v) "$". }
 Qed.
 
 Lemma prims_proto_except_prims E Ψ :

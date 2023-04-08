@@ -427,6 +427,40 @@ Proof.
   iIntros (v) "Hv"; iApply "Hv".
 Qed.
 
+Lemma wp_progwp pe n vv E Ψp Φ K :
+     (penv_proto pe ||- penv_prog pe @ E :: Ψp)
+  -> (|={E}=> Ψp n vv (λ v, WP fill K (of_class Λ (ExprVal v)) @ pe; E {{ Φ }}))
+  -∗ WP fill K (of_class _ (ExprCall n vv)) @ pe ; E {{ Φ }}.
+Proof.
+  iIntros (Hprogwp) "HT".
+  iApply wp_bind.
+  rewrite !wp_unfold /wp_pre /=.
+  iIntros "%σ Hσ". iMod "HT".
+  iPoseProof (Hprogwp with "HT") as "(%F&%HF&%e&%He&HT)".
+  iModIntro. iRight. iRight.
+  assert (head_reducible (penv_prog pe) (of_class Λ (ExprCall n vv)) σ) as Hhead.
+  { do 2 eexists. eapply call_head_step. exists F; split_and!; done. }
+  iSplit.
+  1: iPureIntro; by eapply head_prim_reducible.
+  iIntros (σ' e' (F2&HF2&He2&->)%head_reducible_prim_step%call_head_step_inv); last done.
+  simplify_map_eq. assert (e = e') as <- by congruence.
+  do 3 iModIntro. iFrame "Hσ". destruct pe; iApply "HT".
+Qed.
+
+Lemma progwp_mono E1 E2 Ψ1 Ψ2 p :
+  E1 ⊆ E2 →
+  Ψ1 ⊑ Ψ2 →
+  progwp E1 p Ψ1 ⊑ progwp E2 p Ψ2.
+Proof.
+  iIntros (H1 H2 s vv Ψ) "(%F&%HF&%e&%He&HH)".
+  iExists F. iSplit; first done.
+  iExists e. iSplit; first done.
+  iNext. iApply (wp_strong_mono with "HH"). 1: done. 1: done.
+  by iIntros (v) "$".
+Qed.
+
+(*
+
 
 Lemma prove_wp_fun' pe funn body' vv E Φ :
     ⌜apply_func funn vv = Some body'⌝
@@ -537,6 +571,8 @@ Proof.
   iIntros "Hwp H". unfold wp_for_call. destruct (penv_prog pe !! F); eauto.
   iApply (wp_wand_fun with "Hwp H").
 Qed.
+
+*)
 End wp.
 
 (** Proofmode class instances *)
