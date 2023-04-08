@@ -231,5 +231,4 @@ Qed.
 
 End linking.
 
-
 End examples.

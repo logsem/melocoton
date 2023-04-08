@@ -1,7 +1,11 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
+From melocoton.combined Require Import adequacy.
 From melocoton.ml_lang Require Import lang notation proofmode.
 From melocoton.language Require Import language wp_link.
+From melocoton.language Require Import language wp_link.
 From iris.prelude Require Import options.
+From transfinite.base_logic.lib Require Import satisfiable invariants.
+From melocoton.lang_to_mlang Require Import backwards_adequacy.
 Import uPred.
 
 
@@ -19,8 +23,8 @@ Definition IncrementSpec := λ s v Φ, match (s,v) with
       ("inc", [ #(LitLoc l) ]) => (∃ (z:Z), (l ↦M #z) ∗ ((l ↦M #(z+1)) -∗ Φ #()))%I
     | _ => ⌜False⌝%I end.
 
-Definition inc_impl : ML_lang.expr := let: "k" := ! "l" + #1 in "l" <- "k";; #().
-Definition inc_func := MlFun [BNamed "l"] inc_impl.
+Definition inc_impl (l : ML_lang.expr) : ML_lang.expr := let: "k" := ! l + #1 in l <- "k";; #().
+Definition inc_func := MlFun [BNamed "l"] (inc_impl "l").
 
 Definition AxiomEnv : prog_environ ML_lang Σ :=
   ⟨ ∅, IncrementSpec ⟩.
@@ -44,9 +48,9 @@ Definition SpecifiedEnv : prog_environ ML_lang Σ :=
   ⟨ {[ "inc" := inc_func ]}, ⊥ ⟩.
 
 Lemma inc_correct l (z:Z)
- : ⊢ l ↦M #z -∗ (WP Extern "inc" [ Val #l ] @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}})%I.
+ : ⊢ l ↦M #z -∗ WP inc_impl (#l) @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}}%I.
 Proof.
-  iStartProof. iIntros "Hz".
+  iStartProof. iIntros "Hz". unfold inc_impl.
   wp_pures.
   wp_apply (wp_load with "Hz"); iIntros "Hz".
   wp_pures.
@@ -59,7 +63,7 @@ Lemma left_correct : IncrementSpec ||- ∅ :: ⊥.
 Proof.
   iStartProof. iIntros (s vv Φ []).
 Qed.
-(*
+
 Ltac string_resolve s t := 
     let b1 := fresh "b1" in
     let b2 := fresh "b2" in
@@ -88,12 +92,13 @@ Proof.
   do 2 (iExists _; iSplit; first done). iNext.
   iDestruct "Hvv" as "(%z & Hz & Hres)". wp_finish.
   iApply (wp_wand with "[Hz] [Hres]").
-  + iApply (inc_correct with "Hz").
+  + iApply (wp_strong_mono with "[-]"). 3: iApply (inc_correct l0 with "Hz").
+    1: done. 1: apply proto_refines_bot_l.
+    iIntros (v) "Hv !>". iAccu.
   + iIntros (v) "(Hv & ->)". iApply ("Hres" with "Hv").
 Qed.
 
-
-Instance example_can_link : can_link ⊥ IncrementSpec ⊥ IncrementSpec
+Instance example_can_link : can_link ⊤ ⊥ IncrementSpec ⊥ IncrementSpec
          ∅ ({[ "inc" := inc_func ]}) ({[ "inc" := inc_func ]}).
 Proof. split.
   - set_solver.
@@ -101,9 +106,7 @@ Proof. split.
   - iIntros (s vv Φ) "[]".
   - iIntros (s vv Φ) "[]".
   - iIntros (s vv Φ) "Hvv".
-    iDestruct (right_correct $! s vv Φ with "Hvv") as "[$ HR]".
-    iApply wp_proto_mono. 2: iApply "HR". cbn.
-    iIntros (? ? ?) "[]".
+    by iApply right_correct.
   - cbn. apply map_eq_iff. intros i. destruct (decide (i = "inc")); set_solver.
 Qed.
 
@@ -115,6 +118,41 @@ Proof.
   iIntros (s vv Φ) "Hvv". cbn -[IncrementSpec].
   iLeft. iExists 1. cbn [nth_error]. iSplitR; done.
 Qed.
-*)
 
 End examples.
+
+Section adequacy.
+  Existing Instance ordinals.ordI.
+  Local Definition e := call_inc.
+  Local Definition σ : state ML_lang := ∅.
+  Local Definition p : lang_prog ML_lang := {[ "inc" := inc_func ]}.
+  Local Definition Φpure (σ : state ML_lang) v := v = #42.
+
+  Definition exampleΣ {SI: indexT} : gFunctors :=
+    #[invΣ; heapΣ_ML].
+  Global Instance subG_exampleΣ_invPreG `{SI: indexT} Σ :
+    subG exampleΣ Σ → invPreG Σ.
+  Proof. solve_inG. Qed.
+
+  Global Instance subG_heapGpre_ML `{SI: indexT} Σ :
+    subG ffiΣ Σ → heapGpre_ML Σ.
+  Proof. solve_inG. Qed.
+
+
+  Lemma example_adequacy e' σ' :
+    rtc_step p e σ e' σ' → safe p e' σ' (Φpure σ').
+  Proof.
+    eapply (@mlang_to_lang_adequacy _ ML_lang exampleΣ).
+    1: apply _.
+    intros HinvG.
+    intros P _ Halloc.
+    unshelve eapply alloc_heapG_ML in Halloc as (HML&Halloc); last done.
+    exists heapG_langG_ML.
+    eapply alloc_mono; last exact Halloc.
+    iIntros "($&$)".
+    iSplit; last iApply link_executions.
+    iSplit.
+    - iIntros "!> %σ %v (Hσ&->) //".
+    - iIntros "!> %F %s %vv []".
+  Qed.
+End adequacy.

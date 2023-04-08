@@ -565,6 +565,14 @@ Section language.
     exists fn. repeat split; easy.
   Qed.
 
+  Inductive rtc_step (p : prog Λ) : expr Λ → state Λ → expr Λ → state Λ → Prop :=
+    rtc_refl e σ : rtc_step p e σ e σ
+  | rtc_plus e σ e' σ' ex σx : prim_step p e σ e' σ' → rtc_step p e' σ' ex σx → rtc_step p e σ ex σx.
+
+  Definition safe p (e : expr Λ) (σ : state Λ) (Φ : val → Prop) := match to_val e with
+    Some v => Φ v
+  | None => reducible p e σ end.
+
 End language.
 
 (* discrete OFE instance for expr and thread_id *)

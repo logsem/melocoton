@@ -15,7 +15,7 @@ Section Adequacy.
   Context (Λ : mlanguage val).
   Context {Σ : gFunctors}.
 
-  Context (Φpure : val → state Λ → Prop).
+  Context (Φpure : state Λ → val → Prop).
   Context (p : mlang_prog Λ).
   Context (Ψ : protocol val Σ).
   Context (Φbi : val → iProp Σ).
@@ -29,7 +29,7 @@ Section Adequacy.
   Implicit Types X : cfg → Prop.
 
   Definition sideConds `{!invG Σ, !mlangG val Λ Σ} : iProp Σ := 
-    □ (∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝)
+    □ (∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure σ v⌝)
   ∗ □ (∀ f s vv, penv_proto ⟪p,Ψ⟫ f s vv -∗ False).
 
   Section GenAdequacy.
@@ -40,7 +40,7 @@ Section Adequacy.
 
     Lemma value_from_wp σ v E :
       sat_at E (sideConds ∗ state_interp σ ∗ WP (of_val Λ v) @ ⟪p,Ψ⟫; E {{Φbi}})%I
-    → Φpure v σ.
+    → Φpure σ v.
     Proof using All.
       intros Hsat. eapply sat_mono in Hsat. 1: eapply sat_fupd, sat_elim in Hsat; eapply Hsat.
       iIntros "(#(HΦ&Hproto)&Hσ&HWP)".
@@ -79,14 +79,17 @@ Section Adequacy.
     Lemma star_step_from_wp σ e E X:
       sat_at E (sideConds ∗ state_interp σ ∗ WP e @ ⟪p,Ψ⟫; E {{Φbi}})%I →
       (star_AD step (e, σ) X) →
-      (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ)).
+      (∃ e σ, X (e, σ) ∧ safe p e σ (Φpure σ)).
     Proof using All.
       assert (∃ x, fst x = e ∧ snd x = σ ∧ (e,σ)=x) as (x&<-&<-&->).
       1: by exists (e,σ).
       intros Hsat. unfold mrel; cbn in *.
       induction 1 as [[e σ] X H|[e σ] X IH] in Hsat|-*; cbn in *.
-      - exists e, σ. split; first done.
-        intros v <-%of_to_val. by eapply value_from_wp.
+      - exists e, σ. split; first done. unfold safe.
+        destruct (to_val e) eqn:Heq.
+        + eapply of_to_val in Heq. subst e. by eapply value_from_wp.
+        + eapply one_step_from_wp in Hsat as (X'&HX'&_); last done.
+          by eexists X'.
       - destruct (to_val e) as [v|] eqn:Heq.
         1: eapply of_to_val in Heq; subst e;
           destruct (IH _ (val_prim_step _ _ _)) as (?&[]&_).
@@ -98,7 +101,7 @@ Section Adequacy.
 
     Lemma trace_step_from_wp σ e E:
       sat_at E (sideConds ∗ state_interp σ ∗ WP e @ ⟪p,Ψ⟫; E {{Φbi}})%I →
-      trace step (e, σ) (λ '(e', σ'), ∃ v, to_val e' = Some v ∧ Φpure v σ').
+      trace step (e, σ) (λ '(e', σ'), ∃ v, to_val e' = Some v ∧ Φpure σ' v).
     Proof using All.
       revert e σ. cofix IH.
       intros e σ Hsat.
@@ -122,9 +125,9 @@ Section Adequacy.
     Context (Halloc : ∀ `{!invG Σ}, Alloc (mlangG val Λ Σ) (λ H,
       sideConds ∗ state_interp σ ∗ WP e @ ⟪p,Ψ⟫ ; ⊤ {{Φbi}})%I True).
 
-    Lemma alloc_adequacy X:
+    Lemma alloc_adequacy_safe X:
       star_AD step (e, σ) X →
-      ∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure v σ).
+      ∃ e σ, X (e, σ) ∧ safe p e σ (Φpure σ).
     Proof using All.
       pose proof (@alloc_intro _ Σ) as Hsat.
       eapply alloc_wsat_inst in Hsat as (HinvG&Hsat); last done.
@@ -136,8 +139,18 @@ Section Adequacy.
       iIntros "((_&$)&$)".
     Qed.
 
+    Lemma alloc_adequacy X:
+      star_AD step (e, σ) X →
+      ∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φpure σ v).
+    Proof using All.
+      intros Hstep.
+      destruct (alloc_adequacy_safe X Hstep) as (e'&σ'&HX&Hsafe).
+      exists e', σ'. split; first done. unfold safe in Hsafe.
+      intros v Hv. by rewrite Hv in Hsafe.
+    Qed.
+
     Lemma alloc_adequacy_coind :
-      trace step (e, σ) (λ '(e', σ'), ∃ v, to_val e' = Some v ∧ Φpure v σ').
+      trace step (e, σ) (λ '(e', σ'), ∃ v, to_val e' = Some v ∧ Φpure σ' v).
     Proof using All.
       pose proof (@alloc_intro _ Σ) as Hsat.
       eapply alloc_wsat_inst in Hsat as (HinvG&Hsat); last done.

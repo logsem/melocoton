@@ -181,6 +181,11 @@ Section mlanguage.
     rewrite /AsVal /=; eauto.
   Qed.
 
+  (* Non-values must step to a set. By prim_step_no_NB, this set is not empty. *)
+  Definition safe p (e : expr Λ) (σ : state Λ) (Φ : val → Prop) := match to_val e with
+    Some v => Φ v
+  | None => ∃ X, prim_step p (e,σ) X end.
+
 End mlanguage.
 
 (* discrete OFE instance for expr *)

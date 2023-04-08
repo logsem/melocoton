@@ -70,12 +70,11 @@ Section AllocBasics.
   Existing Instance ordI.
   Context `{Σ : gFunctors}.
   Context `{!invG Σ}. (* we already have invariants *)
-  Context `{!ffiGpre Σ}.
 
   (* TODO do we need the invariant heap *)
-  Lemma alloc_heapG_ML : @Alloc _ Σ (heapG_ML Σ) 
+  Lemma alloc_heapG_ML `{!heapGpre_ML Σ} : @Alloc _ Σ (heapG_ML Σ) 
       (λ _, state_interp (∅ : language.state ML_lang) (* ∗ ml_lang.primitive_laws.inv_heap_inv *) )%I True.
-  Proof using ffiGpre0.
+  Proof using.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γheap&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γmeta&Halloc).
@@ -88,9 +87,9 @@ Section AllocBasics.
     - eapply gmap_view.gmap_view_auth_valid.
   Qed.
 
-  Lemma alloc_heapG_C : @Alloc _ Σ (heapG_C Σ) 
+  Lemma alloc_heapG_C `{!heapGpre_C Σ}  : @Alloc _ Σ (heapG_C Σ) 
       (λ _, state_interp (∅ : language.state C_lang) (* ∗ ml_lang.primitive_laws.inv_heap_inv *) )%I True.
-  Proof using ffiGpre0.
+  Proof.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γheap&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γmeta&Halloc).
@@ -103,9 +102,9 @@ Section AllocBasics.
     - eapply gmap_view.gmap_view_auth_valid.
   Qed.
 
-  Lemma alloc_wrapperBasicsG : @Alloc _ Σ (wrapperBasicsG Σ) 
+  Lemma alloc_wrapperBasicsG `{!wrapperBasicsGpre Σ} : @Alloc _ Σ (wrapperBasicsG Σ) 
       (λ _, lstore_own_auth ∅ ∗ lloc_own_auth ∅ ∗ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval) ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
-  Proof using ffiGpre0.
+  Proof.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γζvirt&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γχvirt&Halloc).
@@ -134,6 +133,8 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval)
   ∗ "HInit" ∷ ghost_var wrapperG_γat_init 1 true.
 
+  Context `{!ffiGpre Σ}.
+
   Lemma alloc_wrapperGCtokG : @Alloc _ Σ (wrapperGCtokG Σ) 
       (λ H, GCtok_gammas 
           ∗ ⌜wrapperG_inG = _⌝
@@ -150,7 +151,8 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
       exists HWrapperGCtokG. eapply alloc_mono; last exact Halloc.
       unfold GCtok_gammas; cbn.
       rewrite /ghost_var !ghost_var.ghost_var_aux.(seal_eq) /ghost_var.ghost_var_def; cbn.
-      iIntros "(((((($&($&($&($&$))))&$)&$)&$)&$)&$)". done.
+      iIntros "(((((($&($&($&(H&->))))&$)&$)&$)&$)&$)". iFrame "H".
+      done.
     - cbv; done.
     - cbv; done.
     - cbv; done.
@@ -175,7 +177,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
       iAssert (ghost_var γboundary (1 / 2) true ∗ ghost_var γboundary (1 / 2) true)%I with "[H4]" as "(H4&H4')".
       { rewrite /ghost_var !ghost_var.ghost_var_aux.(seal_eq) /ghost_var.ghost_var_def; cbn.
         iApply own_op. iApply "H4". }
-      rewrite <- !Heq, <- ! Heq2.
+      rewrite <- !Heq.
       iDestruct "HInit" as "(HInit1&HInit2)". iFrame. iSplitL; last done.
       iExists true. unfold preGCtok, named. cbn.
       iFrame.
@@ -212,7 +214,7 @@ Section MainAlloc.
   Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
   Notation MLIntV x := (LitV (LitInt x)).
 
-  Notation Φpure Φ := (λ w _, ∃ x, w = code_int x ∧ Φ x).
+  Notation Φpure Φ := (λ _ w, ∃ x, w = code_int x ∧ Φ x).
   Notation Φbi Φ := (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I.
 
   Lemma alloc_main p Φ :
@@ -262,7 +264,7 @@ Lemma main_adequacy_trace (p : mlang_prog combined_lang) Φ :
     (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Φ x).
 Proof using All.
   intros Hspec. eapply umrel_upclosed.
-  1: eapply (@alloc_adequacy_coind _ combined_lang ffiΣ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
+  1: eapply (@alloc_adequacy_coind _ combined_lang ffiΣ (λ _ w, ∃ x, w = code_int x ∧ Φ x) p ⊥
                (λ w, ∃ (x:Z), ⌜w = code_int x ∧ Φ x⌝)%I).
   { apply _. }
   2: { intros [? ?] (? & ? & HH). naive_solver. }
@@ -276,7 +278,7 @@ Lemma main_adequacy_star (p : mlang_prog combined_lang) Φ X :
   ∃ e σ, X (e, σ) ∧ (∀ x, to_val e = Some (code_int x) → Φ x).
 Proof using All.
   intros Hspec HWP.
-  unshelve epose proof (@alloc_adequacy _ combined_lang ffiΣ (λ w _, ∃ x, w = code_int x ∧ Φ x) p ⊥
+  unshelve epose proof (@alloc_adequacy _ combined_lang ffiΣ (λ _ w, ∃ x, w = code_int x ∧ Φ x) p ⊥
             (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I _ (LkCall "main" []) σ_init _ _ HWP)
     as HH.
   2: { destruct HH as (? & ? & ? & HH). eexists _, _. split; eauto.
@@ -309,120 +311,3 @@ Proof.
   by eapply combined_correct.
 Qed.
 
-(*
-Section Alloc.
-  Existing Instance ordI.
-  Context `{Σ : gFunctors}.
-  Context `{!invG Σ}. (* we already have invariants *)
-  Context `{!ffiGpre Σ}.
-
-  Context {Φpure : word → state combined_lang → Prop}.
-  Context {p : mlang_prog combined_lang}.
-  Context {Ψ : protocol word Σ}.
-  Context {Φbi : word → iProp Σ}.
-
-  Context (HΦ : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-            ⊢ ∀ (σ:state combined_lang) v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure v σ⌝).
-  Context (Hpeclosed : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-            ⊢ ∀ f s vv, penv_proto ⟪p,Ψ⟫ f s vv -∗ False).
-  Context (e : expr combined_lang).
-  Context (HWP : ∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-            ⊢ at_init -∗ link_in_state wrap_lang C_mlang In2 -∗ WP e @ ⟪p,Ψ⟫ ; ⊤ {{Φbi}}).
-
-  Local Definition σ0 {SI:indexT} : state combined_lang :=
-    @Link.St2 _ _ wrap_lang C_mlang _ _
-      {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} (∅:c_state).
-
-  Lemma allocate_linked_ml_c : @Alloc _ Σ (mlangG _ combined_lang Σ)
-    (λ H, @sideConds _ combined_lang Σ Φpure p Ψ Φbi _ _
-        ∗ state_interp σ0 ∗ WP e @ ⟪p,Ψ⟫ ; ⊤ {{Φbi}})%I True.
-  Proof using All.
-    intros P _ Halloc.
-    eapply (alloc_linkG In2) in Halloc as (HlinkG&Halloc); last done.
-    eapply alloc_wrapperG in Halloc as ((HwrapperG&HheapG_ML)&Halloc); last done.
-    eapply alloc_heapG_C in Halloc as (HheapG_C&Halloc); last done.
-    exists (link_mlangG wrap_lang C_mlang _).
-    eapply alloc_mono; last exact Halloc.
-    iIntros "((($&(Hb1&Hb2)&%Heq1)&((%b&HσW)&Hbound&Hinit2&%Heq2))&HσC)". iNamed "HσW". cbn.
-    rewrite // /weakestpre.private_state_interp // /C_state_interp // -!Heq1 -!Heq2.
-    iPoseProof (ghost_var_agree with "SIinit Hinit2") as "->".
-    iFrame. iSplitR. 1: iSplitL. 3: iSplitL "SIinit Hinit".
-    - iIntros "!>". iApply HΦ.
-    - iIntros "!>". iApply Hpeclosed.
-    - iExists true. iFrame.
-    - iApply (HWP with "Hinit2 [$]").
-  Qed.
-End Alloc.
-
-Section Simplified.
-
-  Existing Instance ordI.
-  Context {Σ : gFunctors}.
-
-  Notation C_proto := (protocol C_intf.val Σ).
-  Notation ML_proto := (protocol ML_lang.val Σ).
-
-  Context (eML : language.expr ML_lang).
-  Context (eC  : language.expr C_lang).
-  Context (peC : lang_prog C_lang).
-  Context (ΨML : ML_proto).
-  Context (Φ   : word → Prop).
-
-  (* XXX make masks less weird so that the ∅ here can be a ⊤ *)
-  Context (Hspec : ∀ `{!ffiG Σ}, (prims_proto ∅ ΨML ||- peC @ ∅ :: wrap_proto ΨML)).
-  (* One of them seems like it would be unnecessary, but I could not figure out which *)
-  Context (HNoInternal : ∀ `{!ffiG Σ}, ΨML on (dom (prims_prog eML)) ⊑ ⊥).
-  Context (HpeC : ∀ s, is_prim_name s → peC !! s = None).
-
-  Local Instance LinkInstance `{!ffiG Σ} E : can_link
-    wrap_lang C_mlang E
-    (wrap_prog eML) (wrap_proto ΨML)
-    peC (prims_proto ∅ eML ΨML)
-  ⊥.
-  Proof using All. econstructor.
-    - eapply elem_of_disjoint. intros s H1%in_dom_prims_prog [x Hx]%elem_of_dom.
-      epose proof (HpeC _ H1) as HH. by rewrite HH in Hx.
-    - rewrite proto_on_refines. eapply prog_triple_mono_mask.
-      2: by eapply lang_to_mlang_correct. solve_ndisj.
-    - rewrite proto_on_refines.
-      eapply (prog_triple_mono_mask ∅ _); first solve_ndisj.
-      eapply wrap_correct. by eapply HNoInternal.
-    - iIntros (? ? ?) "H". rewrite /proto_except.
-      iDestruct "H" as (HH1%not_elem_of_dom) "H".
-      iPoseProof (Hspec _ with "H") as (? HH2 ? ?) "HH"; simplify_eq.
-      apply elem_of_dom_2 in HH2. apply not_elem_of_dom_2 in HH1. done.
-    - eapply prims_proto_except_dom.
-  Qed.
-
-  Local Definition peL := link_prog wrap_lang C_mlang (wrap_prog eML) peC.
-  Notation step := (prim_step peL).
-
-  Context `{!invPreG Σ}.
-  Context `{!ffiGpre Σ}.
-
-  Lemma linking_adequacy X :
-      (∀ `{!ffiG Σ}, at_init -∗ WP eC @ ⟨ peC , (prims_proto ∅ eML ΨML) ⟩ ; ⊤ {{v, ⌜Φ v⌝}} ) →
-      (umrel.star_AD step (LkSE (Link.Expr2 eC), σ) X) →
-      (∃ e σ, X (e, σ) ∧ (∀ v, to_val e = Some v → Φ v)).
-  Proof using All.
-    intros HWP.
-    eapply (@alloc_adequacy _ Λ Σ (λ v _, Φ v) ⟪ peL , ⊥ ⟫ (λ v, ⌜Φ v⌝)%I _ _ σ).
-    intros Hinv.
-    eapply allocate_linked_ml_c.
-    - by iIntros (H1 H2 H3 H4 σ v) "(_&$)".
-    - iIntros (H1 H2 H3 H4 f s vv) "[]".
-    - iIntros (H1 H2 H3 H4) "Hinit Hstate".
-      pose (FFIG _ _ _ _ _ _ _) as HTG.
-      iApply (@wp_wand with "[Hstate Hinit]").
-      1: iApply (@wp_link_run2 _ Σ _ _ wrap_lang C_mlang _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ eC _ (@LinkInstance HTG _) with "Hstate").
-      2: { cbn. iIntros (v) "(H&_)". iApply "H". }
-      iApply wp_lang_to_mlang.
-      iApply (@language.weakestpre.wp_wand with "[Hinit]").
-      1: iApply (HWP HTG with "Hinit").
-      iIntros (v) "$".
-  Qed.
-
-End Simplified.
-
-Definition σ_initial := σ.
-*)

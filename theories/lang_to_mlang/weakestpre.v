@@ -5,7 +5,6 @@ From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
 From melocoton.lang_to_mlang Require Import lang.
 From iris.proofmode Require Import proofmode.
-From transfinite.base_logic.lib Require Import satisfiable.
 
 Section ToMlang_logic.
 Context `{SI:indexT}.
