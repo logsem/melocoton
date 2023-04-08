@@ -1,107 +1,13 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
-From melocoton Require Import named_props.
-From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.
-From melocoton.c_lang Require notation proofmode.
+From melocoton Require Import named_props language_commons.
+From melocoton.c_lang Require Import lang_instantiation.
+From melocoton.c_lang Require Import notation proofmode.
+From melocoton.c_interop Require Import notation.
+From melocoton.examples.compression Require Import compression_defs compression_specs.
 
-Section SemBuffers.
-(* Of course, snappy is more complicated than this ..*)
-Definition buffer := list Z.
-
-Fixpoint compress_buffer (b:buffer) : buffer := (match b with
-| 0 :: 0 :: xs => 0 :: compress_buffer xs
-| x :: xs => 1 :: x :: compress_buffer xs
-| nil => nil end)%Z.
-
-Definition buffer_max_len (n : nat) := 2 * n.
-
-Fixpoint decompress_buffer (b:buffer) : option buffer := (match b with
-| 0 :: xs => option_map (λ x, 0 :: 0 :: x) (decompress_buffer xs)
-| 1 :: 0 :: 1 :: 0 :: xs => None
-| 1 :: 0 :: 0 :: xs => None
-| 1 :: x :: xs => option_map (cons x) (decompress_buffer xs)
-| nil => Some nil
-| _ => None end)%Z.
-
-Lemma decompress_compress b : decompress_buffer (compress_buffer b) = Some b.
-Proof.
-  induction b using (induction_ltof1 _ (@length _)); unfold ltof in *.
-  destruct x as [|b1 [|b2 br]].
-  - done.
-  - cbn. by case_match.
-  - cbn. repeat (case_match; try done).
-    all: cbn; rewrite H; last (cbn; lia); try done.
-Qed.
-
-Lemma decompress_to_nil b : decompress_buffer b = Some nil → b = nil.
-Proof.
-  destruct b; try done; cbn.
-  repeat (cbn in *; unfold option_map in *; case_match; simplify_eq; try done).
-Qed.
-
-Lemma compress_decompress b b2 : decompress_buffer b = Some b2 → compress_buffer b2 = b.
-Proof. revert b2.
-  induction b using (induction_ltof1 _ (@length _)); unfold ltof in *; intros bb Hb.
-  destruct x as [|b1 br].
-  - cbn in *. by simplify_eq.
-  - repeat (cbn in *; case_match; simplify_eq; try done); unfold option_map in *.
-    + case_match; last done.
-      simplify_eq. eapply H in H0; last (cbn; lia). subst br; done.
-    + case_match; last done. simplify_eq. eapply H in H0; last (cbn; lia).
-      destruct b; first done. cbn in *; repeat (case_match; simplify_eq); done.
-    + destruct (decompress_buffer l) eqn:Heq; cbn in *; last done. simplify_eq.
-      eapply H in Heq; last (cbn; lia). subst l. cbn. done.
-    + destruct (decompress_buffer l) eqn:Heq; cbn in *; last done. simplify_eq.
-      eapply H in Heq; last (cbn; lia). subst l. cbn. done.
-    + case_match; last done. simplify_eq.
-      eapply H in H0; last (cbn; lia). subst l. cbn. done.
-    + case_match; last done. simplify_eq.
-      eapply H in H0; last (cbn; lia). subst l. cbn. done.
-Qed.
-
-Lemma max_len_correct b : length (compress_buffer b) ≤ buffer_max_len (length b).
-Proof.
-  induction b using (induction_ltof1 _ (@length _)); unfold ltof in *.
-  destruct x as [|b1 [|b2 br]].
-  - cbn in *; lia.
-  - cbn. by case_match.
-  - cbn. repeat (case_match; try (first [done | cbn in *; lia])).
-    all: cbn in *; repeat (first [eapply le_n_S | erewrite Nat.add_succ_r]); etransitivity; first eapply H; cbn in *; lia.
-Qed.
-
-Lemma max_len_tight n : ∃ b, length b = n ∧ length (compress_buffer b) = buffer_max_len n.
-Proof.
-  induction n as [|n (b&IH1&IH2)].
-  - exists []. done.
-  - exists (1 :: b)%Z. cbn; split_and!; try done; try lia.
-    rewrite IH2. unfold buffer_max_len. lia.
-Qed.
-
-Lemma compression_makes_shorter n : ∃ b, length b ≥ n ∧ length (compress_buffer b) < length b.
-Proof.
-  exists (repeat 0%Z (2*(S n))).
-  rewrite repeat_length. split; first lia.
-  induction n as [|n IH].
-  - cbn. lia.
-  - cbn. rewrite -!Nat.succ_lt_mono. cbn -[repeat] in IH. etransitivity.
-    1: erewrite Nat.add_succ_r; exact IH. lia.
-Qed.
-
-End SemBuffers.
-
-Section CBuffers.
-Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
-
-Context `{SI:indexT}.
-Context `{!heapG_C Σ, !invG Σ}.
-
-(* XXX seal this *)
-Definition isBuffer (vl : list (option val)) (b : buffer) := vl = map (λ x:Z, Some (#x)) b.
-
-Definition buffy_max_len_name : string := "buffy_max_compressed_length".
 Definition buffy_max_len_code (inlen:expr) : expr := (BinOp MultOp inlen (#2))%CE.
-
 Definition buffy_compress_rec_name : string := "buffy_compress_rec".
 Definition buffy_compress_rec_code (inbuf inlen outbuf:expr) := (
   if: inlen ≤ #0 then #0 else
@@ -110,8 +16,6 @@ Definition buffy_compress_rec_code (inbuf inlen outbuf:expr) := (
     else if: ( *inbuf = #0) && ( *(inbuf +ₗ #1) = #0 )
       then ( outbuf <- #0 ;; #1 + call: &buffy_compress_rec_name with (inbuf +ₗ #2, inlen - #2, outbuf +ₗ #1) )
       else ( outbuf <- #1 ;; outbuf +ₗ #1 <- *inbuf ;; #2 + call: &buffy_compress_rec_name with (inbuf +ₗ #1, inlen - #1, outbuf +ₗ #2) ) )%CE.
-
-Definition buffy_compress_name : string := "buffy_compress".
 Definition buffy_compress_code (inbuf inlen outbuf outlenp:expr) := (
   if: *outlenp < call: &buffy_max_len_name with (inlen) then #1 else
     (outlenp <- call: &buffy_compress_rec_name with (inbuf, inlen, outbuf)) ;; #0 )%CE.
@@ -123,26 +27,26 @@ Definition buffy_env : gmap string function :=
                                    (buffy_compress_code "inbuf" "inlen" "outbuf" "outlenp")]>
   ∅)).
 
+
+Section CProofs.
+
+Context `{SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ}.
 Context (p : lang_prog C_lang).
 Context (Hp : buffy_env ⊆ p).
+Context (Ψ : (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)).
 
-Definition buffy_prog_env : prog_environ C_lang Σ := {|
-  penv_prog := p ;
-  penv_proto := λ _ _ _, False
-|}%I.
-
-Lemma buffy_max_len_spec E n (v:val) :
-  v = #(Z.of_nat n) →
- (⊢ WP (call: &buffy_max_len_name with (Val v))%CE @ buffy_prog_env; E {{λ v', ⌜v' = #(Z.of_nat (buffer_max_len n))⌝}})%I.
+Lemma buffy_max_len_correct E :
+    Ψ ||- p @ E :: buffy_max_len_spec.
 Proof using Hp.
-  iIntros (->). wp_pures. wp_pure _.
-  1: split; first (eapply lookup_weaken, Hp); done.
-  wp_pures. iModIntro. iPureIntro. do 2 f_equal. cbn. lia.
-Qed.
-
-Lemma ptr_offset_add (ℓ:loc) (z:Z) : bin_op_eval PtrOffsetOp #ℓ #z = Some (LitLoc (loc_add ℓ z)).
-Proof.
-  destruct ℓ; done.
+  iIntros (s vs Φ) "H". iNamed "H".
+  iExists _. iSplit.
+  1: iPureIntro; eapply lookup_weaken; last exact Hp; done.
+  iExists _; iSplit. 1: iPureIntro; simpl; solve_lookup_fixed; by simpl.
+  iNext.
+  wp_pures. iModIntro. unfold buffer_max_len.
+  replace (Z.of_nat (Nat.mul 2 n)) with ((Z.mul n 2))%Z by lia.
+  iApply "Hcont".
 Qed.
 
 Lemma buffy_compress_rec_spec E ℓin ℓout vin bin vspace :
@@ -150,7 +54,7 @@ Lemma buffy_compress_rec_spec E ℓin ℓout vin bin vspace :
    length vspace ≥ buffer_max_len (length bin) →
 (⊢  ℓin  ↦C∗ vin
  -∗ ℓout ↦C∗ vspace -∗
-    WP (call: &buffy_compress_rec_name with (Val #ℓin, Val #(length bin), Val #ℓout))%CE @ buffy_prog_env; E
+    WP (call: &buffy_compress_rec_name with (Val #ℓin, Val #(length bin), Val #ℓout))%CE @ ⟨ p , Ψ ⟩ ; E
     {{ v', ∃ bout vout vrest voverwritten,
              ⌜isBuffer vout bout⌝
            ∗ ⌜bout = compress_buffer bin⌝
@@ -178,7 +82,6 @@ Proof using Hp.
     cbn. iDestruct "Hℓout" as "(Hℓout1&Hℓout2&Hℓoutr)".
     rewrite !loc_add_0.
     wp_apply (wp_store with "Hℓout1"); iIntros "Hℓout1"; wp_pures.
-    wp_pure _. 1: apply ptr_offset_add.
     wp_apply (wp_load with "Hℓin"); iIntros "Hℓin".
     wp_apply (wp_store with "Hℓout2"); iIntros "Hℓout2"; wp_pures.
     iModIntro. iExists [1%Z; bfst], _, vsrest, [_; _].
@@ -190,14 +93,11 @@ Proof using Hp.
   iDestruct "Hℓin" as "(Hℓin0&Hℓin1&HℓinR)". rewrite !loc_add_0.
   destruct (decide (bfst = 0 ∧ bsnd = 0)%Z) as [[-> ->]|Hnn].
   { wp_apply (wp_load with "Hℓin0"); iIntros "Hℓin0"; wp_pures.
-    wp_pure _; first eapply ptr_offset_add.
     wp_apply (wp_load with "Hℓin1"); iIntros "Hℓin1"; wp_pures.
     destruct vspace as [|vsp1 vspr]; first (cbn in *; lia).
     cbn. iDestruct "Hℓout" as "(Hℓou0&HℓouR)". rewrite !loc_add_0.
     wp_apply (wp_store with "Hℓou0"); iIntros "Hℓou0"; wp_pures.
-    wp_pure _; first apply ptr_offset_add.
     wp_pures. replace (Z.of_nat (S (S (length bin))) - 2)%Z with (Z.of_nat (length bin)) by lia.
-    wp_pure _; first apply ptr_offset_add.
     wp_bind (FunCall _ _); wp_apply (wp_wand with "[HℓinR HℓouR]").
     { iApply ("IH" with "[] [] [HℓinR]"); iClear "IH". 1: done.
       2: { unfold array. iApply (big_sepL_wand with "HℓinR").
@@ -226,7 +126,7 @@ Proof using Hp.
     iApply (wp_wand _ _ _ (λ v, ⌜v = #0⌝ ∗ ℓin ↦C #bfst ∗ (ℓin +ₗ 1) ↦C #bsnd)%I with "[Hℓin0 Hℓin1]").
     { wp_apply (wp_load with "Hℓin0"); iIntros "Hℓin0"; wp_pures.
       rewrite bool_decide_decide. destruct decide.
-      { wp_pures; wp_pure _; first eapply ptr_offset_add.
+      { wp_pures.
         wp_apply (wp_load with "Hℓin1"); iIntros "Hℓin1"; wp_pures.
         rewrite bool_decide_decide. destruct decide; try lia.
         iModIntro. iFrame. done. }
@@ -236,12 +136,9 @@ Proof using Hp.
     destruct vspace as [|vsp1 [|vsp2 vspr]]; try (cbn in *; lia).
     cbn. iDestruct "Hℓout" as "(Hℓou0&Hℓou1&HℓouR)". rewrite !loc_add_0.
     wp_apply (wp_store with "Hℓou0"); iIntros "Hℓou0"; wp_pures.
-    wp_pure _; first eapply ptr_offset_add.
     wp_apply (wp_load with "Hℓin0"); iIntros "Hℓin0"; wp_pures.
     wp_apply (wp_store with "Hℓou1"); iIntros "Hℓou1"; wp_pures.
-    wp_pure _; first apply ptr_offset_add.
     wp_pures. replace (Z.of_nat (S (S (length bin))) - 1)%Z with (Z.of_nat (S (length bin))) by lia.
-    wp_pure _; first apply ptr_offset_add.
     wp_bind (FunCall _ _); iApply (wp_wand with "[Hℓin1 HℓinR HℓouR]").
     { change (S (length bin)) with (length (bsnd :: bin)).
       iApply ("IH" with "[] [] [Hℓin1 HℓinR]"); iClear "IH". 1: done.
@@ -274,31 +171,21 @@ Proof using Hp.
   }
 Qed.
 
-Lemma buffy_compress_spec E ℓin ℓout ℓlen vin bin vspace :
-   isBuffer vin bin →
-   length vspace ≥ buffer_max_len (length bin) →
-(⊢  ℓin  ↦C∗ vin
- -∗ ℓout ↦C∗ vspace
- -∗ ℓlen ↦C  #(length vspace)
- -∗ WP (call: &buffy_compress_name with (Val #ℓin, Val #(length bin), Val #ℓout, Val #ℓlen))%CE @ buffy_prog_env; E
-    {{ v', ∃ bout vout vrest voverwritten,
-             ⌜isBuffer vout bout⌝
-           ∗ ⌜bout = compress_buffer bin⌝
-           ∗ ⌜v' = #0⌝
-           ∗ ⌜vspace = voverwritten ++ vrest⌝
-           ∗ ⌜length voverwritten = length vout⌝
-           ∗ ℓout ↦C∗ (vout ++ vrest)
-           ∗ ℓin  ↦C∗ vin 
-           ∗ ℓlen ↦C  #(length vout)}})%I.
+
+Lemma buffy_compress_correct_ok E :
+    Ψ ||- p @ E :: buffy_compress_spec_ok.
 Proof using Hp.
-  iIntros (HBuffer Hlength) "Hℓin Hℓout Hℓlen".
-  wp_pures. wp_pure _.
-  1: split; first (eapply lookup_weaken, Hp); done.
+  iIntros (s vs Φ) "H". iNamed "H".
+  iExists _. iSplit.
+  1: iPureIntro; eapply lookup_weaken; last exact Hp; done.
+  iExists _; iSplit. 1: iPureIntro; simpl; solve_lookup_fixed; by simpl.
+  iNext.
   wp_pures.
   wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
-  wp_bind (FunCall _ _).
-  iApply wp_wand. 1: iApply buffy_max_len_spec; first done. cbn.
-  iIntros (?) "->".
+  wp_progwp. 1: apply buffy_max_len_correct.
+  iModIntro. iExists _; unfold named.
+  iSplit; first done.
+  iSplit; first done. iNext. wp_finish.
   wp_pures. rewrite bool_decide_decide. destruct decide; cbn in *; try lia.
   wp_pure _. wp_bind (FunCall _ _).
   iApply (wp_wand with "[Hℓin Hℓout]").
@@ -307,30 +194,41 @@ Proof using Hp.
   iIntros (v) "(%bout&%vout&%vrest&%vov&HH1&HH2&->&HH3&%Hlen&HℓouR&HℓinR)".
   wp_apply (wp_store with "Hℓlen"); iIntros "Hℓlen".
   wp_pures. iModIntro.
-  iExists bout, vout, vrest, vov. by iFrame.
+  iApply ("HCont" with "[$] [$] [$] [//] [$] [$] [$]").
 Qed.
 
 
-Lemma buffy_compress_spec_too_small E ℓlen (z:Z) (nlen:nat) vv1 vv2 :
-    (z < buffer_max_len (nlen))%Z →
-(⊢  ℓlen ↦C #z
- -∗ WP (call: &buffy_compress_name with (Val vv1, Val #(nlen), Val vv2, Val #ℓlen))%CE @ buffy_prog_env; E
-    {{ v', ℓlen ↦C #z ∗ ⌜v' = #1⌝}})%I.
+Lemma buffy_compress_correct_fail E :
+    Ψ ||- p @ E :: buffy_compress_spec_fail.
 Proof using Hp.
-  iIntros (Hlen) "Hℓlen".
-  wp_pures. wp_pure _.
-  1: split; first (eapply lookup_weaken, Hp); done.
+  iIntros (s vs Φ) "H". iNamed "H".
+  iExists _. iSplit.
+  1: iPureIntro; eapply lookup_weaken; last exact Hp; done.
+  iExists _; iSplit. 1: iPureIntro; simpl; solve_lookup_fixed; by simpl.
+  iNext.
   wp_pures.
   wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
-  wp_bind (FunCall _ _).
-  iApply wp_wand. 1: iApply buffy_max_len_spec; first done. cbn.
-  iIntros (?) "->".
+  wp_progwp. 1: apply buffy_max_len_correct.
+  iModIntro. iExists _; unfold named.
+  iSplit; first done.
+  iSplit; first done. iNext. wp_finish.
   wp_pures. rewrite bool_decide_decide. destruct decide; cbn in *; try lia.
-  wp_pures. iModIntro. iFrame. done.
+  wp_pures. iModIntro.
+  iApply ("HCont" with "[$]").
 Qed.
+
+Lemma buffy_library_correct E :
+    Ψ ||- p @ E :: buffy_library_spec.
+Proof using Hp.
+  iIntros (s vv Φ) "[[H|H]|H]".
+  - by iApply buffy_max_len_correct.
+  - by iApply buffy_compress_correct_ok.
+  - by iApply buffy_compress_correct_fail.
+Qed.
+
 
 (* XXX use sealing *)
 Opaque isBuffer.
 
-End CBuffers.
+End CProofs.
 
