@@ -79,7 +79,7 @@ Section C_specs.
     ∗ "Hcont" ∷ Φ (ML_lang.LitV (bool_decide (x = y))))%I.
 
   Lemma is_eq_correct Ψ :
-    prims_proto ⊤ Ψ ||- is_eq_prog @ ⊤ :: wrap_proto is_eq_spec_ML.
+    prims_proto Ψ ||- is_eq_prog :: wrap_proto is_eq_spec_ML.
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     unfold progwp.

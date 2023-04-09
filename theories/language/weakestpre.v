@@ -60,7 +60,7 @@ Global Existing Instance wp'.
 Local Lemma wp_unseal `{SI:indexT, !langG val Λ Σ, !invG Σ} : wp = @wp_def SI val Λ Σ _ _.
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
-
+(*
 Definition wp_func `{!indexT, !langG val Λ Σ, !invG Σ} (F:func Λ) (vv : list val) pe E Φ : iProp Σ :=
   match apply_func F vv with
     Some e' => |={E}=> ▷ |={E}=> wp' pe E e' Φ
@@ -83,6 +83,7 @@ Notation "'WPCall' F 'with' args @ s ; E {{ Φ } }" := (wp_for_call F args%V s E
 Notation "'WPCall' F 'with' args @ s ; E {{ v , Q } }" := (wp_for_call F args%V s E (λ v, Q))
   (at level 20, F, args, Q at level 200,
    format "'[hv' 'WPCall'  F  'with'  args  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+*)
 
 Definition progwp `{!indexT, !langG val Λ Σ, !invG Σ}
   E (p : lang_prog Λ) (Ψ : protocol val Σ) : protocol val Σ

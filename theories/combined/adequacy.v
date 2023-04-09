@@ -44,16 +44,16 @@ Global Instance subG_ffiΣ_invPreG `{SI: indexT} Σ :
   subG ffiΣ Σ → invPreG Σ.
 Proof. solve_inG. Qed.
 
-Lemma combined_correct `{indexT} `{!ffiG Σ} E
+Lemma combined_correct `{indexT} `{!ffiG Σ}
   (e : ML_lang.expr) (p : lang_prog C_lang)
-  (Ψ : ∀ `{!ffiG Σ} (E: coPset), protocol ML_lang.val Σ)
+  (Ψ : ∀ `{!ffiG Σ}, protocol ML_lang.val Σ)
   (Pret : Z → Prop)
 :
-  Ψ E on prim_names ⊑ ⊥ →
+  Ψ on prim_names ⊑ ⊥ →
   dom p ## prim_names →
-  {{{ True }}} e @ ⟨∅, Ψ E⟩; E {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} →
-  prims_proto E (Ψ E) ||- p @ E :: wrap_proto (Ψ E) →
-  ⊥ |- combined_prog e p @ E :: main_proto Pret.
+  {{{ True }}} e at ⟨∅, Ψ⟩ {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} →
+  prims_proto Ψ ||- p :: wrap_proto Ψ →
+  ⊥ |- combined_prog e p :: main_proto Pret.
 Proof.
   intros.
   eapply prog_triple_mono_r; swap 1 2.
@@ -224,7 +224,7 @@ Section MainAlloc.
       (λ HH : mlangG word combined_lang Σ,
          (sideConds combined_lang (Φpure Φ) p ⊥ (Φbi Φ)) ∗
           state_interp σ_init ∗
-          (WP (LkCall "main" []) @ ⟪p,⊥⟫; ⊤ {{ w, ∃ x : Z, ⌜w = code_int x ∧ Φ x⌝ }}))%I
+          (WP (LkCall "main" []) at ⟪p,⊥⟫ {{ w, ∃ x : Z, ⌜w = code_int x ∧ Φ x⌝ }}))%I
       True.
   Proof using All.
     intros Hspec P _ Halloc.
@@ -293,21 +293,21 @@ Qed.
 
 Lemma combined_adequacy_trace
   (e : ML_lang.expr) (p : lang_prog C_lang)
-  (Ψ : ∀ `{!ffiG Σ} (E: coPset), protocol ML_lang.val Σ)
+  (Ψ : ∀ `{!ffiG Σ}, protocol ML_lang.val Σ)
   (Pret : Z → Prop)
 :
-  (∀ `{!ffiG Σ} E,
-    Ψ E on prim_names ⊑ ⊥ ∧
+  (∀ `{!ffiG Σ},
+    Ψ on prim_names ⊑ ⊥ ∧
     dom p ## prim_names ∧
-    {{{ True }}} e @ ⟨∅, Ψ E⟩; E {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} ∧
-    prims_proto E (Ψ E) ||- p @ E :: wrap_proto (Ψ E)
+    {{{ True }}} e at ⟨∅, Ψ⟩ {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} ∧
+    prims_proto Ψ ||- p :: wrap_proto Ψ
   ) →
   umrel.trace (prim_step (combined_prog e p))
     (LkCall "main" [], σ_init)
     (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Pret x).
 Proof.
   intros Hspec. apply main_adequacy_trace. intros Σ Hffi.
-  specialize (Hspec Σ Hffi ⊤) as (HΨ & Hdomp & He & Hp).
+  specialize (Hspec Σ Hffi) as (HΨ & Hdomp & He & Hp).
   by eapply combined_correct.
 Qed.
 

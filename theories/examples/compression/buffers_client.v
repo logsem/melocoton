@@ -18,12 +18,11 @@ Section MLclient.
   Import melocoton.ml_lang.notation melocoton.ml_lang.lang_instantiation
          melocoton.ml_lang.primitive_laws melocoton.ml_lang.proofmode.
 
-  Context (E : coPset).
   Context (Ψ : (protocol ML_lang.val Σ)).
 
   Definition ML_client_env : prog_environ ML_lang Σ := {|
     penv_prog  := ∅ ;
-    penv_proto := buf_library_spec_ML_pre E Ψ |}.
+    penv_proto := buf_library_spec_ML_pre Ψ |}.
 
   Definition ML_client_code : MLval := 
     λ: "vbuf",
@@ -46,7 +45,7 @@ Section MLclient.
   Lemma ML_client_spec ℓ dq (zz : buffer) :
     0 < length zz →
     {{{ ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}
-      ML_client_code #ℓ @ ML_client_env ; E
+      ML_client_code #ℓ at ML_client_env
     {{{ RET #(if is_compressible zz then true else false); ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}.
   Proof.
     iIntros (Hlen Φ) "Hℓ Cont".
@@ -176,7 +175,7 @@ Section MLclient.
   Definition ML_client_applied_code : expr := if: ML_client_code (AllocN #256 #0) then #1 else #0.
   Lemma ML_client_applied_spec :
     {{{ True }}}
-      ML_client_applied_code @ ML_client_env ; E
+      ML_client_applied_code at ML_client_env
     {{{ x, RET #x ; ⌜x=1%Z⌝ }}}.
   Proof.
     iIntros (Φ) "_ Cont".

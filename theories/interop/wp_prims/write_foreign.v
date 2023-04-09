@@ -21,7 +21,7 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma write_foreign_correct E e : |- prims_prog e @ E :: write_foreign_proto.
+Lemma write_foreign_correct e : |- prims_prog e :: write_foreign_proto.
 Proof using.
   (* TODO: refactor to share lemmas with prim_modify *)
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".

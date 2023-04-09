@@ -16,10 +16,9 @@ Section Proofs.
 
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
-  Context (E:coPset).
-  Notation combspec Ψ := (buffy_library_spec ⊔ prims_proto E Ψ).
+  Notation combspec Ψ := (buffy_library_spec ⊔ prims_proto Ψ).
 
-  Lemma prims_proto_refines_combspec Ψ : prims_proto E Ψ ⊑ combspec Ψ.
+  Lemma prims_proto_refines_combspec Ψ : prims_proto Ψ ⊑ combspec Ψ.
   Proof using.
     iIntros (s vv Φ) "H". by iRight.
   Qed.
@@ -29,7 +28,7 @@ Section Proofs.
     | _ => done end.
 
   Lemma wrap_max_len_correct Ψ :
-    combspec Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_max_len_spec_ML).
+    combspec Ψ ||- buf_lib_prog :: wrap_proto (wrap_max_len_spec_ML).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iNamed "Hproto".
@@ -54,7 +53,7 @@ Section Proofs.
   Qed.
 
   Lemma wrap_compress_correct Ψ :
-    combspec Ψ ||- buf_lib_prog @ E :: wrap_proto (wrap_compress_spec_ML).
+    combspec Ψ ||- buf_lib_prog :: wrap_proto (wrap_compress_spec_ML).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iNamed "Hproto".

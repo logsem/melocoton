@@ -22,7 +22,7 @@ Implicit Types P : iProp Σ.
 Import mlanguage.
 
 (* TODO: refactor to share proof with wp_prim_alloc *)
-Lemma alloc_foreign_correct E e : |- prims_prog e @ E :: alloc_foreign_proto.
+Lemma alloc_foreign_correct e : |- prims_prog e :: alloc_foreign_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
   do 2 (iExists _; iSplit; first done). iNext.

@@ -17,8 +17,8 @@ Section Proofs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Lemma buf_alloc_correct E1 E2 Ψ :
-    prims_proto E1 Ψ ||- buf_lib_prog @ E2 :: wrap_proto buf_alloc_spec_ML.
+  Lemma buf_alloc_correct Ψ :
+    prims_proto Ψ ||- buf_lib_prog :: wrap_proto buf_alloc_spec_ML.
   Proof using.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     cbn. unfold progwp. solve_lookup_fixed.

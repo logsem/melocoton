@@ -20,7 +20,7 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma registerroot_correct E e : |- prims_prog e @ E :: registerroot_proto.
+Lemma registerroot_correct e : |- prims_prog e :: registerroot_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
   do 2 (iExists _; iSplit; first done). iNext.

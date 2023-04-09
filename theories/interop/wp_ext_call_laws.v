@@ -12,10 +12,10 @@ Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.
 Context `{!wrapperG Σ}.
 
-Lemma base_prim_correct (p : prim) E e Ψ :
+Lemma base_prim_correct (p : prim) e Ψ :
   p ≠ Pcallback →
   (∀ e, p ≠ Pmain e) →
-  |- prims_prog e @ E :: prim_proto p E Ψ.
+  |- prims_prog e :: prim_proto p Ψ.
 Proof using.
   intros Hncb Hnmain.
   (destruct p; try by congruence); unfold prim_proto.

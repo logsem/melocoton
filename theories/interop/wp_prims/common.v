@@ -21,16 +21,16 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma wp_pre_cases_c_prim p T wp prm ρc mem E ws Φ :
+Lemma wp_pre_cases_c_prim p T wp prm ρc mem ws Φ :
   prm ≠ Pcallback →
   (∀ e, prm ≠ Pmain e) →
   (∃ X,
     ⌜c_prim_step prm ws ρc mem (λ w ρc' mem', X (WrSE (ExprV w), CState ρc' mem'))⌝ ∗
     (∀ w ρc' mem',
-       ⌜X (WrSE (ExprV w), CState ρc' mem')⌝ ={E}▷=∗
+       ⌜X (WrSE (ExprV w), CState ρc' mem')⌝ ={⊤}▷=∗
        weakestpre.state_interp (CState ρc' mem') ∗
-       wp E (WrSE (ExprV w)) Φ)) -∗
-  |={E}=> wp_pre_cases p T wp (CState ρc mem) E
+       wp ⊤ (WrSE (ExprV w)) Φ)) -∗
+  |={⊤}=> wp_pre_cases p T wp (CState ρc mem) ⊤
     (WrSE (RunPrimitive prm ws))
     Φ.
 Proof using.

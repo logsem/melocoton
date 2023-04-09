@@ -20,7 +20,7 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma length_correct E e : |- prims_prog e @ E :: length_proto.
+Lemma length_correct e : |- prims_prog e :: length_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
   destruct bl as [tg vs0].

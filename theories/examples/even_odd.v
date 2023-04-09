@@ -34,9 +34,9 @@ Definition is_even_proto : protocol val Σ := (λ fn vs Φ,
   ⌜fn = "is_even"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
   Φ (# (Z.even x)))%I.
 
-Lemma wp_is_even (x:Z) E :
+Lemma wp_is_even (x:Z) :
   (0 ≤ x)%Z →
-  ⊢ WP subst "x" (#x) (is_even_code "x") @ ⟨is_even_prog, is_odd_proto⟩; E
+  ⊢ WP subst "x" (#x) (is_even_code "x") at ⟨is_even_prog, is_odd_proto⟩
       {{ λ v, ⌜v = #(Z.even x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
@@ -54,7 +54,7 @@ Proof.
   wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.odd_pred //.
 Qed.
 
-Lemma is_even_correct E : is_odd_proto ||- is_even_prog @ E :: is_even_proto.
+Lemma is_even_correct : is_odd_proto ||- is_even_prog :: is_even_proto.
 Proof.
   unfold progwp, is_even_proto.
   iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
@@ -62,9 +62,9 @@ Proof.
   iApply wp_wand; first by iApply wp_is_even. by iIntros (? ->).
 Qed.
 
-Lemma wp_is_odd (x:Z) E :
+Lemma wp_is_odd (x:Z) :
   (0 ≤ x)%Z →
-  ⊢ WP subst "x" (#x) (is_odd_code "x") @ ⟨is_odd_prog, is_even_proto⟩; E
+  ⊢ WP subst "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
       {{ λ v, ⌜v = #(Z.odd x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
@@ -82,7 +82,7 @@ Proof.
   wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.even_pred //.
 Qed.
 
-Lemma is_odd_correct E : is_even_proto ||- is_odd_prog @ E :: is_odd_proto.
+Lemma is_odd_correct : is_even_proto ||- is_odd_prog :: is_odd_proto.
 Proof.
   unfold progwp, is_odd_proto.
   iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
@@ -106,7 +106,7 @@ Definition fullprog : mlang_prog (link_lang C_mlang C_mlang) :=
   link_prog C_mlang C_mlang is_even_prog is_odd_prog.
 
 (* The full program implements both is_even and is_odd, without making external calls *)
-Lemma fullprog_correct E : ⊥ |- fullprog @ E :: is_even_proto ⊔ is_odd_proto.
+Lemma fullprog_correct : ⊥ |- fullprog :: is_even_proto ⊔ is_odd_proto.
 Proof.
   intros. eapply link_close_correct; [set_solver|done|done|..].
   - apply lang_to_mlang_correct, is_even_correct.
@@ -115,10 +115,10 @@ Qed.
 
 (* From this we can derive that calling is_even/is_odd in fullprog satisfies
    their respective spec. *)
-Lemma is_even_linked_spec (x:Z) E :
+Lemma is_even_linked_spec (x:Z) :
   (0 ≤ x)%Z →
   {{{ link_in_state _ _ Boundary }}}
-    LkSE (Link.ExprCall "is_even" [ #x ]) @ ⟪fullprog, ⊥⟫; E
+    LkSE (Link.ExprCall "is_even" [ #x ]) at ⟪fullprog, ⊥⟫
   {{{ RET #(Z.even x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
@@ -129,10 +129,10 @@ Proof.
   by iApply "HΦ".
 Qed.
 
-Lemma is_odd_linked_spec (x:Z) E :
+Lemma is_odd_linked_spec (x:Z) :
   (0 ≤ x)%Z →
   {{{ link_in_state _ _ Boundary }}}
-    LkSE (Link.ExprCall "is_odd" [ #x ]) @ ⟪fullprog, ⊥⟫; E
+    LkSE (Link.ExprCall "is_odd" [ #x ]) at ⟪fullprog, ⊥⟫
   {{{ RET #(Z.odd x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".

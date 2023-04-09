@@ -44,8 +44,8 @@ Definition swap_pair_ml_spec : protocol ML_lang.val Σ := (
   λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
 )%I.
 
-Lemma swap_pair_correct E :
-  prims_proto E swap_pair_ml_spec ||- swap_pair_prog @ E :: wrap_proto swap_pair_ml_spec.
+Lemma swap_pair_correct :
+  prims_proto swap_pair_ml_spec ||- swap_pair_prog :: wrap_proto swap_pair_ml_spec.
 Proof.
   iIntros (fn ws Φ) "H". iNamed "H".
   iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
@@ -143,8 +143,8 @@ Context `{!ffiG Σ}.
 
 Import melocoton.ml_lang.proofmode.
 
-Lemma ML_prog_correct_axiomatic E :
-  {{{ True }}} swap_pair_client @ ⟨∅, swap_pair_ml_spec⟩ ; E {{{ x, RET (#x); ⌜x = 1%Z⌝}}}.
+Lemma ML_prog_correct_axiomatic :
+  {{{ True }}} swap_pair_client at ⟨∅, swap_pair_ml_spec⟩ {{{ x, RET (#x); ⌜x = 1%Z⌝}}}.
 Proof.
   unfold swap_pair_client. iIntros (? _) "HΦ". wp_pures.
   wp_extern.
@@ -165,7 +165,7 @@ Lemma swap_pair_adequate :
     (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
 Proof.
   eapply umrel_upclosed.
-  { eapply combined_adequacy_trace. intros Σ Hffi E. split_and!.
+  { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
     3: apply ML_prog_correct_axiomatic.
     3: apply swap_pair_correct.
     { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".

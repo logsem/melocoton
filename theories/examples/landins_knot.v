@@ -34,10 +34,10 @@ Section C_specs.
       "->" ∷ ⌜s = "tie_knot"⌝
     ∗ "->" ∷ ⌜vv = [ #l; x ]⌝
     ∗ "Hl" ∷ l ↦∗ [(RecV b1 b2 F)]
-    ∗ "HWP" ∷ (l ↦∗ [(RecV b1 b2 F)] -∗ ▷ WP (RecV b1 b2 F) x @ ⟨ ∅, protoCB ⟩ ; ⊤ {{res, Φ res}}))%I.
+    ∗ "HWP" ∷ (l ↦∗ [(RecV b1 b2 F)] -∗ ▷ WP (RecV b1 b2 F) x at ⟨ ∅, protoCB ⟩ {{res, Φ res}}))%I.
 
   Lemma tie_knot_correct Ψ :
-    prims_proto ⊤ Ψ ||- tie_knot_prog @ ⊤ :: wrap_proto (tie_knot_spec_ML Ψ).
+    prims_proto Ψ ||- tie_knot_prog :: wrap_proto (tie_knot_spec_ML Ψ).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     cbn. unfold progwp, tie_knot_prog. solve_lookup_fixed.
@@ -114,11 +114,11 @@ Section ML_code.
   Lemma knot_code_spec p (f : val) :
     tie_knot_spec_ML p.(penv_proto) ⊑ p.(penv_proto) →
     p.(penv_prog) = ∅ →
-    ⊢ WP knot_code f @ p ; ⊤ {{ rc,
+    ⊢ WP knot_code f at p {{ rc,
     □ (∀ Φ Ψ,
-      □ (∀ rec : val, □ (∀ v : val, Ψ v -∗ na_tok -∗ WP rec v @ p ; ⊤ {{ v, Φ v ∗ na_tok }}) -∗
-         ∀ v : val, Ψ v -∗ na_tok -∗ WP f rec v @ p; ⊤ {{ v, Φ v ∗ na_tok }}) -∗
-      ∀ (v : val), Ψ v -∗ na_tok -∗ WP (rc : val) v @ p ; ⊤ {{ v, Φ v ∗ na_tok }} )
+      □ (∀ rec : val, □ (∀ v : val, Ψ v -∗ na_tok -∗ WP rec v at p {{ v, Φ v ∗ na_tok }}) -∗
+         ∀ v : val, Ψ v -∗ na_tok -∗ WP f rec v at p {{ v, Φ v ∗ na_tok }}) -∗
+      ∀ (v : val), Ψ v -∗ na_tok -∗ WP (rc : val) v at p {{ v, Φ v ∗ na_tok }} )
     }}.
   Proof.
     intros Hproto ?. destruct p. simplify_eq/=. unfold knot_code. wp_pures.

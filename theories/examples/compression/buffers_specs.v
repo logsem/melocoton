@@ -196,7 +196,7 @@ Section Specs.
 
   Definition buf_alloc1_spec idx vnew Pbold cap (b : list (option Z)) : iProp Σ :=
     ∃ bold (capold:nat) , ⌜b = <[ Z.to_nat idx := Some vnew ]> bold⌝ ∗ ⌜cap = max capold (Z.to_nat (idx+1))⌝ ∗ Pbold capold bold.
-  Definition buf_update_spec_ML (protoCB : (protocol ML_lang.val Σ)) E s vv Φ: iProp Σ :=
+  Definition buf_update_spec_ML (protoCB : (protocol ML_lang.val Σ)) s vv Φ: iProp Σ :=
     ∃ (Ψ Ψframe : Z → iProp Σ) (Φz : Z → Z → iProp Σ) (i j : Z) ℓbuf (cap:nat) (Pb : Z → nat → _ → iProp Σ) vbuf b1 b2 (F : ML_lang.expr),
       "->" ∷ ⌜s = buf_upd_name⌝
     ∗ "->" ∷ ⌜vv = [ #i; #j; (RecV b1 b2 F); vbuf ]⌝
@@ -206,7 +206,7 @@ Section Specs.
     ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j+1⌝%Z -∗ Ψframe z -∗ Φz z vnew -∗
           isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ (z+1)%Z)
     ∗ "#HWP" ∷ (□ ▷ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
-              WP (RecV b1 b2 F) #z @ ⟨ ∅, protoCB ⟩ ; E 
+              WP (RecV b1 b2 F) #z at ⟨ ∅, protoCB ⟩
               {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz z znew ∗ Ψframe (z)%Z
                                ∗ isBufferRecordML vbuf ℓbuf (Pb (z)%Z) cap}})
     ∗ "Hframe" ∷ Ψframe i
@@ -242,10 +242,10 @@ Section Specs.
                                             γfgn ~foreign~ fid -∗ ℓML ↦M #(-1) -∗
                                             γfgn ↦foreign (C_intf.LitV LitNull) -∗ Φ #()).
 
-  Definition buf_library_spec_ML_pre E : (protocol ML_lang.val Σ) -d> (protocol ML_lang.val Σ) := λ (protoCB : (protocol ML_lang.val Σ)),
-    buf_alloc_spec_ML ⊔ buf_update_spec_ML protoCB E ⊔ buf_free_spec_ML ⊔ wrap_compress_spec_ML ⊔ wrap_max_len_spec_ML.
+  Definition buf_library_spec_ML_pre : (protocol ML_lang.val Σ) -d> (protocol ML_lang.val Σ) := λ (protoCB : (protocol ML_lang.val Σ)),
+    buf_alloc_spec_ML ⊔ buf_update_spec_ML protoCB ⊔ buf_free_spec_ML ⊔ wrap_compress_spec_ML ⊔ wrap_max_len_spec_ML.
 
-  Global Instance buf_library_spec_ML_contractive E : Contractive (buf_library_spec_ML_pre E).
+  Global Instance buf_library_spec_ML_contractive : Contractive buf_library_spec_ML_pre.
   Proof.
     rewrite /buf_library_spec_ML_pre /= => n pp1 pp2 Hpp.
     do 4 f_equiv.
@@ -255,8 +255,8 @@ Section Specs.
     eapply wp_ne_proto. done.
   Qed.
 
-  Lemma buf_library_spec_ML_pre_mono E Ψ1 Ψ2 : Ψ1 ⊑ Ψ2 →
-    buf_library_spec_ML_pre E Ψ1 ⊑ buf_library_spec_ML_pre E Ψ2.
+  Lemma buf_library_spec_ML_pre_mono Ψ1 Ψ2 : Ψ1 ⊑ Ψ2 →
+    buf_library_spec_ML_pre Ψ1 ⊑ buf_library_spec_ML_pre Ψ2.
   Proof.
     iIntros (HΨ s vv Φ) "[[[[H|H]|H]|H]|H]".
     - do 4 iLeft. done.

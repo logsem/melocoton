@@ -18,8 +18,8 @@ Section Proofs.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
 
-  Lemma buf_free_correct E Ψ :
-    prims_proto E Ψ ||- buf_lib_prog @ E :: wrap_proto (buf_free_spec_ML).
+  Lemma buf_free_correct Ψ :
+    prims_proto Ψ ||- buf_lib_prog :: wrap_proto (buf_free_spec_ML).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H".
     iNamed "Hproto".

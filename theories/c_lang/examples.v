@@ -198,7 +198,7 @@ Proof.
     cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add. iApply "Hvv".
 Qed.
 
-Lemma example_can_link : can_link ⊤ FibLeftSpec FibRightSpec StoreItSpec (FibLeftSpec ⊔ FibRightSpec)
+Lemma example_can_link : can_link FibLeftSpec FibRightSpec StoreItSpec (FibLeftSpec ⊔ FibRightSpec)
          (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left") (penv_prog FinalEnv).
 Proof.
   assert (

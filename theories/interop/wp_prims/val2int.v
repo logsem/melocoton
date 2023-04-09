@@ -19,7 +19,7 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma val2int_correct E e : |- prims_prog e @ E :: val2int_proto.
+Lemma val2int_correct e : |- prims_prog e :: val2int_proto.
 Proof using.
   iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamed "H".
   do 2 (iExists _; iSplit; first done). iNext.

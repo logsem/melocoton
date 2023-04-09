@@ -22,10 +22,10 @@ Context `{!wrapperGCtokG Σ}.
 
 (* Reading and writing roots using plain C reads and writes *)
 
-Lemma store_to_root E pe (l:loc) (v v' : lval) w θ :
+Lemma store_to_root pe (l:loc) (v v' : lval) w θ :
   repr_lval θ v w →
   {{{ GC θ ∗ l ↦roots v' }}}
-     (#l <- w)%CE @ pe; E
+     (#l <- w)%CE at pe
   {{{ RET LitV LitUnit; GC θ ∗ l ↦roots v }}}%CE.
 Proof.
   iIntros (Hrepr Φ) "(HGC&Hroot) HΦ".
@@ -36,9 +36,9 @@ Proof.
   iApply "HΦ". by iFrame.
 Qed.
 
-Lemma load_from_root E pe (l:loc) (v : lval) dq θ :
+Lemma load_from_root pe (l:loc) (v : lval) dq θ :
   {{{ GC θ ∗ l ↦roots{dq} v }}}
-     ( * #l)%CE @ pe; E
+     ( * #l)%CE at pe
   {{{ w, RET w; l ↦roots{dq} v ∗ GC θ ∗ ⌜repr_lval θ v w⌝ }}}%CE.
 Proof.
   iIntros (Φ) "(HGC&Hroot) HΦ".
@@ -49,11 +49,11 @@ Qed.
 
 (* Calling to runtime primitives *)
 
-Lemma wp_int2val E p Ψ θ (x : Z) :
+Lemma wp_int2val p Ψ θ (x : Z) :
   p !! "int2val" = None →
   int2val_proto ⊑ Ψ →
   {{{ GC θ }}}
-    (call: &"int2val" with (Val #x))%CE @ ⟨p, Ψ⟩; E
+    (call: &"int2val" with (Val #x))%CE at ⟨p, Ψ⟩
   {{{ w, RET w; GC θ ∗ ⌜repr_lval θ (Lint x) w⌝ }}}.
 Proof.
   iIntros (Hp Hproto Φ) "HGC Cont".
@@ -64,12 +64,12 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
-Lemma wp_val2int E p Ψ θ (w:word) (x : Z) :
+Lemma wp_val2int p Ψ θ (w:word) (x : Z) :
   p !! "val2int" = None →
   val2int_proto ⊑ Ψ →
   repr_lval θ (Lint x) w →
   {{{ GC θ }}}
-    (call: &"val2int" with (Val w))%CE @ ⟨p, Ψ⟩; E
+    (call: &"val2int" with (Val w))%CE at ⟨p, Ψ⟩
   {{{ RET (#x); GC θ }}}.
 Proof.
   iIntros (Hp Hproto Hrepr Φ) "HGC Cont".
@@ -80,12 +80,12 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
-Lemma wp_registerroot E p Ψ θ v w a :
+Lemma wp_registerroot p Ψ θ v w a :
   p !! "registerroot" = None →
   registerroot_proto ⊑ Ψ →
   repr_lval θ v w →
   {{{ GC θ ∗ a ↦C w }}}
-    (call: &"registerroot" with (Val (# a)))%CE @ ⟨p, Ψ⟩; E
+    (call: &"registerroot" with (Val (# a)))%CE at ⟨p, Ψ⟩
   {{{ RET (# 0); GC θ ∗ a ↦roots v }}}.
 Proof.
   iIntros (Hp Hproto Hrepr Φ) "(HGC & Hpto) Cont".
@@ -97,11 +97,11 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 
-Lemma wp_unregisterroot E p Ψ θ v a :
+Lemma wp_unregisterroot p Ψ θ v a :
   p !! "unregisterroot" = None →
   unregisterroot_proto ⊑ Ψ →
   {{{ GC θ ∗ a ↦roots v }}}
-    (call: &"unregisterroot" with (Val (# a)))%CE @ ⟨p, Ψ⟩; E
+    (call: &"unregisterroot" with (Val (# a)))%CE at ⟨p, Ψ⟩
   {{{ w, RET (# 0); GC θ ∗ a ↦C w ∗ ⌜repr_lval θ v w⌝ }}}.
 Proof.
   iIntros (Hp Hproto Φ) "(HGC & Hpto) Cont".
@@ -113,7 +113,7 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_modify E p Ψ θ γ w mut tg vs v' w' i :
+Lemma wp_modify p Ψ θ γ w mut tg vs v' w' i :
   p !! "modify" = None →
   modify_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
@@ -121,7 +121,7 @@ Lemma wp_modify E p Ψ θ γ w mut tg vs v' w' i :
   repr_lval θ v' w' →
   (0 ≤ i < length vs)%Z →
   {{{ GC θ ∗ γ ↦vblk[mut] (tg, vs) }}}
-    (call: &"modify" with (Val w, Val (# i), Val w'))%CE @ ⟨p, Ψ⟩; E
+    (call: &"modify" with (Val w, Val (# i), Val w'))%CE at ⟨p, Ψ⟩
   {{{ RET (# 0); GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
@@ -133,13 +133,13 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_readfield E p Ψ θ γ w m dq tg vs i :
+Lemma wp_readfield p Ψ θ γ w m dq tg vs i :
   p !! "readfield" = None →
   readfield_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   (0 ≤ i < length vs)%Z →
   {{{ GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}
-    (call: &"readfield" with (Val w, Val (# i)))%CE @ ⟨p, Ψ⟩; E
+    (call: &"readfield" with (Val w, Val (# i)))%CE at ⟨p, Ψ⟩
   {{{ v' w', RET w';
         GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) ∗
         ⌜vs !! (Z.to_nat i) = Some v'⌝ ∗
@@ -155,12 +155,12 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_isblock E p Ψ θ lv w :
+Lemma wp_isblock p Ψ θ lv w :
   p !! "isblock" = None →
   isblock_proto ⊑ Ψ →
   repr_lval θ lv w →
   {{{ GC θ }}}
-    (call: &"isblock" with (Val w))%CE @ ⟨p, Ψ⟩; E
+    (call: &"isblock" with (Val w))%CE at ⟨p, Ψ⟩
   {{{ RET #(match lv return Z with | Lloc _ => 1 | _ => 0 end); GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
@@ -172,12 +172,12 @@ Proof.
   iIntros "HGC". wp_pures. iApply ("Cont" with "HGC").
 Qed.
 
-Lemma wp_isblock_true E p Ψ θ γ w :
+Lemma wp_isblock_true p Ψ θ γ w :
   p !! "isblock" = None →
   isblock_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   {{{ GC θ }}}
-    (call: &"isblock" with (Val w))%CE @ ⟨p, Ψ⟩; E
+    (call: &"isblock" with (Val w))%CE at ⟨p, Ψ⟩
   {{{ RET #1; GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
@@ -185,12 +185,12 @@ Proof.
   iIntros "!> HGC". by iApply "Cont".
 Qed.
 
-Lemma wp_isblock_false E p Ψ θ z w :
+Lemma wp_isblock_false p Ψ θ z w :
   p !! "isblock" = None →
   isblock_proto ⊑ Ψ →
   repr_lval θ (Lint z) w →
   {{{ GC θ }}}
-    (call: &"isblock" with (Val w))%CE @ ⟨p, Ψ⟩; E
+    (call: &"isblock" with (Val w))%CE at ⟨p, Ψ⟩
   {{{ RET #0; GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
@@ -198,12 +198,12 @@ Proof.
   iIntros "!> HGC". by iApply "Cont".
 Qed.
 
-Lemma wp_read_tag E p Ψ θ γ w dq bl :
+Lemma wp_read_tag p Ψ θ γ w dq bl :
   p !! "read_tag" = None →
   read_tag_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ lstore_own_elem γ dq bl}}}
-    (call: &"read_tag" with (Val w))%CE @ ⟨p, Ψ⟩; E
+    (call: &"read_tag" with (Val w))%CE at ⟨p, Ψ⟩
   {{{ RET #(tag_as_int (block_tag bl)); GC θ ∗ lstore_own_elem γ dq bl }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC&Hpto) Cont".
@@ -215,12 +215,12 @@ Proof.
   iIntros "HGC Hpto". wp_pures. iApply ("Cont" with "[$]").
 Qed.
 
-Lemma wp_length E p Ψ θ γ w m dq tg vs :
+Lemma wp_length p Ψ θ γ w m dq tg vs :
   p !! "length" = None →
   length_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}
-    (call: &"length" with (Val w))%CE @ ⟨p, Ψ⟩; E
+    (call: &"length" with (Val w))%CE at ⟨p, Ψ⟩
   {{{ RET #(length vs);
         GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}.
 Proof.
@@ -234,13 +234,13 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_alloc tg E p Ψ θ tgnum sz :
+Lemma wp_alloc tg p Ψ θ tgnum sz :
   p !! "alloc" = None →
   alloc_proto ⊑ Ψ →
   (0 ≤ sz)%Z →
   vblock_tag_as_int tg = tgnum →
   {{{ GC θ }}}
-    (call: &"alloc" with (Val (# tgnum), Val (# sz)))%CE @ ⟨p, Ψ⟩; E
+    (call: &"alloc" with (Val (# tgnum), Val (# sz)))%CE at ⟨p, Ψ⟩
   {{{ θ' γ w, RET w;
         GC θ' ∗ γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) ∗
         ⌜repr_lval θ' (Lloc γ) w⌝ }}}.
@@ -254,11 +254,11 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_alloc_foreign E p Ψ θ :
+Lemma wp_alloc_foreign p Ψ θ :
   p !! "alloc_foreign" = None →
   alloc_foreign_proto ⊑ Ψ →
   {{{ GC θ }}}
-    (call: &"alloc_foreign" with ( ))%CE @ ⟨p, Ψ⟩; E
+    (call: &"alloc_foreign" with ( ))%CE at ⟨p, Ψ⟩
   {{{ θ' γ w, RET w;
         GC θ' ∗ γ ↦foreignO None ∗
         ⌜repr_lval θ' (Lloc γ) w⌝ }}}.
@@ -272,12 +272,12 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_write_foreign E p Ψ θ w γ ao a' :
+Lemma wp_write_foreign p Ψ θ w γ ao a' :
   p !! "write_foreign" = None →
   write_foreign_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ γ ↦foreignO ao }}}
-    (call: &"write_foreign" with (Val w, Val a'))%CE @ ⟨p, Ψ⟩; E
+    (call: &"write_foreign" with (Val w, Val a'))%CE at ⟨p, Ψ⟩
   {{{ RET (# 0); GC θ ∗ γ ↦foreign a' }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & ?) Cont".
@@ -289,12 +289,12 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_read_foreign E p Ψ θ w γ a dq :
+Lemma wp_read_foreign p Ψ θ w γ a dq :
   p !! "read_foreign" = None →
   read_foreign_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ γ ↦foreign{dq} a }}}
-    (call: &"read_foreign" with (Val w))%CE @ ⟨p, Ψ⟩; E
+    (call: &"read_foreign" with (Val w))%CE at ⟨p, Ψ⟩
   {{{ RET a; GC θ ∗ γ ↦foreign{dq} a }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & ?) Cont".
@@ -306,17 +306,17 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_callback E p ΨML Ψ θ w γ f x e lv' w' v' Φ :
+Lemma wp_callback p ΨML Ψ θ w γ f x e lv' w' v' Φ :
   p !! "callback" = None →
-  callback_proto E ΨML ⊑ Ψ →
+  callback_proto ΨML ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   repr_lval θ lv' w' →
   {{{ GC θ ∗
       γ ↦clos (f, x, e) ∗
       lv' ~~ v' ∗
-      (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) @ ⟨∅, ΨML⟩; E {{ Φ }})
+      (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) at ⟨∅, ΨML⟩ {{ Φ }})
   }}}
-    (call: &"callback" with (Val w, Val w'))%CE @ ⟨p, Ψ⟩; E
+    (call: &"callback" with (Val w, Val w'))%CE at ⟨p, Ψ⟩
   {{{ θ' vret lvret wret, RET wret;
         GC θ' ∗
         Φ vret ∗
@@ -332,11 +332,11 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_main E p Ψ Φ :
+Lemma wp_main p Ψ Φ :
   p !! "main" = None →
   main_proto Φ ⊑ Ψ →
   {{{ at_init }}}
-    (call: &"main" with ( ))%CE @ ⟨p, Ψ⟩; E
+    (call: &"main" with ( ))%CE at ⟨p, Ψ⟩
   {{{ x, RET (code_int x); ⌜Φ x⌝ }}}.
 Proof.
   intros Hp Hproto **. iIntros "Hinit Cont".
@@ -349,14 +349,14 @@ Proof.
 Qed.
 
 (* Macro Laws *)
-Lemma wp_CAMLlocal n e2 E p Ψ Φ θ :
+Lemma wp_CAMLlocal n e2 p Ψ Φ θ :
   p !! "int2val" = None →
   int2val_proto ⊑ Ψ →
   p !! "registerroot" = None →
   registerroot_proto ⊑ Ψ →
   (⊢ GC θ -∗
-     (▷ ∀ (l:loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := #l]} e2) @ ⟨ p, Ψ ⟩; E {{Φ}}) -∗
-     WP (CAMLlocal: n in e2)%CE @ ⟨ p, Ψ ⟩ ; E
+     (▷ ∀ (l:loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := #l]} e2) at ⟨ p, Ψ ⟩ {{Φ}}) -∗
+     WP (CAMLlocal: n in e2)%CE at ⟨ p, Ψ ⟩
      {{Φ}}%CE)%I.
 Proof.
   iIntros (????) "HGC Cont". unfold CAMLlocal.
@@ -371,11 +371,11 @@ Proof.
   iApply "Cont". iFrame.
 Qed.
 
-Lemma wp_CAMLunregister1 (l:loc) lv E p θ Ψ :
+Lemma wp_CAMLunregister1 (l:loc) lv p θ Ψ :
   p !! "unregisterroot" = None →
   unregisterroot_proto ⊑ Ψ →
   {{{ GC θ ∗ l ↦roots lv}}}
-    (CAMLunregister1 (#l))%CE @ ⟨p, Ψ⟩; E
+    (CAMLunregister1 (#l))%CE at ⟨p, Ψ⟩
   {{{ RET (#0); GC θ }}}.
 Proof.
   iIntros (???) "Hin Cont".

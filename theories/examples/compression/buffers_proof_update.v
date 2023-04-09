@@ -17,8 +17,8 @@ Section Proofs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Lemma buf_upd_correct E Ψcb :
-    prims_proto E Ψcb ||- buf_lib_prog @ E :: wrap_proto (buf_update_spec_ML Ψcb E).
+  Lemma buf_upd_correct Ψcb :
+    prims_proto Ψcb ||- buf_lib_prog :: wrap_proto (buf_update_spec_ML Ψcb).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     cbn. unfold progwp. solve_lookup_fixed.
@@ -99,7 +99,7 @@ Section Proofs.
       iIntros "Hℓi".
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (wi) "(HGC&%Hwi)".
-      wp_apply (wp_callback _ _ _ _ _ _ _ _ _ _ _ _ (ML_lang.LitV i) with "[$HGC $HγF HΨ]"); [done..| |].
+      wp_apply (wp_callback _ _ _ _ _ _ _ _ _ _ _ (ML_lang.LitV i) with "[$HGC $HγF HΨ]"); [done..| |].
       { cbn. iSplit; first done.
         iNext. by iApply ("HWP" with "[] [] HΨ"). } cbn.
       cbn.

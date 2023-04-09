@@ -4,12 +4,41 @@ From iris.algebra Require Import ofe.
 From iris.algebra Require Import auth excl excl_auth gmap.
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
+From iris.bi Require Import weakestpre.
 
 (** Classifying expressions into values and calls. *)
 
 Inductive mixin_expr_class {val} :=
 | ExprVal (v : val) : mixin_expr_class
 | ExprCall (fn_name : string) (arg : list val) : mixin_expr_class.
+
+(** Weakestpre notations *)
+
+Notation "'WP' e 'at' s {{ Φ } }" := (wp s ⊤ e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'WP' e 'at' s {{ v , Q } }" := (wp s ⊤ e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/'  'at'  s '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
+
+Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ,
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+
+Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }})%I
+    (at level 20,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+
+
+
+Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+
 
 (** Protocols *)
 

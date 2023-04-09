@@ -19,12 +19,12 @@ Implicit Types Ψ : protocol val Σ.
 Implicit Types prog : lang_prog Λ.
 Implicit Types pe : prog_environ Λ Σ.
 
-Class can_link E (Ψ1 Ψ2 Ψaxiom Ψres : protocol val Σ) (p1 p2 p3 : lang_prog Λ) : Prop := {
+Class can_link (Ψ1 Ψ2 Ψaxiom Ψres : protocol val Σ) (p1 p2 p3 : lang_prog Λ) : Prop := {
   p1_p2_disjoint : dom p1 ## dom p2;
   Ψres_is_union : ⊢ (∀ s vv Φ, Ψres s vv Φ -∗ (Ψ1 ⊔ Ψ2) s vv Φ)%I;
   Ψaxiom_is_axiomatic : ⊢ (∀ s vv Φ, Ψaxiom s vv Φ -∗ ⌜s ∉ dom p3⌝)%I;
-  p1_satisfies_Ψ1 : (Ψ2 ⊔ Ψaxiom ||- p1 @ E :: Ψ1);
-  p2_satisfies_Ψ2 : (Ψ1 ⊔ Ψaxiom ||- p2 @ E :: Ψ2);
+  p1_satisfies_Ψ1 : (Ψ2 ⊔ Ψaxiom ||- p1 :: Ψ1);
+  p2_satisfies_Ψ2 : (Ψ1 ⊔ Ψaxiom ||- p2 :: Ψ2);
   p3_is_union : p3 = (union_with (λ _ _ : func Λ, None) p1 p2);
 }.
 
@@ -92,7 +92,7 @@ Proof.
   exists p. split; eauto. by apply elem_of_list_In.
 Qed.
 
-Class can_link_all E
+Class can_link_all
     (Ψaxiom Ψres : protocol val Σ) (pres : lang_prog Λ)
     (A : list (prod (protocol val Σ) (lang_prog Λ))) := {
   all_disjoint : pairwise (map snd A) (fun p1 p2 => dom p1 ## dom p2);
@@ -101,12 +101,12 @@ Class can_link_all E
   pres_is_union : pres = union_map_list (map snd A);
   one_spec := fun i => (spec_union_list_except i (map fst A)) ⊔ Ψaxiom;
   all_satisfy_spec : ∀ i, match (nth_error A i) with None => True |
-      Some (Ψi, pi) =>  (one_spec i ||- pi @ E :: Ψi)%I end
+      Some (Ψi, pi) =>  (one_spec i ||- pi :: Ψi)%I end
 }.
 
 #[global]
-Instance can_link_can_link_all E Ψaxiom Ψres pres Ψ1 Ψ2 p1 p2 : can_link E Ψ1 Ψ2 Ψaxiom Ψres p1 p2 pres
-  -> can_link_all E Ψaxiom Ψres pres [(Ψ1,p1); (Ψ2,p2)].
+Instance can_link_can_link_all Ψaxiom Ψres pres Ψ1 Ψ2 p1 p2 : can_link Ψ1 Ψ2 Ψaxiom Ψres p1 p2 pres
+  -> can_link_all Ψaxiom Ψres pres [(Ψ1,p1); (Ψ2,p2)].
 Proof.
   intros [H1 H2 H3 H4 H5 H6]; split; cbn.
   - intros [|[|[|i]]] [|[|[|j]]] H; cbn; easy.
@@ -132,11 +132,11 @@ Proof.
     all: iSplitR; first done. all: done.
 Qed.
 
-Lemma wp_link_execs E Ψaxiom Ψres (pres : gmap string (Λ.(func))) A :
-  can_link_all E Ψaxiom Ψres pres A
+Lemma wp_link_execs Ψaxiom Ψres (pres : gmap string (Λ.(func))) A :
+  can_link_all Ψaxiom Ψres pres A
   -> ⊢ ∀ e Φ i, match (nth_error A i) with None => ⌜False⌝ | 
-          Some (Ψi, pi) => WP e @ ⟨pi, (spec_union_list_except i (map fst A)) ⊔ Ψaxiom ⟩; E {{ Φ }} end
-     -∗ WP e @ ⟨pres, Ψaxiom⟩; E {{ Φ }}.
+          Some (Ψi, pi) => WP e at ⟨pi, (spec_union_list_except i (map fst A)) ⊔ Ψaxiom ⟩ {{ Φ }} end
+     -∗ WP e at ⟨pres, Ψaxiom⟩ {{ Φ }}.
 Proof.
   intros [Hdis HΨres Haxiom -> one_spec' Hsatis].
   iLöb as "IHe". iIntros (e Φ i).
@@ -211,9 +211,9 @@ Proof.
     iMod "H3" as "(Hσ & HWP)". iModIntro. iFrame. iApply ("IHe" $! _ _ i). rewrite Heq. done.
 Qed.
 
-Lemma wp_link_progs E Ψaxiom Ψres (pres : gmap string (Λ.(func))) A :
-  can_link_all E Ψaxiom Ψres pres A
- -> Ψaxiom ||- pres @ E :: Ψres.
+Lemma wp_link_progs Ψaxiom Ψres (pres : gmap string (Λ.(func))) A :
+  can_link_all Ψaxiom Ψres pres A
+ -> Ψaxiom ||- pres :: Ψres.
 Proof.
   intros [Hdis HΨres Haxiom -> one_spec' Hsatis].
   iIntros (s vv Φ) "H". iPoseProof HΨres as "HΨres".

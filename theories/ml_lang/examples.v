@@ -30,7 +30,7 @@ Definition AxiomEnv : prog_environ ML_lang Σ :=
   ⟨ ∅, IncrementSpec ⟩.
 
 Lemma prog_correct
- : ⊢ (WP call_inc @ AxiomEnv ; ⊤ {{v, ⌜v = #42⌝}})%I.
+ : ⊢ (WP call_inc at AxiomEnv {{v, ⌜v = #42⌝}})%I.
 Proof.
   iStartProof. unfold call_inc.
   wp_pures. unfold Z.add.
@@ -48,7 +48,7 @@ Definition SpecifiedEnv : prog_environ ML_lang Σ :=
   ⟨ {[ "inc" := inc_func ]}, ⊥ ⟩.
 
 Lemma inc_correct l (z:Z)
- : ⊢ l ↦M #z -∗ WP inc_impl (#l) @ SpecifiedEnv ; ⊤ {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}}%I.
+ : ⊢ l ↦M #z -∗ WP inc_impl (#l) at SpecifiedEnv {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}}%I.
 Proof.
   iStartProof. iIntros "Hz". unfold inc_impl.
   wp_pures.
@@ -98,7 +98,7 @@ Proof.
   + iIntros (v) "(Hv & ->)". iApply ("Hres" with "Hv").
 Qed.
 
-Instance example_can_link : can_link ⊤ ⊥ IncrementSpec ⊥ IncrementSpec
+Instance example_can_link : can_link ⊥ IncrementSpec ⊥ IncrementSpec
          ∅ ({[ "inc" := inc_func ]}) ({[ "inc" := inc_func ]}).
 Proof. split.
   - set_solver.
@@ -111,7 +111,7 @@ Proof. split.
 Qed.
 
 Lemma link_executions
- : ⊢ (WP call_inc @ SpecifiedEnv ; ⊤ {{v, ⌜v = #42⌝}})%I.
+ : ⊢ (WP call_inc at SpecifiedEnv {{v, ⌜v = #42⌝}})%I.
 Proof.
   iApply (wp_link_execs _ _ _ _ _ $! _ _ 0).
   cbn. iApply wp_proto_mono. 2: iApply prog_correct.

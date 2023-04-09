@@ -46,14 +46,14 @@ Implicit Types Φ : val → iProp Σ.
 Implicit Types v : val.
 Implicit Types T : protocol val Σ.
 
-Class can_link E
+Class can_link
   (p1 : mlang_prog Λ1) (Ψ1 : protocol val Σ)
   (p2 : mlang_prog Λ2) (Ψ2 : protocol val Σ)
   (Ψ : protocol val Σ)
 := CanLink {
   can_link_prog_disj : dom p1 ## dom p2;
-  can_link_internal1 : Ψ2 |- p2 @ E :: Ψ1 on (dom p2);
-  can_link_internal2 : Ψ1 |- p1 @ E :: Ψ2 on (dom p1);
+  can_link_internal1 : Ψ2 |- p2 :: Ψ1 on (dom p2);
+  can_link_internal2 : Ψ1 |- p1 :: Ψ2 on (dom p1);
   can_link_external1 : Ψ1 except (dom p2) ⊑ Ψ;
   can_link_external2 : Ψ2 except (dom p1) ⊑ Ψ;
 }.
@@ -171,10 +171,10 @@ Proof using.
   { rewrite lookup_omap /= lookup_fmap. by destruct (p1 !! fname). }
 Qed.
 
-Lemma wp_link_call (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k fn vs Φ fname :
+Lemma wp_link_call (pe : prog_environ (link_lang Λ1 Λ2) Σ) k fn vs Φ fname :
   penv_prog pe !! fname = Some fn →
-  WP Link.LkE (Link.RunFunction fn vs) k @ pe; E {{ Φ }} -∗
-  WP Link.LkE (Link.ExprCall fname vs) k @ pe; E {{ Φ }}.
+  WP Link.LkE (Link.RunFunction fn vs) k at pe {{ Φ }} -∗
+  WP Link.LkE (Link.ExprCall fname vs) k at pe {{ Φ }}.
 Proof using.
   iIntros (Hfn) "Hwp".
   iApply wp_unfold. rewrite /wp_pre.
@@ -185,17 +185,17 @@ Proof using.
   iIntros (e' σ' (-> & ->)). do 3 iModIntro. iFrame.
 Qed.
 
-Lemma wp_link_run_function_1 p1 p2 Ψ1 Ψ2 Ψ E k2 k fn arg fname Φ Ξ :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_run_function_1 p1 p2 Ψ1 Ψ2 Ψ k2 k fn arg fname Φ Ξ :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   p1 !! fname = Some fn →
   link_state_frag Boundary -∗
   at_boundary Λ1 -∗
   Ψ2 fname arg Ξ -∗
   (∀ e1, ⌜apply_func fn arg = Some e1⌝ -∗
-         WP e1 @ ⟪p1, Ψ1⟫; E {{ v, Ξ v ∗ at_boundary Λ1 }} -∗
+         WP e1 at ⟪p1, Ψ1⟫ {{ v, Ξ v ∗ at_boundary Λ1 }} -∗
          link_state_frag In1 -∗
-         WP Link.LkE (Link.Expr1 e1) (inr k2 :: k) @ ⟪link_prog p1 p2, Ψ⟫; E {{ Φ }}) -∗
-  WP Link.LkE (Link.RunFunction (inl fn) arg) (inr k2 :: k) @ ⟪link_prog p1 p2, Ψ⟫; E {{ Φ }}.
+         WP Link.LkE (Link.Expr1 e1) (inr k2 :: k) at ⟪link_prog p1 p2, Ψ⟫ {{ Φ }}) -∗
+  WP Link.LkE (Link.RunFunction (inl fn) arg) (inr k2 :: k) at ⟪link_prog p1 p2, Ψ⟫ {{ Φ }}.
 Proof using.
   iIntros (Hcanlink Hfn) "Hb Hb1 HTΞ Hwp".
   iApply wp_unfold. rewrite /wp_pre.
@@ -217,17 +217,17 @@ Proof using.
   iApply ("Hwp" with "[] Hwpcall Hob"); first done.
 Qed.
 
-Lemma wp_link_run_function_2 p1 p2 Ψ1 Ψ2 Ψ E k1 k fn arg fname Φ Ξ :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_run_function_2 p1 p2 Ψ1 Ψ2 Ψ k1 k fn arg fname Φ Ξ :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   p2 !! fname = Some fn →
   link_state_frag Boundary -∗
   at_boundary Λ2 -∗
   Ψ1 fname arg Ξ -∗
   (∀ e2, ⌜apply_func fn arg = Some e2⌝ -∗
-         WP e2 @ ⟪p2, Ψ2⟫; E {{ v, Ξ v ∗ at_boundary Λ2 }} -∗
+         WP e2 at ⟪p2, Ψ2⟫ {{ v, Ξ v ∗ at_boundary Λ2 }} -∗
          link_state_frag In2 -∗
-         WP Link.LkE (Link.Expr2 e2) (inl k1 :: k) @ ⟪link_prog p1 p2, Ψ⟫; E {{ Φ }}) -∗
-  WP Link.LkE (Link.RunFunction (inr fn) arg) (inl k1 :: k) @ ⟪link_prog p1 p2, Ψ⟫; E {{ Φ }}.
+         WP Link.LkE (Link.Expr2 e2) (inl k1 :: k) at ⟪link_prog p1 p2, Ψ⟫ {{ Φ }}) -∗
+  WP Link.LkE (Link.RunFunction (inr fn) arg) (inl k1 :: k) at ⟪link_prog p1 p2, Ψ⟫ {{ Φ }}.
 Proof using.
   iIntros (Hcanlink Hfn) "Hb Hb2 HTΞ Hwp".
   iApply wp_unfold. rewrite /wp_pre.
@@ -249,9 +249,9 @@ Proof using.
   by iApply ("Hwp" with "[] Hwpcall Hob").
 Qed.
 
-Lemma wp_link_retval_1 (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k1 v Φ :
-  (link_state_frag In1 -∗ WP LkSE (Link.Expr1 (resume_with k1 (of_val Λ1 v))) @ pe; E {{ Φ }}) -∗
-  (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inl k1] @ pe; E {{ Φ }}).
+Lemma wp_link_retval_1 (pe : prog_environ (link_lang Λ1 Λ2) Σ) k1 v Φ :
+  (link_state_frag In1 -∗ WP LkSE (Link.Expr1 (resume_with k1 (of_val Λ1 v))) at pe {{ Φ }}) -∗
+  (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inl k1] at pe {{ Φ }}).
 Proof using.
   iIntros "Hwp Hb".
   iApply wp_unfold. rewrite /wp_pre.
@@ -268,9 +268,9 @@ Proof using.
   iModIntro. iFrame. by iApply "Hwp".
 Qed.
 
-Lemma wp_link_retval_2 (pe : prog_environ (link_lang Λ1 Λ2) Σ) E k2 v Φ :
-  (link_state_frag In2 -∗ WP LkSE (Link.Expr2 (resume_with k2 (of_val Λ2 v))) @ pe; E {{ Φ }}) -∗
-  (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inr k2] @ pe; E {{ Φ }}).
+Lemma wp_link_retval_2 (pe : prog_environ (link_lang Λ1 Λ2) Σ) k2 v Φ :
+  (link_state_frag In2 -∗ WP LkSE (Link.Expr2 (resume_with k2 (of_val Λ2 v))) at pe {{ Φ }}) -∗
+  (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inr k2] at pe {{ Φ }}).
 Proof using.
   iIntros "Hwp Hb".
   iApply wp_unfold. rewrite /wp_pre.
@@ -287,19 +287,19 @@ Proof using.
   iModIntro. iFrame. by iApply "Hwp".
 Qed.
 
-Lemma wp_link_extcall_1 p1 p2 Ψ1 Ψ2 Ψ E k1 fn_name arg Φ Ξ :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_extcall_1 p1 p2 Ψ1 Ψ2 Ψ k1 fn_name arg Φ Ξ :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   p1 !! fn_name = None →
   p2 !! fn_name = None →
   Ψ1 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ1 -∗
-        WP resume_with k1 (of_val Λ1 r) @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }}) -∗
-  (▷ ∀ r, WP resume_with k1 (of_val Λ1 r) @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
+        WP resume_with k1 (of_val Λ1 r) at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }}) -∗
+  (▷ ∀ r, WP resume_with k1 (of_val Λ1 r) at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
         link_state_frag Boundary -∗
         at_boundary Λ2 -∗
-        WP Link.LkE (Link.ExprV r) [inl k1] @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
+        WP Link.LkE (Link.ExprV r) [inl k1] at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
   at_boundary (link_lang Λ1 Λ2) -∗
-  WP Link.LkE (Link.ExprCall fn_name arg) [inl k1] @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}.
+  WP Link.LkE (Link.ExprCall fn_name arg) [inl k1] at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}.
 Proof using.
   iIntros (Hcanlink Hfn1 Hfn2) "HTΞ HΞ Hwp (Hb & Hb1 & Hb2)".
   iApply wp_unfold. rewrite /wp_pre.
@@ -316,19 +316,19 @@ Proof using.
   iApply ("Hwp" with "HΞ Hb Hb2").
 Qed.
 
-Lemma wp_link_extcall_2 p1 p2 Ψ1 Ψ2 Ψ E k2 fn_name arg Φ Ξ :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_extcall_2 p1 p2 Ψ1 Ψ2 Ψ k2 fn_name arg Φ Ξ :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   p1 !! fn_name = None →
   p2 !! fn_name = None →
   Ψ2 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ2 -∗
-        WP resume_with k2 (of_val Λ2 r) @ ⟪p2, Ψ2⟫; E {{ λ v, Φ v ∗ at_boundary Λ2 }}) -∗
-  (▷ ∀ r, WP resume_with k2 (of_val Λ2 r) @ ⟪p2, Ψ2⟫; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
+        WP resume_with k2 (of_val Λ2 r) at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }}) -∗
+  (▷ ∀ r, WP resume_with k2 (of_val Λ2 r) at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
         link_state_frag Boundary -∗
         at_boundary Λ1 -∗
-        WP Link.LkE (Link.ExprV r) [inr k2] @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
+        WP Link.LkE (Link.ExprV r) [inr k2] at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
   at_boundary (link_lang Λ1 Λ2) -∗
-  WP Link.LkE (Link.ExprCall fn_name arg) [inr k2] @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}.
+  WP Link.LkE (Link.ExprCall fn_name arg) [inr k2] at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}.
 Proof using.
   iIntros (Hcanlink Hfn1 Hfn2) "HTΞ HΞ Hwp (Hb & Hb1 & Hb2)".
   iApply wp_unfold. rewrite /wp_pre.
@@ -345,13 +345,13 @@ Proof using.
   iApply ("Hwp" with "HΞ Hb Hb1").
 Qed.
 
-Lemma wp_link_run_mut p1 p2 Ψ1 Ψ2 Ψ E :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_run_mut p1 p2 Ψ1 Ψ2 Ψ :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   ⊢ □ (
-    (∀ e1 Φ, WP e1 @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗ link_in_state In1 -∗
-             WP (LkSE (Link.Expr1 e1)) @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ link_in_state Boundary }}) ∗
-    (∀ e2 Φ, WP e2 @ ⟪p2, Ψ2⟫; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗ link_in_state In2 -∗
-             WP (LkSE (Link.Expr2 e2)) @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ link_in_state Boundary }})
+    (∀ e1 Φ, WP e1 at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗ link_in_state In1 -∗
+             WP (LkSE (Link.Expr1 e1)) at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ link_in_state Boundary }}) ∗
+    (∀ e2 Φ, WP e2 at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗ link_in_state In2 -∗
+             WP (LkSE (Link.Expr2 e2)) at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ link_in_state Boundary }})
   ).
 Proof using.
   intros Hcanlink. iLöb as "IH". iModIntro. iSplitL.
@@ -531,65 +531,65 @@ Proof using.
       iDestruct "IH" as "[_ IH2]". iApply ("IH2" with "Hwp [$Hb $Hb1]"). } }
 Qed.
 
-Lemma wp_link_run1 p1 p2 Ψ1 Ψ2 Ψ E e1 Φ :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_run1 p1 p2 Ψ1 Ψ2 Ψ e1 Φ :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In1 -∗
-  WP e1 @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
-  WP LkSE (Link.Expr1 e1) @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ link_in_state Boundary }}.
+  WP e1 at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
+  WP LkSE (Link.Expr1 e1) at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ link_in_state Boundary }}.
 Proof using.
-  iIntros (Hcanlink) "Hlkst Hwp". iDestruct (wp_link_run_mut _ _ _ _ _ _ Hcanlink) as "[H _]".
+  iIntros (Hcanlink) "Hlkst Hwp". iDestruct (wp_link_run_mut _ _ _ _ _ Hcanlink) as "[H _]".
   iApply ("H" with "Hwp Hlkst").
 Qed.
 
-Lemma wp_link_run1' p1 p2 Ψ1 Ψ2 Ψ E e1 Φ Φ' :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_run1' p1 p2 Ψ1 Ψ2 Ψ e1 Φ Φ' :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In1 -∗
-  WP e1 @ ⟪p1, Ψ1⟫; E {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
+  WP e1 at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
   (∀ v, Φ v ∗ link_in_state Boundary -∗ Φ' v) -∗
-  WP LkSE (Link.Expr1 e1) @ ⟪link_prog p1 p2, Ψ⟫; E {{ Φ' }}.
+  WP LkSE (Link.Expr1 e1) at ⟪link_prog p1 p2, Ψ⟫ {{ Φ' }}.
 Proof using.
   iIntros (?) "Hin Hwp HΦ". iApply (wp_wand with "[-HΦ]").
   { iApply (wp_link_run1 with "Hin Hwp"). }
   done.
 Qed.
 
-Lemma wp_link_run2 p1 p2 Ψ1 Ψ2 Ψ E e2 Φ :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_run2 p1 p2 Ψ1 Ψ2 Ψ e2 Φ :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In2 -∗
-  WP e2 @ ⟪p2, Ψ2⟫; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
-  WP LkSE (Link.Expr2 e2) @ ⟪link_prog p1 p2, Ψ⟫; E {{ λ v, Φ v ∗ link_in_state Boundary }}.
+  WP e2 at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
+  WP LkSE (Link.Expr2 e2) at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ link_in_state Boundary }}.
 Proof using.
-  iIntros (Hcanlink) "Hlkst Hwp". iDestruct (wp_link_run_mut _ _ _ _ _ _ Hcanlink) as "[_ H]".
+  iIntros (Hcanlink) "Hlkst Hwp". iDestruct (wp_link_run_mut _ _ _ _ _ Hcanlink) as "[_ H]".
   iApply ("H" with "Hwp Hlkst").
 Qed.
 
-Lemma wp_link_run2' p1 p2 Ψ1 Ψ2 Ψ E e2 Φ Φ' :
-  can_link E p1 Ψ1 p2 Ψ2 Ψ →
+Lemma wp_link_run2' p1 p2 Ψ1 Ψ2 Ψ e2 Φ Φ' :
+  can_link p1 Ψ1 p2 Ψ2 Ψ →
   link_in_state In2 -∗
-  WP e2 @ ⟪p2, Ψ2⟫; E {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
+  WP e2 at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
   (∀ v, Φ v ∗ link_in_state Boundary -∗ Φ' v) -∗
-  WP LkSE (Link.Expr2 e2) @ ⟪link_prog p1 p2, Ψ⟫; E {{ Φ' }}.
+  WP LkSE (Link.Expr2 e2) at ⟪link_prog p1 p2, Ψ⟫ {{ Φ' }}.
 Proof using.
   iIntros (?) "Hin Hwp HΦ". iApply (wp_wand with "[-HΦ]").
   { iApply (wp_link_run2 with "Hin Hwp"). }
   done.
 Qed.
 
-Lemma wp_link_internal_call p fn vs (func: Link.func Λ1 Λ2) Φ E :
+Lemma wp_link_internal_call p fn vs (func: Link.func Λ1 Λ2) Φ :
   penv_prog p !! fn = Some func →
-  (▷ WP LkSE (Link.RunFunction func vs) @ p; E {{ Φ }}) -∗
-  WP LkSE (Link.ExprCall fn vs) @ p; E {{ Φ }}.
+  (▷ WP LkSE (Link.RunFunction func vs) at p {{ Φ }}) -∗
+  WP LkSE (Link.ExprCall fn vs) at p {{ Φ }}.
 Proof using.
   iIntros (Hfn) "Hwp".
   by iApply wp_internal_call.
 Qed.
 
-Lemma wp_link_run_function1 p (func : Λ1.(func)) vs e1 Φ E :
+Lemma wp_link_run_function1 p (func : Λ1.(func)) vs e1 Φ :
   apply_func func vs = Some e1 →
   link_in_state Boundary -∗
   ▷ (link_in_state In1 -∗ at_boundary Λ1 -∗
-      WP LkSE (Link.Expr1 e1) @ p; E {{ Φ }}) -∗
-  WP LkSE (Link.RunFunction (inl func) vs) @ p; E {{ Φ }}.
+      WP LkSE (Link.Expr1 e1) at p {{ Φ }}) -∗
+  WP LkSE (Link.RunFunction (inl func) vs) at p {{ Φ }}.
 Proof using.
   iIntros (Hfunc) "(Hb & Hb1 & Hb2) Hwp". iApply wp_unfold. rewrite /wp_pre /=.
   iIntros (σ) "Hσ".
@@ -605,12 +605,12 @@ Proof using.
   iIntros "!>!>!>". iFrame. iApply ("Hwp" with "[-Hb1] Hb1"). iFrame.
 Qed.
 
-Lemma wp_link_run_function2 p (func : Λ2.(func)) vs e2 Φ E :
+Lemma wp_link_run_function2 p (func : Λ2.(func)) vs e2 Φ :
   apply_func func vs = Some e2 →
   link_in_state Boundary -∗
   ▷ (link_in_state In2 -∗ at_boundary Λ2 -∗
-      WP LkSE (Link.Expr2 e2) @ p; E {{ Φ }}) -∗
-  WP LkSE (Link.RunFunction (inr func) vs) @ p; E {{ Φ }}.
+      WP LkSE (Link.Expr2 e2) at p {{ Φ }}) -∗
+  WP LkSE (Link.RunFunction (inr func) vs) at p {{ Φ }}.
 Proof using.
   iIntros (Hfunc) "(Hb & Hb1 & Hb2) Hwp". iApply wp_unfold. rewrite /wp_pre /=.
   iIntros (σ) "Hσ".
@@ -626,11 +626,11 @@ Proof using.
   iIntros "!>!>!>". iFrame. iApply ("Hwp" with "[-Hb2] Hb2"). iFrame.
 Qed.
 
-Lemma link_correct E p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 Ψext :
-  can_link E p1 Ψext1 p2 Ψext2 Ψext →
-  Ψext1 |- p1 @ E :: Ψ1 →
-  Ψext2 |- p2 @ E :: Ψ2 →
-   Ψext |- (link_prog p1 p2) @ E :: Ψ1 ⊔ Ψ2.
+Lemma link_correct p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 Ψext :
+  can_link p1 Ψext1 p2 Ψext2 Ψext →
+  Ψext1 |- p1 :: Ψ1 →
+  Ψext2 |- p2 :: Ψ2 →
+   Ψext |- (link_prog p1 p2) :: Ψ1 ⊔ Ψ2.
 Proof using.
   iIntros (Hcanlink Hp1 Hp2 ? ? ?) "H".
   rewrite /join /proto_join_join /proto_join /mprogwp.
@@ -662,13 +662,13 @@ Proof using.
     iApply (wp_link_run2 with "Hin"). iApply ("H" with "Hb"). }
 Qed.
 
-Lemma link_close_correct E p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 :
+Lemma link_close_correct p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 :
   dom p1 ## dom p2 →
   Ψext1 ⊑ Ψ2 →
   Ψext2 ⊑ Ψ1 →
-  Ψext1 |- p1 @ E :: Ψ1 →
-  Ψext2 |- p2 @ E :: Ψ2 →
-      ⊥ |- (link_prog p1 p2) @ E :: Ψ1 ⊔ Ψ2.
+  Ψext1 |- p1 :: Ψ1 →
+  Ψext2 |- p2 :: Ψ2 →
+      ⊥ |- link_prog p1 p2 :: Ψ1 ⊔ Ψ2.
 Proof using.
   intros Hlink He1 He2 H1 H2. eapply link_correct; eauto.
   constructor; first done.
@@ -680,4 +680,4 @@ Qed.
 
 End Linking_logic.
 
-Global Arguments can_link {_ _ _} _ _ {_ _ _} E p1 Ψ1 p2 Ψ2 Ψ.
+Global Arguments can_link {_ _ _} _ _ {_ _ _} p1 Ψ1 p2 Ψ2 Ψ.

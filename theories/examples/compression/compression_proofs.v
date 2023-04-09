@@ -36,8 +36,8 @@ Context (p : lang_prog C_lang).
 Context (Hp : buffy_env ⊆ p).
 Context (Ψ : (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)).
 
-Lemma buffy_max_len_correct E :
-    Ψ ||- p @ E :: buffy_max_len_spec.
+Lemma buffy_max_len_correct :
+    Ψ ||- p :: buffy_max_len_spec.
 Proof using Hp.
   iIntros (s vs Φ) "H". iNamed "H".
   iExists _. iSplit.
@@ -49,12 +49,12 @@ Proof using Hp.
   iApply "Hcont".
 Qed.
 
-Lemma buffy_compress_rec_spec E ℓin ℓout vin bin vspace :
+Lemma buffy_compress_rec_spec ℓin ℓout vin bin vspace :
    isBuffer vin bin →
    length vspace ≥ buffer_max_len (length bin) →
 (⊢  ℓin  ↦C∗ vin
  -∗ ℓout ↦C∗ vspace -∗
-    WP (call: &buffy_compress_rec_name with (Val #ℓin, Val #(length bin), Val #ℓout))%CE @ ⟨ p , Ψ ⟩ ; E
+    WP (call: &buffy_compress_rec_name with (Val #ℓin, Val #(length bin), Val #ℓout))%CE at ⟨ p , Ψ ⟩
     {{ v', ∃ bout vout vrest voverwritten,
              ⌜isBuffer vout bout⌝
            ∗ ⌜bout = compress_buffer bin⌝
@@ -172,8 +172,8 @@ Proof using Hp.
 Qed.
 
 
-Lemma buffy_compress_correct_ok E :
-    Ψ ||- p @ E :: buffy_compress_spec_ok.
+Lemma buffy_compress_correct_ok :
+    Ψ ||- p :: buffy_compress_spec_ok.
 Proof using Hp.
   iIntros (s vs Φ) "H". iNamed "H".
   iExists _. iSplit.
@@ -198,8 +198,8 @@ Proof using Hp.
 Qed.
 
 
-Lemma buffy_compress_correct_fail E :
-    Ψ ||- p @ E :: buffy_compress_spec_fail.
+Lemma buffy_compress_correct_fail :
+    Ψ ||- p :: buffy_compress_spec_fail.
 Proof using Hp.
   iIntros (s vs Φ) "H". iNamed "H".
   iExists _. iSplit.
@@ -217,8 +217,8 @@ Proof using Hp.
   iApply ("HCont" with "[$]").
 Qed.
 
-Lemma buffy_library_correct E :
-    Ψ ||- p @ E :: buffy_library_spec.
+Lemma buffy_library_correct :
+    Ψ ||- p :: buffy_library_spec.
 Proof using Hp.
   iIntros (s vv Φ) "[[H|H]|H]".
   - by iApply buffy_max_len_correct.

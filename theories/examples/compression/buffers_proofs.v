@@ -22,8 +22,8 @@ Section Proofs.
 
   Definition buf_lib_prog_total : gmap _ _ := buf_lib_prog ∪ buffy_env.
 
-  Lemma buffer_library_correct_pre E Ψ :
-    (buffy_library_spec ⊔ prims_proto E Ψ) ||- buf_lib_prog @ E :: wrap_proto (buf_library_spec_ML_pre E Ψ).
+  Lemma buffer_library_correct_pre Ψ :
+    (buffy_library_spec ⊔ prims_proto Ψ) ||- buf_lib_prog :: wrap_proto (buf_library_spec_ML_pre Ψ).
   Proof.
     iIntros (s vv Φ) "H". iNamed "H".
     iDestruct "Hproto" as "[[[[Hproto|Hproto]|Hproto]|Hproto]|Hproto]".
@@ -37,10 +37,10 @@ Section Proofs.
     - iApply wrap_max_len_correct. do 4 iExists _. iFrameNamed.
   Qed.
 
-  Lemma buffer_library_correct E Ψ :
-    prims_proto E Ψ ||- buf_lib_prog_total @ E :: wrap_proto (buf_library_spec_ML_pre E Ψ).
+  Lemma buffer_library_correct Ψ :
+    prims_proto Ψ ||- buf_lib_prog_total :: wrap_proto (buf_library_spec_ML_pre Ψ).
   Proof.
-    eassert (can_link_all E (prims_proto E Ψ) (wrap_proto (buf_library_spec_ML_pre E Ψ)) buf_lib_prog_total _) as Hlink.
+    eassert (can_link_all (prims_proto Ψ) (wrap_proto (buf_library_spec_ML_pre Ψ)) buf_lib_prog_total _) as Hlink.
     - eapply can_link_can_link_all.
       assert (buf_lib_prog ##ₘ buffy_env) as Hdisj.
       1: { apply map_disjoint_dom. rewrite /buffy_env /buf_lib_prog !dom_insert_L !dom_empty_L. set_solver. }
@@ -57,7 +57,7 @@ Section Proofs.
       destruct (buffy_env !! s) eqn:Heq1; rewrite Heq1;
       destruct (buf_lib_prog !! s) eqn:Heq2; try done.
       eapply map_disjoint_Some_l in Heq2; last done. rewrite Heq1 in Heq2. by congruence.
-    - apply (wp_link_progs _ _ _ _ _ Hlink).
+    - apply (wp_link_progs _ _ _ _ Hlink).
   Qed.
 
 End Proofs.

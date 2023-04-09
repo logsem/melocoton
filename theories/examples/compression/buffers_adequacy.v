@@ -20,21 +20,21 @@ Section FixpointSpec.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Definition buf_library_spec_ML E := fixpoint (buf_library_spec_ML_pre E).
-  Lemma buf_library_spec_ML_unfold E s vv Φ :
-   (buf_library_spec_ML E s vv Φ ⊣⊢ buf_library_spec_ML_pre E (buf_library_spec_ML E) s vv Φ)%I.
+  Definition buf_library_spec_ML := fixpoint (buf_library_spec_ML_pre).
+  Lemma buf_library_spec_ML_unfold s vv Φ :
+   (buf_library_spec_ML s vv Φ ⊣⊢ buf_library_spec_ML_pre (buf_library_spec_ML) s vv Φ)%I.
   Proof.
-    exact (fixpoint_unfold (buf_library_spec_ML_pre E) s vv Φ).
+    exact (fixpoint_unfold (buf_library_spec_ML_pre) s vv Φ).
   Qed.
-  Lemma buf_library_spec_ML_sim E:
-   (buf_library_spec_ML E ⊑ buf_library_spec_ML_pre E (buf_library_spec_ML E))%I.
+  Lemma buf_library_spec_ML_sim:
+   (buf_library_spec_ML ⊑ buf_library_spec_ML_pre (buf_library_spec_ML))%I.
   Proof.
     iIntros (s vv Φ) "H". by iApply buf_library_spec_ML_unfold.
   Qed.
 
-  Lemma ML_client_applied_spec_fix E:
+  Lemma ML_client_applied_spec_fix:
     {{{ True }}}
-      ML_client_applied_code @ ML_client_env E (buf_library_spec_ML E) ; E
+      ML_client_applied_code at ML_client_env (buf_library_spec_ML)
     {{{ x, RET #x ; ⌜x=1%Z⌝ }}}.
   Proof.
     apply ML_client_applied_spec.
@@ -52,9 +52,9 @@ Lemma buffers_adequate :
     (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
 Proof.
   eapply umrel_upclosed.
-  { eapply combined_adequacy_trace. intros Σ Hffi E. split_and!.
+  { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
     3: apply ML_client_applied_spec_fix.
-    3: { rewrite wrap_proto_mono. 1: apply buffer_library_correct.
+    3: { rewrite wrap_proto_mono; first apply buffer_library_correct.
          apply buf_library_spec_ML_pre_mono, buf_library_spec_ML_sim. }
     { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
       rewrite !dom_insert dom_empty /= in H.
