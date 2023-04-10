@@ -94,9 +94,9 @@ Proof.
   - iApply wp_lang_to_mlang.
 Qed.
 
-Lemma lang_to_mlang_correct E (p : lang_prog Λ) Ψ Ψ' :
-  Ψ ||- p @ E :: Ψ' →
-  Ψ  |- p @ E :: Ψ'.
+Lemma lang_to_mlang_correct (p : lang_prog Λ) Ψ Ψ' :
+  Ψ ||- p :: Ψ' →
+  Ψ  |- p :: Ψ'.
 Proof using.
   iIntros (H1 fn vs Φ) "Hproto". rewrite /progwp /mprogwp.
   iPoseProof (H1 fn vs Φ with "Hproto") as (?) "Hwp".
@@ -105,9 +105,9 @@ Proof using.
   iNext. iIntros (?) "H". iApply "Hcont". eauto.
 Qed.
 
-Lemma lang_to_mlang_rev_correct E (p : lang_prog Λ) Ψ Ψ' :
-  Ψ  |- p @ E :: Ψ' →
-  Ψ ||- p @ E :: Ψ'.
+Lemma lang_to_mlang_rev_correct (p : lang_prog Λ) Ψ Ψ' :
+  Ψ  |- p :: Ψ' →
+  Ψ ||- p :: Ψ'.
 Proof using.
   iIntros (H1 fn vs Φ) "Hproto". rewrite /progwp /mprogwp.
   iPoseProof (H1 fn vs Φ with "Hproto") as (?) "Hwp".

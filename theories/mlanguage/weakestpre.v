@@ -67,23 +67,17 @@ Local Lemma wp_unseal `{SI:indexT, !invG Σ, !mlangG val Λ Σ} :
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Definition mprogwp `{!indexT, !invG Σ, !mlangG val Λ Σ}
-  E (p : mlang_prog Λ) (Ψ : protocol val Σ) : protocol val Σ
+  (p : mlang_prog Λ) (Ψ : protocol val Σ) : protocol val Σ
 :=
   (λ fname vs Φ, ⌜fname ∈ dom p⌝ ∗ ∀ Φ',
      at_boundary Λ -∗
      ▷ (∀ v, Φ v ∗ at_boundary Λ -∗ Φ' v) -∗
-     WP to_call Λ fname vs @ ⟪p, Ψ⟫; E {{ Φ' }})%I.
+     WP to_call Λ fname vs at ⟪p, Ψ⟫ {{ Φ' }})%I.
 
-Notation "Ψext '|-' p @ E '::' Ψp" := (Ψp ⊑ mprogwp E p Ψext)
-  (at level 50, p, E, Ψp at level 51).
-
-Notation "Ψext '|-' p '::' Ψp" := (Ψext |- p @ ⊤ :: Ψp)
+Notation "Ψext '|-' p '::' Ψp" := (Ψp ⊑ mprogwp p Ψext)
   (at level 50, p, Ψp at level 51).
 
-Notation "'|-' p @ E '::' Ψp" := (∀ Ψext, Ψext |- p @ E :: Ψp)
-  (at level 50, p, E, Ψp at level 51).
-
-Notation "'|-' p '::' Ψp" := (|- p @ ⊤ :: Ψp)
+Notation "'|-' p '::' Ψp" := (∀ Ψ, Ψ |- p :: Ψp)
   (at level 50, p, Ψp at level 51).
 
 Section wp.
@@ -361,11 +355,11 @@ Proof.
   iIntros (? ? (-> & ->)). by iFrame.
 Qed.
 
-Lemma wp_internal_call_at_boundary p fn vs Ψ E Φ Φ' :
+Lemma wp_internal_call_at_boundary p fn vs Ψ Φ Φ' :
   at_boundary Λ -∗
-  mprogwp E p Ψ fn vs Φ -∗
+  mprogwp p Ψ fn vs Φ -∗
   ▷ (∀ v, Φ v ∗ at_boundary Λ -∗ Φ' v) -∗
-  WP to_call Λ fn vs @ ⟪p, Ψ⟫; E {{ Φ' }}.
+  WP to_call Λ fn vs at ⟪p, Ψ⟫ {{ Φ' }}.
 Proof.
   iIntros "Hb HWP Hcont".
   iDestruct "HWP" as "[%Hin Hwp]".
@@ -392,33 +386,30 @@ Proof.
   iIntros (v) "HΦ". by iApply "HΦ".
 Qed.
 
-Lemma progwp_mono E1 E2 Ψ1 Ψ2 p :
-  E1 ⊆ E2 → Ψ1 ⊑ Ψ2 →
-  mprogwp E1 p Ψ1 ⊑ mprogwp E2 p Ψ2.
+Lemma progwp_mono Ψ1 Ψ2 p :
+  Ψ1 ⊑ Ψ2 →
+  mprogwp p Ψ1 ⊑ mprogwp p Ψ2.
 Proof.
-  iIntros (HE HΨ ? ? ?) "[% H]". rewrite /mprogwp.
+  iIntros (HΨ ? ? ?) "[% H]". rewrite /mprogwp.
   iSplit; first done. iIntros (Φ') "Hb HCont".
   iSpecialize ("H" with "[$Hb]"); eauto.
   iApply (wp_strong_mono with "[H HCont]"); [eauto..| |].
   { iApply ("H" with "HCont"). } eauto.
 Qed.
 
-Lemma prog_triple_mono E1 E2 Ψ1 Ψ1' Ψ2 Ψ2' p :
-  E1 ⊆ E2 → Ψ1 ⊑ Ψ1' → Ψ2' ⊑ Ψ2 →
-  Ψ1 |- p @ E1 :: Ψ2 →
-  Ψ1' |- p @ E2 :: Ψ2'.
-Proof. iIntros (HE H1 H2 HH). rewrite H2 HH. by eapply progwp_mono. Qed.
-Lemma prog_triple_mono_mask E1 E2 Ψ1 Ψ2 p :
-  E1 ⊆ E2 → Ψ1 |- p @ E1 :: Ψ2 → Ψ1 |- p @ E2 :: Ψ2.
+Lemma prog_triple_mono Ψ1 Ψ1' Ψ2 Ψ2' p :
+  Ψ1 ⊑ Ψ1' → Ψ2' ⊑ Ψ2 →
+  Ψ1 |- p :: Ψ2 →
+  Ψ1' |- p :: Ψ2'.
+Proof. iIntros (H1 H2 HH). rewrite H2 HH. by eapply progwp_mono. Qed.
+Lemma prog_triple_mono_l Ψ1 Ψ2 Ψ1' p :
+  Ψ1 ⊑ Ψ1' → Ψ1 |- p :: Ψ2 → Ψ1' |- p :: Ψ2.
 Proof. intros. by eapply prog_triple_mono. Qed.
-Lemma prog_triple_mono_l E Ψ1 Ψ2 Ψ1' p :
-  Ψ1 ⊑ Ψ1' → Ψ1 |- p @ E :: Ψ2 → Ψ1' |- p @ E :: Ψ2.
-Proof. intros. by eapply prog_triple_mono. Qed.
-Lemma prog_triple_mono_r E Ψ1 Ψ2 Ψ2' p :
-  Ψ2' ⊑ Ψ2 → Ψ1 |- p @ E :: Ψ2 → Ψ1 |- p @ E :: Ψ2'.
+Lemma prog_triple_mono_r Ψ1 Ψ2 Ψ2' p :
+  Ψ2' ⊑ Ψ2 → Ψ1 |- p :: Ψ2 → Ψ1 |- p :: Ψ2'.
 Proof. intros. by eapply prog_triple_mono. Qed.
 
-Lemma mprogwp_except_dom E p Ψ : (mprogwp E p Ψ) except (dom p) ⊑ ⊥.
+Lemma mprogwp_except_dom p Ψ : (mprogwp p Ψ) except (dom p) ⊑ ⊥.
 Proof.
   iIntros (? ? ?). rewrite /proto_except /=. by iIntros "[% [% H]]".
 Qed.
