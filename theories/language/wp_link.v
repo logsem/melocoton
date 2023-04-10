@@ -121,12 +121,12 @@ Proof.
     all: iIntros (s vv Φ) "Hres"; cbn.
     1: iPoseProof H4 as "H"; iSpecialize ("H" with "Hres").
     2: iPoseProof H5 as "H"; iSpecialize ("H" with "Hres").
-    all: iDestruct "H" as "(%F&%HF&%e&%He&H)".
-    all: iExists F; iSplit; first done.
-    all: iExists e; iSplit; first done.
-    all: iNext.
+    all: iDestruct "H" as "(%HF&H)".
+    all: iSplit; first done.
+    all: iIntros (Φ') "Hcont".
     all: iApply wp_proto_mono; last iApply "H".
-    all: cbn; intros s' vv' Φ'; iIntros "[H|H]".
+    all: eauto.
+    all: cbn; intros s' vv' Φ''; iIntros "[H|H]".
     2,4: by iRight. all: iLeft.
     1: iExists 1. 2: iExists 0.
     all: iSplitR; first done. all: done.
@@ -151,22 +151,32 @@ Proof.
     destruct (nth_error A kidx) as [[Ψc pc]|] eqn:Heqk; cbn; last iPure "HΨ" as [].
     specialize (Hsatis kidx). rewrite Heqk in Hsatis.
     iPoseProof (Hsatis) as "Hsatis".
-    iDestruct ("Hsatis" with "HΨ") as "(%F&%HF&%e'&%He'&HΨ)".
+    iDestruct ("Hsatis" with "HΨ") as "(%HF&HΨ)".
+    iSpecialize ("HΨ" $! Ξ with "[]"); first by eauto.
+    iDestruct (wp_internal_call_inv with "HΨ") as "H"; first done.
+    iDestruct ("H" with "Hσ") as ">[%Hred H]".
+    destruct Hred as (?&?&Hstep).
+    rewrite -(fill_empty (of_class _ _)) in Hstep.
+    eapply prim_step_call_inv in Hstep as (e'&F&?&?&?&?); simplify_eq.
     iRight. iRight. iModIntro.
     assert (union_map_list (map snd A) !! s' = Some F) as HHF.
     { apply union_map_list_spec. 1: apply Hdis.
       exists pc. split; last done.
       eapply nth_error_In, (in_map snd) in Heqk. apply Heqk. }
-    subst e. assert (head_reducible (union_map_list (map snd A)) ((of_class Λ (ExprCall s' vv'))) σ) as Hredu.
-    { do 2 eexists. eapply call_head_step. eexists. split_and!. 2: symmetry; apply He'. all:done. }
+    assert (head_reducible (union_map_list (map snd A)) ((of_class Λ (ExprCall s' vv'))) σ) as Hredu.
+    { do 2 eexists. eapply call_head_step. eexists. split_and!. 2: eassumption. all:done. }
     iSplit. 1: iPureIntro; eapply fill_reducible, head_prim_reducible, Hredu.
     iIntros (σ' e'1 (e'2&->&(F2&HF2&He2&->)%call_head_step_inv)%head_reducible_prim_step_ctx); last done.
     simplify_eq. assert (e'2 = e') as -> by congruence.
-    do 3 iModIntro. iFrame "Hσ".
+    assert (prim_step pc (of_class Λ (ExprCall s' vv')) σ e' σ) as Hstep'.
+    { apply head_prim_step, call_head_step. eexists. split_and!; eauto. }
+    iDestruct ("H" $! _ _ Hstep') as ">H". do 2 iModIntro.
+    iDestruct "H" as ">[Hσ H]". iModIntro.
+    iFrame "Hσ".
     iApply (wp_bind).
     iApply ("IHe" $! _ _ kidx).
     rewrite Heqk.
-    iApply (wp_wand with "HΨ").
+    iApply (wp_wand with "H").
     iIntros (v) "Hv".
     iApply ("IHe" $! _ _ i).
     rewrite Heq.
@@ -221,14 +231,16 @@ Proof.
   erewrite nth_error_map.
   destruct (nth_error A x) as [[Ψi pi]|] eqn:Heq; last by iExFalso. cbn.
   specialize (Hsatis x) as Hsatis2.
-  rewrite Heq in Hsatis2. iDestruct (Hsatis2 with "Hx") as "(%F&%HF&%e&%He&H)".
-  iExists F. iSplit.
-  - iPureIntro. apply union_map_list_spec. 1: apply Hdis.
+  rewrite Heq in Hsatis2. iDestruct (Hsatis2 with "Hx") as "(%HF&H)".
+  iSplit.
+  { iPureIntro. apply elem_of_dom in HF as [F HF].
+    apply elem_of_dom. eexists.
+    apply union_map_list_spec. 1: apply Hdis.
     exists pi. split; last done.
-    eapply nth_error_In, (in_map snd) in Heq. apply Heq.
-  - iExists e. iSplit; first done. iNext.
+    eapply nth_error_In, (in_map snd) in Heq. apply Heq. }
+  { iIntros (Φ') "Hcont".
     iApply (wp_link_execs). 1: done.
-    erewrite Heq. iApply "H".
+    erewrite Heq. iApply "H". eauto. }
 Qed.
 
 

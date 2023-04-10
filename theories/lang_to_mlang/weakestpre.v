@@ -99,10 +99,10 @@ Lemma lang_to_mlang_correct E (p : lang_prog Λ) Ψ Ψ' :
   Ψ  |- p @ E :: Ψ'.
 Proof using.
   iIntros (H1 fn vs Φ) "Hproto". rewrite /progwp /mprogwp.
-  iPoseProof (H1 fn vs Φ with "Hproto") as (? ? ? ?) "Hwp".
-  do 2 (iExists _; iSplit; first done).
-  iNext. iIntros "_". iApply (wp_wand with "[Hwp]"); first by iApply wp_lang_to_mlang.
-  iIntros (?) "H". cbn. iFrame.
+  iPoseProof (H1 fn vs Φ with "Hproto") as (?) "Hwp".
+  iSplit; first done. iIntros (?) "_ Hcont".
+  iApply wp_lang_to_mlang. iApply "Hwp".
+  iNext. iIntros (?) "H". iApply "Hcont". eauto.
 Qed.
 
 Lemma lang_to_mlang_rev_correct E (p : lang_prog Λ) Ψ Ψ' :
@@ -110,11 +110,11 @@ Lemma lang_to_mlang_rev_correct E (p : lang_prog Λ) Ψ Ψ' :
   Ψ ||- p @ E :: Ψ'.
 Proof using.
   iIntros (H1 fn vs Φ) "Hproto". rewrite /progwp /mprogwp.
-  iPoseProof (H1 fn vs Φ with "Hproto") as (? ? ? ?) "Hwp".
-  do 2 (iExists _; iSplit; first done).
-  iNext. iSpecialize ("Hwp" with "[]"); first done.
-  iApply (language.weakestpre.wp_wand with "[Hwp]"); first by iApply wp_lang_to_mlang_backwards.
-  by iIntros (?) "[H _]".
+  iPoseProof (H1 fn vs Φ with "Hproto") as (?) "Hwp".
+  iSplit; first done.
+  iIntros (Φ') "Hcont". iApply wp_lang_to_mlang_backwards.
+  iSpecialize ("Hwp" with "[]"); first done.
+  iApply "Hwp". iNext. iIntros (?) "[H _]". by iApply "Hcont".
 Qed.
 
 End ToMlang_logic.

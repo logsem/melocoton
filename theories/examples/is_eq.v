@@ -82,21 +82,21 @@ Section C_specs.
     prims_proto Ψ ||- is_eq_prog :: wrap_proto is_eq_spec_ML.
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
+    iSplit; first done. iIntros (Φ'') "HΦ".
     unfold progwp.
     destruct lvs as [|lvx [|lvy [|??]]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hx&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hy&?)"; try done.
     destruct ws as [|wx [|wy [|??]]]; decompose_Forall.
-    iExists _. iSplit; first done.
-    iExists _. solve_lookup_fixed. iSplit; first done. iNext.
-    rewrite -/(is_eq_code wx _).
     iDestruct "Hx" as "-#Hx". iDestruct "Hy" as "-#Hy".
-    iAssert (∀ wret, GC θ -∗
+    iAssert (▷ ∀ wret, GC θ -∗
        ⌜repr_lval θ (Lint (bool_to_Z (bool_decide (x = y)))) wret⌝ -∗
-       Φ wret)%I with "[Cont Hcont]" as "Cont". {
-      iIntros (?) "?". iIntros (?). iApply ("Cont" with "[$] [$] [] [//]"). done.
+       Φ'' wret)%I with "[Cont Hcont HΦ]" as "Cont". {
+      iIntros "!>" (?) "?". iIntros (?).
+      iApply "HΦ". iApply ("Cont" with "[$] [$] [] [//]"). done.
     }
-    iLöb as "IH" forall (τ x lvx wx y lvy wy Φ Hτ H1 H2).
+    iLöb as "IH" forall (τ x lvx wx y lvy wy Φ'' Hτ H1 H2).
+    wp_call_direct.
     destruct τ => //=; iEval (unfold is_eq_code).
     - (* TUnit *)
       iDestruct "Hτx" as %->.
@@ -110,7 +110,8 @@ Section C_specs.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]". by iApply ("Cont" with "HGC").
+      iIntros (w) "[HGC %]".
+      by iApply ("Cont" with "HGC").
     - (* TNat *)
       iDestruct "Hτx" as %[? ->].
       iDestruct "Hτy" as %[? ->].
@@ -180,11 +181,8 @@ Section C_specs.
       wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
       iIntros (??) "(HGC&_&%&%)". simplify_eq.
       wp_bind (FunCall _ _).
-      iApply (wp_call _ "is_eq" _ _ _ [w'; w'0]).
-      1: done. 1: done.
-      rewrite is_eq_code_subst.
       iApply ("IH" with "[] [] [] HGC Hτx1 Hτy1"); [done..|].
-      iIntros (?) "HGC". iIntros (?). wp_pures.
+      iIntros "!>" (?) "HGC". iIntros (?). wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". case_bool_decide. 2: {
         wp_pures.
@@ -219,11 +217,8 @@ Section C_specs.
       wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
       iIntros (??) "(HGC&_&%&%)". simplify_eq.
       wp_bind (FunCall _ _). 
-      iApply (wp_call _ "is_eq" _ _ _ [_; _]).
-      1: done. 1: done.
-      rewrite is_eq_code_subst.
       iApply ("IH" with "[] [] [] HGC Hτx2 Hτy2"); [done..|].
-      iIntros (?) "HGC". iIntros (?). wp_pures.
+      iIntros "!>" (?) "HGC". iIntros (?). wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". case_bool_decide. 2: {
         wp_pures.

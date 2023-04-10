@@ -21,7 +21,8 @@ Section Proofs.
     prims_proto Ψcb ||- buf_lib_prog :: wrap_proto (buf_update_spec_ML Ψcb).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    cbn. unfold progwp. solve_lookup_fixed.
+    iSplit; first done.
+    iIntros (Φ'') "HΦ".
     destruct lvs as [|lvi [|lvj [| lvF [| lvbuf [|??]]]]]; try done.
     all: cbn; iDestruct "Hsim" as "(->&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(->&Hsim)"; try done.
@@ -32,9 +33,7 @@ Section Proofs.
     eapply Forall2_cons in Hrepr as (Hreprj&Hrepr).
     eapply Forall2_cons in Hrepr as (HreprF&Hrepr).
     eapply Forall2_cons in Hrepr as (Hreprbuf&_).
-    cbn. iExists _. iSplit; first done.
-    iExists _. cbn. solve_lookup_fixed.
-    iSplit; first done. iNext.
+    cbn. wp_call_direct.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓF) "(HGC&HℓF)"; wp_pures.
     wp_apply (store_to_root with "[$HGC $HℓF]"); [done..|].
@@ -196,7 +195,7 @@ Section Proofs.
     iIntros "HGC"; wp_pure _.
     wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbf]"); [done..|].
     iIntros "HGC"; wp_pure _.
-    iModIntro. iApply ("Cont" with "HGC (HCont HΨ) [//] [//]").
+    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC (HCont HΨ) [//] [//]").
   Qed.
 
 End Proofs.

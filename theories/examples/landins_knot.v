@@ -40,13 +40,12 @@ Section C_specs.
     prims_proto Ψ ||- tie_knot_prog :: wrap_proto (tie_knot_spec_ML Ψ).
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    cbn. unfold progwp, tie_knot_prog. solve_lookup_fixed.
+    iSplit; first done. iIntros (Φ'') "HΦ".
     destruct lvs as [|lvl [|lvx [|??]]]; try done.
     all: cbn; iDestruct "Hsim" as "([%γ [-> #Hγ]]&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hx&?)"; try done.
     destruct ws as [|wl [|wx [|??]]]; decompose_Forall.
-    iExists _. iSplit; first done.
-    iExists _. solve_lookup_fixed. iSplit; first done. iNext.
+    wp_call_direct.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓf) "(HGC&Hℓf)"; wp_pures.
     wp_apply (store_to_root with "[$HGC $Hℓf]"); [done..|].
@@ -81,7 +80,7 @@ Section C_specs.
     iIntros "HGC"; wp_pure _.
     wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓx]"); [try done..|].
     iIntros "HGC"; wp_pure _.
-    iModIntro. iApply ("Cont" with "HGC HΦ' Hvret [//]").
+    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC HΦ' Hvret [//]").
   Qed.
 
   Global Instance tie_knot_spec_ML_contractive :

@@ -30,16 +30,13 @@ Section Proofs.
   Lemma wrap_max_len_correct Ψ :
     combspec Ψ ||- buf_lib_prog :: wrap_proto (wrap_max_len_spec_ML).
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H".
-    iNamed "Hproto".
-    cbn. unfold progwp. solve_lookup_fixed.
+    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
+    iSplit; first done. iIntros (Φ'') "HΦ".
     destruct lvs as [|lv [|??]]; first done.
     all: cbn; iDestruct "Hsim" as "(->&H)"; try done.
     destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons_inv_l in Hrepr as (wcap&?&Hlval&_&?); simplify_eq.
-    cbn. iExists _. iSplit; first done.
-    iExists _. cbn. solve_lookup_fixed.
-    iSplit; first done. iNext.
+    cbn. wp_call_direct.
 
     wp_apply (wp_val2int with "HGC"); [mdone..|].
     iIntros "HGC".
@@ -49,24 +46,21 @@ Section Proofs.
     iSplit; first done. iNext. wp_finish.
     wp_apply (wp_int2val with "HGC"); [mdone..|].
     iIntros (w) "(HGC&%Hrepr)".
-    iApply ("Cont" with "HGC HCont [//] [//]").
+    iApply "HΦ". iApply ("Cont" with "HGC HCont [//] [//]").
   Qed.
 
   Lemma wrap_compress_correct Ψ :
     combspec Ψ ||- buf_lib_prog :: wrap_proto (wrap_compress_spec_ML).
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H".
-    iNamed "Hproto".
-    cbn. unfold progwp. solve_lookup_fixed.
+    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
+    iSplit; first done. iIntros (Φ'') "HΦ".
     destruct lvs as [|lv1 [|lv2 [|??]]]; first done.
     all: cbn; iDestruct "Hsim" as "(Hsim1&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hsim2&Hsim)"; try done.
     destruct ws as [|w1 [|w2 [|??]]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons in Hrepr as (Hrepr1&Hrepr).
     eapply Forall2_cons in Hrepr as (Hrepr2&Hrepr).
-    cbn. iExists _. iSplit; first done.
-    iExists _. cbn. solve_lookup_fixed.
-    iSplit; first done. iNext.
+    cbn. wp_call_direct.
 
     iMod (bufToC with "HGC HBuf1 Hsim1") as "(HGC&HBuf1&%&%&->)".
     iNamed "HBuf1". iNamed "Hbuf".
@@ -140,6 +134,7 @@ Section Proofs.
       iIntros (ww1) "(HGC&%Hreprw1)".
       iMod (bufToML_fixed with "HGC [Hγusedref Hγfgnpto Hℓbuf Hℓbufuninit HContent] Hsim1") as "(HGC&HBuf1)"; last first.
       1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2") as "(HGC&HBuf2)"; last first.
+      1: iApply "HΦ".
       1: iApply ("Cont" $! _ (ML_lang.LitV true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
       { iExists _, _, _, _, _, _. unfold named.
         iSplit; first done.

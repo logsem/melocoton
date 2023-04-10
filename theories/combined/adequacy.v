@@ -236,20 +236,23 @@ Section MainAlloc.
     iIntros "((($&(Hb1&Hb2)&%Heq1)&((%b&HσW)&Hbound&Hinit2&%Heq2))&HσC)". iNamed "HσW". cbn.
     rewrite // /weakestpre.private_state_interp // /C_state_interp // -!Heq1 -!Heq2.
     iPoseProof (ghost_var_agree with "SIinit Hinit2") as "->".
-    iFrame. iSplitR. 2: iSplitL "SIinit Hinit".
-    2: { iExists true. iFrame. }
+    iFrame. iSplitR.
+    2: iSplitL "Hb1 SIinit Hinit".
+    2: { iSplitL "Hb1". 1: iExists _; iFrame; eauto. iExists true; iFrame. }
     { iSplit; iIntros "!>".
       - by iIntros (? ?) "[? %H] !>".
       - iIntros (? ? ?). done. }
     pose (FFIG _ _ _ _ _ _ _) as FFI.
-    specialize (Hspec _ _ _ _ "main" [] (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I).
-    iDestruct (Hspec with "[Hinit2]") as "Hmain".
+    specialize (Hspec _ _ _ _).
+    pose proof (Hspec "main" [] (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I) as Hspecm.
+    iDestruct (Hspecm with "[Hinit2]") as "Hmain".
     { rewrite /main_proto /named. do 2 (iSplit; first done). iFrame.
       iIntros "!>" (? ?). eauto. }
-    iApply (@wp_internal_call_at_boundary with "[Hb1 SIbound] Hmain");
-      [done|by iFrame|].
-    iIntros "!>" (? (? & -> & ?)) "?".
-    iApply @wp_value; first done. eauto.
+
+    rewrite (_: LkCall "main" [] = to_call _ "main" []) //.
+    iApply (@wp_internal_call_at_boundary with "[Hb2 SIbound] Hmain").
+    { by iFrame. }
+    iIntros "!>" (v) "[% ?]". eauto.
   Qed.
 
 End MainAlloc.

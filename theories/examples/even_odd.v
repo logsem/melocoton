@@ -58,8 +58,8 @@ Lemma is_even_correct : is_odd_proto ||- is_even_prog :: is_even_proto.
 Proof.
   unfold progwp, is_even_proto.
   iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
-  rewrite lookup_insert. do 2 (iExists _; iSplit; first done). iNext.
-  iApply wp_wand; first by iApply wp_is_even. by iIntros (? ->).
+  iSplit; first done. iIntros (?) "Hcont". wp_call_direct.
+  iApply wp_wand; first by iApply wp_is_even. iIntros (? ->). by iApply "Hcont".
 Qed.
 
 Lemma wp_is_odd (x:Z) :
@@ -86,8 +86,8 @@ Lemma is_odd_correct : is_even_proto ||- is_odd_prog :: is_odd_proto.
 Proof.
   unfold progwp, is_odd_proto.
   iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
-  rewrite lookup_insert. do 2 (iExists _; iSplit; first done). iNext.
-  iApply wp_wand; first by iApply wp_is_odd. by iIntros (? ->).
+  iSplit; first done. iIntros (?) "Hcont". wp_call_direct.
+  iApply wp_wand; first by iApply wp_is_odd. iIntros (? ->). by iApply "Hcont".
 Qed.
 
 End specs.
@@ -122,11 +122,10 @@ Lemma is_even_linked_spec (x:Z) :
   {{{ RET #(Z.even x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
-  iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]"); try done.
-  { iApply fullprog_correct. iLeft. iSplit; first done.
-    instantiate (1 := (λ y, ⌜y = #(Z.even x)⌝)%I). eauto. }
-  iNext. iIntros (? ->) "?". cbn. iApply (wp_value ⟪fullprog, ⊥⟫); eauto.
-  by iApply "HΦ".
+  iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]").
+  - iApply fullprog_correct. iLeft. iSplit; first done.
+    instantiate (1 := (λ y, ⌜y = #(Z.even x)⌝)%I). eauto.
+  - cbn. iIntros "!>" (?) "[-> ?]". by iApply "HΦ".
 Qed.
 
 Lemma is_odd_linked_spec (x:Z) :
@@ -136,11 +135,10 @@ Lemma is_odd_linked_spec (x:Z) :
   {{{ RET #(Z.odd x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
-  iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]"); try done.
-  { iApply fullprog_correct. iRight. iSplit; first done.
-    instantiate (1 := (λ y, ⌜y = #(Z.odd x)⌝)%I). eauto. }
-  iNext. iIntros (? ->) "?". cbn. iApply (wp_value ⟪fullprog, ⊥⟫); eauto.
-  by iApply "HΦ".
+  iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]").
+  - iApply fullprog_correct. iRight. iSplit; first done.
+    instantiate (1 := (λ y, ⌜y = #(Z.odd x)⌝)%I). eauto.
+  - cbn. iIntros "!>" (?) "[-> ?]". by iApply "HΦ".
 Qed.
 
 End linking.

@@ -23,9 +23,10 @@ Import mlanguage.
 Lemma read_tag_correct e : |- prims_prog e :: read_tag_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
-  do 2 (iExists _; iSplit; first done). iNext.
+  iSplit; first done.
+  iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "Hb %σ Hσ". cbn -[prims_prog].
+  iIntros "%σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iPoseProof (lstore_own_elem_of with "GCζvirt Hpto") as "%Helem".
   iAssert ⌜∃ bl2, ζC ρc !! γ = Some bl2 ∧ block_tag bl2 = block_tag bl⌝%I as "%Helem2".
@@ -39,6 +40,7 @@ Proof using.
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done. rewrite -Heqtag.
+  iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hpto] [$Hpto]"); try done; [].
   rewrite /GC /named.
   iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.

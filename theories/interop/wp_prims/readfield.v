@@ -23,9 +23,10 @@ Import mlanguage.
 Lemma readfield_correct e : |- prims_prog e :: readfield_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
-  do 2 (iExists _; iSplit; first done). iNext.
+  iSplit; first done.
+  iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "Hb %σ Hσ". cbn -[prims_prog].
+  iIntros "%σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iDestruct "Hpto" as "(Hpto & Hptoacc)".
   iPoseProof (lstore_own_elem_of with "GCζvirt Hpto") as "%Helem".
@@ -52,6 +53,7 @@ Proof using.
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
+  iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hpto Hptoacc] [$Hpto $Hptoacc] [] []"); try done; [].
   rewrite /GC /named.
   iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.

@@ -25,9 +25,10 @@ Lemma write_foreign_correct e : |- prims_prog e :: write_foreign_proto.
 Proof using.
   (* TODO: refactor to share lemmas with prim_modify *)
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
-  do 2 (iExists _; iSplit; first done). iNext.
+  iSplit; first done.
+  iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "Hb %σ Hσ". cbn -[prims_prog].
+  iIntros "%σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iDestruct "Hpto" as "(Hpto & Hsim)".
   iDestruct (lstore_own_mut_of with "GCζvirt Hpto") as %[Helem _].
@@ -51,6 +52,7 @@ Proof using.
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).
+  iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hpto Hsim] [$Hpto $Hsim]").
   { iExists _, (<[γ:=Bforeign (Some w')]> (ζσ ∪ ζvirt)), ζσ, (<[γ:=Bforeign (Some w')]>ζvirt), _, χvirt, σMLvirt.
     iExists _, _. unfold named. iFrame.

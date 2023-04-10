@@ -9,7 +9,11 @@ Section mlanguage_mixin.
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
+  Context (to_call : string → list val → expr).
   Context (is_call : expr → string → list val → cont → Prop).
+
+  Context (empty_cont : cont).
+
   Context (resume_with : cont → expr → expr).
   Context (compose_cont : cont → cont → cont).
 
@@ -37,10 +41,17 @@ Section mlanguage_mixin.
     mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
     mixin_is_call_in_cont e C1 C2 s vv :
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2);
+    mixin_to_call_is_call fn vs : is_call (to_call fn vs) fn vs empty_cont;
+    mixin_is_call_to_call e fn vs C : is_call e fn vs C → e = resume_with C (to_call fn vs);
+    mixin_is_call_to_call_inv fn vs fn' vs' C :
+      is_call (to_call fn vs) fn' vs' C →
+      fn' = fn ∧ vs' = vs ∧ C = empty_cont;
 
     mixin_resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e);
     mixin_resume_compose e C1 C2 :
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e;
+    mixin_resume_empty e :
+      resume_with empty_cont e = e;
 
     mixin_prim_step_resume p C e σ X :
       to_val e = None →
@@ -69,7 +80,9 @@ Structure mlanguage {val : Type} := Mlanguage {
   of_val : val → expr;
   to_val : expr → option val;
 
+  to_call : string → list val → expr;
   is_call : expr → string → list val → cont → Prop;
+  empty_cont : cont;
   resume_with : cont → expr → expr;
   compose_cont : cont → cont → cont;
 
@@ -78,18 +91,20 @@ Structure mlanguage {val : Type} := Mlanguage {
 
 
   mlanguage_mixin :
-    MlanguageMixin (val:=val) of_val to_val is_call resume_with compose_cont
-      apply_func prim_step
+    MlanguageMixin (val:=val) of_val to_val to_call is_call empty_cont
+      resume_with compose_cont apply_func prim_step
 }.
 
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments mlanguage : clear implicits.
-Arguments Mlanguage {_ expr _ _ _ _ _ _ resume_with _ apply_func prim_step}.
+Arguments Mlanguage {_ expr _ _ _ _ _ _ _ _ resume_with _ apply_func prim_step}.
 Arguments of_val {_} _ _.
 Arguments to_val {_ _} _.
+Arguments to_call {_} _ _.
 Arguments is_call {_ _}.
+Arguments empty_cont {_ _}.
 Arguments resume_with {_ _}.
 Arguments compose_cont {_ _}.
 Arguments apply_func {_ _}.
@@ -144,6 +159,15 @@ Section mlanguage.
       is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2).
   Proof. apply mlanguage_mixin. Qed.
 
+  Lemma to_call_is_call fn vs : is_call (to_call Λ fn vs) fn vs empty_cont.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma is_call_to_call e fn vs C : is_call e fn vs C → e = resume_with C (to_call Λ fn vs).
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma is_call_to_call_inv fn vs fn' vs' C :
+    is_call (to_call Λ fn vs) fn' vs' C →
+    fn' = fn ∧ vs' = vs ∧ C = empty_cont.
+  Proof. apply mlanguage_mixin. Qed.
+
   Lemma resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e).
   Proof. apply mlanguage_mixin. Qed.
 
@@ -156,6 +180,9 @@ Section mlanguage.
 
   Lemma resume_compose e C1 C2 :
       resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e.
+  Proof. apply mlanguage_mixin. Qed.
+  Lemma resume_empty e :
+      resume_with empty_cont e = e.
   Proof. apply mlanguage_mixin. Qed.
 
   Lemma prim_step_resume p C e σ X :

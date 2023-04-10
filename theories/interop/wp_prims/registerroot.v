@@ -23,9 +23,10 @@ Import mlanguage.
 Lemma registerroot_correct e : |- prims_prog e :: registerroot_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
-  do 2 (iExists _; iSplit; first done). iNext.
+  iSplit; first done.
+  iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "Hb %σ Hσ". cbn -[prims_prog].
+  iIntros "%σ Hσ". cbn -[prims_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom".
   1: { iIntros "%H". eapply elem_of_dom in H; destruct H as [k Hk].
@@ -48,6 +49,7 @@ Proof using.
   iClear "HR".
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
+  iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hres] Hres").
   do 9 iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.

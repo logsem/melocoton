@@ -43,6 +43,7 @@ Definition to_val (e : expr) : option word :=
   end.
 
 Definition is_call e f vs C := e = WrE (ExprCall f vs) C.
+Definition to_call f vs := WrE (ExprCall f vs) [].
 
 Definition comp_cont (K1 K2 : cont) : cont :=
   K2 ++ K1.
@@ -514,7 +515,7 @@ Next Obligation.
 Qed.
 
 Lemma mlanguage_mixin :
-  MlanguageMixin (val:=word) of_val to_val is_call resume_with
+  MlanguageMixin (val:=word) of_val to_val to_call is_call [] resume_with
     comp_cont apply_func prim_step.
 Proof using.
   constructor.
@@ -527,11 +528,15 @@ Proof using.
     + intros (?&?&?&?&?); eapply ExprCallS; simplify_eq; eauto.
   - by intros e [v Hv] f vs C ->.
   - by intros e C1 C2 s vv ->.
+  - intros. reflexivity.
+  - by intros * ->.
+  - intros *. inversion 1; eauto.
   - intros [] C [v Hv]. rewrite /to_val /resume_with in Hv.
     repeat case_match; try congruence.
     apply app_eq_nil in H0 as (->&->); done.
   - intros [] C1 C2.
     rewrite /resume_with /comp_cont app_assoc //.
+  - intros [? ?]. rewrite /= app_nil_r //.
   - intros p C [es eC] σ X Hnv. inversion 1; simplify_eq.
     all: try (econstructor; eauto; naive_solver).
     + econstructor; eauto. rewrite -/app. eexists (WrE _ _); eauto.

@@ -46,6 +46,41 @@ Ltac inv_is_prim :=
 Definition is_prim_name (s : string) : Prop :=
   ∃ p, is_prim s p.
 
+(* Global Instance is_prim_dec s p : Decision (is_prim s p). *)
+(* Proof. *)
+(*   destruct (decide (s = "alloc")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "registerroot")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "unregisterroot")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "modify")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "readfield")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "val2int")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "int2val")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "isblock")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "read_tag")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "length")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "alloc_foreign")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "write_foreign")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "read_foreign")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "callback")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   destruct (decide (s = "main")) as [->|]. *)
+(*   1: destruct p; try first [left; by constructor | right; inversion 1]. *)
+(*   right. destruct p; inversion 1; naive_solver. *)
+(* Qed. *)
+
 Global Instance is_prim_name_dec s : Decision (is_prim_name s).
 Proof.
   destruct (decide (s = "alloc")) as [->|]. left; eexists; constructor.
@@ -111,3 +146,14 @@ Qed.
 Lemma not_elem_of_prim_names s :
   s ∉ prim_names ↔ ¬ is_prim_name s.
 Proof. rewrite elem_of_prim_names //. Qed.
+
+Lemma lookup_prims_prog_except_main e s p :
+  s ≠ "main" →
+  prims_prog e !! s = Some p ↔ is_prim s p.
+Proof.
+  intros Hnmain.
+  rewrite /prims_prog. cbn. split.
+  { intros HH. rewrite !lookup_insert_Some in HH.
+    repeat (destruct_or!; destruct_and!); simplify_eq; constructor. }
+  { inversion 1; simplify_eq; try reflexivity. }
+Qed.

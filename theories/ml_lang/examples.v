@@ -19,9 +19,9 @@ Definition call_inc : ML_lang.expr :=
   let: "l" := ref (#0 + #0)
   in "l" <- #41 ;; Extern "inc" [Var "l"];; ! "l".
 
-Definition IncrementSpec := λ s v Φ, match (s,v) with
-      ("inc", [ #(LitLoc l) ]) => (∃ (z:Z), (l ↦M #z) ∗ ((l ↦M #(z+1)) -∗ Φ #()))%I
-    | _ => ⌜False⌝%I end.
+Definition IncrementSpec := (λ s v Φ,
+  ⌜s = "inc"⌝ ∗ ∃ l, ⌜v = [ #(LitLoc l) ]⌝ ∗
+  ∃ (z:Z), (l ↦M #z) ∗ ((l ↦M #(z+1)) -∗ Φ #()))%I.
 
 Definition inc_impl (l : ML_lang.expr) : ML_lang.expr := let: "k" := ! l + #1 in l <- "k";; #().
 Definition inc_func := MlFun [BNamed "l"] (inc_impl "l").
@@ -38,7 +38,8 @@ Proof.
   wp_pures.
   wp_apply (wp_store with "Hl"); iIntros "Hl". wp_pures.
   wp_extern.
-  iModIntro. cbn. iExists 41%Z. iFrame. iIntros "Hl".
+  iModIntro. cbn. iSplit; first done. iExists _; iSplit; first done.
+  iExists 41%Z. iFrame. iIntros "Hl".
   wp_pures.
   wp_apply (wp_load with "Hl"); iIntros "Hl".
   done.
@@ -64,38 +65,17 @@ Proof.
   iStartProof. iIntros (s vv Φ []).
 Qed.
 
-Ltac string_resolve s t := 
-    let b1 := fresh "b1" in
-    let b2 := fresh "b2" in
-    let b3 := fresh "b3" in
-    let b4 := fresh "b4" in
-    let b5 := fresh "b5" in
-    let b6 := fresh "b6" in
-    let b7 := fresh "b7" in
-    let b8 := fresh "b8" in
-    repeat (destruct s as [|[b1 b2 b3 b4 b5 b6 b7 b8] s]; (try t); eauto;
-                  try (destruct b1; try t; eauto;
-                  try (destruct b2; try t; eauto;
-                  try (destruct b3; try t; eauto;
-                  try (destruct b4; try t; eauto;
-                  try (destruct b5; try t; eauto;
-                  try (destruct b6; try t; eauto;
-                  try (destruct b7; try t; eauto;
-                  try (destruct b8; try t; eauto))))))))). 
-
-Ltac ft := (iDestruct "Hvv" as "%Hvv"; exfalso; done).
 Lemma right_correct : ||- {[ "inc" := inc_func ]} :: IncrementSpec.
 Proof.
-  iStartProof. iIntros (Ψ s vv Φ) "Hvv". unfold IncrementSpec.
-  string_resolve s ft.
-  destruct vv as [ | [[l| | | |]| | | |] [|[[z| | | |]| | | |] []]]; try ft.
-  do 2 (iExists _; iSplit; first done). iNext.
-  iDestruct "Hvv" as "(%z & Hz & Hres)". wp_finish.
-  iApply (wp_wand with "[Hz] [Hres]").
-  + iApply (wp_strong_mono with "[-]"). 3: iApply (inc_correct l0 with "Hz").
-    1: done. 1: apply proto_refines_bot_l.
-    iIntros (v) "Hv !>". iAccu.
-  + iIntros (v) "(Hv & ->)". iApply ("Hres" with "Hv").
+  intros Ψ. apply prove_prog_correct.
+  { iIntros (? ? ?) "[% [% ?]]". set_solver. }
+  iIntros (s vv Φ Φ') "Hvv Hcont". unfold IncrementSpec.
+  iDestruct "Hvv" as "(-> & H)". iDestruct "H" as (? -> ?) "[Hz Hres]".
+  iApply wp_call; [done..|]. iNext.
+  iApply (wp_wand with "[Hz] [Hres Hcont]").
+  + iApply wp_proto_mono. 2: iApply (inc_correct with "Hz").
+    apply proto_refines_bot_l.
+  + iIntros (v) "(Hv & ->)". iApply "Hcont". iApply ("Hres" with "Hv").
 Qed.
 
 Instance example_can_link : can_link ⊥ IncrementSpec ⊥ IncrementSpec

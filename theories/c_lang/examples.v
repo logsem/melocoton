@@ -37,13 +37,12 @@ Definition exampleProgram fname cname : gmap string function :=
 
 
 
-Notation FibSpec name := (λ (s:string) (v:list val) (Φ : (val → iPropI Σ)), match (s,v) with
-      (name, [ #(LitInt z) ]) => (⌜(z >= 0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I
-    | _ => ⌜False⌝%I end).
+Definition FibSpec name := (λ (s:string) (v:list val) (Φ : (val → iPropI Σ)),
+  ⌜s = name⌝ ∗ ∃ z, ⌜v = [ #(LitInt z) ] ∧ (z >= 0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I.
 
-Definition StoreItSpec := λ s v Φ, match (s,v) with
-      ("store_it", [ #(LitLoc l) ; v' ]) => (∃ v, (l I↦C v) ∗ ((l ↦C v') -∗ Φ (#0)))%I
-    | _ => ⌜False⌝%I end.
+Definition StoreItSpec := (λ s v Φ,
+  ⌜s = "store_it"⌝ ∗ ∃ l v', ⌜v = [ #(LitLoc l) ; v' ]⌝ ∗
+  (∃ v, (l I↦C v) ∗ ((l ↦C v') -∗ Φ (#0))))%I.
 
 Definition FibLeftSpec := FibSpec "fib_left".
 Definition FibRightSpec := FibSpec "fib_right".
@@ -99,9 +98,11 @@ Proof.
   wp_bind (FunCall _ _).
   change 3 with (Z.of_nat 3).
   wp_extern. cbn. iLeft. cbn. iModIntro.
-  iSplitR; first (iPureIntro; lia). wp_pures. 
+  iSplit; first done. iExists _; iSplit; first done.
+  wp_pures.
   wp_bind (FunCall _ _).
   wp_extern. cbn. iRight. cbn. iModIntro.
+  iSplit; first done. iExists _, _. iSplit; first done.
   iExists _. iFrame. iIntros "Hl1".
   wp_pures.
   wp_pures.
@@ -119,83 +120,63 @@ Qed.
 
 Section linking.
 
-  (* This section is very ugly *)
-  (* Ugly tactic to reduce matches on strings *)
-  Ltac string_resolve s t := 
-      let b1 := fresh "b1" in
-      let b2 := fresh "b2" in
-      let b3 := fresh "b3" in
-      let b4 := fresh "b4" in
-      let b5 := fresh "b5" in
-      let b6 := fresh "b6" in
-      let b7 := fresh "b7" in
-      let b8 := fresh "b8" in
-      repeat (destruct s as [|[b1 b2 b3 b4 b5 b6 b7 b8] s]; (try t); eauto;
-                    try (destruct b1; try t; eauto;
-                    try (destruct b2; try t; eauto;
-                    try (destruct b3; try t; eauto;
-                    try (destruct b4; try t; eauto;
-                    try (destruct b5; try t; eauto;
-                    try (destruct b6; try t; eauto;
-                    try (destruct b7; try t; eauto;
-                    try (destruct b8; try t; eauto))))))))). 
-
-
 Lemma fib_left_correct :
   (FibRightSpec ⊔ StoreItSpec) ||- exampleProgram "fib_left" "fib_right" :: FibLeftSpec.
 Proof.
-  iIntros (s vv Φ) "H". unfold FibLeftSpec.
-  Local Ltac ft := (iDestruct "H" as "%H"; exfalso; done).
-  string_resolve s ft. destruct vv as [|[[z| | |]] []]; try ft.
-  iExists _. iSplit; first done.
-  iExists _. iSplit; first done. iNext.
-  iDestruct "H" as "(%Hnp & Hvv)".
+  apply prove_prog_correct.
+  { iIntros (? ? ?) "[%H [% _]]". set_solver. }
+  iIntros (s vv Φ Φ') "H Hcont". unfold FibLeftSpec.
+  iDestruct "H" as "(-> & H)". iDestruct "H" as (? (-> & ?)) "H".
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
   wp_pures.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
-    assert (n=0 \/ n=1) as [-> | ->] by lia; done.
+    assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
-    wp_extern. cbn. iLeft. cbn. iModIntro. iSplitR; first by (iPureIntro; lia).
+    wp_extern. cbn. iLeft. cbn. iModIntro. iSplit; first done.
+    iExists _. iSplit. { iPureIntro. split; eauto; lia. }
     wp_pures. wp_bind (FunCall _ _). wp_pures.
-    wp_extern. cbn. iLeft. cbn. iModIntro. iSplitR; first by (iPureIntro; lia).
+    wp_extern. cbn. iLeft. cbn. iModIntro.
+    iSplit; first done. iExists _. iSplit. { iPureIntro; split; eauto; lia. }
     wp_pures. wp_pures. iModIntro.
     assert (Z.to_nat (n - 1) = Z.to_nat n - 1) as -> by lia.
     assert (Z.to_nat (n - 2) = Z.to_nat n - 2) as -> by lia.
     rewrite ! Nat2Z.id.
     assert (exists n', n = S(S(n'))) as [n' ->].
     {destruct n as [|[|n']]; try lia. now exists n'. }
-    cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add. iApply "Hvv".
+    cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add.
+    by iApply "Hcont".
 Qed.
 
 
 Lemma fib_right_correct :
   (FibLeftSpec ⊔ StoreItSpec) ||- exampleProgram "fib_right" "fib_left" :: FibRightSpec.
 Proof.
-  iIntros (s vv Φ) "H". unfold FibLeftSpec.
-  Local Ltac ft' := (iDestruct "H" as "%H"; exfalso; done).
-  string_resolve s ft'. destruct vv as [|[[z| | |]] []]; try ft'.
-  iExists _. iSplit; first done.
-  iExists _. iSplit; first done. iNext.
-  iDestruct "H" as "(%Hnp & Hvv)".
+  apply prove_prog_correct.
+  { iIntros (? ? ?) "[%H [% _]]". set_solver. }
+  iIntros (s vv Φ Φ') "H Hcont". unfold FibLeftSpec.
+  iDestruct "H" as "(-> & H)". iDestruct "H" as (? (-> & ?)) "H".
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
   wp_pures.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
-    assert (n=0 \/ n=1) as [-> | ->] by lia; done.
+    assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
-    wp_extern. cbn. iLeft. cbn. iModIntro. iSplitR; first by (iPureIntro; lia).
+    wp_extern. cbn. iLeft. cbn. iModIntro.
+    iSplit; first done. iExists _. iSplit. { iPureIntro; split; eauto; lia. }
     wp_pures. wp_bind (FunCall _ _). wp_pures.
-    wp_extern. cbn. iLeft. cbn. iModIntro. iSplitR; first by (iPureIntro; lia).
+    wp_extern. cbn. iLeft. cbn. iModIntro.
+    iSplit; first done. iExists _. iSplit. { iPureIntro; split; eauto; lia. }
     wp_pures. wp_pures. iModIntro.
     assert (Z.to_nat (n - 1) = Z.to_nat n - 1) as -> by lia.
     assert (Z.to_nat (n - 2) = Z.to_nat n - 2) as -> by lia.
     rewrite ! Nat2Z.id.
     assert (exists n', n = S(S(n'))) as [n' ->].
     {destruct n as [|[|n']]; try lia. now exists n'. }
-    cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add. iApply "Hvv".
+    cbn -[fib]. rewrite Nat.sub_0_r. rewrite <- Nat2Z.inj_add.
+    by iApply "Hcont".
 Qed.
 
 Lemma example_can_link : can_link FibLeftSpec FibRightSpec StoreItSpec (FibLeftSpec ⊔ FibRightSpec)
@@ -214,9 +195,7 @@ Proof.
   split.
   - unfold exampleProgram. set_solver.
   - iIntros (s vv Φ) "Hvv". iApply "Hvv".
-  - iIntros (s vv Φ) "Hvv".
-    unfold StoreItSpec.
-    string_resolve s ft.
+  - iIntros (s vv Φ) "[-> H]". done.
   - apply fib_left_correct.
   - apply fib_right_correct.
   - unfold FinalEnv. cbn. rewrite Heq. done.

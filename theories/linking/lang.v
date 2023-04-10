@@ -18,14 +18,9 @@ Section Linking.
   (* The linked module produces a value
      (following one of the underlying modules producing a value) *)
   | ExprV (v : val)
-  (* The linked module performs a call (corresponding to an external call
-     performed by one of the underlying modules). This is not necessarily an
-     external call of the linked module, it can correspond to a function
-     implemented in the other linked module. *)
+  (* Function call (outgoing or incoming) *)
   | ExprCall (fn_name : string) (args : list val)
-  (* Incoming call of one of the functions implemented by the linked module. It
-     will be dispatched against the corresponding underlying module. *)
-  | RunFunction (fn : func) (args : list val)
+  | RunBody (e : Λ1.(mlanguage.expr) + Λ2.(mlanguage.expr))
   (* Execution of code belonging to the first underlying module. *)
   | Expr1 (e : Λ1.(mlanguage.expr))
   (* Execution of code belonging to the second underlying module. *)
@@ -66,9 +61,21 @@ Section Linking.
     LkE se (k ++ K).
 
   Definition apply_func (fn : func) (args : list val) : option expr :=
-    Some (LkE (RunFunction fn args) []).
+    match fn with
+    | inl fn1 =>
+        match Λ1.(apply_func) fn1 args with
+        | Some e1 => Some (LkE (RunBody (inl e1)) [])
+        | None => None
+        end
+    | inr fn2 =>
+        match Λ2.(apply_func) fn2 args with
+        | Some e2 => Some (LkE (RunBody (inr e2)) [])
+        | None => None
+        end
+    end.
 
   Definition is_call e (fn_name:string) args C := e = LkE (ExprCall fn_name args) C.
+  Definition to_call fn_name args := LkE (ExprCall fn_name args) [].
 
   Local Notation prog := (gmap string func).
 
@@ -127,16 +134,14 @@ Section Linking.
     prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
   (* Entering a function. Change the view of the heap in the process.
      Merging the state is angelic. *)
-  | RunFunction1S fn1 args C e1 σ1 pubσ privσ1 privσ2 X :
-    mlanguage.apply_func fn1 args = Some e1 →
+  | RunBody1S e1 C σ1 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ1 pubσ privσ1 →
     X (LkE (Expr1 e1) C, St1 σ1 privσ2) →
-    prim_step_mrel p (LkE (RunFunction (inl fn1) args) C, St pubσ privσ1 privσ2) X
-  | RunFunction2S fn2 args C e2 σ2 pubσ privσ1 privσ2 X :
-    mlanguage.apply_func fn2 args = Some e2 →
+    prim_step_mrel p (LkE (RunBody (inl e1)) C, St pubσ privσ1 privσ2) X
+  | RunBody2S e2 C σ2 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ2 pubσ privσ2 →
     X (LkE (Expr2 e2) C, St2 privσ1 σ2) →
-    prim_step_mrel p (LkE (RunFunction (inr fn2) args) C, St pubσ privσ1 privσ2) X
+    prim_step_mrel p (LkE (RunBody (inr e2)) C, St pubσ privσ1 privσ2) X
   (* Continuing execution by returning a value to its caller. *)
   | Ret1S v k1 C σ1 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ1 pubσ privσ1 →
@@ -147,9 +152,10 @@ Section Linking.
     X (LkE (Expr2 (mlanguage.resume_with k2 (mlanguage.of_val Λ2 v))) C, St2 privσ1 σ2) →
     prim_step_mrel p (LkE (ExprV v) (inr k2 :: C), St pubσ privσ1 privσ2) X
   (* Resolve an internal call to a module function *)
-  | CallS fn_name fn arg σ C X :
+  | CallS fn_name fn arg e σ C X :
     p !! fn_name = Some fn →
-    X (LkE (RunFunction fn arg) C, σ) →
+    apply_func fn arg = Some e →
+    X (resume_with C e, σ) →
     prim_step_mrel p (LkE (ExprCall fn_name arg) C, σ) X
   (* Terminate execution with NB on values *)
   | ValStopS v σ X :
@@ -160,13 +166,13 @@ Section Linking.
   Next Obligation.
     intros p. intros [[se k] σ] X Y Hstep HXY. inversion Hstep; subst;
       [ eapply Step1S | eapply Step2S | eapply MakeCall1S | eapply MakeCall2S
-      | eapply Val1S | eapply Val2S | eapply RunFunction1S | eapply RunFunction2S
+      | eapply Val1S | eapply Val2S | eapply RunBody1S | eapply RunBody2S
       | eapply Ret1S | eapply Ret2S | eapply CallS | eapply ValStopS ];
       eauto; naive_solver.
   Qed.
 
   Lemma mlanguage_mixin :
-    MlanguageMixin (val:=val) of_val to_val is_call resume_with comp_cont
+    MlanguageMixin (val:=val) of_val to_val to_call is_call [] resume_with comp_cont
       apply_func prim_step.
   Proof using.
     constructor.
@@ -179,9 +185,13 @@ Section Linking.
         econstructor; eauto.
     - intros e [v Hv] f vs C ->. done.
     - intros ? C1 C2 s vv ->. cbn. done.
+    - intros. reflexivity.
+    - by intros ? ? ? ? ->.
+    - intros *. unfold is_call, to_call. inversion 1; eauto.
     - intros [] C [v Hv]; cbn in Hv. repeat case_match; simplify_eq.
       apply app_eq_nil in H0 as [-> ->]. done.
     - intros [] C1 C2. rewrite /= app_assoc //.
+    - intros [? ?]. rewrite /= app_nil_r //.
     - intros p C [es eC] σ X Hnv. inversion 1; simplify_eq.
       1,2: econstructor; eauto; intros; eexists (LkE _ _); by eauto. (* StepS *)
       { eapply MakeCall1S; eauto; eexists (LkE _ _); split; eauto;
@@ -190,9 +200,10 @@ Section Linking.
           unfold resume_with; by eauto. }
       { eapply Val1S; eauto. eexists (LkE _ _). split; eauto. }
       { eapply Val2S; eauto. eexists (LkE _ _). split; eauto. }
-      1,2: econstructor; eauto; eexists (LkE _ _); split; eauto. (* RunFunctionS *)
+      1,2: econstructor; eauto; eexists (LkE _ _); split; eauto. (* RunBodyS *)
       1,2: econstructor; eauto; eexists (LkE _ _); split; eauto. (* RetS *)
-      eapply CallS; eauto; eexists (LkE _ _); split; eauto.
+      eapply CallS; eauto. exists (resume_with eC e). split; auto.
+      destruct e. rewrite /resume_with app_assoc //.
     - intros p [[] eC] σ Hnv; simplify_eq;
         try by (intros _; inversion 1; simplify_eq; eauto).
       + destruct eC as [|[] eC']; first done; intros _;
@@ -207,7 +218,7 @@ End Link.
 
 Arguments Link.ExprV {_ _ _} _.
 Arguments Link.ExprCall {_ _ _} _ _.
-Arguments Link.RunFunction {_ _ _} _ _.
+Arguments Link.RunBody {_ _ _} _.
 Arguments Link.Expr1 {_ _ _} _.
 Arguments Link.Expr2 {_ _ _} _.
 Arguments Link.St {_ _ _ _ _ _} _ _ _.

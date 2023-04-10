@@ -49,14 +49,14 @@ Lemma swap_pair_correct :
 Proof.
   iIntros (fn ws Φ) "H". iNamed "H".
   iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
-  rewrite /progwp lookup_insert.
+  iSplit; first done. iIntros (Φ'') "HΦ".
   iAssert (⌜length lvs = 1⌝)%I as %Hlen.
   { by iDestruct (big_sepL2_length with "Hsim") as %?. }
   destruct lvs as [|lv []]; try by (exfalso; eauto with lia); []. clear Hlen.
   destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
   apply Forall2_cons_1 in Hrepr as [Hrepr _].
-  do 2 (iExists _; iSplit; first done). iNext. cbn.
-  iDestruct "Hsim" as "[Hsim _]".
+  cbn. iDestruct "Hsim" as "[Hsim _]".
+  wp_call_direct.
 
   wp_pures.
   wp_alloc rr as "H"; first done.
@@ -127,7 +127,7 @@ Proof.
   (* Finish, convert the new points-to to an immutable pointsto *)
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
 
-  iModIntro. iApply ("Cont" with "HGC Hψ [] []").
+  iModIntro. iApply "HΦ". iApply ("Cont" with "HGC Hψ [] []").
   - cbn. do 3 iExists _. iFrame "Hnew Hlv1 Hlv2". done.
   - done.
 Qed.

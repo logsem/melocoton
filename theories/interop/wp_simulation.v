@@ -11,6 +11,7 @@ From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Export prims weakestpre prims_proto.
 From melocoton.interop Require Import wp_ext_call_laws wp_boundary_laws wp_utils.
+From melocoton.interop.wp_prims Require Import common.
 Import Wrap.
 
 Section Simulation.
@@ -172,7 +173,9 @@ Lemma callback_correct emain Ψ :
   wrap_proto Ψ |- prims_prog emain :: callback_proto Ψ.
 Proof using.
   iIntros (Hnprim ? ? ?) "Hproto". iNamed "Hproto".
-  do 2 (iExists _; iSplit; first done). iIntros "!> Hb".
+  iSplit; first done. iIntros (Φ'') "Hb Hcont".
+  iApply wp_wrap_call; first done. cbn [snd].
+
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (st) "Hst".
   iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
@@ -202,9 +205,10 @@ Proof using.
   iSplit. { iPureIntro. eapply CallbackS; eauto. }
   iIntros (? ? (-> & ->)). iMod "HH" as "(Hst & Hnb)".
   do 3 iModIntro. iFrame "Hst".
-  iApply (weakestpre.wp_wand with "[-Cont Hclos]").
+  iApply (weakestpre.wp_wand with "[-Cont Hcont Hclos]").
   { by iApply (wp_simulates with "Hnb [WPcallback]"). }
-  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & $)".
+  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & ?)".
+  iApply "Hcont". iFrame.
   iApply ("Cont" with "[$] [$] [$]"); eauto.
 Qed.
 
@@ -214,7 +218,8 @@ Lemma main_correct emain Ψ (Φ : Z → Prop) :
   wrap_proto Ψ |- prims_prog emain :: main_proto Φ.
 Proof using.
   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamed "Hproto".
-  do 2 (iExists _; iSplit; first done). iIntros "!> Hb".
+  iSplit; first done. iIntros (Φ') "Hb Hcont".
+  iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros (st) "Hst".
   iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
@@ -244,13 +249,13 @@ Proof using.
   rewrite pub_locs_in_lstore_empty big_sepM_empty dom_empty_L. iFrame.
   rewrite big_sepS_empty. iSplit; first by iPureIntro.
 
-  iApply (weakestpre.wp_wand with "[-Cont]").
+  iApply (weakestpre.wp_wand with "[-Cont Hcont]").
   { iApply (wp_simulates with "Hb []"); first done.
     iApply (Hmain (λ v, ∃ x, ⌜v = LitV (LitInt x) ∧ Φ x⌝)%I); first done.
     iIntros "!>" (? ?). eauto. }
-  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & %Hrepr & Hsim & HΦ' & $)".
+  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & %Hrepr & Hsim & HΦ' & ?)".
   iDestruct "HΦ'" as (? ->) "%". iDestruct "Hsim" as "->". inversion Hrepr; simplify_eq.
-  by iApply "Cont".
+  iApply "Hcont". iFrame. by iApply "Cont".
 Qed.
 
 Lemma wrap_correct emain Ψ (Φ : Z → Prop) :

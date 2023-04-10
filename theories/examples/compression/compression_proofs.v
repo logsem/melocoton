@@ -39,14 +39,17 @@ Context (Ψ : (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)).
 Lemma buffy_max_len_correct :
     Ψ ||- p :: buffy_max_len_spec.
 Proof using Hp.
-  iIntros (s vs Φ) "H". iNamed "H".
-  iExists _. iSplit.
-  1: iPureIntro; eapply lookup_weaken; last exact Hp; done.
-  iExists _; iSplit. 1: iPureIntro; simpl; solve_lookup_fixed; by simpl.
+  iIntros (s vs Φ) "H". iNamed "H". iSplit.
+  { iPureIntro. apply elem_of_dom. eexists.
+    eapply lookup_weaken; last exact Hp. done. }
+  iIntros (Φ') "HΦ".
+  iApply wp_call.
+  { cbn. eapply lookup_weaken; last done; done. }
+  { done. }
   iNext.
   wp_pures. iModIntro. unfold buffer_max_len.
   replace (Z.of_nat (Nat.mul 2 n)) with ((Z.mul n 2))%Z by lia.
-  iApply "Hcont".
+  iApply "HΦ". iApply "Hcont".
 Qed.
 
 Lemma buffy_compress_rec_spec ℓin ℓout vin bin vspace :
@@ -176,9 +179,11 @@ Lemma buffy_compress_correct_ok :
     Ψ ||- p :: buffy_compress_spec_ok.
 Proof using Hp.
   iIntros (s vs Φ) "H". iNamed "H".
-  iExists _. iSplit.
-  1: iPureIntro; eapply lookup_weaken; last exact Hp; done.
-  iExists _; iSplit. 1: iPureIntro; simpl; solve_lookup_fixed; by simpl.
+  iSplit.
+  { iPureIntro. eapply elem_of_dom_2, lookup_weaken; last done; done. }
+  iIntros (Φ') "HΦ". iApply wp_call.
+  { cbn. eapply lookup_weaken; last done; done. }
+  { done. }
   iNext.
   wp_pures.
   wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
@@ -194,7 +199,7 @@ Proof using Hp.
   iIntros (v) "(%bout&%vout&%vrest&%vov&HH1&HH2&->&HH3&%Hlen&HℓouR&HℓinR)".
   wp_apply (wp_store with "Hℓlen"); iIntros "Hℓlen".
   wp_pures. iModIntro.
-  iApply ("HCont" with "[$] [$] [$] [//] [$] [$] [$]").
+  iApply "HΦ". iApply ("HCont" with "[$] [$] [$] [//] [$] [$] [$]").
 Qed.
 
 
@@ -202,9 +207,11 @@ Lemma buffy_compress_correct_fail :
     Ψ ||- p :: buffy_compress_spec_fail.
 Proof using Hp.
   iIntros (s vs Φ) "H". iNamed "H".
-  iExists _. iSplit.
-  1: iPureIntro; eapply lookup_weaken; last exact Hp; done.
-  iExists _; iSplit. 1: iPureIntro; simpl; solve_lookup_fixed; by simpl.
+  iSplit.
+  { iPureIntro. eapply elem_of_dom_2, lookup_weaken; last done; done. }
+  iIntros (Φ') "HΦ". iApply wp_call.
+  { cbn. eapply lookup_weaken; last done; done. }
+  { done. }
   iNext.
   wp_pures.
   wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
@@ -214,7 +221,7 @@ Proof using Hp.
   iSplit; first done. iNext. wp_finish.
   wp_pures. rewrite bool_decide_decide. destruct decide; cbn in *; try lia.
   wp_pures. iModIntro.
-  iApply ("HCont" with "[$]").
+  iApply "HΦ". iApply ("HCont" with "[$]").
 Qed.
 
 Lemma buffy_library_correct :

@@ -89,8 +89,9 @@ Definition progwp `{!indexT, !langG val Λ Σ, !invG Σ}
   E (p : lang_prog Λ) (Ψ : protocol val Σ) : protocol val Σ
 :=
   (λ fname vs Φ,
-    ∃ fn, ⌜p !! fname = Some fn⌝ ∗
-    ∃ e, ⌜apply_func fn vs = Some e⌝ ∗ ▷ WP e @ ⟨p, Ψ⟩; E {{ Φ }})%I.
+     ⌜fname ∈ dom p⌝ ∗ ∀ Φ',
+     ▷ (∀ v, Φ v -∗ Φ' v) -∗
+     WP (of_class Λ (ExprCall fname vs)) @ ⟨p, Ψ⟩; E {{ Φ' }})%I.
 
 Notation "Ψext '||-' p @ E '::' Ψp" := (Ψp ⊑ progwp E p Ψext)
   (at level 50, p, E, Ψp at level 51).
@@ -398,6 +399,26 @@ Proof.
   iIntros (v) "HΦ". by iApply "HΦ".
 Qed.
 
+Lemma wp_internal_call_inv E p Ψ fn vs Φ :
+  fn ∈ dom p →
+  WP of_class Λ (ExprCall fn vs) @ ⟨p, Ψ⟩; E {{ Φ }} -∗
+  ∀ σ, state_interp σ ={E}=∗
+    ⌜reducible p (of_class Λ (ExprCall fn vs)) σ⌝ ∗
+    (∀ σ' e',
+      ⌜prim_step p (of_class Λ (ExprCall fn vs)) σ e' σ'⌝ ={E}▷=∗
+      state_interp σ' ∗ WP e' @ ⟨p, Ψ⟩; E {{ Φ }}).
+Proof.
+  iIntros (Hfn) "HWP". iIntros (σ) "Hσ".
+  rewrite !wp_unfold /wp_pre /=.
+  iDestruct ("HWP" with "Hσ") as ">[HWP|[HWP|HWP]]".
+  { iExFalso. iDestruct "HWP" as (? HH%of_class_inj) "?". done. }
+  { iExFalso. iDestruct "HWP" as (? ? ? HH ?) "?".
+    rewrite (_: of_class Λ (ExprCall fn vs) = fill empty_ectx (of_class Λ (ExprCall fn vs))) in HH.
+    2: { rewrite fill_empty //. }
+    apply call_call_in_ctx in HH as (-> & -> & ->).
+    apply elem_of_dom in Hfn as [? ?]. congruence. }
+  done.
+Qed.
 
 Lemma wp_extern' pe n vv E Φ :
      ⌜penv_prog pe !! n = None⌝
@@ -429,14 +450,14 @@ Proof.
 Qed.
 
 Lemma wp_call pe n funn body' vv E Φ :
-     ⌜penv_prog pe !! n = Some funn⌝
-  -∗ ⌜apply_func funn vv = Some body'⌝
-  -∗ (|={E}=> ▷ |={E}=> WP body' @ pe ; E {{ Φ }})
-  -∗ WP of_class _ (ExprCall n vv) @ pe ; E {{ Φ }}.
+  penv_prog pe !! n = Some funn →
+  apply_func funn vv = Some body' →
+  ▷ WP body' @ pe ; E {{ Φ }} -∗
+  WP of_class _ (ExprCall n vv) @ pe ; E {{ Φ }}.
 Proof.
   iIntros (Hlookup Happly) "Hcont".
   rewrite (wp_unfold _ _ (of_class Λ (ExprCall n vv))) /wp_pre /=.
-  iIntros "%σ Hσ". iMod "Hcont". do 2 iRight.
+  iIntros "%σ Hσ". do 2 iRight.
   iModIntro. iSplitR.
   { iPureIntro. apply head_prim_reducible.
     eexists _,_. apply call_head_step.
@@ -444,7 +465,6 @@ Proof.
   iIntros (σ' e' Hstep) "!>!>".
   apply head_reducible_prim_step in Hstep. 2: { eexists _,_. apply call_head_step; eexists funn; done. }
   apply call_head_step in Hstep. destruct Hstep as (fn' & Hfn' & He' & ->).
-  iMod "Hcont".
   iModIntro. iFrame. assert (e' = body') as -> by congruence. done.
 Qed.
 
@@ -454,18 +474,9 @@ Lemma wp_progwp pe n vv E Ψp Φ K :
   -∗ WP fill K (of_class _ (ExprCall n vv)) @ pe ; E {{ Φ }}.
 Proof.
   iIntros (Hprogwp) "HT".
-  iApply wp_bind.
-  rewrite !wp_unfold /wp_pre /=.
-  iIntros "%σ Hσ". iMod "HT".
-  iPoseProof (Hprogwp with "HT") as "(%F&%HF&%e&%He&HT)".
-  iModIntro. iRight. iRight.
-  assert (head_reducible (penv_prog pe) (of_class Λ (ExprCall n vv)) σ) as Hhead.
-  { do 2 eexists. eapply call_head_step. exists F; split_and!; done. }
-  iSplit.
-  1: iPureIntro; by eapply head_prim_reducible.
-  iIntros (σ' e' (F2&HF2&He2&->)%head_reducible_prim_step%call_head_step_inv); last done.
-  simplify_map_eq. assert (e = e') as <- by congruence.
-  do 3 iModIntro. iFrame "Hσ". destruct pe; iApply "HT".
+  iApply wp_bind. iApply fupd_wp. iMod "HT". iModIntro.
+  iDestruct (Hprogwp with "HT") as "[% HWP]".
+  destruct pe. iApply "HWP". eauto.
 Qed.
 
 Lemma progwp_mono E1 E2 Ψ1 Ψ2 p :
@@ -473,11 +484,26 @@ Lemma progwp_mono E1 E2 Ψ1 Ψ2 p :
   Ψ1 ⊑ Ψ2 →
   progwp E1 p Ψ1 ⊑ progwp E2 p Ψ2.
 Proof.
-  iIntros (H1 H2 s vv Ψ) "(%F&%HF&%e&%He&HH)".
-  iExists F. iSplit; first done.
-  iExists e. iSplit; first done.
-  iNext. iApply (wp_strong_mono with "HH"). 1: done. 1: done.
-  by iIntros (v) "$".
+  iIntros (H1 H2 s vv Ψ) "(%HF&HH)".
+  iSplit; first done. iIntros (?) "Hcont".
+  iApply (wp_strong_mono _ _ _ _ _ _ Φ' Φ' with "[HH Hcont] []"). 1: done. 1: done.
+  { iApply "HH". eauto. }
+  eauto.
+Qed.
+
+Lemma prove_prog_correct E p Ψe Ψ :
+  Ψ except (dom p) ⊑ ⊥ →
+  (∀ fn vs Φ,
+    {{{ Ψ fn vs Φ }}} of_class Λ (ExprCall fn vs) @ ⟨p, Ψe⟩; E
+    {{{ r, RET r; Φ r }}}) →
+  Ψe ||- p @ E :: Ψ.
+Proof.
+  iIntros (HΨ Hspec fn vs Φ) "H". rewrite /progwp.
+  destruct (decide (fn ∈ dom p)).
+  { iSplit; first done. iIntros (?) "Hcont".
+    iApply (Hspec with "H"). eauto. }
+  { iExFalso. iApply (HΨ fn vs Φ with "[H]"). rewrite /proto_except /=.
+    eauto. }
 Qed.
 
 End wp.

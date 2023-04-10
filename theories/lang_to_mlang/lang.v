@@ -33,8 +33,12 @@ Section ToMlang.
   Definition is_call (e : Λ.(expr)) (s : string) (vs : list val) (C : cont) : Prop := 
     e = fill C (of_class Λ (ExprCall s vs)).
 
+  Definition to_call (s : string) (vs : list val) : Λ.(expr) :=
+    of_class Λ (ExprCall s vs).
+
   Lemma language_mlanguage_mixin :
-    MlanguageMixin (val:=val) (of_val Λ) to_val is_call (fill) (Λ.(comp_ectx)) (Λ.(apply_func)) prim_step.
+    MlanguageMixin (val:=val) (of_val Λ) to_val to_call is_call empty_ectx
+      (fill) (Λ.(comp_ectx)) (Λ.(apply_func)) prim_step.
   Proof using.
     constructor.
     - apply to_of_val.
@@ -55,8 +59,14 @@ Section ToMlang.
           congruence.
     - intros e [v Hv] f vs C ->. rewrite to_val_fill_call in Hv; done.
     - intros e C1 C2 s vv Heq. rewrite /is_call -fill_comp. by f_equal.
+    - intros. unfold is_call, to_call. rewrite fill_empty //.
+    - by intros * ->.
+    - intros *. unfold is_call, to_call. intros HH.
+      rewrite -(fill_empty (of_class _ _)) in HH.
+      apply call_call_in_ctx in HH. destruct_and!; eauto.
     - intros e C. apply fill_val.
     - intros e C1 C2. apply fill_comp.
+    - intros ?. apply fill_empty.
     - intros p C e σ X Hnv. inversion 1; simplify_eq. econstructor.
       { intros ?. eapply reducible_fill; eauto. }
       intros e2 σ2 Hstep. eapply fill_step_inv in Hstep as (?&?&?); eauto.

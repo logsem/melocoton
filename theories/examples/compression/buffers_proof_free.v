@@ -21,16 +21,14 @@ Section Proofs.
   Lemma buf_free_correct Ψ :
     prims_proto Ψ ||- buf_lib_prog :: wrap_proto (buf_free_spec_ML).
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H".
-    iNamed "Hproto".
-    cbn. unfold progwp. solve_lookup_fixed.
+    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
+    iSplit; first done.
+    iIntros (Φ'') "HΦ".
     destruct lvs as [|lv [|??]]; first done.
     all: cbn; iDestruct "Hsim" as "(Hsim&H)"; try done.
     destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons_inv_l in Hrepr as (wγ&?&Hlγ&_&?); simplify_eq.
-    cbn. iExists _. iSplit; first done.
-    iExists _. cbn. solve_lookup_fixed.
-    iSplit; first done. iNext.
+    cbn. wp_call_direct.
 
     iMod (bufToC with "HGC Hbuf Hsim") as "(HGC&HBuf1&%&%&->)".
     iNamed "HBuf1". iNamed "Hbuf".
@@ -87,7 +85,7 @@ Section Proofs.
       iSplit; iPureIntro; [eapply Heq2|eapply Heq1]; done.
     }
     iModIntro.
-    iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
+    iApply "HΦ". iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
   Qed.
 
 End Proofs.

@@ -21,14 +21,13 @@ Section Proofs.
     prims_proto Ψ ||- buf_lib_prog :: wrap_proto buf_alloc_spec_ML.
   Proof using.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    cbn. unfold progwp. solve_lookup_fixed.
+    iSplit; first done.
+    iIntros (Φ'') "HΦ".
     destruct lvs as [|lv [|??]]; first done.
     all: cbn; iDestruct "Hsim" as "(->&H)"; try done.
     destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons_inv_l in Hrepr as (wcap&?&Hlval&_&?); simplify_eq.
-    cbn. iExists _. iSplit; first done.
-    iExists _. cbn. solve_lookup_fixed.
-    iSplit; first done. iNext.
+    cbn. wp_call_direct.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓbk) "(HGC&Hℓbk)"; wp_pures.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
@@ -125,7 +124,7 @@ Section Proofs.
     iAssert (meta_token ℓbts ⊤) with "[Hstuff]" as "Hmeta".
     { destruct ncap as [|ncap]; first lia.
       cbn. rewrite loc_add_0. iDestruct "Hstuff" as "($&_)". }
-    iModIntro. iApply ("Cont" with "HGC (HCont Hbuffer Hmeta) Hsim [//]").
+    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC (HCont Hbuffer Hmeta) Hsim [//]").
   Qed.
 
 End Proofs.

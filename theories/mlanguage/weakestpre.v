@@ -69,9 +69,10 @@ Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 Definition mprogwp `{!indexT, !invG Σ, !mlangG val Λ Σ}
   E (p : mlang_prog Λ) (Ψ : protocol val Σ) : protocol val Σ
 :=
-  (λ fname vs Φ, ∃ fn, ⌜p !! fname = Some fn⌝ ∗
-     ∃ e, ⌜apply_func fn vs = Some e⌝ ∗ ▷
-     (at_boundary Λ -∗ WP e @ ⟪p, Ψ⟫; E {{ λ v, Φ v ∗ at_boundary Λ }}))%I.
+  (λ fname vs Φ, ⌜fname ∈ dom p⌝ ∗ ∀ Φ',
+     at_boundary Λ -∗
+     ▷ (∀ v, Φ v ∗ at_boundary Λ -∗ Φ' v) -∗
+     WP to_call Λ fname vs @ ⟪p, Ψ⟫; E {{ Φ' }})%I.
 
 Notation "Ψext '|-' p @ E '::' Ψp" := (Ψp ⊑ mprogwp E p Ψext)
   (at level 50, p, E, Ψp at level 51).
@@ -306,6 +307,28 @@ Proof. iIntros "[? H]". iApply (wp_post_mono with "H"); auto with iFrame. Qed.
 Lemma wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_post_mono with "H"); auto with iFrame. Qed.
 
+Lemma wp_internal_call_inv E p Ψ fn vs Φ :
+  fn ∈ dom p →
+  WP to_call Λ fn vs @ ⟪p, Ψ⟫; E {{ Φ }} -∗
+  ∀ σ, state_interp σ ={E}=∗
+  ∃ X, ⌜prim_step p (to_call Λ fn vs, σ) X⌝ ∗
+    (∀ e' σ',
+      ⌜X (e', σ')⌝ ={E}▷=∗ state_interp σ' ∗
+      WP e' @ ⟪p,Ψ⟫; E {{ v, Φ v }}).
+Proof.
+  iIntros (Hfn) "HWP". iIntros (σ) "Hσ".
+  rewrite !wp_unfold /wp_pre /=.
+  iDestruct ("HWP" with "Hσ") as ">[HWP|[HWP|HWP]]".
+  { iExFalso. iDestruct "HWP" as (? HH) "?".
+    assert (is_call (of_val Λ v) fn vs empty_cont) as Hv%is_val_not_call_2.
+    { rewrite -HH. apply to_call_is_call. }
+    rewrite to_of_val // in Hv. }
+  { iExFalso. iDestruct "HWP" as (? ? ? HH Hdom) "_".
+    apply not_elem_of_dom in Hdom.
+    by apply is_call_to_call_inv in HH as (?&?&?); simplify_eq. }
+  iDestruct "HWP" as "[_ HWP]". done.
+Qed.
+
 Lemma wp_extern pe e fn vs C E Φ Φ' :
   is_call e fn vs C →
   penv_prog pe !! fn = None →
@@ -338,20 +361,16 @@ Proof.
   iIntros (? ? (-> & ->)). by iFrame.
 Qed.
 
-Lemma wp_internal_call_at_boundary p e fn vs C Ψ E Φ Φ' :
-  is_call e fn vs C →
+Lemma wp_internal_call_at_boundary p fn vs Ψ E Φ Φ' :
   at_boundary Λ -∗
   mprogwp E p Ψ fn vs Φ -∗
-  (▷ ∀ v, Φ v -∗ at_boundary Λ -∗ WP resume_with C (of_val Λ v) @ ⟪p, Ψ⟫; E {{ Φ' }}) -∗
-  WP e @ ⟪p, Ψ⟫; E {{ Φ' }}.
+  ▷ (∀ v, Φ v ∗ at_boundary Λ -∗ Φ' v) -∗
+  WP to_call Λ fn vs @ ⟪p, Ψ⟫; E {{ Φ' }}.
 Proof.
-  iIntros (Hcall) "Hb H Hcont".
-  iDestruct "H" as (? ? ? ?) "H".
-  iApply wp_internal_call; [done..|]. iNext.
-  iApply wp_bind. iApply (wp_post_mono with "[H Hb]").
-  { by iApply "H". }
-  cbn. iIntros (?) "(HΦ & Hb)". iModIntro.
-  iApply ("Hcont" with "HΦ Hb").
+  iIntros "Hb HWP Hcont".
+  iDestruct "HWP" as "[%Hin Hwp]".
+  iDestruct ("Hwp" with "Hb Hcont") as "Hwp".
+  iApply (wp_post_mono with "Hwp"). eauto.
 Qed.
 
 Lemma wp_wand s E e Φ Φ' :
@@ -377,10 +396,11 @@ Lemma progwp_mono E1 E2 Ψ1 Ψ2 p :
   E1 ⊆ E2 → Ψ1 ⊑ Ψ2 →
   mprogwp E1 p Ψ1 ⊑ mprogwp E2 p Ψ2.
 Proof.
-  iIntros (HE HΨ ? ? ?) "H". rewrite /mprogwp.
-  iDestruct "H" as (? ? ? ?) "H". do 2 (iExists _; iSplit; first done).
-  iNext. iIntros "Hb". iSpecialize ("H" with "Hb").
-  iApply (wp_strong_mono with "H"); auto.
+  iIntros (HE HΨ ? ? ?) "[% H]". rewrite /mprogwp.
+  iSplit; first done. iIntros (Φ') "Hb HCont".
+  iSpecialize ("H" with "[$Hb]"); eauto.
+  iApply (wp_strong_mono with "[H HCont]"); [eauto..| |].
+  { iApply ("H" with "HCont"). } eauto.
 Qed.
 
 Lemma prog_triple_mono E1 E2 Ψ1 Ψ1' Ψ2 Ψ2' p :
@@ -400,8 +420,7 @@ Proof. intros. by eapply prog_triple_mono. Qed.
 
 Lemma mprogwp_except_dom E p Ψ : (mprogwp E p Ψ) except (dom p) ⊑ ⊥.
 Proof.
-  iIntros (? ? ?). rewrite /proto_except /=. iIntros "[% H]".
-  iDestruct "H" as (? Hinp) "?". by apply elem_of_dom_2 in Hinp.
+  iIntros (? ? ?). rewrite /proto_except /=. by iIntros "[% [% H]]".
 Qed.
 
 End wp.
