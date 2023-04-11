@@ -115,8 +115,8 @@ Section Proofs.
     destruct lvs as [|lvl [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimv&Hsim)"; try done.
     destruct ws as [|wv [|??]]; decompose_Forall.
-    iExists _. iSplit; first done.
-    iExists _. solve_lookup_fixed. iSplit; first done. iNext.
+    iSplit; first done. iIntros (Φ'') "HΦ".
+    wp_call_direct.
     wp_apply (wp_Malloc); [done..|].
     change (Z.to_nat 2) with 2. cbn.
     iIntros (ℓ) "((Hℓ0&Hℓ1&_)&_)".
@@ -139,7 +139,7 @@ Section Proofs.
     iMod (na_inv_alloc logrel_nais _ _ (box_invariant_2 ℓ (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)) with "[Hℓ0]") as "#Hinv2".
     { iNext. iRight. iFrame. }
     iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
-    iModIntro. iApply ("Cont" $! θ1 (#(LitForeign i)) with "HGC [-] [] []").
+    iModIntro. iApply "HΦ". iApply ("Cont" $! θ1 (#(LitForeign i)) with "HGC [-] [] []").
     2: iExists _; by iFrame "Hi".
     2: done.
     iApply ("HWP" with "Hna [-]").
@@ -159,8 +159,8 @@ Section Proofs.
     all: cbn; iDestruct "Hsim" as "(Hsimvn&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
     destruct ws as [|wn [|wb [|??]]]; decompose_Forall.
-    iExists _. iSplit; first done.
-    iExists _. solve_lookup_fixed. iSplit; first done. iNext.
+    iSplit; first done. iIntros (Φ'') "HΦ".
+    wp_call_direct.
     iDestruct "Hbox" as (i γ ℓ) "(->&#Hsimγ&#Hγfgn&#Hinv1&#Hinv2)".
     iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
     iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
@@ -196,7 +196,7 @@ Section Proofs.
       wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)".
-      iApply ("Cont" with "HGC (HWP Hna) [//] [//]").
+      iApply "HΦ". iApply ("Cont" with "HGC (HWP Hna) [//] [//]").
     - wp_apply (wp_load with "Hℓ0"). iIntros "Hℓ0".
       wp_pures.
       iMod ("Hclose2" with "[$Hna Hℓ0]") as "Hna".
@@ -205,7 +205,7 @@ Section Proofs.
       { iNext. iExists _, _. iFrame "Hℓ1 Hvn Hsimvn". }
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)".
-      iApply ("Cont" with "HGC (HWP Hna) [//] [//]").
+      iApply "HΦ". iApply ("Cont" with "HGC (HWP Hna) [//] [//]").
   Qed.
 
 
@@ -218,8 +218,8 @@ Section Proofs.
     all: cbn; iDestruct "Hsim" as "(Hsimvl&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
     destruct ws as [|wl [|wb [|??]]]; decompose_Forall.
-    iExists _. iSplit; first done.
-    iExists _. solve_lookup_fixed. iSplit; first done. iNext.
+    iSplit; first done. iIntros (Φ'') "HΦ".
+    wp_call_direct.
     iDestruct "Hbox" as (i γ ℓ) "(->&#Hsimγ&#Hγfgn&#Hinv1&#Hinv2)".
     iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
     iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
@@ -252,7 +252,7 @@ Section Proofs.
       wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)".
-      iApply ("Cont" with "HGC (HWP Hna) [//] [//]").
+      iApply "HΦ". iApply ("Cont" with "HGC (HWP Hna) [//] [//]").
   Qed.
   End InPsi.
 
