@@ -64,7 +64,7 @@ Section logrel.
   Program Definition interp_arrow
       (interp1 interp2 : listO D -n> D) : listO D -n> D :=
     λne Δ,
-    PersPred (λ w, □ ∀ v, interp1 Δ v → na_tok -∗
+    PersPred (λ w, ∃ b1 b2 e, ⌜w = RecV b1 b2 e⌝ ∗ □ ∀ v, interp1 Δ v → na_tok -∗
                         WP App (of_val w) (of_val v) {{ λ v, interp2 Δ v ∗ na_tok }})%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 

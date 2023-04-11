@@ -183,12 +183,12 @@ Section typed_interp.
       iApply wp_pure_step_later; auto 1 using to_of_val; asimpl. iIntros "!>".
       iPoseProof ("IH2" $! Δ vs with "HΓ HP") as "IH".
       iApply (interp_expr_bind [AppLCtx _]); first (by iApply "IH"); last iFrame.
-      iIntros (v) "#Hv". by iApply "Hv".
+      iIntros (v) "#(%&%&%&_&Hv)". by iApply "Hv".
     + iIntros "Htok".
       iApply wp_pure_step_later; auto 1 using to_of_val; asimpl. iIntros "!>".
       iPoseProof ("IH3" $! Δ vs with "HΓ HP") as "IH".
       iApply (interp_expr_bind [AppLCtx _]); first (by iApply "IH"); last iFrame.
-      iIntros (v) "#Hv". by iApply "Hv".
+      iIntros (v) "#(%&%&%&_&Hv)". by iApply "Hv".
   Qed.
 
   Lemma sem_typed_if P Γ e0 e1 e2 τ :
@@ -215,6 +215,7 @@ Section typed_interp.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP Htok"; simpl.
     iApply wp_pure_step_later; first done; iIntros "!>".
     iApply wp_value; first done. iFrame "Htok". iLöb as "IHL". cbn.
+    iExists _, _, _. iSplit; first done.
     iIntros "!> %v #Hv Htok".
     iApply wp_pure_step_later; first done; iIntros "!>".
     rewrite (binder_delete_binder_delete f x) /env_subst -(subst_all_binder_insert_2).
@@ -229,7 +230,7 @@ Section typed_interp.
     iApply (interp_expr_bind [AppRCtx _]); first by iApply "IH2".
     iIntros (v) "#Hv /=".
     iApply (interp_expr_bind [AppLCtx _]); first by iApply "IH1".
-    cbn. iIntros (w) "#Hw/=".
+    cbn. iIntros (w) "#(%&%&%&_&Hw)/=".
     iApply "Hw"; done.
   Qed.
 

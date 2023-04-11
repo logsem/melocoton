@@ -178,7 +178,7 @@ Tactic Notation "wp_extern" :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let e := eval simpl in e in
     reshape_expr e ltac:(fun K e' => match e' with Extern (?s) (map Val ?vv) => 
-      iApply (@wp_extern _ _ ML_lang _ _ _ K _ s vv); [iPureIntro; vm_compute; reflexivity | ] end)
+      iApply (@wp_extern _ _ ML_lang _ _ _ K _ s vv); [try (iPureIntro; vm_compute; reflexivity) | ] end)
     || fail "wp_extern: expression not a call"
   | _ => fail "wp_extern: not a 'wp'"
   end.

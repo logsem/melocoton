@@ -161,7 +161,7 @@ Notation "'extern:' s 'with' '(' ')'" := (Extern s nil)
 
 
 Definition TLam e := ((λ: <>, e%MLE)%MLE).
-Definition TLamV v := ((λ: <>, v%MLV)%MLV).
+Definition TLamV v := ((λ: <>, v%MLE)%MLV).
 Definition TApp e1 := (App e1%MLE (#())%MLV).
 Definition IdFunc e := (((λ: "x", "x"%MLE)%MLV e%MLE)%MLE).
 Definition Roll e := (IdFunc e%MLE).
