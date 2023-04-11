@@ -108,7 +108,7 @@ Definition fullprog : mlang_prog (link_lang C_mlang C_mlang) :=
 (* The full program implements both is_even and is_odd, without making external calls *)
 Lemma fullprog_correct : ⊥ |- fullprog :: is_even_proto ⊔ is_odd_proto.
 Proof.
-  intros. eapply link_close_correct; [set_solver|done|done|..].
+  intros. eapply link_close_correct; [set_solver|..].
   - apply lang_to_mlang_correct, is_even_correct.
   - apply lang_to_mlang_correct, is_odd_correct.
 Qed.

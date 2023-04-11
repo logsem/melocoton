@@ -720,20 +720,18 @@ Proof using.
     iApply ("IH" with "HWP Hin"). }
 Qed.
 
-Lemma link_close_correct p1 p2 Ψ1 Ψ2 Ψext1 Ψext2 :
+Lemma link_close_correct p1 p2 Ψ1 Ψ2 :
   dom p1 ## dom p2 →
-  Ψext1 ⊑ Ψ2 →
-  Ψext2 ⊑ Ψ1 →
-  Ψext1 |- p1 :: Ψ1 →
-  Ψext2 |- p2 :: Ψ2 →
-      ⊥ |- (link_prog p1 p2) :: Ψ1 ⊔ Ψ2.
+  Ψ2 |- p1 :: Ψ1 →
+  Ψ1 |- p2 :: Ψ2 →
+   ⊥ |- (link_prog p1 p2) :: Ψ1 ⊔ Ψ2.
 Proof using.
-  intros Hlink He1 He2 H1 H2. eapply link_correct; eauto.
+  intros Hlink H1 H2. eapply link_correct; eauto.
   constructor; first done.
   { rewrite -H2 proto_on_refines //. }
   { rewrite -H1 proto_on_refines //. }
-  { rewrite He1 H2. apply mprogwp_except_dom. }
-  { rewrite He2 H1. apply mprogwp_except_dom. }
+  { rewrite H2. apply mprogwp_except_dom. }
+  { rewrite H1. apply mprogwp_except_dom. }
 Qed.
 
 End Linking_logic.

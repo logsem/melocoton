@@ -57,13 +57,15 @@ Lemma combined_correct `{indexT} `{!ffiG Σ}
 Proof.
   intros.
   eapply prog_triple_mono_r; swap 1 2.
-  { eapply link_close_correct.
-    { rewrite dom_prims_prog. set_solver. }
-    3: { by apply wrap_correct. }
-    3: { by apply lang_to_mlang_correct. }
-    1: done.
-    apply proto_refines_join_l. }
-  { rewrite -proto_refines_join_l -proto_refines_join_r //. }
+  1: eapply link_close_correct.
+  { rewrite dom_prims_prog. set_solver. }
+  1: eapply prog_triple_mono; last by apply wrap_correct.
+  1: reflexivity.
+  1: reflexivity.
+  1: eapply prog_triple_mono; last by apply lang_to_mlang_correct.
+  2: reflexivity.
+  1: by rewrite -proto_refines_join_l.
+  by rewrite -proto_refines_join_l -proto_refines_join_r.
 Qed.
 
 Section AllocBasics.
