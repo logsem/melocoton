@@ -23,7 +23,7 @@ Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
     "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
     "#Hsim" ∷ lvs ~~∗ vs ∗
     "Hproto" ∷ Ψ f vs Φ' ∗
-    "Cont" ∷ ▷ (∀ θ' vret lvret wret,
+    "Cont" ∷ (∀ θ' vret lvret wret,
       GC θ' -∗
       Φ' vret -∗
       lvret ~~ vret -∗
