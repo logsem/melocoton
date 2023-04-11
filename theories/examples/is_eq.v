@@ -57,10 +57,8 @@ Section C_specs.
   Fixpoint valid_is_eq_type (τ : type) : Prop :=
     match τ with
     | TUnit | TNat | TBool => True
-    (* | TArray τ => valid_is_eq_type τ *)
-    | TArray τ => False
     | TProd τ1 τ2 | TSum τ1 τ2 => valid_is_eq_type τ1 ∧ valid_is_eq_type τ2
-    | TArrow _ _ | TRec _ | TVar _ | TForall _ | TExist _ => False
+    | TArray _ | TArrow _ _ | TRec _ | TVar _ | TForall _ | TExist _ => False
     end.
 
 
