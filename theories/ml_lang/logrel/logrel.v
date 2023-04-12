@@ -131,25 +131,18 @@ Section logrel.
     ([∗ map] x↦τ;v ∈ Γ;vs, ⟦ τ ⟧ Δ v)%I.
   Notation "⟦ Γ ⟧*" := (interp_env Γ).
 
-  Definition interp_prog_type (Δ : listO D) s (t : program_type) : protocol val Σ := match t with FunType tl tr =>
-    (λ s' vv Φ, ⌜s = s'⌝ ∗ ([∗ list] k↦τ;v ∈ tl;vv, ⟦ τ ⟧ Δ v) ∗ (∀ vr, ⟦ tr ⟧ Δ vr -∗ Φ vr))%I end.
+  Definition prog_env_proto (p_types : gmap string program_type) (Δ : listO D) : protocol val Σ :=
+    (λ s vv Φ, ∃ tl tr, ⌜p_types !! s = Some (FunType tl tr)⌝
+                      ∗ ([∗ list] k↦τ;v ∈ tl;vv, ⟦ τ ⟧ Δ v)
+                      ∗ na_tok
+                      ∗ (∀ vr, ⟦ tr ⟧ Δ vr -∗ na_tok -∗ Φ vr))%I.
 
   (* Compare with language/wp_link.v
      The difference between this and program_fulfills is that we allow axiomatically specified
-     functions to be well-typed.
-      XXX @armael: rephrase in terms of protocols *)
-  Definition program_spec_satisfied
-    (Tshould : protocol val Σ) : iProp Σ :=
-    □ ∀ s vv Φ, Tshould s vv Φ -∗ na_tok -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v ∗ na_tok}}.
+     functions to be well-typed.*)
 
   Definition interp_prog_env (p_types : gmap string program_type) (Δ : listO D) : iProp Σ :=
-    ([∗ map] s↦τ ∈ p_types, program_spec_satisfied (interp_prog_type Δ s τ))%I.
-
-  Global Instance prog_spec_sat_pers Tshould : Persistent (program_spec_satisfied Tshould).
-  Proof. apply intuitionistically_persistent. Qed.
-
-  Global Instance interp_prog_env_pers p_types Δ : Persistent (interp_prog_env p_types Δ).
-  Proof. eapply big_sepM_persistent. intros k x; apply prog_spec_sat_pers. Qed.
+    (□ ∀ s vv Φ, prog_env_proto p_types Δ s vv Φ -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v}}).
 
   Definition interp_expr (τ : type) (Δ : listO D) (e : expr ML_lang) : iProp Σ :=
     na_tok -∗ WP e {{ λ v, ⟦ τ ⟧ Δ v ∗ na_tok }}%I.
@@ -255,22 +248,29 @@ Section logrel.
   Lemma interp_prog_env_ren Δ P τi :
     interp_prog_env (subst_prog_env (ren (+1)) P) (τi :: Δ) ⊣⊢ interp_prog_env P Δ.
   Proof.
-    etransitivity; first apply big_sepM_fmap.
-    iStartProof. iSplit; iIntros "H"; iApply (big_sepM_wand with "H []");
-    iApply (big_sepM_intro); iIntros "!>" (s [tl tr] Hs) "#H !> %s' %vv %Φ (% & #Hl & Hr)"; subst s';
-    iApply ("H" $! s vv Φ); (iSplit; first done); iSplitL "Hl".
-    - iApply big_sepL2_fmap_l. iApply (big_sepL2_wand with "Hl").
-      iPoseProof (big_sepL2_length with "Hl") as "%Hlen". 
-      iApply big_sepL2_intro; first done.
-      iIntros "!> %k %τ1 %v1 %H1 %H2 HH". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
-    - iIntros (r) "HH". iApply "Hr". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
-    - iDestruct big_sepL2_fmap_l as "[HHL HHR]"; iPoseProof ("HHL" with "Hl") as "Hl'".
-      iApply (big_sepL2_wand with "Hl'").
-      iPoseProof (big_sepL2_length with "Hl") as "%Hlen".
-      rewrite fmap_length in Hlen. 
-      iApply big_sepL2_intro; first done.
-      iIntros "!> %k %τ1 %v1 %H1 %H2 HH". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
-    - iIntros (r) "HH". iApply "Hr". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done.
+    iStartProof. unfold interp_prog_env.
+    iSplit; iIntros "#H !>" (s vv Φ); iIntros "(%tl&%tr&%Ht&Htl&Htok&HWP)"; iApply ("H"); iFrame "Htok".
+    - rewrite /subst_prog_env lookup_fmap Ht; iExists _, _. iSplit; first done.
+      iSplitL "Htl".
+      { iApply big_sepL2_fmap_l.
+        iPoseProof (big_sepL2_length with "Htl") as "%Hlen".
+        iApply (big_sepL2_wand with "Htl").
+        iApply big_sepL2_intro; first done.
+        iIntros "!> %k %τ1 %v1 %H1 %H2 HH". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done. }
+      { iIntros (vr) "Hvr Htok". iApply ("HWP" with "[Hvr] Htok").
+        iPoseProof (interp_weaken [] [τi] Δ with "Hvr") as "HHH". done. }
+    - rewrite /subst_prog_env in Ht. apply lookup_fmap_Some in Ht as ([tl' tr']&Hlu&HH). rewrite HH.
+      iExists _, _. iSplit; first done.
+      cbn in Hlu. simplify_eq.
+      iSplitL "Htl".
+      { iPoseProof (big_sepL2_length with "Htl") as "%Hlen".
+        iDestruct big_sepL2_fmap_l as "[HHL HHR]"; iPoseProof ("HHL" with "Htl") as "Hl'".
+        iApply (big_sepL2_wand with "Hl'").
+        rewrite fmap_length in Hlen.
+        iApply big_sepL2_intro; first done.
+        iIntros "!> %k %τ1 %v1 %H1 %H2 HH". iPoseProof (interp_weaken [] [τi] Δ with "HH") as "HHH". done. }
+      { iIntros (vr) "Hvr Htok". iApply ("HWP" with "[Hvr] Htok").
+        iPoseProof (interp_weaken [] [τi] Δ with "Hvr") as "HHH". done. }
   Qed.
 End logrel.
 

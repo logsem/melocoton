@@ -58,7 +58,7 @@ Proof.
          apply buf_library_spec_ML_pre_mono, buf_library_spec_ML_sim. }
     { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
       rewrite !dom_insert dom_empty /= in H.
-      iDestruct "H" as "[[[[H|H]|H]|H]|H]".
+      iDestruct "H" as "[[[[[H|H]|H]|H]|H]|H]".
       all: iNamed "H"; exfalso; cbn in H; set_solver. }
     { set_solver. } }
   { by intros [? ?] (? & ? & ->). }

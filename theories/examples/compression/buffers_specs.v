@@ -44,6 +44,7 @@ Instead, everything that needs to be mutable must be heap-allocated (and prefera
 Definition buf_alloc_name := "buf_alloc".
 Definition buf_upd_name := "buf_upd".
 Definition buf_free_name := "buf_free".
+Definition buf_get_name := "buf_get".
 Definition wrap_max_len_name := "wrap_max_len".
 Definition wrap_compress_name := "wrap_compress".
 
@@ -242,13 +243,22 @@ Section Specs.
                                             γfgn ~foreign~ fid -∗ ℓML ↦M #(-1) -∗
                                             γfgn ↦foreign (C_intf.LitV LitNull) -∗ Φ #()).
 
+  Definition buf_get_spec_ML s vv Φ : iProp Σ :=
+    ∃ v ℓ Pb cap (idx:nat) (res:Z),
+      "->" ∷ ⌜s = buf_get_name⌝
+    ∗ "->" ∷ ⌜vv = [ v; #idx ]⌝
+    ∗ "Hbuf" ∷ isBufferRecordML v ℓ (λ a b, Pb a b ∗ ⌜b !! idx = Some (Some res)⌝) cap
+    ∗ "%Hcap" ∷ ⌜idx < cap⌝
+    ∗ "HCont" ∷ ▷ (isBufferRecordML v ℓ (λ a b, Pb a b ∗ ⌜b !! idx = Some (Some res)⌝) cap -∗
+                          Φ (#res)).
+
   Definition buf_library_spec_ML_pre : (protocol ML_lang.val Σ) -d> (protocol ML_lang.val Σ) := λ (protoCB : (protocol ML_lang.val Σ)),
-    buf_alloc_spec_ML ⊔ buf_update_spec_ML protoCB ⊔ buf_free_spec_ML ⊔ wrap_compress_spec_ML ⊔ wrap_max_len_spec_ML.
+    buf_alloc_spec_ML ⊔ buf_update_spec_ML protoCB ⊔ buf_free_spec_ML ⊔ wrap_compress_spec_ML ⊔ wrap_max_len_spec_ML ⊔ buf_get_spec_ML.
 
   Global Instance buf_library_spec_ML_contractive : Contractive buf_library_spec_ML_pre.
   Proof.
     rewrite /buf_library_spec_ML_pre /= => n pp1 pp2 Hpp.
-    do 4 f_equiv.
+    do 5 f_equiv.
     unfold buf_update_spec_ML, named.
     do 35 first [intros ?|f_equiv]. f_contractive.
     do 5 first [intros ?|f_equiv].
@@ -258,9 +268,9 @@ Section Specs.
   Lemma buf_library_spec_ML_pre_mono Ψ1 Ψ2 : Ψ1 ⊑ Ψ2 →
     buf_library_spec_ML_pre Ψ1 ⊑ buf_library_spec_ML_pre Ψ2.
   Proof.
-    iIntros (HΨ s vv Φ) "[[[[H|H]|H]|H]|H]".
-    - do 4 iLeft. done.
-    - do 3 iLeft; iRight. iNamed "H". unfold buf_update_spec_ML.
+    iIntros (HΨ s vv Φ) "[[[[[H|H]|H]|H]|H]|H]".
+    - do 5 iLeft. done.
+    - do 4 iLeft; iRight. iNamed "H". unfold buf_update_spec_ML.
       iExists Ψ, Ψframe, Φz, i, j, ℓbuf.
       iExists cap, Pb, vbuf, b1, b2, F.
       iFrame "HCont HMergeInitial Hrecord Hframe HMerge".
@@ -268,6 +278,7 @@ Section Specs.
       iIntros "!> !> %z HH1 HH2 HH3".
       iSpecialize ("HWP" $! z with "HH1 HH2 HH3").
       iApply (wp_strong_mono with "HWP"). 1-2: done. by iIntros (v) "$".
+    - do 3 iLeft; by iRight.
     - do 2 iLeft; by iRight.
     - do 1 iLeft; by iRight.
     - do 0 iLeft; by iRight.

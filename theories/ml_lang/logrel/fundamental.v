@@ -407,13 +407,11 @@ Section typed_interp.
   Proof.
     iIntros (HPs) "#HΓ #HP %H2 #H1".
     iInduction el2 as [|e el2] "IH" forall (vl1 tl1 tl2 HPs H2) "H1".
-    - cbn. rewrite app_nil_r. eapply Forall2_nil_inv_l in H2 as ->.
-      rewrite app_nil_r in HPs.
-      iPoseProof (big_sepM_lookup with "HP") as "#HPs"; first exact HPs. cbn.
-      iApply ("HPs" $! s vl1 (⟦ tr ⟧ Δ)).
-      iSplitR; first done.
-      iSplitL; last by iIntros (r) "Hr".
-      iApply "H1".
+    - cbn. apply Forall2_nil_inv_l in H2; subst tl2.
+      iIntros "Htok". rewrite !app_nil_r in HPs|-*.
+      iApply "HP". iExists _, _.
+      iSplit; first done. iFrame "Htok H1".
+      iIntros (v) "$ $".
     - eapply Forall2_cons_inv_l in H2 as (τ&tl2'&Heτ&H2&->).
       cbn. iPoseProof Heτ as "Heτ"; clear Heτ.
       iApply (interp_expr_bind [ExternCtx s vl1 _]); first by iApply "Heτ".
@@ -466,4 +464,49 @@ Section typed_interp.
     - iApply sem_typed_store; done.
     - iApply sem_typed_extern; done.
   Qed.
+
+  (* Semantic well-typedness of the external program context is a bit weird.
+     Basically, all that is required is that the specifications of external calls which is used in the definition
+     of the E-relation (i.e. what it means to be a safe expression at type T, namely to reduce (with these external calls)
+       to a safe value at type T) is stronger than the program-type-induced specification.
+     The way to prove this is to just prove that one specification refines another.
+     In particular, the proof that some external C code obeys the specification is only needed when linking the two programs.
+
+     In addition to this, remember that the ML programs can also have "internal" "global functions".
+     In the paper, this is not used, but if this is used, then the "external" functions can also be resolved internally.
+     For this, one can prove that their source code is well-typed -- this is what program_typed expresses.
+     This theorem then just shows that this indeed suffices to show that such internally defined "external" functions
+     obey the intended specification, as a sanity check *)
+  Theorem fundamental_prog_env P : program_typed P (penv_prog p) → ⊢ ∀ Δ, ⟦ P ⟧ₚ* Δ.
+  Proof.
+    intros Htyped.
+    iLöb as "IHL".
+    iIntros (Δ).
+    iIntros "!>" (s vv Φ) "(%ats&%tr&%Heq&Hargs&Htok&HCont)".
+    pose proof (map_Forall_lookup_1 _ _ _ _ Htyped Heq) as ([bs e]&Hm&Γ'&HΓ'&Htye).
+    iPoseProof (big_sepL2_length with "Hargs") as "%Hlen".
+    iAssert (∃ args, ⌜zip_args bs vv = Some args⌝ ∗ [∗ map] τ;v ∈ Γ';args, (⟦ τ ⟧ Δ) v)%I with "[Hargs]" as "(%args&%Hargs&Hmap)".
+    { clear Htye Heq Hm.
+      iInduction bs as [|bs1 bsr] "IH" forall (ats vv Γ' HΓ' Hlen).
+      - destruct ats; try by cbn in *.
+        destruct vv; try by cbn in *. iExists _. iSplit; first done. cbn in HΓ'. simplify_eq. done.
+      - destruct ats as [|ats1 atsr]; try by cbn in *.
+        destruct vv as [|vv1 vvr]; cbn in *; first done.
+        destruct (zip_types bsr atsr) as [Γ''|] eqn:HeqΓ''; cbn in *; try done.
+        iDestruct "Hargs" as "(Hargs1&Hargsr)".
+        iDestruct ("IH" $! atsr vvr Γ'' with "[] [] Hargsr") as "(%k&%Hk&HIHr)".
+        + done. + iPureIntro; lia. + rewrite Hk; cbn; destruct bs1;
+          (iExists _; iSplit; first done); cbn in HΓ'; simplify_eq.
+          1: done. iApply (big_sepM2_insert_2 with "[Hargs1] HIHr"). 1: iApply "Hargs1". }
+    wp_pure _.
+    1: split; first done; cbn; by rewrite Hargs.
+    iPoseProof (fundamental _ _ _ _ Htye $! Δ args with "Hmap IHL Htok") as "H".
+    iApply (wp_wand with "H"). iIntros (v) "(Hv&Htok)". iApply ("HCont" with "Hv Htok").
+  Qed.
+
+  Theorem fundamental_empty_ctx : ⊢ ∀ Δ, ⟦ ∅ ⟧* Δ ∅.
+  Proof.
+    iIntros (Δ). unfold interp_env. by iApply big_sepM2_empty.
+  Qed.
+
 End typed_interp.

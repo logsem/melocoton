@@ -12,7 +12,8 @@ From melocoton.ml_lang Require primitive_laws proofmode.
 From melocoton.c_lang Require Import notation proofmode derived_laws.
 From melocoton.examples.compression Require Import buffers_specs buffers_laws buffers_code 
   compression_specs compression_proofs
-  buffers_proof_alloc buffers_proof_update buffers_proof_free buffers_proofs_compr.
+  buffers_proof_alloc buffers_proof_update buffers_proof_free buffers_proofs_compr
+  buffers_proof_get.
 
 
 Section Proofs.
@@ -26,7 +27,7 @@ Section Proofs.
     (buffy_library_spec ⊔ prims_proto Ψ) ||- buf_lib_prog :: wrap_proto (buf_library_spec_ML_pre Ψ).
   Proof.
     iIntros (s vv Φ) "H". iNamed "H".
-    iDestruct "Hproto" as "[[[[Hproto|Hproto]|Hproto]|Hproto]|Hproto]".
+    iDestruct "Hproto" as "[[[[[Hproto|Hproto]|Hproto]|Hproto]|Hproto]|Hproto]".
     - iApply progwp_mono; [done|eapply prims_proto_refines_combspec|].
       iApply buf_alloc_correct. do 4 iExists _. iFrameNamed.
     - iApply progwp_mono; [done|eapply prims_proto_refines_combspec|].
@@ -35,6 +36,8 @@ Section Proofs.
       iApply buf_free_correct. do 4 iExists _. iFrameNamed.
     - iApply wrap_compress_correct. do 4 iExists _. iFrameNamed.
     - iApply wrap_max_len_correct. do 4 iExists _. iFrameNamed.
+    - iApply progwp_mono; [done|eapply prims_proto_refines_combspec|].
+      iApply buf_get_correct. do 4 iExists _. iFrameNamed.
   Qed.
 
   Lemma buffer_library_correct Ψ :

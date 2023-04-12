@@ -52,25 +52,25 @@ Section MLclient.
     unfold ML_client_code, ML_client_env. wp_pures.
     wp_apply (wp_length with "Hℓ"); iIntros "Hℓ". wp_pures.
 
-    wp_extern. iModIntro. cbn. do 4 iLeft. rewrite !map_length.
+    wp_extern. iModIntro. cbn. do 5 iLeft. rewrite !map_length.
     iExists (length zz). iSplit; first (iPureIntro; lia).
     iSplit; first done. iSplit; first done.
     iNext. iIntros (vin ℓinbuf) "Hinbuf _". wp_finish.
     wp_pures.
 
-    wp_extern. iModIntro. iRight.
+    wp_extern. iModIntro. iLeft. iRight.
     iExists _.
     iSplit; first done. iSplit; first done.
     iNext. wp_pures.
 
-    wp_extern. iModIntro. do 4 iLeft.
+    wp_extern. iModIntro. do 5 iLeft.
     iExists _. iSplit.
     2: iSplit; first done. 2: iSplit; first done.
     1: iPureIntro; lia.
     iNext. iIntros (vout ℓoutbuf) "Houtbuf _". wp_finish.
     wp_pures.
 
-    wp_extern. iModIntro. do 3 iLeft; iRight.
+    wp_extern. iModIntro. do 4 iLeft; iRight.
 
     pose (λ (idx:Z) (used:nat) (b : list (option Z)), 
         ∃ zpre zopost zzpost, ⌜b = map Some zpre ++ zopost⌝ ∗ ⌜length zopost = length zzpost⌝ ∗ 
@@ -131,7 +131,7 @@ Section MLclient.
       destruct zzpost; last done. destruct zopost; last done.
       by rewrite !app_nil_r. }
 
-    wp_extern. iModIntro. iLeft. iRight.
+    wp_extern. iModIntro. do 2 iLeft. iRight.
     iExists _, _, _, _, zz, nil, (λ _ _, True)%I. do 3 iExists _. unfold named.
     iSplit; first done.
     iSplit; first done.
@@ -154,14 +154,14 @@ Section MLclient.
     iAssert (⌜used2 = length (compress_buffer zz)⌝)%I as "->".
     { iNamed "Hbuf2". unfold named. iDestruct "HContent" as "(%&%&%&_&%&_)"; done. }
 
-    wp_extern. do 2 iLeft. iRight.
+    wp_extern. do 3 iLeft. iRight.
     iModIntro. iExists _, _, (λ _ _, _)%I, _.
     do 2 (iSplit; first done).
     iSplitL "Hbuf HℓbufML".
     { do 4 iExists _. iSplit; first done. iFrame. }
     iIntros "!> % % % _ _ _ _". wp_pures.
 
-    wp_extern. do 2 iLeft. iRight.
+    wp_extern. do 3 iLeft. iRight.
     iModIntro. iExists _, _, (λ _ _, _)%I, _.
     do 2 (iSplit; first done).
     iSplitL "Hbuf2 HℓbufMLout".

@@ -2,6 +2,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
+From melocoton.ml_lang.logrel Require logrel typing fundamental.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import lang weakestpre update_laws wp_utils wp_ext_call_laws wp_simulation.
@@ -140,8 +141,29 @@ Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) :=
 Section JustML.
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
-
 Import melocoton.ml_lang.proofmode.
+
+  Section LogRel.
+  Import logrel typing fundamental.
+  Context `{!logrelG Σ}.
+  Context (A B : type).
+
+  Definition program_type_ctx : program_env := 
+    {[ "swap_pair" := FunType [ TProd A B ] (TProd B A) ]}.
+
+  Lemma swap_pair_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, swap_pair_ml_spec⟩ Δ.
+  Proof.
+    iIntros (s vv Φ) "!> (%ats&%rt&%Heq&Hargs&Htok&HCont)".
+    wp_extern. iModIntro. unfold program_type_ctx in Heq.
+    apply lookup_singleton_Some in Heq as (<-&Heq). simplify_eq.
+    iPoseProof (big_sepL2_length with "Hargs") as "%Heq".
+    destruct vv as [|v [|??]]; cbn in Heq; try lia.
+    cbn. iDestruct "Hargs" as "((%w1&%w2&->&Hw1&Hw2)&_)".
+    iExists _, _. iSplit; first done. iSplit; first done.
+    wp_pures. iModIntro. iApply ("HCont" with "[-Htok] Htok").
+    iExists _, _. iSplit; first done. iFrame.
+  Qed.
+  End LogRel.
 
 Lemma ML_prog_correct_axiomatic :
   {{{ True }}} swap_pair_client at ⟨∅, swap_pair_ml_spec⟩ {{{ x, RET (#x); ⌜x = 1%Z⌝}}}.

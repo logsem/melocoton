@@ -94,6 +94,12 @@ Definition buf_free_code (bf : expr) : expr :=
 Definition buf_free_fun := Fun [BNamed "bf"] (buf_free_code "bf").
 Definition buf_free_name := "buf_free".
 
+Definition buf_get_code (bf idx : expr) : expr :=
+  let: "bts" := Custom_contents(Field(Field( bf, #1), #1)) in
+  Val_int ( * ("bts" +ₗ Int_val(idx))).
+Definition buf_get_fun := Fun [BNamed "bf"; BNamed "idx"] (buf_get_code "bf" "idx").
+Definition buf_get_name := "buf_get".
+
 Definition wrap_max_len_code (i : expr) : expr :=
    Val_int (call: &buffy_max_len_name with (Int_val (i))).
 Definition wrap_max_len_fun := Fun [BNamed "i"] (wrap_max_len_code "i").
@@ -117,7 +123,8 @@ Definition buf_lib_prog : lang_prog C_lang :=
   <[wrap_max_len_name  := wrap_max_len_fun]> (
   <[buf_free_name      := buf_free_fun]> (
   <[buf_upd_name       := buf_upd_fun]> (
-  <[buf_alloc_name     := buf_alloc_fun]>
-    ∅ )))).
+  <[buf_alloc_name     := buf_alloc_fun]>(
+  <[buf_get_name       := buf_get_fun]>
+    ∅ ))))).
 
 End C_code.
