@@ -11,11 +11,23 @@ Import uPred.
 
 (** interp : is a unary logical relation. *)
 
-Class logrelG `{SI: indexT} (Σ : gFunctors) := {
+Class logrelG `{SI: indexT} (Σ : gFunctors) := LogrelG {
   logrel_na_invG :> na_invG Σ;
   wrapperG_addrmapG :> ghost_varG Σ (leibnizO (list val));
   logrel_nais : na_inv_pool_name;
 }.
+
+Class logrelGpre `{SI: indexT} (Σ : gFunctors) := {
+  logrel_na_invG_pre :> na_invG Σ;
+  wrapperG_addrmapG_pre :> ghost_varG Σ (leibnizO (list val));
+}.
+
+Definition logrelΣ {SI: indexT} : gFunctors :=
+  #[na_invΣ; ghost_varΣ (leibnizO (list val))].
+
+Global Instance subG_logrelΣ_logrelGpre `{SI: indexT} Σ :
+  subG logrelΣ Σ → logrelGpre Σ.
+Proof. solve_inG. Qed.
 
 Notation na_tok := (na_own logrel_nais ⊤).
 
