@@ -27,6 +27,7 @@ Section MLclient.
   Definition ML_client_code : MLval := 
     λ: "vbuf",
       let: "len"  := Length "vbuf" in
+      if: "len" = #0 then #false else (
       let: "inp"  := extern: buf_alloc_name with ("len") in
       let: "outp" := extern: buf_alloc_name with (extern: wrap_max_len_name with ("len")) in
       let: <>     := extern: buf_upd_name with (#0, "len" - #1, λ: "i", LoadN "vbuf" "i", "inp") in
@@ -34,7 +35,7 @@ Section MLclient.
       let: "shrn" := ! (Fst "outp") < ! (Fst "inp") in
       let: <>     := extern: buf_free_name with ("inp") in
       let: <>     := extern: buf_free_name with ("outp") in
-      "shrn".
+      "shrn").
 
   Definition is_compressible (zz : buffer) :=
     let P := length (compress_buffer zz) < length zz
@@ -43,16 +44,20 @@ Section MLclient.
 
 
   Lemma ML_client_spec ℓ dq (zz : buffer) :
-    0 < length zz →
     {{{ ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}
       ML_client_code #ℓ at ML_client_env
     {{{ RET #(if is_compressible zz then true else false); ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}.
   Proof.
-    iIntros (Hlen Φ) "Hℓ Cont".
+    iIntros (Φ) "Hℓ Cont".
     unfold ML_client_code, ML_client_env. wp_pures.
     wp_apply (wp_length with "Hℓ"); iIntros "Hℓ". wp_pures.
+    rewrite map_length bool_decide_decide.
+    destruct decide as [Heq|Heq].
+    1: { injection Heq; intros Heq'. wp_pures. destruct zz as [|??]; cbn in *; try lia. iModIntro. iApply ("Cont" with "Hℓ"). }
+    assert (length zz ≠ 0) as Heq'.
+    1: { intros Heq2. apply Heq. by rewrite Heq2. }
 
-    wp_extern. iModIntro. cbn. do 5 iLeft. rewrite !map_length.
+    wp_pure _. wp_extern. iModIntro. cbn. do 5 iLeft.
     iExists (length zz). iSplit; first (iPureIntro; lia).
     iSplit; first done. iSplit; first done.
     iNext. iIntros (vin ℓinbuf) "Hinbuf _". wp_finish.
@@ -111,10 +116,10 @@ Section MLclient.
       - rewrite app_length /=; lia.
     }
     { iIntros "!> !> %z %Hz0 %Hzlen (Hbuf&Hℓ)".
-      assert (exists zvres, zz !! (Z.to_nat z) = Some zvres) as [zvres Heq].
+      assert (exists zvres, zz !! (Z.to_nat z) = Some zvres) as [zvres Heqq].
       1: apply lookup_lt_is_Some_2; lia.
       wp_pures. wp_apply (wp_loadN with "Hℓ"). 1: lia.
-      1: change (map ?f zz) with (fmap f zz); rewrite list_lookup_fmap Heq /= //.
+      1: change (map ?f zz) with (fmap f zz); rewrite list_lookup_fmap Heqq /= //.
       iIntros "Hℓ". iExists _.
       iSplit; first done. iFrame.
       iExists (Z.to_nat z). iSplit; first (iPureIntro; lia).
@@ -182,7 +187,7 @@ Section MLclient.
     unfold ML_client_applied_code.
     wp_apply (wp_allocN); [done..|].
     iIntros (ℓ) "(Hℓ&_)".
-    wp_apply (ML_client_spec _ _ (replicate 256 (0:Z)) with "Hℓ"). 1: rewrite replicate_length; lia.
+    wp_apply (ML_client_spec _ _ (replicate 256 (0:Z)) with "Hℓ").
     iIntros "_". wp_pures. by iApply "Cont".
   Qed.
 
