@@ -39,7 +39,7 @@ mv melocoton/tools/README_artifact.md README.md
 rm -rf melocoton/.git iris-parametric-index/.git transfinite-parametric-stepindex/.git
 rm -r melocoton/tools
 rm -r melocoton/examples
-rm -r melocoton/minilang
+rm -r melocoton/theories/minilang
 rm melocoton/opam
 rm melocoton/install-transfinite-iris.sh
 
