@@ -27,12 +27,21 @@ cd "$DIR"
 echo "Changing directory to $DIR."
 
 # clone git repos
-git clone -b oopsla23_artifact git@github.com:logsem/melocoton.git
+git clone git@github.com:logsem/melocoton.git
 git clone -b simon/parametric-index git-rts@gitlab.mpi-sws.org:simonspies/iris-parametric-index.git
 git clone -b simon/parametric-index git-rts@gitlab.mpi-sws.org:simonspies/transfinite-parametric-stepindex.git
 
+# move the setup script and artifact readme at the root of the archive
+mv melocoton/tools/setup-artifact.sh .
+mv melocoton/tools/README_artifact.md README.md
+
 # cleanup
 rm -rf melocoton/.git iris-parametric-index/.git transfinite-parametric-stepindex/.git
+rm -r melocoton/tools
+rm -r melocoton/examples
+rm -r melocoton/minilang
+rm melocoton/opam
+rm melocoton/install-transfinite-iris.sh
 
 echo "Changing directory to $CWD."
 cd "$CWD"
