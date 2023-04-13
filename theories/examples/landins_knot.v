@@ -14,11 +14,8 @@ From melocoton.ml_lang.logrel Require logrel fundamental.
 From melocoton.c_lang Require Import notation proofmode derived_laws.
 
 Definition tie_knot_code (l_arg x_arg : string) : C_lang.expr :=
-  CAMLlocal: "l" in "l" <- l_arg ;;
-  CAMLlocal: "x" in "x" <- x_arg ;;
-  let: "f" := Field( *"l", #0) in
-  let: "r" := call: &"callback" with ( "f", * "x") in
-  CAMLreturn: "r" unregistering ["l", "x"].
+  let: "f" := Field(l_arg, #0) in
+  call: &"callback" with ("f", x_arg).
 
 Definition tie_knot_prog : lang_prog C_lang :=
   {[ "tie_knot" := Fun [BNamed "l_arg"; BNamed "x_arg"] (tie_knot_code "l_arg" "x_arg") ]}.
@@ -46,14 +43,6 @@ Section C_specs.
     all: cbn; iDestruct "Hsim" as "(Hx&?)"; try done.
     destruct ws as [|wl [|wx [|??]]]; decompose_Forall.
     wp_call_direct.
-    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
-    iIntros (ℓf) "(HGC&Hℓf)"; wp_pures.
-    wp_apply (store_to_root with "[$HGC $Hℓf]"); [done..|].
-    iIntros "(HGC&Hℓf)". wp_pures.
-    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
-    iIntros (ℓx) "(HGC&Hℓx)"; wp_pures.
-    wp_apply (store_to_root with "[$HGC $Hℓx]"); [done..|].
-    iIntros "(HGC&Hℓx)". wp_pures.
     iMod (ml_to_mut with "[$HGC $Hl]") as "(HGC&(%lvs&%γ'&Hl&#Hγ'&Hlvs))".
     destruct lvs as [|lvf [|??]]; try done.
     all: cbn; iDestruct "Hlvs" as "([%γ'' [-> #Hγ'']]&?)"; try done.
@@ -61,12 +50,8 @@ Section C_specs.
       iDestruct (lloc_own_pub_inj with "Hγ Hγ' HGC") as "[? %]".
       iPureIntro. naive_solver.
     }
-    wp_apply (load_from_root with "[$HGC $Hℓf]"); [done..|].
-    iIntros (wf) "(Hℓf&HGC&%Hwf)".
     wp_apply (wp_readfield with "[$HGC $Hl]"); [done..|].
     iIntros (? wfaux) "(HGC&Hl&%Heq&%Hγaux)"; cbv in Heq; simplify_eq. wp_pures.
-    wp_apply (load_from_root with "[$HGC $Hℓx]"); [done..|].
-    iIntros (wx') "(Hℓx&HGC&%Hwx)".
     iMod (mut_to_ml _ [RecV _ _ _] with "[$HGC $Hl]") as "[HGC (%l'&Hl&#Hγ''')]".
     { cbn. eauto with iFrame. }
     iAssert (⌜l' = l⌝)%I as %<-. {
@@ -75,12 +60,8 @@ Section C_specs.
     }
     wp_apply (wp_callback with "[$HGC $Hx $Hγ'' HWP Hl]"); [done.. | |].
     { by iApply "HWP". }
-    iIntros (θ' vret lvret wret) "(HGC&HΦ'&Hvret&%)". wp_pures.
-    wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓf]"); [try done..|].
-    iIntros "HGC"; wp_pure _.
-    wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓx]"); [try done..|].
-    iIntros "HGC"; wp_pure _.
-    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC HΦ' Hvret [//]").
+    iIntros (θ' vret lvret wret) "(HGC&HΦ'&Hvret&%)". (* wp_pures. *)
+    iApply "HΦ". iApply ("Cont" with "HGC HΦ' Hvret [//]").
   Qed.
 
   Global Instance tie_knot_spec_ML_contractive :
