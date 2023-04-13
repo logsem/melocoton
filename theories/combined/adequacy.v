@@ -13,6 +13,7 @@ From melocoton.mlanguage Require Import weakestpre mlanguage adequacy.
 From melocoton.linking Require Import lang weakestpre.
 From transfinite.base_logic.lib Require Import satisfiable invariants ghost_map ghost_var.
 From transfinite.stepindex Require Import ordinals.
+From melocoton.combined Require Import rules.
 
 Notation combined_lang := (link_lang wrap_lang C_mlang).
 Notation combined_prog e p := (link_prog wrap_lang C_mlang (wrap_prog e) p).
@@ -25,14 +26,6 @@ Class ffiGpre `{SI: indexT} (Σ : gFunctors) : Set := FFIGpre {
   ffiGpre_linkG :> linkGpre Σ;
 }.
 
-Class ffiG `{SI: indexT} (Σ : gFunctors) : Set := FFIG {
-  ffiG_invG :> invG Σ;
-  ffiG_CG :> heapG_C Σ;
-  ffiG_MLG :> heapG_ML Σ;
-  ffiG_wrapperG :> wrapperG Σ;
-  ffiG_linkG :> linkG Σ;
-}.
-
 Definition ffiΣ {SI: indexT} : gFunctors :=
   #[invΣ; heapΣ_C; heapΣ_ML; wrapperΣ; linkΣ].
 
@@ -43,30 +36,6 @@ Proof. solve_inG. Qed.
 Global Instance subG_ffiΣ_invPreG `{SI: indexT} Σ :
   subG ffiΣ Σ → invPreG Σ.
 Proof. solve_inG. Qed.
-
-Lemma combined_correct `{indexT} `{!ffiG Σ}
-  (e : ML_lang.expr) (p : lang_prog C_lang)
-  (Ψ : ∀ `{!ffiG Σ}, protocol ML_lang.val Σ)
-  (Pret : Z → Prop)
-:
-  Ψ on prim_names ⊑ ⊥ →
-  dom p ## prim_names →
-  {{{ True }}} e at ⟨∅, Ψ⟩ {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} →
-  prims_proto Ψ ||- p :: wrap_proto Ψ →
-  ⊥ |- combined_prog e p :: main_proto Pret.
-Proof.
-  intros.
-  eapply prog_triple_mono_r; swap 1 2.
-  1: eapply link_close_correct.
-  { rewrite dom_prims_prog. set_solver. }
-  1: eapply prog_triple_mono; last by apply wrap_correct.
-  1: reflexivity.
-  1: reflexivity.
-  1: eapply prog_triple_mono; last by apply lang_to_mlang_correct.
-  2: reflexivity.
-  1: by rewrite -proto_refines_join_l.
-  by rewrite -proto_refines_join_l -proto_refines_join_r.
-Qed.
 
 Section AllocBasics.
   Existing Instance ordI.

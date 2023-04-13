@@ -720,6 +720,48 @@ Proof using.
     iApply ("IH" with "HWP Hin"). }
 Qed.
 
+Lemma link_lift1_correct p1 Ψ1 Ψext :
+  Ψext |- p1 :: Ψ1 →
+  Ψext |- (link_lift1 Λ1 Λ2 p1) :: Ψ1.
+Proof.
+  iIntros (H).
+  rewrite (_: link_lift1 Λ1 Λ2 p1 = link_prog p1 ∅).
+  2: { rewrite /link_prog /link_lift2 fmap_empty right_id_L //. }
+  eapply prog_triple_mono.
+  3: {
+    eapply (link_correct _ ∅ _ ⊥ _ ⊥ Ψext).
+    2: eassumption.
+    2: by iIntros (? ? ?) "?".
+    constructor; first done.
+    1: by iIntros (? ? ?) "[% ?]".
+    1: by iIntros (? ? ?) "[% ?]".
+    1: by rewrite proto_except_refines.
+    1: rewrite proto_except_refines; apply proto_refines_bot_l. }
+  1: done.
+  rewrite -proto_refines_join_l //.
+Qed.
+
+Lemma link_lift2_correct p2 Ψ2 Ψext :
+  Ψext |- p2 :: Ψ2 →
+  Ψext |- (link_lift2 Λ1 Λ2 p2) :: Ψ2.
+Proof.
+  iIntros (H).
+  rewrite (_: link_lift2 Λ1 Λ2 p2 = link_prog ∅ p2).
+  2: { rewrite /link_prog /link_lift1 fmap_empty left_id_L //. }
+  eapply prog_triple_mono.
+  3: {
+    eapply (link_correct ∅ _ ⊥ _ ⊥ _ Ψext).
+    3: eassumption.
+    2: by iIntros (? ? ?) "?".
+    constructor; first done.
+    1: by iIntros (? ? ?) "[% ?]".
+    1: by iIntros (? ? ?) "[% ?]".
+    2: by rewrite proto_except_refines.
+    1: rewrite proto_except_refines; apply proto_refines_bot_l. }
+  1: done.
+  rewrite -proto_refines_join_r //.
+Qed.
+
 Lemma link_close_correct p1 p2 Ψ1 Ψ2 :
   dom p1 ## dom p2 →
   Ψ2 |- p1 :: Ψ1 →

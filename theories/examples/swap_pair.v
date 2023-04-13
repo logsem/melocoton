@@ -14,7 +14,7 @@ From melocoton.c_lang Require notation proofmode.
 From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
-From melocoton.combined Require Import adequacy.
+From melocoton.combined Require Import adequacy rules.
 
 
 Section C_prog.

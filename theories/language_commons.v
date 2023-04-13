@@ -100,6 +100,12 @@ Proof.
   iIntros "[% ?]". iSplit; first done. by iApply Hsub.
 Qed.
 
+Lemma proto_except_except {val Σ} (Ψ : protocol val Σ) S :
+  Ψ except S ⊑ (Ψ except S) except S.
+Proof.
+  iIntros (? ? ?) "[% ?]". do 2 (iSplit; first done). done.
+Qed.
+
 Global Instance proto_except_proper {val Σ} :
   Proper ((@proto_refines val Σ) ==> eq ==> (@proto_refines val Σ)) proto_except.
 Proof. intros ? ? ? ? ? ->. by apply proto_except_mono_l. Qed.

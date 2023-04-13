@@ -241,8 +241,23 @@ linkable (link_lang Λ1 Λ2) public_state := {
   mlanguage.split_state := Link.split_state _ Λ1 Λ2;
 }.
 
+Definition link_lift1 {val public_state} (Λ1 Λ2 : mlanguage val)
+  {lk1 : linkable Λ1 public_state} {lk2 : linkable Λ2 public_state}
+  (p1 : mlang_prog Λ1) :
+  mlang_prog (link_lang Λ1 Λ2)
+:=
+  inl <$> p1.
+
+Definition link_lift2 {val public_state} (Λ1 Λ2 : mlanguage val)
+  {lk1 : linkable Λ1 public_state} {lk2 : linkable Λ2 public_state}
+  (p2 : mlang_prog Λ2) :
+  mlang_prog (link_lang Λ1 Λ2)
+:=
+  inr <$> p2.
+
 Definition link_prog {val public_state} (Λ1 Λ2 : mlanguage val)
   {lk1 : linkable Λ1 public_state} {lk2 : linkable Λ2 public_state}
   (p1 : mlang_prog Λ1) (p2 : mlang_prog Λ2) :
-mlang_prog (link_lang Λ1 Λ2) :=
-  fmap inl p1 ∪ fmap inr p2.
+  mlang_prog (link_lang Λ1 Λ2)
+:=
+  link_lift1 Λ1 Λ2 p1 ∪ link_lift2 Λ1 Λ2 p2.
