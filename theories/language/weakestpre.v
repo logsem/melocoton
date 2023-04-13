@@ -8,7 +8,7 @@ From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 Import uPred.
 
-(* armael: the unbundling of [irisG_gen] here and in mlanguage (a priori
+(* the unbundling of [irisG_gen] here and in mlanguage (a priori
    required to ensure that the same instance is used across different languages)
    might produce large Coq terms and cause performance issues. If this happens
    we may need to revisit this design choice. *)
