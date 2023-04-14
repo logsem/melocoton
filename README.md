@@ -140,6 +140,8 @@ Section 2.4:
 - The type of θ maps is defined in `interop/basics.v` (`addr_map`)
 
 - The interface of the alloc primitive Ψalloc is `alloc_proto` in `interop/prims_proto.v`.
+- The interface of the FFI Ψ_FFI is `prims_proto` in `interop/prims_proto.v`
+  (at this point of the paper its parameter is omitted, see §4).
 
 - The Hoare triple for the λC `buf_alloc` function is in `examples/compression/buffers_proof_alloc.v`.
   TODO: it does not actually appear there, but will do so soon.
@@ -176,6 +178,7 @@ Section 4.1:
 
 - Theorem 4.1 is `combined_correct` in `combined/rules.v`
 - The FFI wrapper for interfaces [.]_FFI is `wrap_proto` in `interop/prims_proto.v`
+- The interface of the FFI Ψ_FFI^Π is `prims_proto` in `interop/prims_proto.v`
 
 - `IntfImplement` (Fig 8) is `prove_prog_correct` in `language/weakestpre.v`
 - `IntfConseq` (Fig 8) is `prog_triple_mono` in `language/weakestpre.v`
