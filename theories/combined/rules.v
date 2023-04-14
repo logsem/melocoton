@@ -35,9 +35,7 @@ Proof.
 Qed.
 
 Lemma combined_correct
-  (* `{indexT} `{!ffiG Σ} *)
   (e : ML_lang.expr) (p : lang_prog C_lang)
-  (* (Ψ : ∀ `{!ffiG Σ}, protocol ML_lang.val Σ) *)
   (Ψ : protocol ML_lang.val Σ)
   (Pret : Z → Prop) (P : iProp Σ)
 :
