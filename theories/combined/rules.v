@@ -5,7 +5,7 @@ From melocoton.language Require Import language weakestpre.
 From melocoton.interop Require Import basics basics_resources prims_proto.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import state lang weakestpre update_laws wp_utils wp_simulation.
-From melocoton.ml_lang Require Import primitive_laws lang_instantiation.
+From melocoton.ml_lang Require Import primitive_laws lang_instantiation logrel.logrel.
 From melocoton.c_lang Require Import lang_instantiation mlang_instantiation.
 From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require Import weakestpre mlanguage adequacy.
@@ -20,6 +20,7 @@ Class ffiG `{SI: indexT} (Σ : gFunctors) : Set := FFIG {
   ffiG_MLG :> heapG_ML Σ;
   ffiG_wrapperG :> wrapperG Σ;
   ffiG_linkG :> linkG Σ;
+  ffiG_logrelG :> logrelG Σ;
 }.
 
 Section combined_rules.
@@ -38,13 +39,13 @@ Lemma combined_correct
   (e : ML_lang.expr) (p : lang_prog C_lang)
   (* (Ψ : ∀ `{!ffiG Σ}, protocol ML_lang.val Σ) *)
   (Ψ : protocol ML_lang.val Σ)
-  (Pret : Z → Prop)
+  (Pret : Z → Prop) (P : iProp Σ)
 :
   Ψ on prim_names ⊑ ⊥ →
   dom p ## prim_names →
-  {{{ True }}} e at ⟨∅, Ψ⟩ {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} →
+  (⊢ P -∗ WP e at ⟨ ∅ , Ψ ⟩ {{ k, ⌜∃ x, k = (ML_lang.LitV (ML_lang.LitInt x)) ∧ Pret x⌝ }}) →
   prims_proto Ψ ||- p :: wrap_proto Ψ →
-  ⊥ |- combined_prog e p :: main_proto Pret.
+  ⊥ |- combined_prog e p :: main_proto Pret P.
 Proof.
   intros.
   eapply prog_triple_mono_r; swap 1 2.

@@ -192,10 +192,11 @@ Definition callback_proto (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
                    ⌜repr_lval θ' lvret wret⌝ -∗
                    Φ wret))%I.
 
-Definition main_proto (Φ' : Z → Prop) : C_proto := (λ fn vl Φ,
+Definition main_proto (Φ' : Z → Prop) (Pinit : iProp Σ) : C_proto := (λ fn vl Φ,
   "->" ∷ ⌜fn = "main"⌝ ∗
   "->" ∷ ⌜vl = []⌝ ∗
   "Hat_init" ∷ at_init ∗
+  "Hinitial_resources" ∷ Pinit ∗
   "Cont" ∷ ▷ (∀ x, ⌜Φ' x⌝ -∗ Φ (code_int x)))%I.
 
 Definition prim_proto (p : prim) (Ψ : ML_proto) : C_proto :=
@@ -241,13 +242,15 @@ Proof using.
   done.
 Qed.
 
-Lemma main_proto_mono (Φ Φ' : Z → Prop) :
-  (∀ x, Φ x → Φ' x) →
-  main_proto Φ' ⊑ main_proto Φ.
+Lemma main_proto_mono (Φ Φ' : Z → Prop) (P P' : iProp Σ) :
+  (∀ x, Φ x → Φ' x) → (P' -∗ P) →
+  main_proto Φ' P' ⊑ main_proto Φ P.
 Proof.
-  iIntros (Himpl ? ? ?) "H". iNamed "H".
+  iIntros (Himpl Hwand ? ? ?) "H". iNamed "H".
   rewrite /main_proto /named. do 2 (iSplit; first done).
-  iFrame. iIntros "!>" (? ?). iApply "Cont". iPureIntro. eauto.
+  iFrame. iSplitL "Hinitial_resources".
+  - iApply (Hwand with "[$]").
+  - iIntros "!>" (? ?). iApply "Cont". iPureIntro. eauto.
 Qed.
 
 (* some boilerplate *)

@@ -332,14 +332,14 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_main p Ψ Φ :
+Lemma wp_main p Ψ Φ P :
   p !! "main" = None →
-  main_proto Φ ⊑ Ψ →
-  {{{ at_init }}}
+  main_proto Φ P ⊑ Ψ →
+  {{{ at_init ∗ P }}}
     (call: &"main" with ( ))%CE at ⟨p, Ψ⟩
   {{{ x, RET (code_int x); ⌜Φ x⌝ }}}.
 Proof.
-  intros Hp Hproto **. iIntros "Hinit Cont".
+  intros Hp Hproto **. iIntros "(Hinit&HP) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /main_proto /named.

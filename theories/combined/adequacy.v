@@ -2,6 +2,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props multirelations.
+From melocoton.ml_lang.logrel Require Import typing logrel fundamental.
 From melocoton.language Require Import language weakestpre.
 From melocoton.interop Require Import basics basics_resources prims_proto.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
@@ -11,12 +12,13 @@ From melocoton.c_lang Require Import lang_instantiation mlang_instantiation.
 From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require Import weakestpre mlanguage adequacy.
 From melocoton.linking Require Import lang weakestpre.
-From transfinite.base_logic.lib Require Import satisfiable invariants ghost_map ghost_var.
+From transfinite.base_logic.lib Require Import satisfiable invariants ghost_map ghost_var na_invariants.
 From transfinite.stepindex Require Import ordinals.
 From melocoton.combined Require Import rules.
 
 Notation combined_lang := (link_lang wrap_lang C_mlang).
 Notation combined_prog e p := (link_prog wrap_lang C_mlang (wrap_prog e) p).
+
 
 Class ffiGpre `{SI: indexT} (Σ : gFunctors) : Set := FFIGpre {
   ffiGpre_CG :> heapGpre_C Σ;
@@ -24,10 +26,11 @@ Class ffiGpre `{SI: indexT} (Σ : gFunctors) : Set := FFIGpre {
   ffiGpre_wrapperBasicsG :> wrapperBasicsGpre Σ;
   ffiGpre_wrapperGCtokG :> wrapperGCtokGpre Σ;
   ffiGpre_linkG :> linkGpre Σ;
+  ffiGpre_logrelG :> logrelGpre Σ;
 }.
 
 Definition ffiΣ {SI: indexT} : gFunctors :=
-  #[invΣ; heapΣ_C; heapΣ_ML; wrapperΣ; linkΣ].
+  #[invΣ; heapΣ_C; heapΣ_ML; wrapperΣ; linkΣ; logrelΣ].
 
 Global Instance subG_ffiGpre `{SI: indexT} Σ :
   subG ffiΣ Σ → ffiGpre Σ.
@@ -37,12 +40,17 @@ Global Instance subG_ffiΣ_invPreG `{SI: indexT} Σ :
   subG ffiΣ Σ → invPreG Σ.
 Proof. solve_inG. Qed.
 
+Global Instance subG_ffiΣ_logrelGpre `{SI: indexT} Σ :
+  subG ffiΣ Σ → logrelGpre Σ.
+Proof. solve_inG. Qed.
+
+Definition na_tok_of {SI: indexT} `{!logrelG Σ} := na_tok.
+
 Section AllocBasics.
   Existing Instance ordI.
   Context `{Σ : gFunctors}.
   Context `{!invG Σ}. (* we already have invariants *)
 
-  (* TODO do we need the invariant heap *)
   Lemma alloc_heapG_ML `{!heapGpre_ML Σ} : @Alloc _ Σ (heapG_ML Σ) 
       (λ _, state_interp (∅ : language.state ML_lang) (* ∗ ml_lang.primitive_laws.inv_heap_inv *) )%I True.
   Proof using.
@@ -171,12 +179,23 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
     - cbv. done.
   Qed.
 
+  Lemma alloc_logrelG  `{!logrelGpre Σ} : @Alloc _ Σ (logrel.logrelG Σ)
+      (λ _, na_tok_of)%I True.
+  Proof using.
+    intros P _ Halloc.
+    1: eapply alloc_fresh_res in Halloc as (γnais&Halloc).
+    - pose (LogrelG _ Σ logrel_na_invG_pre wrapperG_addrmapG_pre γnais) as HLogrelG.
+      exists HLogrelG. eapply alloc_mono; last exact Halloc. cbn.
+      iIntros "($&H)". iApply "H".
+    - cbv. done.
+  Qed.
+
+
 End AllocBasics.
 
 Local Definition σ_init {SI:indexT} : state combined_lang :=
   @Link.St _ _ wrap_lang C_mlang _ _
     (∅:c_state) {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} ().
-
 Section MainAlloc.
   Existing Instance ordI.
   Context `{Σ : gFunctors}.
@@ -187,10 +206,9 @@ Section MainAlloc.
 
   Notation Φpure Φ := (λ _ w, ∃ x, w = code_int x ∧ Φ x).
   Notation Φbi Φ := (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I.
-
   Lemma alloc_main p Φ :
-    (∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ},
-       ⊥ |- p :: main_proto Φ) →
+    (∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ, !logrelG Σ},
+       ⊥ |- p :: main_proto Φ na_tok_of) →
     @Alloc _ Σ (mlangG word combined_lang Σ)
       (λ HH : mlangG word combined_lang Σ,
          (sideConds combined_lang (Φpure Φ) p ⊥ (Φbi Φ)) ∗
@@ -202,9 +220,10 @@ Section MainAlloc.
     eapply (alloc_linkG Boundary) in Halloc as (HlinkG&Halloc); last done.
     eapply alloc_wrapperG in Halloc as ((HwrapperG&HheapG_ML)&Halloc); last done.
     eapply alloc_heapG_C in Halloc as (HheapG_C&Halloc); last done.
+    eapply alloc_logrelG in Halloc as (HlogrelG&Halloc); last done.
     exists (link_mlangG wrap_lang C_mlang _).
     eapply alloc_mono; last exact Halloc.
-    iIntros "((($&(Hb1&Hb2)&%Heq1)&((%b&HσW)&Hbound&Hinit2&%Heq2))&HσC)". iNamed "HσW". cbn.
+    iIntros "(((($&(Hb1&Hb2)&%Heq1)&((%b&HσW)&Hbound&Hinit2&%Heq2))&HσC)&Htok)". iNamed "HσW". cbn.
     rewrite // /weakestpre.private_state_interp // /C_state_interp // -!Heq1 -!Heq2.
     iPoseProof (ghost_var_agree with "SIinit Hinit2") as "->".
     iFrame. iSplitR.
@@ -213,10 +232,10 @@ Section MainAlloc.
     { iSplit; iIntros "!>".
       - by iIntros (? ?) "[? %H] !>".
       - iIntros (? ? ?). done. }
-    pose (FFIG _ _ _ _ _ _ _) as FFI.
-    specialize (Hspec _ _ _ _).
+    pose (FFIG _ _ _ _ _ _ _ _) as FFI.
+    specialize (Hspec _ _ _ _ _).
     pose proof (Hspec "main" [] (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I) as Hspecm.
-    iDestruct (Hspecm with "[Hinit2]") as "Hmain".
+    iDestruct (Hspecm with "[Hinit2 Htok]") as "Hmain".
     { rewrite /main_proto /named. do 2 (iSplit; first done). iFrame.
       iIntros "!>" (? ?). eauto. }
 
@@ -233,7 +252,7 @@ Local Existing Instance ordI.
 (* Adequacy statements for a closed program with a sound "main" function *)
 
 Lemma main_adequacy_trace (p : mlang_prog combined_lang) Φ :
-  (∀ `{!ffiG Σ}, ⊥ |- p :: main_proto Φ) →
+  (∀ `{!ffiG Σ}, ⊥ |- p :: main_proto Φ na_tok) →
   umrel.trace (prim_step p) (LkCall "main" [], σ_init)
     (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Φ x).
 Proof using All.
@@ -242,12 +261,12 @@ Proof using All.
                (λ w, ∃ (x:Z), ⌜w = code_int x ∧ Φ x⌝)%I).
   { apply _. }
   2: { intros [? ?] (? & ? & HH). naive_solver. }
-  intros Hinv. eapply (alloc_main p). intros Hffi ? ? ?.
-  by specialize (Hspec ffiΣ (FFIG _ _ _ _ _ _ _)).
+  intros Hinv. eapply (alloc_main p). intros Hffi ? ? ? ?.
+  by pose proof (Hspec ffiΣ (FFIG _ _ _ _ _ _ _ _)).
 Qed.
 
 Lemma main_adequacy_star (p : mlang_prog combined_lang) Φ X :
-  (∀ `{!ffiG Σ}, ⊥ |- p :: main_proto Φ) →
+  (∀ `{!ffiG Σ}, ⊥ |- p :: main_proto Φ na_tok) →
   umrel.star_AD (prim_step p) (LkCall "main" [], σ_init) X →
   ∃ e σ, X (e, σ) ∧ (∀ x, to_val e = Some (code_int x) → Φ x).
 Proof using All.
@@ -258,8 +277,8 @@ Proof using All.
   2: { destruct HH as (? & ? & ? & HH). eexists _, _. split; eauto.
        intros y Hy. destruct (HH (code_int y)) as (? & ?%code_int_inj & ?); eauto.
        by simplify_eq. }
-  intros Hinv. eapply (alloc_main p). intros Hffi ? ? ?.
-  by specialize (Hspec ffiΣ (FFIG _ _ _ _ _ _ _)).
+  intros Hinv. eapply (alloc_main p). intros Hffi ? ? ? ?.
+  by specialize (Hspec ffiΣ (FFIG _ _ _ _ _ _ _ _)); cbn in *.
 Qed.
 
 
@@ -273,7 +292,7 @@ Lemma combined_adequacy_trace
   (∀ `{!ffiG Σ},
     Ψ on prim_names ⊑ ⊥ ∧
     dom p ## prim_names ∧
-    {{{ True }}} e at ⟨∅, Ψ⟩ {{{ x, RET (ML_lang.LitV (ML_lang.LitInt x)); ⌜Pret x⌝ }}} ∧
+    (⊢ na_tok -∗ WP e at ⟨ ∅ , Ψ ⟩ {{ k, ⌜∃ x, k = (ML_lang.LitV (ML_lang.LitInt x)) ∧ Pret x⌝ }}) ∧
     prims_proto Ψ ||- p :: wrap_proto Ψ
   ) →
   umrel.trace (prim_step (combined_prog e p))
@@ -285,3 +304,54 @@ Proof.
   by eapply combined_correct.
 Qed.
 
+Lemma typed_adequacy_trace
+  (e : ML_lang.expr) (p : lang_prog C_lang)
+  (Ψ : ∀ `{!ffiG Σ}, protocol ML_lang.val Σ)
+  (Penv : program_env)
+:
+  (∀ `{!ffiG Σ},
+    Ψ on prim_names ⊑ ⊥ ∧
+    dom p ## prim_names ∧
+    typed Penv ∅ e TNat ∧
+    prog_env_proto ⟨ ∅ , Ψ ⟩ Penv nil ⊑ Ψ ∧
+    prims_proto Ψ ||- p :: wrap_proto Ψ
+  ) →
+  umrel.trace (prim_step (combined_prog e p))
+    (LkCall "main" [], σ_init)
+    (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ True).
+Proof.
+  intros Hspec. eapply combined_adequacy_trace.
+  intros Σ H; destruct (Hspec Σ H) as (HH1&HH2&HH3&HH4&HH5).
+  split_and!. 1-2,4: done.
+  iIntros "Htok".
+  iPoseProof (fundamental (p := ⟨ ∅ , Ψ _ _ ⟩) _ _ _ _ HH3 $! nil ∅ with "[] [] Htok") as "Hsemtype".
+  { iApply interp_env_nil. }
+  { iIntros (s vv Φ) "!> H1". wp_extern. iModIntro; cbn. iApply HH4.
+    unfold prog_env_proto.
+    iDestruct "H1" as "(%tl&%tr&Heq&H1&H2&H3)". iExists tl,tr. iFrame.
+    iIntros (vr) "Hvr Htok". wp_pures. iModIntro. iApply ("H3" with "Hvr Htok"). }
+  { iApply (@language.weakestpre.wp_wand with "[Hsemtype]").
+     - unfold env_subst. by rewrite ml_lang.metatheory.subst_all_empty.
+     - cbn. iIntros (v) "((%n&->)&_)". iPureIntro. by eexists. }
+Qed.
+
+Lemma typed_adequacy_trace_simplified
+  (e : ML_lang.expr) (p : lang_prog C_lang)
+  (Ψ : ∀ `{!ffiG Σ}, protocol ML_lang.val Σ)
+:
+  (∀ `{!ffiG Σ},
+    Ψ on prim_names ⊑ ⊥ ∧
+    dom p ## prim_names ∧
+    typed ∅ ∅ e TNat ∧
+    prims_proto Ψ ||- p :: wrap_proto Ψ
+  ) →
+  umrel.trace (prim_step (combined_prog e p))
+    (LkCall "main" [], σ_init)
+    (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ True).
+Proof.
+  intros Hspec. eapply typed_adequacy_trace.
+  intros Σ H; destruct (Hspec Σ H) as (HH1&HH2&HH3&HH5).
+  split_and!; try done.
+  iIntros (s vv Φ) "(%tl&%tr&%Heq&H1&H2&H3)".
+  by rewrite lookup_empty in Heq.
+Qed.

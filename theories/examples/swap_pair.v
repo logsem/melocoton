@@ -166,13 +166,13 @@ Import melocoton.ml_lang.proofmode.
   End LogRel.
 
 Lemma ML_prog_correct_axiomatic :
-  {{{ True }}} swap_pair_client at ⟨∅, swap_pair_ml_spec⟩ {{{ x, RET (#x); ⌜x = 1%Z⌝}}}.
+  ⊢ WP swap_pair_client at ⟨∅, swap_pair_ml_spec⟩ {{ v, ⌜∃ x : Z, v = #x ∧ x = 1⌝}}.
 Proof.
-  unfold swap_pair_client. iIntros (? _) "HΦ". wp_pures.
+  unfold swap_pair_client. wp_pures.
   wp_extern.
   iModIntro. cbn. do 2 iExists _.
   do 2 (iSplitR; first done).
-  wp_pures. iModIntro. by iApply "HΦ".
+  wp_pures. iModIntro. iPureIntro. by eexists.
 Qed.
 
 End JustML.
@@ -188,7 +188,7 @@ Lemma swap_pair_adequate :
 Proof.
   eapply umrel_upclosed.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
-    3: apply ML_prog_correct_axiomatic.
+    3: {iIntros "_". iApply ML_prog_correct_axiomatic. }
     3: apply swap_pair_correct.
     { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
       exfalso. set_solver. }

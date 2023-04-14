@@ -33,9 +33,9 @@ Section FixpointSpec.
   Qed.
 
   Lemma ML_client_applied_spec_fix:
-    {{{ True }}}
+    ⊢ WP
       ML_client_applied_code at ML_client_env (buf_library_spec_ML)
-    {{{ x, RET #x ; ⌜x=1%Z⌝ }}}.
+    {{ v, ⌜∃ (x:Z), v = #x ∧ x = 1%Z⌝ }}.
   Proof.
     apply ML_client_applied_spec.
   Qed.
@@ -53,7 +53,7 @@ Lemma buffers_adequate :
 Proof.
   eapply umrel_upclosed.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
-    3: apply ML_client_applied_spec_fix.
+    3: iIntros "_"; iApply ML_client_applied_spec_fix.
     3: { rewrite wrap_proto_mono; first apply buffer_library_correct.
          apply buf_library_spec_ML_pre_mono, buf_library_spec_ML_sim. }
     { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.

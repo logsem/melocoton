@@ -179,16 +179,15 @@ Section MLclient.
 
   Definition ML_client_applied_code : expr := if: ML_client_code (AllocN #256 #0) then #1 else #0.
   Lemma ML_client_applied_spec :
-    {{{ True }}}
+    ⊢ WP
       ML_client_applied_code at ML_client_env
-    {{{ x, RET #x ; ⌜x=1%Z⌝ }}}.
+    {{ v, ⌜∃ (x:Z), v = #x ∧ x = 1%Z⌝ }}.
   Proof.
-    iIntros (Φ) "_ Cont".
     unfold ML_client_applied_code.
     wp_apply (wp_allocN); [done..|].
     iIntros (ℓ) "(Hℓ&_)".
     wp_apply (ML_client_spec _ _ (replicate 256 (0:Z)) with "Hℓ").
-    iIntros "_". wp_pures. by iApply "Cont".
+    iIntros "_". wp_pures. iPureIntro. by eexists.
   Qed.
 
 End MLclient.
