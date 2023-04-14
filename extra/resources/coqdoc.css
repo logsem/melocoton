@@ -64,6 +64,7 @@ div:empty{ display: none;}
 #main .doc {
     margin: 0;
     text-align: justify;
+    width: 800px; /* hack */
 }
 
 .inlinecode, .code, #main pre {

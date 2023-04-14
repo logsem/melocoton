@@ -12,7 +12,7 @@ From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Import weakestpre wp_utils.
 Import Wrap.
 
-(* lemmas to switch between the ML<->C state interp at a boundary *)
+(** lemmas to switch between the ML<->C state interp at a boundary *)
 
 Section BoundaryLaws.
 

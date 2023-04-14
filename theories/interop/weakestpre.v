@@ -13,7 +13,7 @@ From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Export basics basics_resources gctoken.
 Import Wrap.
 
-(* Definition of the wrapper state interpretation and WP instance *)
+(** Definition of the wrapper state interpretation and WP instance *)
 
 Class wrapperG `{!indexT} Σ := WrapperG {
   wrapperG_GCtok :> wrapperGCtokG Σ;

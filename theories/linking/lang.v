@@ -15,15 +15,16 @@ Section Linking.
     (Λ1.(func) + Λ2.(func)).
 
   Inductive simple_expr : Type :=
-  (* The linked module produces a value
+  (** The linked module produces a value
      (following one of the underlying modules producing a value) *)
   | ExprV (v : val)
-  (* Function call (outgoing or incoming) *)
+  (** Function call (outgoing or incoming) *)
   | ExprCall (fn_name : string) (args : list val)
+  (** Executing the body of a function, one step after the call *)
   | RunBody (e : Λ1.(mlanguage.expr) + Λ2.(mlanguage.expr))
-  (* Execution of code belonging to the first underlying module. *)
+  (** Execution of code belonging to the first underlying module. *)
   | Expr1 (e : Λ1.(mlanguage.expr))
-  (* Execution of code belonging to the second underlying module. *)
+  (** Execution of code belonging to the second underlying module. *)
   | Expr2 (e : Λ2.(mlanguage.expr)).
 
   Definition cont : Type :=
@@ -87,7 +88,7 @@ Section Linking.
   Implicit Types X : expr * state → Prop.
 
   Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
-  (* Internal step of an underlying module. *)
+  (** Internal step of an underlying module. *)
   | Step1S e1 C σ1 privσ2 (X1 X : _ → Prop) :
     mlanguage.to_val e1 = None →
     mlanguage.prim_step (proj1_prog p) (e1, σ1) X1 →
@@ -102,7 +103,7 @@ Section Linking.
        X2 (e2', σ2') →
        X (LkE (Expr2 e2') C, St2 privσ1 σ2')) →
     prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
-  (* Stuck module calls bubble up as calls at the level of the linking module.
+  (** Stuck module calls bubble up as calls at the level of the linking module.
      (They may get unstuck then, if they match a function implemented by the
      other module.) *)
   | MakeCall1S e1 C σ1 pubσ privσ1 privσ2 fn_name arg k1 X :
@@ -117,7 +118,7 @@ Section Linking.
     mlanguage.split_state σ2 pubσ privσ2 →
     X (LkE (ExprCall fn_name arg) (inr k2 :: C), St pubσ privσ1 privσ2) →
     prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
-  (* Producing a value when execution is finished *)
+  (** Producing a value when execution is finished *)
   | Val1S e1 C σ1 v pubσ privσ1 privσ2 X :
     mlanguage.to_val e1 = Some v →
     (* Splitting the state is angelic, the underlying language can choose a concrete splitting. *)
@@ -132,7 +133,7 @@ Section Linking.
     mlanguage.split_state σ2 pubσ privσ2 →
     X (LkE (ExprV v) C, St pubσ privσ1 privσ2) →
     prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
-  (* Entering a function. Change the view of the heap in the process.
+  (** Entering a function. Change the view of the heap in the process.
      Merging the state is angelic. *)
   | RunBody1S e1 C σ1 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ1 pubσ privσ1 →
@@ -142,7 +143,7 @@ Section Linking.
     mlanguage.split_state σ2 pubσ privσ2 →
     X (LkE (Expr2 e2) C, St2 privσ1 σ2) →
     prim_step_mrel p (LkE (RunBody (inr e2)) C, St pubσ privσ1 privσ2) X
-  (* Continuing execution by returning a value to its caller. *)
+  (** Continuing execution by returning a value to its caller. *)
   | Ret1S v k1 C σ1 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ1 pubσ privσ1 →
     X (LkE (Expr1 (mlanguage.resume_with k1 (mlanguage.of_val Λ1 v))) C, St1 σ1 privσ2) →
@@ -151,13 +152,13 @@ Section Linking.
     mlanguage.split_state σ2 pubσ privσ2 →
     X (LkE (Expr2 (mlanguage.resume_with k2 (mlanguage.of_val Λ2 v))) C, St2 privσ1 σ2) →
     prim_step_mrel p (LkE (ExprV v) (inr k2 :: C), St pubσ privσ1 privσ2) X
-  (* Resolve an internal call to a module function *)
+  (** Resolve an internal call to a module function *)
   | CallS fn_name fn arg e σ C X :
     p !! fn_name = Some fn →
     apply_func fn arg = Some e →
     X (resume_with C e, σ) →
     prim_step_mrel p (LkE (ExprCall fn_name arg) C, σ) X
-  (* Terminate execution with NB on values *)
+  (** Terminate execution with NB on values *)
   | ValStopS v σ X :
     prim_step_mrel p (LkE (ExprV v) [], σ) X.
 

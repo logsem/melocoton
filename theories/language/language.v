@@ -292,7 +292,7 @@ Section language.
   Definition not_stuck (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     is_Some (to_val e) ∨ reducible p e σ.
 
-  (** * Some lemmas about this language *)
+  (** Some lemmas about this language *)
   Lemma prim_step_inv p e1 e2 σ1 σ2 :
     prim_step p e1 σ1 e2 σ2 →
     ∃ K e1' e2', e1 = fill K e1' ∧ e2 = fill K e2' ∧ head_step p e1' σ1 e2' σ2.

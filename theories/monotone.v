@@ -1,4 +1,3 @@
-(* from https://github.com/amintimany/monotone *)
 From iris.algebra Require Export cmra auth.
 From transfinite.base_logic Require Import base_logic.
 Local Arguments validN _ _ _ !_ /.
@@ -7,6 +6,8 @@ Local Arguments op _ _ _ !_ /.
 Local Arguments pcore _ _ !_ /.
 Local Arguments ofe_dist !_ /.
 Local Arguments ofe_equiv ! _ /.
+
+(** Monotone resource algebras, imported from https://github.com/amintimany/monotone *)
 
 Definition monotone {A : Type} (R : relation A) : Type := list A.
 

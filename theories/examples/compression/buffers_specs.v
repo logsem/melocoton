@@ -14,6 +14,7 @@ From melocoton.examples.compression Require Import compression_defs.
 (** our code differs from the original in the paper as follows:
 
 The paper has a record
+<<
 ------------------
 |used_ref|cap|blk|
 ------------------
@@ -21,9 +22,11 @@ The paper has a record
 ------
 |used|
 ------
+>>
 where used_ref is a reference/mutable field
 
 Since we don't have records, only two-value pairs, our value looks as follows (aux_ref is supposed to be another pair)
+<<
 ------------------
 |used_ref|aux_ref|
 ------------------
@@ -31,12 +34,13 @@ Since we don't have records, only two-value pairs, our value looks as follows (a
 ------   ---------
 |used|   |cap|blk|
 ------   ---------
-
+>>
 Additionally, we do not CAMLparam/CAMLlocal variables that
-* are integers
-* don't have to survive an allocation
+- are integers
+- don't have to survive an allocation
 
 Finally, note that the Store_field(&Field(x,y,z)) is syntactic sugar -- no addresses are being taken.
+
 In general, our toy version of C does not have local variables, nor the notion of "taking an address".
 Instead, everything that needs to be mutable must be heap-allocated (and preferably freed at the end).
 *)

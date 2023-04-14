@@ -26,6 +26,7 @@ Implicit Types vs : list (option val).
 Implicit Types l : loc.
 Implicit Types sz off : nat.
 
+(** Allocation *)
 Lemma wp_Malloc s E n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ s; E
@@ -46,7 +47,7 @@ Proof.
   iIntros (l) "Hl". iApply "HΦ". rewrite vec_to_list_replicate. iFrame.
 Qed.
 
-(** * Rules for accessing array elements *)
+(** Accessing array elements *)
 Lemma wp_load_offset s E l dq off vs (v:val) :
   vs !! off = Some (Some v) →
   {{{ ▷ l ↦C∗{dq} vs }}} * #(l +ₗ off) @ s; E {{{ RET v; l ↦C∗{dq} vs }}}%CE.
@@ -76,7 +77,7 @@ Proof.
   rewrite vec_to_list_length. apply fin_to_nat_lt.
 Qed.
 
-
+(** Freeing a region *)
 Lemma wp_free_array s E l vs :
   {{{ ▷ l ↦C∗ vs }}} free (#l, #(Z.of_nat (length vs))) @ s; E {{{ RET LitV LitUnit; True }}}%CE.
 Proof.

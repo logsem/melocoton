@@ -4,7 +4,7 @@ From melocoton.ml_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 Import ML_lang.
 
-(** * Instances of the [PureExec] class *)
+(** Instances of the [PureExec] class *)
 (** The behavior of the various [wp_] tactics with regard to lambda differs in
 the following way:
 

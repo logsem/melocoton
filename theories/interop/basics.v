@@ -5,17 +5,16 @@ From melocoton Require Import stdpp_extra language_commons.
 From melocoton.c_interface Require Import defs.
 From melocoton.ml_lang Require Import lang.
 
-(* the type of memory addresses used by the C semantics *)
+(** the type of memory addresses used by the C semantics *)
 Notation addr := iris.heap_lang.locations.loc (only parsing).
-(* We call "mem" a C memory and "word" a C value. *)
+(** We call "mem" a C memory and "word" a C value. *)
 Notation memory := (gmap loc heap_cell).
 Notation word := C_intf.val.
-(* We call "store" an ML memory and "val" an ML value. *)
+(** We call "store" an ML memory and "val" an ML value. *)
 Notation store := (gmap loc (option (list val))).
 Notation val := ML_lang.val.
 
-(************
-   Block-level "logival" values and store.
+(** Block-level values and store.
 
    Block-level values and store exist as an intermediate abstraction that helps
    bridging the gap between ML memory/values and C memory/values.
@@ -27,7 +26,7 @@ Notation val := ML_lang.val.
    level of this abstract block layer.
 *)
 
-(* The idea is that a block-level value is either an immediate integer, or a
+(** The idea is that a block-level value is either an immediate integer, or a
    reference to a block in the block-level store. A block then stores an array
    of block-level values.
 
@@ -42,29 +41,29 @@ Notation val := ML_lang.val.
    block-level layer.
 *)
 
-(* locations in the block-level store *)
+(** locations in the block-level store *)
 Notation lloc := nat (only parsing).
 Implicit Type γ : lloc.
 
-(* block-level values *)
+(** block-level values *)
 Inductive lval :=
   | Lint : Z → lval
   | Lloc : lloc → lval.
 
-(* Currently the mutability tag applies to a whole block; but ultimately we want
+(** Currently the mutability tag applies to a whole block; but ultimately we want
    each field of the block to have its [ismut] tag (to handle record types of
    the form { foo : int; mutable bar : int }) *)
 Inductive ismut := Mut | Immut.
 
-(* Possible tags for "value blocks", i.e. blocks that contain ML values. *)
-(* Right now the tag is only used to distinguish between InjLV and InjRV (the
+(** Possible tags for "value blocks", i.e. blocks that contain ML values. *)
+(** Right now the tag is only used to distinguish between InjLV and InjRV (the
    constructors of the basic sum-type). In the future we might want to expand
    this to handle richer kinds of values (e.g. richer sum types). *)
 Inductive vblock_tag :=
-  | TagDefault (* the default tag, used for InjLV and other blocks (pairs, refs, arrays) *)
-  | TagInjRV. (* the tag for InjRV *)
+  | TagDefault (** the default tag, used for InjLV and other blocks (pairs, refs, arrays) *)
+  | TagInjRV. (** the tag for InjRV *)
 
-(* Possible tags for blocks in the general case. *)
+(** Possible tags for blocks in the general case. *)
 Inductive tag : Type :=
   | TagVblock (vtg : vblock_tag)
   | TagClosure
@@ -96,15 +95,15 @@ Proof using.
     by inversion 1.
 Qed.
 
-(* a "value block" (the most common type of block) *)
+(** a "value block" (the most common type of block) *)
 Notation vblock :=
   (ismut * (vblock_tag * list lval))%type.
 
-(* a block in the block-level store *)
+(** a block in the block-level store *)
 Inductive block :=
   | Bvblock (vblk : vblock)
   | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr)
-  (* A limited form of OCaml's "custom blocks", storing a C value *)
+  (** A limited form of OCaml's "custom blocks", storing a C value *)
   | Bforeign (ptr : option C_intf.val).
 
 Definition vblock_mutability (vb: vblock) : ismut :=
@@ -131,17 +130,16 @@ Inductive lval_in_block : block → lval → Prop :=
   | ValInVblock v m tg vs :
     v ∈ vs → lval_in_block (Bvblock (m, (tg, vs))) v.
 
-(* a block-level store *)
+(** a block-level store *)
 Notation lstore := (gmap lloc block).
 Implicit Type ζ : lstore.
 
 
-(************
-   In order to tie the logical block-level store to the ML and C stores, the
+(** In order to tie the logical block-level store to the ML and C stores, the
    wrapper maintains a map that relates block-level locations to ML locations,
    and a map that relates block-level locations with C values. *)
 
-(* For each block-level location, we track whether it correspond to a ML-level
+(** For each block-level location, we track whether it correspond to a ML-level
    location ℓ (case [LlocPublic ℓ]), or whether it only exists in the
    block-level heap (case [LlocPrivate]). *)
 Inductive lloc_visibility :=
@@ -149,11 +147,11 @@ Inductive lloc_visibility :=
   | LlocForeign (id : nat)
   | LlocPrivate.
 
-(* An [lloc_map] maps a block location to its visibility status *)
+(** An [lloc_map] maps a block location to its visibility status *)
 Notation lloc_map := (gmap lloc lloc_visibility).
 Implicit Type χ : lloc_map.
 
-(* An [addr_map] maps a block location to its "current" C address.
+(** An [addr_map] maps a block location to its "current" C address.
    Note: since blocks do not move around in the logical store, even though they
    *are* moved around by the GC in the actual memory, this means that "the
    current θ" will often arbitrarily change during the execution, each time a GC
@@ -161,13 +159,12 @@ Implicit Type χ : lloc_map.
 Notation addr_map := (gmap lloc addr).
 Implicit Type θ : addr_map.
 
-(* maps each root (a heap cell in C memory) to the logical value it is tracking
+(** maps each root (a heap cell in C memory) to the logical value it is tracking
    and keeping alive *)
 Notation roots_map := (gmap addr lval).
 
 
-(*************
-   lloc_map injectivity: lloc_maps are always injective wrt public locs and
+(** lloc_map injectivity: lloc_maps are always injective wrt public locs and
    foreign ids
 *)
 
@@ -178,14 +175,13 @@ Definition lloc_map_inj χ :=
     vis ≠ LlocPrivate →
     γ1 = γ2.
 
-(************
-   Block-level state changes.
+(** Block-level state changes.
 
    These relations define various transitions that might need to happen on the
    logical store; these are used to define the wrapper semantics.
 *)
 
-(* freezing: turning a mutable block into an immutable block. (This is typically
+(** freezing: turning a mutable block into an immutable block. (This is typically
    only legal as long as the mutable block has not been "observable" by other
    code than the wrapper..) *)
 Inductive freeze_block : block → block → Prop :=
@@ -214,7 +210,7 @@ Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
 Definition is_private_blocks (χ : lloc_map) (ζ : lstore) : Prop :=
   ∀ γ, γ ∈ dom ζ → χ !! γ = Some LlocPrivate.
 
-(* An lloc_map χ maintains a monotonically growing correspondance between ML
+(** An lloc_map χ maintains a monotonically growing correspondance between ML
    locations and block-level locations. When crossing a wrapper boundary, χ
    typically needs to be extended to account for allocation of new blocks on
    either side.
@@ -225,7 +221,7 @@ Definition is_private_blocks (χ : lloc_map) (ζ : lstore) : Prop :=
 Definition lloc_map_mono (χ1 χ2 : lloc_map) : Prop :=
   χ1 ⊆ χ2 ∧ lloc_map_inj χ2.
 
-(* Helper relation to modify the contents of a block at a given index (which has
+(** Helper relation to modify the contents of a block at a given index (which has
    to be in the bounds). Used to define the semantics of the "modify" primitive.
 *)
 Inductive modify_block : block → nat → lval → block → Prop :=
@@ -233,7 +229,7 @@ Inductive modify_block : block → nat → lval → block → Prop :=
     i < length vs →
     modify_block (Bvblock (Mut, (tg, vs))) i v (Bvblock (Mut, (tg, (<[ i := v ]> vs)))).
 
-(* "GC correctness": a sanity condition when picking a fresh addr_map that
+(** "GC correctness": a sanity condition when picking a fresh addr_map that
    assigns C-level identifiers to the subset of "currently live" block-level
    locations.
 
@@ -254,7 +250,7 @@ Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
 Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
   ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
 
-(* C representation of block-level values, roots and memory *)
+(** C representation of block-level values, roots and memory *)
 
 Definition code_int (z:Z) : word := (C_intf.LitV (C_intf.LitInt (2*z + 1))).
 
@@ -286,26 +282,26 @@ Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Pro
   ∃ memr, repr_raw θ roots privmem mem memr.
 
 
-(* Block-level representation of ML values and store *)
+(** Block-level representation of ML values and store *)
 Inductive is_val : lloc_map → lstore → val → lval → Prop :=
-  (* non-loc base literals *)
+  (** non-loc base literals *)
   | is_val_int χ ζ x :
     is_val χ ζ (ML_lang.LitV (ML_lang.LitInt x)) (Lint x)
   | is_val_bool χ ζ b :
     is_val χ ζ (ML_lang.LitV (ML_lang.LitBool b)) (Lint (if b then 1 else 0))
   | is_val_unit χ ζ :
     is_val χ ζ (ML_lang.LitV ML_lang.LitUnit) (Lint 0)
-  (* locations *)
+  (** locations *)
   | is_val_loc χ ζ ℓ γ :
     χ !! γ = Some (LlocPublic ℓ) →
     is_val χ ζ (ML_lang.LitV (ML_lang.LitLoc ℓ)) (Lloc γ)
-  (* pairs *)
+  (** pairs *)
   | is_val_pair χ ζ v1 v2 γ lv1 lv2 :
     ζ !! γ = Some (Bvblock (Immut, (TagDefault, [lv1; lv2]))) →
     is_val χ ζ v1 lv1 →
     is_val χ ζ v2 lv2 →
     is_val χ ζ (ML_lang.PairV v1 v2) (Lloc γ)
-  (* sum-type constructors *)
+  (** sum-type constructors *)
   | is_val_injl χ ζ v lv γ :
     ζ !! γ = Some (Bvblock (Immut, (TagDefault, [lv]))) →
     is_val χ ζ v lv →
@@ -314,16 +310,16 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     ζ !! γ = Some (Bvblock (Immut, (TagInjRV, [lv]))) →
     is_val χ ζ v lv →
     is_val χ ζ (ML_lang.InjRV v) (Lloc γ)
-  (* closures *)
+  (** closures *)
   | is_val_closure χ ζ γ f x e :
     ζ !! γ = Some (Bclosure f x e) →
     is_val χ ζ (ML_lang.RecV f x e) (Lloc γ)
-  (* foreign blocks *)
+  (** foreign blocks *)
   | is_val_foreign χ ζ γ id :
     χ !! γ = Some (LlocForeign id) →
     is_val χ ζ (ML_lang.LitV (ML_lang.LitForeign id)) (Lloc γ).
 
-(* Elements of the ML store are lists of values representing refs and arrays;
+(** Elements of the ML store are lists of values representing refs and arrays;
    they correspond to a mutable block with the default tag. *)
 Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Prop :=
 | is_heap_elt_block vs lvs :
@@ -337,10 +333,7 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
 
 
 (******************************************************************************)
-(* auxiliary definitions and lemmas *)
-
-(******************************************************************************)
-(* auxiliary definitions and lemmas *)
+(** auxiliary definitions and lemmas *)
 
 Global Hint Resolve freeze_block_refl : core.
 Global Hint Resolve expose_lloc_refl : core.

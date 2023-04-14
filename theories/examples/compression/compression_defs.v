@@ -2,7 +2,7 @@ From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 
 Section SemBuffers.
-(* Of course, snappy is more complicated than this ..*)
+(** Of course, snappy is more complicated than this ..*)
 Definition buffer := list Z.
 
 Fixpoint compress_buffer (b:buffer) : buffer := (match b with

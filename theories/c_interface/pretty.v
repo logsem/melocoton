@@ -2,7 +2,7 @@ From stdpp Require Export pretty.
 From melocoton.c_interface Require Import defs.
 From iris.prelude Require Import options.
 
-(** * Pretty printing for C values *)
+(** Pretty printing for C values *)
 
 Global Instance pretty_loc : Pretty loc :=
   λ l, pretty l.(loc_car).

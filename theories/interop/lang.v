@@ -9,21 +9,21 @@ From melocoton.interop Require Import basics basics_constructions state prims.
 Module Wrap.
 Section wrappersem.
 
-(* A wrapped program is a collection of builtins; in practice always an instance
-   of [prims_prog]. *)
+(** A wrapped program is a collection of builtins; in practice always an instance
+   of [wrap_prog]. *)
 Local Notation prog := (gmap string prim).
 
 Inductive simple_expr : Type :=
-  (* the wrapped module returns with a C value *)
+  (** the wrapped module returns with a C value *)
   | ExprV (w : word)
-  (* A call to a C function, which can be either:
+  (** A call to a C function, which can be either:
      - an outgoing call by the wrapped code to an external C function;
      - an incoming call to a runtime primitive, which will be implemented by the wrapper
    *)
   | ExprCall (fn_name : string) (args : list word)
-  (* Call to a builtin (primitive or main) *)
+  (** Call to a builtin (primitive or main) *)
   | RunPrimitive (prm : prim) (args : list word)
-  (* Execution of wrapped ML code *)
+  (** Execution of wrapped ML code *)
   | ExprML (eml : ML_lang.expr).
 
 Definition cont := list (language.ectx ML_lang).
@@ -52,16 +52,16 @@ Definition resume_with (K : cont) (e : expr) : expr :=
   let 'WrE se k := e in
   WrE se (k ++ K).
 
+(** state of the wrapper, which depends on whether we are yielding control to
+    C or executing the wrapped ML program. *)
 Inductive state : Type :=
-  (* state of the wrapper, which depends on whether we are yielding control to
-     C or executing the wrapped ML program. *)
   | MLState (ρml : wrapstateML) (σ : store)
   | CState (ρc : wrapstateC) (mem : memory).
 
 Local Notation private_state := wrapstateC.
 Local Notation public_state := memory.
 
-(* boundary states are ones in the [CState _ _] case *)
+(** boundary states are ones in the [CState _ _] case *)
 Inductive split_state : state → public_state → private_state → Prop :=
   | WrapSplitStC ρc mem :
     split_state (CState ρc mem) mem ρc.
@@ -73,19 +73,19 @@ Definition ml_to_c_core
   (ws : list word) (ρc : wrapstateC) (mem : memory)
 : Prop :=
   ∃ (ζσ ζnewimm : lstore) (lvs : list lval),
-    (* Demonically get a new extended map χC. New bindings in χC correspond to
+    (** Demonically get a new extended map χC. New bindings in χC correspond to
        new locations in the ML heap (e.g. allocated by ML). *)
     lloc_map_mono (χML ρml) (χC ρc) ∧
-    (* The extended χC binds γs for all locations ℓ in σ; the ℓs that are mapped
+    (** The extended χC binds γs for all locations ℓ in σ; the ℓs that are mapped
        to [Some ...] in σ make up the domain of a map ζσ (whose contents are
        also chosen demonically). In other words, ζσ has exactly one block for
        each location in σ that is mapped to [Some ...]. *)
     is_store_blocks (χC ρc) σ ζσ ∧
-    (* Representing the contents of the new ML heap may also require some new
+    (** Representing the contents of the new ML heap may also require some new
        immutable blocks, which we represent in ζnewimm. The address of blocks
        in ζnewimm is LlocPrivate. *)
     is_private_blocks (χC ρc) ζnewimm ∧
-    (* We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
+    (** We take the new lstore ζC to be the old lstore + ζσ (the translation of σ
        into a lstore) + ζnewimm (new immutable blocks allocated from ML). These
        three parts must be disjoint. (ζσ and ζnewimm are disjoint by
        definition). [ζML ρml] may contain immutable blocks, mutable blocks
@@ -94,20 +94,20 @@ Definition ml_to_c_core
        correspond to a [None] in σ). *)
     ζC ρc = ζML ρml ∪ ζσ ∪ ζnewimm ∧
     ζML ρml ##ₘ (ζσ ∪ ζnewimm) ∧
-    (* Taken together, the contents of the new lloc_map χC and new lstore ζC
+    (** Taken together, the contents of the new lloc_map χC and new lstore ζC
        must represent the contents of σ. (This further constraints the demonic
        choice of ζσ and ζnewimm.) *)
     is_store (χC ρc) (ζC ρc) σ ∧
-    (* Demonically pick block-level values lvs that represent the arguments vs. *)
+    (** Demonically pick block-level values lvs that represent the arguments vs. *)
     Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
-    (* Demonically pick an addr_map θC satisfying the GC_correct property. *)
+    (** Demonically pick an addr_map θC satisfying the GC_correct property. *)
     GC_correct (ζC ρc) (θC ρc) ∧
-    (* Rooted values must additionally be live in θC. *)
+    (** Rooted values must additionally be live in θC. *)
     roots_are_live (θC ρc) (rootsML ρml) ∧
-    (* Pick C-level words that are live and represent the arguments of the
+    (** Pick C-level words that are live and represent the arguments of the
        function. (repr_lval on a location entails that it is live.) *)
     Forall2 (repr_lval (θC ρc)) lvs ws ∧
-    (* Pick C memory (mem) that represents the roots (through θC) + the
+    (** Pick C memory (mem) that represents the roots (through θC) + the
        remaining private C memory. *)
     rootsC ρc = dom (rootsML ρml) ∧
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem.
@@ -194,9 +194,9 @@ Proof.
     apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 2 eexists; done. }
 Qed.
 
-(* Note: I believe that the "freezing step" does properly forbid freezing a
+(* Note: The "freezing step" does properly forbid freezing a
    mutable block that has already been passed to the outside world --- but
-   seeing why is not obvious. I expect it to work through the combination of:
+   seeing why is not obvious. I works through the combination of:
    - sharing a logical block as a mutable value requires mapping its address to
      LlocPublic ℓ (cf is_store)
    - χ can only be updated to go from LlocPrivate to LlocPublic (cf expose_lloc)
@@ -211,30 +211,30 @@ Definition c_to_ml
   (vs : list val) (ρml : wrapstateML) (σ : store)
 : Prop :=
   ∃ σ lvs vs ζ ζσ,
-    (* Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
+    (** Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
        Freezing allows allocating a fresh block, mutating it, then changing
        it into an immutable block that represents an immutable ML value. *)
     freeze_lstore (ζC ρc) ζ ∧
-    (* Angelically expose blocks by making their address public, picking a
+    (** Angelically expose blocks by making their address public, picking a
        fresh ML location for them in the process. This makes it possible to
        expose new blocks to ML. *)
     expose_llocs (χC ρc) (χML ρml) ∧
-    (* Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
+    (** Split the "current" lstore ζ into (ζML ρml) (the new lstore) and a
        part ζσ that is going to be converted into the ML store σ. *)
     ζ = (ζML ρml) ∪ ζσ ∧
     (ζML ρml) ##ₘ ζσ ∧
-    (* Angelically pick an ML store σ where each location mapped to [Some
+    (** Angelically pick an ML store σ where each location mapped to [Some
        ...] corresponds to a block in ζσ. *)
     is_store_blocks (χML ρml) σ ζσ ∧
-    (* The contents of ζ must represent the new σ. *)
+    (** The contents of ζ must represent the new σ. *)
     is_store (χML ρml) ζ σ ∧
-    (* Angelically pick a block-level value lv that corresponds to the
+    (** Angelically pick a block-level value lv that corresponds to the
        C value w. *)
     Forall2 (repr_lval (θC ρc)) lvs ws ∧
-    (* Angelically pick an ML value v that correspond to the
+    (** Angelically pick an ML value v that correspond to the
        block-level value lv. *)
     Forall2 (is_val (χML ρml) ζ) vs lvs ∧
-    (* Split the C memory mem into the memory for the roots and the rest
+    (** Split the C memory mem into the memory for the roots and the rest
        ("private" C memory). *)
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
     dom (rootsML ρml) = rootsC ρc.
@@ -242,7 +242,7 @@ Definition c_to_ml
 Local Notation CLocV w := (C_intf.LitV (C_intf.LitLoc w)).
 Local Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
 
-(* Semantics of wrapper primitives, that can be called from the wrapped C
+(** Semantics of wrapper primitives, that can be called from the wrapped C
    program as external functions. The callback primitive is treated separately
    and has a dedicated case in [head_step_mrel] below. *)
 (* XXX naming issue: language interface prim_step vs this prim_step *)
@@ -436,7 +436,7 @@ Local Definition is_ML_call (e : ML_lang.expr) fn_name vs K :=
   e = language.fill K (of_class _ (language_commons.ExprCall fn_name vs)).
 
 Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
-  (* Step in the underlying wrapped ML program. *)
+  (** Step in the underlying wrapped ML program. *)
   | StepMLS eml K ρml σ X :
     (* We assume a closed ML expression: the "prog" collection of functions does
        not make too much sense at the ML level. Composition of ML "modules" is
@@ -447,7 +447,7 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
        language.language.prim_step ∅ eml σ eml' σ' →
        X (WrE (ExprML eml') K, MLState ρml σ')) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
-  (* External call of the ML code to a C function. *)
+  (** External call of the ML code to a C function. *)
   | MakeCallS eml K ρml fn_name vs k σ YC X :
     is_ML_call eml fn_name vs k →
     p !! fn_name = None →
@@ -456,7 +456,7 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
        YC ws ρc mem →
        X (WrE (ExprCall fn_name ws) (k::K), CState ρc mem)) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
-  (* Execution finishes with an ML value, translate it into a C value *)
+  (** Execution finishes with an ML value, translate it into a C value *)
   | ValS eml K ρml σ v YC X :
     language.language.to_val eml = Some v →
     ml_to_c [v] ρml σ YC →
@@ -464,34 +464,34 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
        YC [w] ρc mem →
        X (WrE (ExprV w) K, CState ρc mem)) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
-  (* Given a C value (result of a C extcall), resume execution into ML code. *)
+  (** Given a C value (result of a C extcall), resume execution into ML code. *)
   | RetS w ki ρc mem v ρml σ K X :
     c_to_ml [w] ρc mem [v] ρml σ →
     X (WrE (ExprML (language.fill ki (ML_lang.of_val v))) K, MLState ρml σ) →
     prim_step_mrel p (WrE (ExprV w) (ki::K), CState ρc mem) X
-  (* Administrative step for resolving a call to a primitive. *)
+  (** Administrative step for resolving a call to a primitive. *)
   | ExprCallS fn_name args ρ K prm X :
     p !! fn_name = Some prm →
     X (WrE (RunPrimitive prm args) K, ρ) →
     prim_step_mrel p (WrE (ExprCall fn_name args) K, ρ) X
-  (* Call to a primitive (except for callback/main, see next cases) *)
+  (** Call to a primitive (except for callback/main, see next cases) *)
   | PrimS prm ws ρc mem K X :
     c_prim_step prm ws ρc mem (λ w ρc' mem',
         X (WrE (ExprV w) K, CState ρc' mem')) →
     prim_step_mrel p (WrE (RunPrimitive prm ws) K, CState ρc mem) X
-  (* Call to the callback primitive *)
+  (** Call to the callback primitive *)
   | CallbackS K w w' ρc mem f x e v ρml σ X :
     c_to_ml [w; w'] ρc mem [RecV f x e; v] ρml σ →
     X (WrE (ExprML (App (Val (RecV f x e)) (Val v))) K,
         MLState ρml σ) →
     prim_step_mrel p (WrE (RunPrimitive Pcallback [w; w']) K, CState ρc mem) X
 
-  (* Call to the main function *)
+  (** Call to the main function *)
   | MainS e K mem X :
     X (WrE (ExprML e) K, MLState (WrapstateML ∅ ∅ ∅ mem) ∅) →
     prim_step_mrel p (WrE (RunPrimitive (Pmain e) []) K, CState (WrapstateC ∅ ∅ ∅ ∅) mem) X
 
-  (* Terminate execution with NB on values *)
+  (** Terminate execution with NB on values *)
   | ValStopS v σ X :
     prim_step_mrel p (WrE (ExprV v) [], σ) X.
 

@@ -9,7 +9,7 @@ From melocoton.ml_lang Require Import lang_instantiation.
 From melocoton.ml_lang Require Export lang primitive_laws.
 From melocoton.interop Require Import basics_resources.
 
-(* The [GC θ] resource.
+(** The [GC θ] resource.
 
    [GC θ] represents the collection of authoritative resources related to the ML
    runtime while running or interoperating with external C-like code. It is used

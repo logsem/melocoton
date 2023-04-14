@@ -345,7 +345,7 @@ Proof.
     iApply "IH". iFrame.
 Qed.
 
-(** * Derived rules *)
+(** Derived rules *)
 Lemma wp_mono pe E e Φ Φ' : (∀ v, Φ v ⊢ Φ' v) → WP e @ pe; E {{ Φ }} ⊢ WP e @ pe; E {{ Φ' }}.
 Proof.
   iIntros (HΦ) "H"; iApply (wp_post_mono with "H"); auto.

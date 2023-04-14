@@ -1,7 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
 From melocoton.mlanguage Require Import mlanguage.
-(* From melocoton.interop Require Import linking. *)
 From melocoton.language Require Import language.
 From iris.algebra Require Import stepindex.
 

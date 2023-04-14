@@ -4,7 +4,7 @@ From melocoton.ml_lang Require Import lang.
 From iris.prelude Require Import options.
 Import ML_lang.
 
-(** * Pretty printing for HeapLang values *)
+(** Pretty printing for HeapLang values *)
 
 Global Instance pretty_loc : Pretty loc :=
   λ l, pretty l.(loc_car).
