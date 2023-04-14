@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # abort the script in case of errors
-set -euo
+set -euo pipefail
 
 # the setup commands
 opam switch -y create . ocaml-base-compiler.4.14.1
