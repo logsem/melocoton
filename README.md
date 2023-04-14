@@ -120,6 +120,10 @@ Section 2.2:
   Note that the interface shown in the paper is derived from a stronger specification of
   `buf_alloc`, shown in `examples/compression/buffers_specs.v`.
 
+- Note: we currently only have binary pairs in the Coq formalization, whereas
+  the paper use tuples with 3 elements for representing λML buffers. In the Coq
+  formalization we have nested pairs instead.
+
 Section 2.3:
 
 - The λC implementation for `buf_alloc` (Fig 5) appears in `examples/compression/buffers_code.v`.
