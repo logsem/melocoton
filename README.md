@@ -120,7 +120,7 @@ Section 2.2:
 
 - The triple for `is_compressible` appears in `examples/compression/buffers_client.v`
 
-- The triple for `buf_alloc` appears in TODO
+- The triple for `buf_alloc` appears in `examples/compression/buffers_proof_alloc.v`
 
 - The λML interface Ψbuf_alloc for `buf_alloc` is defined in `examples/compression/buffers_specs_simpler.v`.
   Note that the interface shown in the paper is derived from a stronger specification of
