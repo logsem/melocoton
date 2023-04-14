@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# abort the script in case of errors
+set -euo
+
+# the setup commands
 opam switch -y create . ocaml-base-compiler.4.14.1
 eval $(opam env)
 opam repo add -y iris-dev git+https://gitlab.mpi-sws.org/iris/opam.git
