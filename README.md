@@ -170,6 +170,7 @@ Section 3.1:
   semantics is defined in `lang_to_mlang/lang.v`
 - The definition `closed` corresponds to `GC_correct` in `interop/basics.v`
 - The definition `roots` corresponds to `roots_are_live` in `interop/basics.v`
+- The list of runtime primitives is defined in `interop/prims.v`
 - The operational semantics of runtime primitives is defined in `interop/lang.v`
   (`c_prim_step`), except for `callback` and `main` which are cases of
   `prim_step_mrel`.
