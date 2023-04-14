@@ -14,12 +14,12 @@ The Coq development lives in the `theories/` directory.
 
 - `c_lang/`: a small C-like language (λC in the paper). Uses types from
   `c_interface` for its values and state.
-  
+
 ### Generic language interfaces
 
 - `language/`: generic notion of language, with the usual relational operational
   semantics, plus external calls. Both λC and λML implement this interface.
-  
+
 - `mlanguage/`: a language interface similar to language but using
   multirelations for operational semantics with dual non-determinism. The
   linking and wrapper combinator instantiate this interface, and thus the final
@@ -82,7 +82,7 @@ Section 2.1:
 
 Section 2.2:
 
-- Definition of λC (Fig 3): 
+- Definition of λC (Fig 3):
   + values and state are defined in `c_interface/defs.v` (`val` and `c_state`)
   + expressions and programs are defined in `c_lang/lang.v` (`expr`, `program`)
 
@@ -103,24 +103,26 @@ Section 2.2:
 - `CALL-INTERNAL` (Fig 4) is `wp_call` in `language/weakestpre.v`
   (formulated as a rule on weakest preconditions instead of triples).
   It applies to both the WP of λML and λC.
-  
+
 - `CALL-EXTERNAL` (Fig 4) is `wp_extern'` in `language/weakestpre.v`
   (formulated as a rule on weakest preconditions instead of triples).
   It applies to both the WP of λML and λC.
 
-- The triple for `snappy_max_compressed_length` appears in TODO
+- The triple for `snappy_max_compressed_length` and for `snappy_compress` is specified in
+  `examples/compression/compression_specs.v`, the proofs are in
+  `examples/compression/compression_proofs.v`
 
-- The triple for `snappy_compress` appears in TODO
-
-- The triple for `is_compressible` appears in TODO
+- The triple for `is_compressible` appears in `examples/compression/buffers_client.v`
 
 - The triple for `buf_alloc` appears in TODO
 
-- The λML interface Ψbuf_alloc for `buf_alloc` is defined in TODO
+- The λML interface Ψbuf_alloc for `buf_alloc` is defined in `examples/compression/buffers_specs_simpler.v`.
+  Note that the interface shown in the paper is derived from a stronger specification of
+  `buf_alloc`, shown in `examples/compression/buffers_specs.v`.
 
 Section 2.3:
 
-- The λC implementation for `buf_alloc` (Fig 5) appears in TODO
+- The λC implementation for `buf_alloc` (Fig 5) appears in `examples/compression/buffers_code.v`.
 
 Section 2.4:
 
@@ -139,14 +141,15 @@ Section 2.4:
 
 - The interface of the alloc primitive Ψalloc is `alloc_proto` in `interop/prims_proto.v`.
 
-- The Hoare triple for the λC `buf_alloc` function is in TODO
+- The Hoare triple for the λC `buf_alloc` function is in `examples/compression/buffers_proof_alloc.v`.
+  TODO: it does not actually appear there, but will do so soon.
 
 Section 2.5:
 
 - `ML-TO-FFI` (Fig 6) is `ml_to_mut` in `interop/update_laws.v`
 - `FFI-TO-ML` (Fig 6) is `mut_to_ml` in `interop/update_laws.v`
 
-- The view reconciliation rule for buffers is proved in TODO
+- The view reconciliation rule for buffers is proved in `examples/compression/buffers_specs.v`.
 
 Section 3:
 
@@ -183,6 +186,7 @@ Section 4.1:
 - `EmbedC` (Fig 8) is `combined_embed_c` in `combined/rules.v`
 
 Section 4.2:
+- The definition of the GC token is in `interop/gctoken.v`
 
 - Rules of Fig 9 are formulated in Coq as rules of the form "Ψ |- p : Π";
   they desugar to the rules given in the paper.
@@ -203,21 +207,21 @@ Section 4.3:
 
 Section 5:
 
-- The specification for `buf_upd` is in TODO
+- The specification for `buf_upd` is in `examples/compression/buffers_specs_simpler.v`, again
+  the on-paper version differs from the one originally verified (`examples/compression/buffers_specs.v`).
+  The correctness proof is in `examples/compression/buffers_proof_update_.v`.
 
-- The iseq example is in TODO
+- The iseq example is in `examples/iseq`
 
-- Logical relation is defined in TODO
-  + the interpretation of external calls is defined in TODO
-  + the corresponding interface for external calls is TODO
+- Logical relation is defined in `theories/ml_lang/logrel`
+  + the interpretation of external calls is defined in `theories/ml_lang/logrel/logrel.v`, called `prog_env_proto`
+  + the corresponding interface for external calls is  in `theories/ml_lang/logrel/logrel.v`, called `interp_prog_env`
 
-- Landin's knot is in TODO
-  + code in TODO
-  + semantic type safety theorem in TODO
+- Landin's knot is in `examples/landins_knot.v`
 
-- Even listeners are in TODO
-  + code in TODO
-  + semantic type safety theorem in TODO
+- Event listeners are in `examples/listener.v`
+  + This includes an application of adequacy using the logical relation,
+    called `listener_client_1_adequacy.v`
 
 ## Axioms
 
@@ -231,3 +235,4 @@ non-constructive axioms:
 
 These axioms [can be safely added to
 Coq](https://github.com/coq/coq/wiki/The-Logic-of-Coq#what-axioms-can-be-safely-added-to-coq).
+

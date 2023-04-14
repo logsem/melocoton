@@ -3,6 +3,9 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
+From melocoton.combined Require Import rules adequacy.
+From melocoton.linking Require Import lang weakestpre.
+From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.interop Require Import lang weakestpre update_laws wp_utils prims_proto.
 From melocoton.language Require Import weakestpre progenv.
@@ -104,7 +107,7 @@ Section Proofs.
 
   Local Opaque listener_interp.
 
-  Lemma box_create_correct :
+  Lemma listener_create_correct :
     prims_proto Ψ ||- listener_prog :: wrap_proto listener_create_spec_ML.
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
@@ -250,20 +253,47 @@ Section Proofs.
       do 12 first [f_equiv | intros ?]. by apply wp_ne_proto. }
   Qed.
 
+  Definition listener_spec_ML := fixpoint (listener_prog_spec_ML).
+  Lemma listener_spec_ML_unfold s vv Φ :
+   (listener_spec_ML s vv Φ ⊣⊢ listener_prog_spec_ML (listener_spec_ML) s vv Φ)%I.
+  Proof.
+    exact (fixpoint_unfold (listener_prog_spec_ML) s vv Φ).
+  Qed.
+  Lemma buf_library_spec_ML_sim:
+   (listener_prog_spec_ML (listener_spec_ML) ⊑ listener_spec_ML)%I.
+  Proof.
+    iIntros (s vv Φ) "H". by iApply listener_spec_ML_unfold.
+  Qed.
+
+  Lemma listener_correct :
+    prims_proto (listener_spec_ML) ||- listener_prog :: wrap_proto listener_spec_ML.
+  Proof.
+    iIntros (s vv Φ) "H". iNamed "H".
+    iPoseProof (listener_spec_ML_unfold with "Hproto") as "[[Hproto|Hproto]|Hproto]".
+    - iApply listener_create_correct; repeat iExists _; iFrameNamed.
+    - iApply listener_notify_correct; repeat iExists _; iFrameNamed.
+    - iApply listener_listen_correct; repeat iExists _; iFrameNamed.
+  Qed.
+
 
   Definition ML_wrapper : ML_lang.expr := Λ: <>, pack: ( (λ: "v1", extern: "listener_create" with ("v1")),
                                                          (λ: "v1" "v2", extern: "listener_notify" with ("v1", "v2")),
                                                          (λ: "v1" "v2", extern: "listener_listen" with ("v1", "v2"))).
 
-  Definition ML_type : type :=
-    (* forall 'a, exists ' b == 'a listener, ... *)
-    TForall (TExist (TProd (TProd
-       (* unit -> 'a listener *)
+  
+  Definition ML_type_inner (t:type) : type :=
+    (TProd (TProd
+       (* 'a -> 'a listener *)
        (TArrow TUnit (TVar 0))
        (* 'a -> 'a listener -> unit *)
-       (TArrow (TVar 1) (TArrow (TVar 0) TUnit)))
-       (* ('a -> 'a unit) -> 'a listener -> unit *)
-       (TArrow (TArrow (TVar 1) TUnit) (TArrow (TVar 0) TUnit)))).
+       (TArrow t (TArrow (TVar 0) TUnit)))
+       (* ('a -> 'a unit) -> ('a listener -> unit) *)
+       (TArrow (TArrow t TUnit) (TArrow (TVar 0) TUnit))).
+
+  Definition ML_type : type :=
+    (* forall 'a, exists ' b == 'a listener, ... *)
+    TForall (TExist (ML_type_inner (TVar 1))).
+
 
   Import melocoton.ml_lang.proofmode melocoton.ml_lang.notation.
   Lemma sem_typed_box p P Γ :
@@ -280,7 +310,7 @@ Section Proofs.
     1: iExists _, _; iSplit; first done; iSplit.
     all: iExists _, _, _; iSplit; first done; iIntros (v) "!> #Hv Htok".
     all: wp_pures.
-    - wp_extern. 1: rewrite H1; done.
+    - wp_extern. 1: rewrite H1; done. cbn. unfold env_lookup.
       iDestruct "Hv" as %->.
       iModIntro. iApply H0. iLeft. iLeft.
       iExists (λne _ : listO D, τ), Δ.
@@ -311,4 +341,50 @@ Section Proofs.
       wp_pures. iModIntro. iFrame "Htok". done.
   Qed.
 
+  Definition listener_client_1 : ML_lang.expr := λ: "l",
+    unpack: "l" := (TApp "l") in
+    let: "ml" := Fst (Fst "l") (#()) in
+    let: <> := Snd "l" (λ: "v", Snd (Fst "l") (#1) "ml") "ml" in
+    #42.
+
+  Lemma listener_client_1_typed : 
+    typed ∅ ∅ listener_client_1 (TArrow ML_type TNat).
+  Proof.
+    econstructor; cbn in *.
+    eapply (UnpackIn_typed _ _ _ _ _ (ML_type_inner TNat)).
+    { cbn. eapply (TApp_typed _ _ _ (TExist (ML_type_inner (TVar 1))) TNat).
+      repeat econstructor. }
+    { cbn; rewrite fmap_insert fmap_empty insert_insert.
+      repeat econstructor. }
+  Qed.
+
+  Definition listener_client : ML_lang.expr := listener_client_1 ML_wrapper.
+
+  Lemma listener_client_1_sem_typed :
+    ⊢ log_typed (p:=⟨ ∅, listener_spec_ML ⟩) ∅ ∅ listener_client TNat.
+  Proof.
+    iApply (sem_typed_app (p:=⟨ ∅, listener_spec_ML ⟩) with "[] []").
+    - iApply fundamental. apply listener_client_1_typed.
+    - iApply sem_typed_box; cbn; try done.
+      exact buf_library_spec_ML_sim.
+  Qed.
 End Proofs.
+
+
+Lemma listener_client_1_adequacy : 
+umrel.trace (mlanguage.prim_step (combined_prog listener_client listener_prog))
+  (LkCall "main" [], adequacy.σ_init)
+  (λ '(e, σ), ∃ x, mlanguage.to_val e = Some (code_int x) ∧ True).
+Proof.
+  eapply typed_adequacy_trace.
+  intros Σ Hffi. split_and!.
+  3: apply listener_client_1_sem_typed.
+  2: set_solver.
+  3: apply listener_correct.
+  { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
+    rewrite !dom_insert dom_empty /= in H.
+    iDestruct (listener_spec_ML_unfold with "H") as "[[H|H]|H]".
+    all: iNamed "H"; exfalso; cbn in H; set_solver. }
+  { iIntros (s vv Φ) "(%tl&%tr&%Heq&H1&H2&H3)".
+    by rewrite lookup_empty in Heq. }
+Qed.
