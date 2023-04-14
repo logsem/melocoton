@@ -1,7 +1,13 @@
-# Artifact build instructions
+# Melocoton: supplementary material
 
-Requirements: you need `opam` to be installed on your computer, and have gone
-through the initial `opam init` setup.
+This archive contains the Coq development for the paper "Melocoton: A Program
+Logic for Verified Interoperability Between OCaml and C".
+
+## Build instructions
+
+Requirements: you need [opam](https://opam.ocaml.org/doc/Install.html) to be
+installed on your computer (version 2.0.0 or newer), and have gone through the
+initial `opam init` setup.
 
 From the directory containing this README file, run the `setup-artifact.sh`
 script (or read it and execute its commands). Nothing will be installed or
@@ -13,7 +19,9 @@ afterwards.
 ```
 
 The Coq development accompanying our submission lives in the `melocoton`
-subdirectory. The other directories (`iris-parametric-index`,
+subdirectory.
+
+The other directories (`iris-parametric-index`,
 `transfinite-parametric-stepindex`, `autosubst`) bundle the versions of
 Transfinite Iris and Autosubst that our development uses. They are not part of
 the submission.
