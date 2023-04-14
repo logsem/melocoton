@@ -491,6 +491,15 @@ Proof.
   eauto.
 Qed.
 
+Lemma prog_triple_mono E Ψ1 Ψ1' Ψ2 Ψ2' p :
+  Ψ1 ⊑ Ψ1' →
+  Ψ2' ⊑ Ψ2 →
+  Ψ1  ||- p @ E :: Ψ2 →
+  Ψ1' ||- p @ E :: Ψ2'.
+Proof.
+  intros H1 H2 HH. rewrite H2. rewrite -progwp_mono//.
+Qed.
+
 Lemma prove_prog_correct E p Ψe Ψ :
   Ψ except (dom p) ⊑ ⊥ →
   (∀ fn vs Φ,
