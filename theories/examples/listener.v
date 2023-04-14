@@ -117,7 +117,7 @@ Section Proofs.
     wp_pure _.
     wp_apply (wp_Malloc); [done..|].
     change (Z.to_nat 1) with 1. cbn.
-    iIntros (a) "((Ha&_)&_)".
+    iIntros (a) "(Ha&_)".
     replace ((a +ₗ 0%nat)) with a by by rewrite loc_add_0.
     wp_pures.
     wp_apply (wp_int2val with "HGC"); [done..|].

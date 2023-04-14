@@ -60,7 +60,7 @@ Section MLclient.
     wp_pure _. wp_extern. iModIntro. cbn. do 5 iLeft.
     iExists (length zz). iSplit; first (iPureIntro; lia).
     iSplit; first done. iSplit; first done.
-    iNext. iIntros (vin ℓinbuf) "Hinbuf _". wp_finish.
+    iNext. iIntros (vin ℓinbuf) "Hinbuf". wp_finish.
     wp_pures.
 
     wp_extern. iModIntro. iLeft. iRight.
@@ -72,7 +72,7 @@ Section MLclient.
     iExists _. iSplit.
     2: iSplit; first done. 2: iSplit; first done.
     1: iPureIntro; lia.
-    iNext. iIntros (vout ℓoutbuf) "Houtbuf _". wp_finish.
+    iNext. iIntros (vout ℓoutbuf) "Houtbuf". wp_finish.
     wp_pures.
 
     wp_extern. iModIntro. do 4 iLeft; iRight.

@@ -44,7 +44,7 @@ Section Proofs.
     1: by eapply repr_lval_lint.
     iIntros "HGC".
     wp_apply (wp_Malloc); [try done..|].
-    iIntros (ℓbts) "(Hbts&Hstuff)".
+    iIntros (ℓbts) "Hbts".
     wp_apply (wp_write_foreign with "[$HGC $Hγbk]"); [try done..|].
     iIntros "(HGC&Hγbk)". wp_pure _.
     wp_apply (wp_alloc TagDefault with "HGC"); [done..|].
@@ -121,10 +121,7 @@ Section Proofs.
       1: f_equal; lia.
       cbn. by rewrite replicate_length. }
     iMod (bufToML with "HGC Hbuffer") as "(HGC&%vv&Hbuffer&#Hsim)".
-    iAssert (meta_token ℓbts ⊤) with "[Hstuff]" as "Hmeta".
-    { destruct ncap as [|ncap]; first lia.
-      cbn. rewrite loc_add_0. iDestruct "Hstuff" as "($&_)". }
-    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC (HCont Hbuffer Hmeta) Hsim [//]").
+    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC (HCont Hbuffer) Hsim [//]").
   Qed.
 
 End Proofs.

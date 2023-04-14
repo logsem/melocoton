@@ -90,7 +90,7 @@ Section Proofs.
     wp_apply (wp_val2int with "HGC"); [mdone..|].
     iIntros "HGC". wp_pure _.
     wp_apply wp_Malloc; [mdone..|]. change (Z.to_nat 1) with 1. cbn.
-    iIntros (ℓcap2) "((Hℓcap2&_)&_)". rewrite loc_add_0.
+    iIntros (ℓcap2) "(Hℓcap2&_)". rewrite loc_add_0.
     wp_pure _.
 
     wp_apply (wp_readfield with "[$HGC $Hγbuf2]"); [mdone..|].

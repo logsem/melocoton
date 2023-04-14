@@ -57,7 +57,7 @@ Section Proofs.
     iIntros "HGC". wp_pure _.
     wp_apply (wp_Malloc); [done..|].
     change (Z.to_nat 1) with 1; cbn.
-    iIntros (ℓi) "((Hℓi&_)&_)". rewrite !loc_add_0. wp_pure _.
+    iIntros (ℓi) "(Hℓi&_)". rewrite !loc_add_0. wp_pure _.
     wp_apply (wp_val2int with "HGC"); [done..|].
     iIntros "HGC".
     wp_apply (wp_store with "Hℓi").

@@ -193,7 +193,7 @@ Section Specs.
       "%Hb1" ∷ ⌜(0 < z)%Z⌝
     ∗ "->" ∷ ⌜s = buf_alloc_name⌝
     ∗ "->" ∷ ⌜vv = [ #z ]⌝
-    ∗ "HCont" ∷ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ meta_token ℓbuf ⊤ -∗ Φ v).
+    ∗ "HCont" ∷ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ Φ v).
 
   Definition buf_alloc1_spec idx vnew Pbold cap (b : list (option Z)) : iProp Σ :=
     ∃ bold (capold:nat) , ⌜b = <[ Z.to_nat idx := Some vnew ]> bold⌝ ∗ ⌜cap = max capold (Z.to_nat (idx+1))⌝ ∗ Pbold capold bold.

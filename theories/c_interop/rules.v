@@ -361,7 +361,7 @@ Lemma wp_CAMLlocal n e2 p Ψ Φ θ :
 Proof.
   iIntros (????) "HGC Cont". unfold CAMLlocal.
   wp_apply wp_Malloc. 1-2: done. change (Z.to_nat 1) with 1. cbn.
-  iIntros (l) "((Hl&_)&_)". rewrite loc_add_0.
+  iIntros (l) "(Hl&_)". rewrite loc_add_0.
   wp_pures. wp_apply (wp_int2val with "[$]"); [try done..|].
   iIntros (w) "(HGC&%Hrepr)".
   wp_apply (wp_store with "Hl"). iIntros "Hl".

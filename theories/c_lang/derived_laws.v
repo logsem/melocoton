@@ -29,12 +29,10 @@ Implicit Types sz off : nat.
 Lemma wp_Malloc s E n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ s; E
-  {{{ l, RET LitV (LitLoc l); l ↦C∗ replicate (Z.to_nat n) None ∗
-         [∗ list] i ∈ seq 0 (Z.to_nat n), meta_token (l +ₗ (i : nat)) ⊤ }}}.
+  {{{ l, RET LitV (LitLoc l); l ↦C∗ replicate (Z.to_nat n) None }}}.
 Proof.
   iIntros (Hzs Φ) "_ HΦ". iApply wp_Malloc_seq; [done..|]. iModIntro.
   iIntros (l) "Hlm". iApply "HΦ".
-  iDestruct (big_sepL_sep with "Hlm") as "[Hl $]".
   by iApply mapsto_seq_array.
 Qed.
 
@@ -42,11 +40,10 @@ Lemma wp_Malloc_vec s E n :
   (0 < n)%Z →
   {{{ True }}}
     Malloc #n @ s ; E
-  {{{ l, RET #l; l ↦C∗ vreplicate (Z.to_nat n) None ∗
-         [∗ list] i ∈ seq 0 (Z.to_nat n), meta_token (l +ₗ (i : nat)) ⊤ }}}.
+  {{{ l, RET #l; l ↦C∗ vreplicate (Z.to_nat n) None }}}.
 Proof.
   iIntros (Hzs Φ) "_ HΦ". iApply wp_Malloc; [ lia | done | .. ]. iModIntro.
-  iIntros (l) "[Hl Hm]". iApply "HΦ". rewrite vec_to_list_replicate. iFrame.
+  iIntros (l) "Hl". iApply "HΦ". rewrite vec_to_list_replicate. iFrame.
 Qed.
 
 (** * Rules for accessing array elements *)

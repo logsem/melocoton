@@ -123,7 +123,7 @@ Section Proofs.
     wp_pure _.
     wp_apply (wp_Malloc); [done..|].
     change (Z.to_nat 2) with 2. cbn.
-    iIntros (ℓ) "((Hℓ0&Hℓ1&_)&_)".
+    iIntros (ℓ) "(Hℓ0&Hℓ1&_)".
     replace ((ℓ +ₗ 0%nat)) with ℓ by by rewrite loc_add_0.
     wp_pures.
     wp_apply (wp_store with "Hℓ0"). iIntros "Hℓ0".

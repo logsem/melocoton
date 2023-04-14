@@ -46,12 +46,10 @@ Proof.
   iApply ("IH" with "HΨ"). iPureIntro. apply Hres'.
 Qed.
 
-
 Lemma wp_Malloc_seq E n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ p; E
-  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n),
-      (l +ₗ (i : nat)) ↦C ? ∗ meta_token (l +ₗ (i : nat)) ⊤ }}}.
+  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
@@ -61,9 +59,7 @@ Proof.
   { apply heap_array_map_disjoint.
     rewrite replicate_length Z2Nat.id; auto with lia. }
   iModIntro. iFrame. iApply "HΦ".
-  iApply big_sepL_sep. iSplitL "Hl".
-  - by iApply heap_array_to_seq_mapsto.
-  - iApply (heap_array_to_seq_meta with "Hm"). by rewrite replicate_length.
+  by iApply heap_array_to_seq_mapsto.
 Qed.
 
 Lemma wp_free s E l (v:option val) :

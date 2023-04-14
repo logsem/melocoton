@@ -160,12 +160,12 @@ Section C_specs.
       iIntros "[HGC _]". wp_pures.
       wp_apply (wp_Malloc); [done..|].
       change (Z.to_nat 1) with 1; cbn.
-      iIntros (ℓi) "((Hℓi&_)&_)". rewrite !loc_add_0. wp_pure _.
+      iIntros (ℓi) "(Hℓi&_)". rewrite !loc_add_0. wp_pure _.
       wp_apply (wp_store with "Hℓi").
       iIntros "Hℓi". wp_pure _.
       wp_apply (wp_Malloc); [done..|].
       change (Z.to_nat 1) with 1; cbn.
-      iIntros (ℓr) "((Hℓr&_)&_)". rewrite !loc_add_0. wp_pure _.
+      iIntros (ℓr) "(Hℓr&_)". rewrite !loc_add_0. wp_pure _.
       wp_apply (wp_store with "Hℓr").
 
       iIntros "Hℓr". wp_pures.
@@ -296,12 +296,12 @@ Section C_specs.
       iIntros "[HGC _]". wp_pures.
       wp_apply (wp_Malloc); [done..|].
       change (Z.to_nat 1) with 1; cbn.
-      iIntros (ℓi) "((Hℓi&_)&_)". rewrite !loc_add_0. wp_pure _.
+      iIntros (ℓi) "(Hℓi&_)". rewrite !loc_add_0. wp_pure _.
       wp_apply (wp_store with "Hℓi").
       iIntros "Hℓi". wp_pure _.
       wp_apply (wp_Malloc); [done..|].
       change (Z.to_nat 1) with 1; cbn.
-      iIntros (ℓr) "((Hℓr&_)&_)". rewrite !loc_add_0. wp_pure _.
+      iIntros (ℓr) "(Hℓr&_)". rewrite !loc_add_0. wp_pure _.
       wp_apply (wp_store with "Hℓr").
       iIntros "Hℓr". wp_pures.
       wp_apply (wp_load with "Hℓi").

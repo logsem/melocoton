@@ -226,7 +226,8 @@ Proof.
   specialize (HΔ l).
   destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
   rewrite envs_app_sound //; simpl.
-  apply wand_intro_l. by rewrite (sep_elim_l (l ↦C∗ _)%I) right_id wand_elim_r.
+  apply wand_intro_l.
+  by rewrite right_id wand_elim_r.
 Qed.
 
 Lemma tac_wp_free Δ Δ' s E i K l (v:option val) Φ :
