@@ -60,7 +60,7 @@ Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
   Ψ on prim_names ⊑ ⊥ →
   not_at_boundary -∗
   WP eml at ⟨ ∅, Ψ ⟩ {{ Φ }} -∗
-  WP (WrSE (ExprML eml)) at ⟪ prims_prog emain, wrap_proto Ψ ⟫ {{ w,
+  WP (WrSE (ExprML eml)) at ⟪ wrap_prog emain, wrap_proto Ψ ⟫ {{ w,
     ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
     at_boundary wrap_lang }}.
 Proof.
@@ -85,7 +85,7 @@ Proof.
   + iDestruct "HWP" as "(%fn_name & %vs & %K' & -> & %Hfn & >(%Ξ & Hσ & HT & Hr))".
     iAssert (⌜¬ is_prim_name fn_name⌝)%I with "[HT]" as "%Hnprim".
     { destruct (decide (is_prim_name fn_name)) as [His|]; last by eauto.
-      cbn -[prims_prog]. iDestruct (Hnprims with "[HT]") as "%"; last done.
+      cbn -[wrap_prog]. iDestruct (Hnprims with "[HT]") as "%"; last done.
       rewrite /proto_on. iFrame. iPureIntro. by eapply elem_of_prim_names. }
 
     (* take an administrative step in the wrapper *)
@@ -100,7 +100,7 @@ Proof.
     { iPureIntro.
       eapply MakeCallS with (YC := (λ ws ρc mem, ml_to_c_core vs ρml σ ws ρc mem)); eauto.
       { done. }
-      { apply not_elem_of_dom. rewrite dom_prims_prog not_elem_of_prim_names //. }
+      { apply not_elem_of_dom. rewrite dom_wrap_prog not_elem_of_prim_names //. }
       { split_and!; eauto. }
       { intros. do 3 eexists. split_and!; eauto. } }
     iIntros (? ? (ws & ρc & mem & Hcore & -> & ->)).
@@ -120,7 +120,7 @@ Proof.
     iSplit; first done.
     iSplit.
     { iPureIntro. apply not_elem_of_dom.
-      rewrite dom_prims_prog not_elem_of_prim_names //. }
+      rewrite dom_wrap_prog not_elem_of_prim_names //. }
     iFrame "Hb Hst'".
     iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
     iSplitL "HGC HT".
@@ -170,7 +170,7 @@ Qed.
 
 Lemma callback_correct emain Ψ :
   Ψ on prim_names ⊑ ⊥ →
-  wrap_proto Ψ |- prims_prog emain :: callback_proto Ψ.
+  wrap_proto Ψ |- wrap_prog emain :: callback_proto Ψ.
 Proof using.
   iIntros (Hnprim ? ? ?) "Hproto". iNamed "Hproto".
   iSplit; first done. iIntros (Φ'') "Hb Hcont".
@@ -215,7 +215,7 @@ Qed.
 Lemma main_correct emain Ψ P (Φ : Z → Prop) :
   Ψ on prim_names ⊑ ⊥ →
   (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = (LitV (LitInt x)) ∧ Φ x⌝ }}) →
-  wrap_proto Ψ |- prims_prog emain :: main_proto Φ P.
+  wrap_proto Ψ |- wrap_prog emain :: main_proto Φ P.
 Proof using.
   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamed "Hproto".
   iSplit; first done. iIntros (Φ') "Hb Hcont".

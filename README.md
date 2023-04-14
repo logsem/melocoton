@@ -153,6 +153,8 @@ Section 3:
 - Small-step operational semantics of λC appear in `c_lang/lang.v` (`head_step`)
 - The linking operational semantics appear in `linking/lang.v`
 - The wrapper operational semantics appear in `interop/lang.v`
+- [e]_FFI (as a program) is `wrap_prog` defined in `interop/lang.v`
+- Linking of two programs is `link_prog` defined in `linking/lang.v`
 
 Section 3.1:
 

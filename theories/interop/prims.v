@@ -67,7 +67,7 @@ Proof.
   Unshelve. exact inhabitant.
 Qed.
 
-Definition prims_prog e : gmap string prim :=
+Definition wrap_prog e : gmap string prim :=
   list_to_map [
       ("alloc", Palloc);
       ("registerroot", Pregisterroot);
@@ -87,19 +87,19 @@ Definition prims_prog e : gmap string prim :=
   ].
 
 Definition prim_names : gset string :=
-  dom (prims_prog inhabitant).
+  dom (wrap_prog inhabitant).
 
-Lemma dom_prims_prog e :
-  dom (prims_prog e) = prim_names.
+Lemma dom_wrap_prog e :
+  dom (wrap_prog e) = prim_names.
 Proof.
-  rewrite /prim_names /prims_prog.
+  rewrite /prim_names /wrap_prog.
   rewrite !dom_list_to_map_L //.
 Qed.
 
 Lemma elem_of_prim_names s :
   s ∈ prim_names ↔ is_prim_name s.
 Proof.
-  rewrite /prim_names /prims_prog.
+  rewrite /prim_names /wrap_prog.
   cbn. rewrite !dom_insert_L dom_empty_L. split.
   { rewrite !elem_of_union !elem_of_singleton. intros HH.
     destruct_or!; subst; eexists; try econstructor; [].
@@ -112,12 +112,12 @@ Lemma not_elem_of_prim_names s :
   s ∉ prim_names ↔ ¬ is_prim_name s.
 Proof. rewrite elem_of_prim_names //. Qed.
 
-Lemma lookup_prims_prog_except_main e s p :
+Lemma lookup_wrap_prog_except_main e s p :
   s ≠ "main" →
-  prims_prog e !! s = Some p ↔ is_prim s p.
+  wrap_prog e !! s = Some p ↔ is_prim s p.
 Proof.
   intros Hnmain.
-  rewrite /prims_prog. cbn. split.
+  rewrite /wrap_prog. cbn. split.
   { intros HH. rewrite !lookup_insert_Some in HH.
     repeat (destruct_or!; destruct_and!); simplify_eq; constructor. }
   { inversion 1; simplify_eq; try reflexivity. }

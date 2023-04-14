@@ -18,13 +18,13 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma int2val_correct e : |- prims_prog e :: int2val_proto.
+Lemma int2val_correct e : |- wrap_prog e :: int2val_proto.
 Proof using.
   iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamed "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros (σ') "Hσ". cbn -[prims_prog at_boundary].
+  iIntros (σ') "Hσ". cbn -[wrap_prog at_boundary].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
 
   iApply wp_pre_cases_c_prim; [done..|].

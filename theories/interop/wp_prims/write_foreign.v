@@ -21,14 +21,14 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma write_foreign_correct e : |- prims_prog e :: write_foreign_proto.
+Lemma write_foreign_correct e : |- wrap_prog e :: write_foreign_proto.
 Proof using.
   (* TODO: refactor to share lemmas with prim_modify *)
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "%σ Hσ". cbn -[prims_prog].
+  iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iDestruct "Hpto" as "(Hpto & Hsim)".
   iDestruct (lstore_own_mut_of with "GCζvirt Hpto") as %[Helem _].
@@ -48,7 +48,7 @@ Proof using.
   iMod (lstore_own_update _ _ _ (Bforeign (Some w')) with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iPoseProof (interp_ML_discarded_locs_pub with "GCσMLv GCχNone") as "%Hpublocs".
-  do 3 iModIntro. iFrame. cbn -[prims_prog] in *.
+  do 3 iModIntro. iFrame. cbn -[wrap_prog] in *.
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).

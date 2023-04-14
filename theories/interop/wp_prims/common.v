@@ -28,7 +28,7 @@ Lemma wp_wrap_call E p Ψ pname prm ws Φ :
 Proof.
   iIntros (Hprm) "HWP".
   iApply weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "%σ Hσ". cbn -[prims_prog at_boundary].
+  iIntros "%σ Hσ". cbn -[wrap_prog at_boundary].
   iModIntro. iRight. iRight.
   iSplit; first done.
   iExists (λ '(e', σ'), e' = WrSE (RunPrimitive prm ws) ∧

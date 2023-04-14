@@ -20,13 +20,13 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma registerroot_correct e : |- prims_prog e :: registerroot_proto.
+Lemma registerroot_correct e : |- wrap_prog e :: registerroot_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "%σ Hσ". cbn -[prims_prog].
+  iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom".
   1: { iIntros "%H". eapply elem_of_dom in H; destruct H as [k Hk].

@@ -574,4 +574,4 @@ Global Program Instance wrap_linkable : linkable wrap_lang memory := {
   split_state := Wrap.split_state;
 }.
 
-Notation wrap_prog e := (prims_prog e : mlang_prog wrap_lang).
+Notation wrap_prog e := (wrap_prog e : mlang_prog wrap_lang).

@@ -50,7 +50,7 @@ Proof.
   intros.
   eapply prog_triple_mono_r; swap 1 2.
   1: eapply link_close_correct.
-  { rewrite dom_prims_prog. set_solver. }
+  { rewrite dom_wrap_prog. set_solver. }
   1: eapply prog_triple_mono; last by apply wrap_correct.
   1: reflexivity.
   1: reflexivity.

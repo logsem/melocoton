@@ -21,13 +21,13 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-Lemma alloc_correct e : |- prims_prog e :: alloc_proto.
+Lemma alloc_correct e : |- wrap_prog e :: alloc_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "%σ Hσ". cbn -[prims_prog].
+  iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk.
   iAssert (⌜∀ k lv, roots_m !! k = Some lv →
@@ -88,7 +88,7 @@ Proof using.
   iMod (lstore_own_insert _ γ (Bvblock (Mut, blk)) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
   iMod (lloc_own_allocate _ γ with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
 
-  do 3 iModIntro. iFrame. cbn -[prims_prog].
+  do 3 iModIntro. iFrame. cbn -[wrap_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
