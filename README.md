@@ -85,11 +85,9 @@ Section 2.2:
 - Definition of λC (Fig 3): 
   + values and state are defined in `c_interface/defs.v` (`val` and `c_state`)
   + expressions and programs are defined in `c_lang/lang.v` (`expr`, `program`)
-  + small-step operational semantics are in `c_lang/lang.v` (`head_step`)
 
 - Definition of λML (Fig 3):
   + values, expressions and state are defined in `ml_lang/lang.v` (`val`, `expr`, `state`)
-  + small-step operational semantics are in `ml_lang/lang.v` (`head_step`)
 
 - IrisC program logic rules (Fig 4):
   + `READ-C` is `wp_load` in `c_lang/primitive_laws.v`
@@ -126,13 +124,60 @@ Section 2.3:
 
 Section 2.4:
 
+- Runtime values are defined in `interop/basics.v` (`lval`)
+
+- Separation logic runtime resources are defined in `interop/basics_resources.v`:
+  + `γ ↦vblk[ m ] (t, vs)` is a standard block storing values `vs`, with tag `t`
+    and mutability `m`
+  + `γ ↦foreign a` is a custom block
+
+- The relation between runtime values and λC values (`v ~_C^θ w` in the paper)
+  is defined in `interop/basics.v` as `repr_lval`.
+
+- The type of θ maps is defined in `interop/basics.v` (`addr_map`)
+
+- The interface of the alloc primitive Ψalloc is `alloc_proto` in `interop/prims_proto.v`.
+
+- The Hoare triple for the λC `buf_alloc` function is in TODO
+
 Section 2.5:
+
+- `ML-TO-FFI` (Fig 6) is `ml_to_mut` in `interop/update_laws.v`
+- `FFI-TO-ML` (Fig 6) is `mut_to_ml` in `interop/update_laws.v`
+
+- The view reconciliation rule for buffers is proved in TODO
 
 Section 3:
 
+- Small-step operational semantics of λML appear in `ml_lang/lang.v` (`head_step`)
+- Small-step operational semantics of λC appear in `c_lang/lang.v` (`head_step`)
+- The linking operational semantics appear in `linking/lang.v`
+- The wrapper operational semantics appear in `interop/lang.v`
+
 Section 3.1:
 
+- The runtime state of the wrapper is defined in `interop/lang.v` (`state`),
+  using auxiliary definitions in `interop/state.v` and `interop/basics.v`
+- The generic lifting from languages with relational semantics to multirelation
+  semantics is defined in `lang_to_mlang/lang.v`
+- The definition `closed` corresponds to `GC_correct` in `interop/basics.v`
+- The definition `roots` corresponds to `roots_are_live` in `interop/basics.v`
+- The operational semantics of runtime primitives is defined in `interop/lang.v`
+  (`c_prim_step`), except for `callback` and `main` which are cases of
+  `prim_step_mrel`.
+
 Section 4.1:
+
+- Theorem 4.1 is `combined_correct` in `combined/rules.v`
+- The FFI wrapper for interfaces [.]_FFI is `wrap_proto` in `interop/prims_proto.v`
+
+- `IntfImplement` (Fig 8) is `prove_prog_correct` in `language/weakestpre.v`
+- `IntfConseq` (Fig 8) is `prog_triple_mono` in `language/weakestpre.v`
+- `Link` (Fig 8) is `link_close_correct` in `linking/weakestpre.v`
+- `EmbedML` (Fig 8) is `wrap_correct` in `interop/wp_simulation.v` (the Coq
+  theorem is slightly more general, by setting `P` to true one gets the rule
+  from the paper)
+- `EmbedC` (Fig 8) is `combined_embed_c` in `combined/rules.v`
 
 Section 4.2:
 
