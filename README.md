@@ -205,9 +205,11 @@ Section 4.3:
 - Theorem 4.2 is `main_adequacy_trace` in `combined/adequacy.v`
 - The coinductive definition of program executions is `umrel.trace`, defined in
   `multirelations.v`
-- The definition of the weakest-precondition predicate for multirelation
-  semantics with external calls is `wp_pre`/`wp_pre_cases` in
+- The definition (Fig 10) of the weakest-precondition predicate for
+  multirelation semantics with external calls is `wp_pre`/`wp_pre_cases` in
   `mlanguage/weakestpre.v`
+- The definition of the weakest-precondition predicate for usual relational
+  semantics (used by IrisML and IrisC) is `wp_pre` in `language/weakestpre.v`
 
 Section 5:
 
