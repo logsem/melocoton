@@ -347,18 +347,6 @@ Section C_specs.
         wp_apply (wp_int2val with "HGC"); [done..|].
         iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
         iPureIntro. repeat case_match; case_bool_decide; naive_solver.
-    (* - (* TArray *) admit. *)
-
-      (* iDestruct "Hτx" as (γgx lx ?) "[#Hlx #Hτsx]". simplify_eq/=. *)
-      (* iDestruct "Hx" as (γx ?) "#?". simplify_eq/=. *)
-      (* iDestruct "Hτy" as (γgy ly ?) "[#Hly #Hτsy]". simplify_eq/=. *)
-      (* iDestruct "Hy" as (γy ?) "#?". simplify_eq/=. *)
-
-      (* wp_apply (wp_isblock with "HGC"); [done..|]. *)
-      (* iIntros "HGC". wp_pures. *)
-      (* wp_bind (if: _ then _ else _)%CE. *)
-      (* wp_apply (wp_read_tag with "[$HGC ]"); [done..| |]. *)
-      (* { by iDestruct "Hγx" as "[??]". } *)
   Qed.
 
 End C_specs.
