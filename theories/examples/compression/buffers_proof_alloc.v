@@ -17,17 +17,17 @@ Section Proofs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Lemma buf_alloc_correct Ψ :
-    prims_proto Ψ ||- buf_lib_prog :: wrap_proto buf_alloc_spec_ML.
-  Proof using.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    iSplit; first done.
-    iIntros (Φ'') "HΦ".
-    destruct lvs as [|lv [|??]]; first done.
-    all: cbn; iDestruct "Hsim" as "(->&H)"; try done.
-    destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
-    eapply Forall2_cons_inv_l in Hrepr as (wcap&?&Hlval&_&?); simplify_eq.
-    cbn. wp_call_direct.
+  Lemma buf_alloc_spec_C θ (n: nat) (wcap: word) Ψ :
+    (0 < n)%Z →
+    repr_lval θ (Lint n) wcap →
+    {{{ GC θ }}}
+         call: &buffers_specs.buf_alloc_name with (wcap)
+      at ⟨buf_lib_prog, prims_proto Ψ⟩
+    {{{ w' θ' lv ℓ, RET w';
+       GC θ' ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
+       ⌜repr_lval θ' lv w'⌝ }}}%CE.
+  Proof.
+    cbn. iIntros (Hb1 Hlval Φ) "HGC HΦ". wp_call_direct.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓbk) "(HGC&Hℓbk)"; wp_pures.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
@@ -108,20 +108,38 @@ Section Proofs.
 
     iPoseProof "Hγbk" as "((Hγbk&%Hγbk)&%fid&#Hfid)".
 
-    assert (∃ k, Z.of_nat k = z) as (ncap&<-) by (exists (Z.to_nat z); lia).
-    rewrite !Nat2Z.id.
-    iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer ncap) ncap) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
+    iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer n) n) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
     { iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame.
       iSplit; first done.
-      iExists (replicate ncap None). unfold named, lstore_own_foreign.
+      iExists (replicate n None). unfold named, lstore_own_foreign.
       rewrite map_replicate; cbn.
       iFrame. iFrame "Hfid". iSplit; first (iSplit; first done; by iExists fid).
+      rewrite (_: Z.to_nat n = n); last lia. iFrame.
       iPureIntro; split_and!.
       1: done.
       1: f_equal; lia.
       cbn. by rewrite replicate_length. }
-    iMod (bufToML with "HGC Hbuffer") as "(HGC&%vv&Hbuffer&#Hsim)".
-    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC (HCont Hbuffer) Hsim [//]").
+    iModIntro. iApply "HΦ". iFrame. eauto.
+  Qed.
+
+  Lemma buf_alloc_correct Ψ :
+    prims_proto Ψ ||- buf_lib_prog :: wrap_proto buf_alloc_spec_ML.
+  Proof using.
+    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
+    iSplit; first done.
+    iIntros (Φ'') "HΦ". cbn.
+    destruct lvs as [|lv [|??]]; first done.
+    all: cbn; iDestruct "Hsim" as "(->&H)"; try done.
+    destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
+    eapply Forall2_cons_inv_l in Hrepr as (wcap&?&Hlval&_&?); simplify_eq.
+    cbn. iApply wp_fupd.
+    iApply (buf_alloc_spec_C _ (Z.to_nat z) with "HGC"); first lia.
+    { rewrite -(_: z = Z.to_nat z) //; lia. }
+    iIntros "!>" (w' θ' lv ℓ) "(HGC & Hbuf & %)".
+    iMod (bufToML with "HGC Hbuf") as "(HGC&%vv&Hbuffer&#Hsim)".
+    iModIntro. iApply "HΦ".
+     rewrite -(_: z = Z.to_nat z); last lia.
+    iApply ("Cont" with "HGC (HCont Hbuffer) Hsim [//]").
   Qed.
 
 End Proofs.

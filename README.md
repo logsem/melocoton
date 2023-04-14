@@ -143,8 +143,8 @@ Section 2.4:
 - The interface of the FFI Ψ_FFI is `prims_proto` in `interop/prims_proto.v`
   (at this point of the paper its parameter is omitted, see §4).
 
-- The Hoare triple for the λC `buf_alloc` function is in `examples/compression/buffers_proof_alloc.v`.
-  TODO: it does not actually appear there, but will do so soon.
+- The Hoare triple for the λC `buf_alloc` function is `buf_alloc_spec_C` in
+  `examples/compression/buffers_proof_alloc.v`.
 
 Section 2.5:
 
