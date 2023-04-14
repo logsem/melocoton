@@ -39,10 +39,17 @@ sed -i s/8.16/8.17/g autosubst/coq-autosubst.opam
 mv melocoton/tools/setup-artifact.sh .
 mv melocoton/tools/README_artifact.md README.md
 
+# build the html docs
+cd melocoton
+make html
+cd ..
+
 # cleanup
 rm -rf melocoton/.git iris-parametric-index/.git transfinite-parametric-stepindex/.git autosubst/.git
+rm -rf melocoton/_build
 rm -r melocoton/tools
 rm -r melocoton/examples
+rm -r melocoton/extra
 rm melocoton/opam
 rm melocoton/install-transfinite-iris.sh
 

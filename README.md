@@ -1,5 +1,11 @@
 # Coq development for Melocoton
 
+An easy way to browse the development is to open [html/toc.html](html/toc.html)
+in a web browser, which contains an HTML rendering of the Coq scripts of the
+development.
+
+Alternatively, using an IDE with Coq support is recommended.
+
 ## Structure of the Coq development
 
 The Coq development lives in the `theories/` directory.
