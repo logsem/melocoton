@@ -129,7 +129,8 @@ Section 2.4:
 - Separation logic runtime resources are defined in `interop/basics_resources.v`:
   + `γ ↦vblk[ m ] (t, vs)` is a standard block storing values `vs`, with tag `t`
     and mutability `m`
-  + `γ ↦foreign a` is a custom block
+  + `γ ↦foreign a` is a custom block (custom blocks are called foreign blocks in
+    the Coq development)
 
 - The relation between runtime values and λC values (`v ~_C^θ w` in the paper)
   is defined in `interop/basics.v` as `repr_lval`.
@@ -182,6 +183,14 @@ Section 4.1:
 - `EmbedC` (Fig 8) is `combined_embed_c` in `combined/rules.v`
 
 Section 4.2:
+
+- Rules of Fig 9 are formulated in Coq as rules of the form "Ψ |- p : Π";
+  they desugar to the rules given in the paper.
+  + `AllocCustom` is `alloc_foreign_correct` in `interop/wp_prims/alloc_foreign.v`
+  + `RegisterRoot` is `registerroot_correct` in `interop/wp_prims/registerroot.v`
+  + `ExecCallback` is `callback_correct` in `interop/wp_simulation.v`
+
+- The definition of the GC resource appears in `interop/gctoken.v`
 
 Section 4.3:
 
