@@ -185,6 +185,13 @@ Section 4.2:
 
 Section 4.3:
 
+- Theorem 4.2 is `main_adequacy_trace` in `combined/adequacy.v`
+- The coinductive definition of program executions is `umrel.trace`, defined in
+  `multirelations.v`
+- The definition of the weakest-precondition predicate for multirelation
+  semantics with external calls is `wp_pre`/`wp_pre_cases` in
+  `mlanguage/weakestpre.v`
+
 Section 5:
 
 - The specification for `buf_upd` is in TODO
