@@ -91,14 +91,14 @@ Section MLclient.
     iSplit; first (iPureIntro; lia).
     iPoseProof (isBufferRecordML_ext with "[] Hinbuf") as "Hinbuf".
     2: iFrame "Hinbuf Hℓ".
-    { iIntros (z lst) "(->&->)". iExists nil, _, _. cbn. repeat (iSplit; first done). iSplit. 2: iSplit; first done. 2: done.
+    { iIntros (z lst Heqz) "(->&->)". iExists nil, _, _. cbn. repeat (iSplit; first done). iSplit. 2: iSplit; first done. 2: done.
       rewrite replicate_length. iPureIntro; lia. }
     iSplit; first (iPureIntro; lia).
     iSplit; last iSplit; last iSplitR.
     all: unfold Ψframe, Φz, Ψ'; rewrite !Nat2Z.id.
     { iIntros "!> %z %vnew %Hz0 %Hzlen Hframe (%n&<-&%Hz) HBuffer".
       iModIntro. iFrame "Hframe". iApply (isBufferRecordML_ext with "[] HBuffer").
-      iIntros (z lst). unfold buf_alloc1_spec, Hbufatidx.
+      iIntros (z lst _). unfold buf_alloc1_spec, Hbufatidx.
       iIntros "(%bold&%capold&->&->&%zpre&%zopost&%zzpost&->&%Hzzlen&->&%Heq1&%Heq2)".
       apply Nat2Z.inj' in Heq2. subst n.
       destruct zzpost as [|vnew' zzpost].
@@ -130,7 +130,7 @@ Section MLclient.
     wp_pures.
 
     iPoseProof (isBufferRecordML_ext _ _ _ (λ z b, ⌜z = length zz⌝ ∗ ⌜b = map Some zz⌝)%I with "[] Hinbuf") as "Hinbuf".
-    { iIntros (z lst) "(%zpre&%zopost&%zzpost&->&%Hlenpost&->&%HH&%Hlenpre)".
+    { iIntros (z lst _) "(%zpre&%zopost&%zzpost&->&%Hlenpost&->&%HH&%Hlenpre)".
       assert (z = length (zpre ++ zzpost)) as -> by lia. iSplit; first done.
       rewrite app_length in Hlenpre. assert (length zzpost = 0) as Hlen0 by lia.
       destruct zzpost; last done. destruct zopost; last done.
@@ -143,7 +143,7 @@ Section MLclient.
     iFrame "Houtbuf". iSplit; first (cbn; iPureIntro; lia).
     iSplitL "Hinbuf".
     { iApply (isBufferRecordML_ext with "[] Hinbuf").
-      iIntros (z lst) "(->&->)". rewrite app_nil_r. done. }
+      iIntros (z lst _) "(->&->)". rewrite app_nil_r. done. }
     iIntros "!> Hinbuf Houtbuf".
     wp_pures.
 

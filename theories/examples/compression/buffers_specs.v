@@ -66,7 +66,7 @@ Section Specs.
       ∗ "->" ∷ ⌜cap = length vcontent⌝.
 
   Lemma isBufferForeignBlock_ext γ ℓbuf Pb1 Pb2 cap fid :
-     (∀ lst, (Pb1 lst -∗ Pb2 lst))
+     (∀ lst, ⌜length lst = cap⌝ -∗ (Pb1 lst -∗ Pb2 lst))
   -∗ isBufferForeignBlock γ ℓbuf Pb1 cap fid
   -∗ isBufferForeignBlock γ ℓbuf Pb2 cap fid.
   Proof.
@@ -92,7 +92,7 @@ Section Specs.
 
 
   Lemma isBufferRecordML_ext v ℓbuf Pb1 Pb2 cap :
-     (∀ z lst, (Pb1 z lst -∗ Pb2 z lst))
+     (∀ z lst, ⌜length lst = cap⌝ -∗ (Pb1 z lst -∗ Pb2 z lst))
   -∗ isBufferRecordML v ℓbuf Pb1 cap
   -∗ isBufferRecordML v ℓbuf Pb2 cap.
   Proof.
@@ -102,93 +102,6 @@ Section Specs.
     iApply (isBufferForeignBlock_ext with "[Hiff] Hbuf").
     iApply "Hiff".
   Qed.
-
-(*
-
-  Lemma bufToML lv ℓbuf Pb c θ:
-      GC θ
-   -∗ isBufferRecord lv ℓbuf Pb c
-  ==∗ GC θ ∗ ∃ v, isBufferRecordML v ℓbuf Pb c ∗ lv ~~ v.
-  Proof.
-    iIntros "HGC H". iNamed "H". iNamed "Hbuf".
-    iMod (mut_to_ml _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
-    1: by cbn.
-    iModIntro. iFrame "HGC".
-    iExists _. iSplitL.
-    { iExists ℓML, _, fid, γfgn. unfold named.
-      iSplit; first done. iFrame "HℓbufML".
-      iExists vcontent.
-      unfold named. by iFrame "Hγfgnpto Hℓbuf Hγfgnsim HContent". }
-    { cbn. iExists _, _, _. iSplitL; first done.
-      iFrame "Hγbuf".
-      iSplitL; first (iExists _; iSplit; done).
-      iExists _, _, _. iSplit; first done.
-      iFrame "Hγaux". iSplit; first done.
-      iExists _; iSplit; done. }
-  Qed.
-
-  Lemma bufToC v ℓbuf Pb c lv θ:
-      GC θ
-   -∗ isBufferRecordML v ℓbuf Pb c
-   -∗ lv ~~ v
-  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c ∗ ∃ (ℓML:loc) fid, ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝.
-  Proof.
-    iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
-    iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
-    iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim [$]") as "(HGC&%Hiff)".
-    destruct Hiff as [_ ->]; last done.
-    iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(HGC&(%ℓvs&%γref2&Hγusedref&#Hsim2&#Hγrefsim))".
-    iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim [$]") as "(HGC&%Hiff)".
-    destruct Hiff as [_ ->]; last done.
-    iModIntro. iFrame "HGC". iSplit; last by repeat iExists _. 
-    iExists _, _, _, _, _, _. unfold named.
-    iSplit; first done.
-    iFrame "Hγbuf". iFrame "Hγaux".
-    iSplitL "Hγusedref".
-    { destruct ℓvs as [|ℓvs [|??]]; cbn; try done.
-      all: iDestruct "Hγrefsim" as "[-> ?]"; try done. }
-    { cbn. iExists _. unfold named. iFrame "Hγfgnpto Hγfgnsim Hℓbuf HContent".
-      iPureIntro; done. }
-  Qed.
-
-  Lemma bufToC_fixed ℓbuf Pb (c:nat) ℓML fid lv θ:
-      GC θ
-   -∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c
-   -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c.
-  Proof.
-    iIntros "HGC H #Hsim".
-    iMod (bufToC with "HGC H Hsim") as "($&$&%ℓML1&%fid1&%Href)". done.
-  Qed.
-
-  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) fid θ:
-      GC θ
-   -∗ isBufferRecord lv ℓbuf Pb c
-   -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-  ==∗ GC θ ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c.
-  Proof.
-    iIntros "HGC H #Hsim".
-    iMod (bufToML with "HGC H") as "(HGC&%&HML&#Hsim2)".
-    iAssert (⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝)%I as "->"; last by iFrame.
-    iNamed "HML".
-    cbn.
-    iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
-    iDestruct "Hsim2" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
-    simplify_eq.
-    unfold lstore_own_vblock, lstore_own_elem; cbn.
-    iDestruct "Hγbuf" as "(Hγbuf&_)".
-    iDestruct "Hγbuf2" as "(Hγbuf2&_)".
-    iDestruct "Hγaux" as "(Hγaux&_)".
-    iDestruct "Hγaux2" as "(Hγaux2&_)".
-    iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
-    iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
-    iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
-    iPoseProof (lloc_own_pub_inj with "Hsim Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
-    iPureIntro. f_equal; repeat f_equal.
-    - symmetry; by eapply Heq2.
-    - symmetry; by eapply Heq1.
-  Qed.
-*)
 
   Import melocoton.ml_lang.notation.
   Definition buf_alloc_res_buffer z cap (b : list (option Z)) : iProp Σ := ⌜cap = 0⌝ ∗ ⌜b = replicate (Z.to_nat z) None⌝.
@@ -208,11 +121,11 @@ Section Specs.
     ∗ "%Hb1" ∷ ⌜0%Z ≤ i⌝%Z
     ∗ "%Hb2" ∷ ⌜i ≤ j+1⌝%Z
     ∗ "%Hb3" ∷ ⌜j < cap⌝%Z
-    ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j+1⌝%Z -∗ Ψframe z -∗ Φz z vnew -∗
+    ∗ "#HMerge" ∷ (□ ∀ z vnew, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψframe (z+1)%Z -∗ Φz z vnew -∗
           isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ (z+1)%Z)
     ∗ "#HWP" ∷ (□ ▷ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
               WP (RecV b1 b2 F) #z at ⟨ ∅, protoCB ⟩
-              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz z znew ∗ Ψframe (z)%Z
+              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz z znew ∗ Ψframe (z+1)%Z
                                ∗ isBufferRecordML vbuf ℓbuf (Pb (z)%Z) cap}})
     ∗ "Hframe" ∷ Ψframe i
     ∗ "Hrecord" ∷ isBufferRecordML vbuf ℓbuf (Pb i) cap
