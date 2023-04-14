@@ -1,0 +1,3 @@
+(library
+  (name landin)
+  (foreign_stubs (language c) (names landin) (flags (:standard))))

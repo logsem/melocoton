@@ -1,3 +1,4 @@
+(* These types should not exported: they are not safe
 type buf
 
 
@@ -8,5 +9,6 @@ val buf_upd    : int -> int -> (int -> char) -> buf -> unit
 
 val wrap_compress               : buf -> buf -> bool
 val wrap_max_len  : int -> int
+*)
 
 val is_compressible : char array -> bool
