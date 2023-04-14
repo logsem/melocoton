@@ -11,6 +11,7 @@ opam update
 opam install -y coq.8.16.1 coq-autosubst.dev
 opam pin -y ./iris-parametric-index
 opam pin -y ./transfinite-parametric-stepindex
+opam pin -y coq-autosubst ./autosubst
 
 cd melocoton
 make

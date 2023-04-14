@@ -13,9 +13,10 @@ afterwards.
 ```
 
 The Coq development accompanying our submission lives in the `melocoton`
-subdirectory. The `iris-parametric-index` and `transfinite-parametric-stepindex`
-directories bundle the version of Transfinite Iris that our development uses.
-They are not part of the submission.
+subdirectory. The other directories (`iris-parametric-index`,
+`transfinite-parametric-stepindex`, `autosubst`) bundle the versions of
+Transfinite Iris and Autosubst that our development uses. They are not part of
+the submission.
 
 See `melocoton/README.md` for more information about the structure of the
 development and how it relates to the paper.
