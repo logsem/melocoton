@@ -218,3 +218,16 @@ Section 5:
 - Even listeners are in TODO
   + code in TODO
   + semantic type safety theorem in TODO
+
+## Axioms
+
+This development uses Transfinite Iris, which itself relies on the following
+non-constructive axioms:
+
+- Propositional Extensionnality (`Coq.Logic.PropExtensionality.propositional_extensionality`)
+- Proof Irrelevance (`Coq.Logic.ProofIrrelevance.proof_irrelevance`)
+- (Dependent) Functional extensionality (`Coq.Logic.FunctionalExtensionality.functional_extensionality_dep`)
+- Excluded Middle (`Coq.Logic.Classical_Prop.classic`)
+
+These axioms [can be safely added to
+Coq](https://github.com/coq/coq/wiki/The-Logic-of-Coq#what-axioms-can-be-safely-added-to-coq).
