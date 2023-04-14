@@ -3,6 +3,9 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
+From melocoton.combined Require Import rules adequacy.
+From melocoton.linking Require Import lang weakestpre.
+From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.interop Require Import lang weakestpre update_laws wp_utils prims_proto.
 From melocoton.language Require Import weakestpre progenv.
@@ -15,6 +18,7 @@ From melocoton.ml_lang.logrel Require fundamental logrel typing.
 From melocoton.c_lang Require Import notation proofmode derived_laws.
 From iris.algebra Require Import list gmap big_op.
 From transfinite.base_logic.lib Require Import na_invariants ghost_var.
+
 
 Definition box_create_code (v : C_lang.expr) : C_lang.expr :=
   let: "k" := malloc (#2) in
@@ -275,20 +279,45 @@ Section Proofs.
       do 12 first [f_equiv | intros ?]. by apply wp_ne_proto. }
   Qed.
 
+  Definition box_spec_ML := fixpoint (box_prog_spec_ML).
+  Lemma box_spec_ML_unfold s vv Φ :
+   (box_spec_ML s vv Φ ⊣⊢ box_prog_spec_ML (box_spec_ML) s vv Φ)%I.
+  Proof.
+    exact (fixpoint_unfold (box_prog_spec_ML) s vv Φ).
+  Qed.
+  Lemma buf_library_spec_ML_sim:
+   (box_prog_spec_ML (box_spec_ML) ⊑ box_spec_ML)%I.
+  Proof.
+    iIntros (s vv Φ) "H". by iApply box_spec_ML_unfold.
+  Qed.
+
+  Lemma box_correct :
+    prims_proto (box_spec_ML) ||- box_prog :: wrap_proto box_spec_ML.
+  Proof.
+    iIntros (s vv Φ) "H". iNamed "H".
+    iPoseProof (box_spec_ML_unfold with "Hproto") as "[[Hproto|Hproto]|Hproto]".
+    - iApply box_create_correct; repeat iExists _; iFrameNamed.
+    - iApply box_update_correct; repeat iExists _; iFrameNamed.
+    - iApply box_listen_correct; repeat iExists _; iFrameNamed.
+  Qed.
+
 
   Definition ML_wrapper : ML_lang.expr := Λ: <>, pack: ( (λ: "v1", extern: "box_create" with ("v1")),
                                                          (λ: "v1" "v2", extern: "box_update" with ("v1", "v2")),
                                                          (λ: "v1" "v2", extern: "box_listen" with ("v1", "v2"))).
 
+  Definition ML_type_inner (t:type) : type :=
+    (TProd (TProd
+       (* 'a -> 'a box *)
+       (TArrow t (TVar 0))
+       (* 'a -> 'a box -> unit *)
+       (TArrow t (TArrow (TVar 0) TUnit)))
+       (* ('a -> 'a unit) -> ('a box -> unit) *)
+       (TArrow (TArrow t TUnit) (TArrow (TVar 0) TUnit))).
+
   Definition ML_type : type :=
     (* forall 'a, exists ' b == 'a box, ... *)
-    TForall (TExist (TProd (TProd
-       (* 'a -> 'a box *)
-       (TArrow (TVar 1) (TVar 0))
-       (* 'a -> 'a box -> unit *)
-       (TArrow (TVar 1) (TArrow (TVar 0) TUnit)))
-       (* ('a -> 'a unit) -> ('a box -> unit) *)
-       (TArrow (TArrow (TVar 1) TUnit) (TArrow (TVar 0) TUnit)))).
+    TForall (TExist (ML_type_inner (TVar 1))).
 
   Import melocoton.ml_lang.proofmode melocoton.ml_lang.notation.
   Lemma sem_typed_box p P Γ :
@@ -336,4 +365,50 @@ Section Proofs.
       wp_pures. iModIntro. iFrame "Htok". done.
   Qed.
 
+  Definition box_client_1 : ML_lang.expr := λ: "box_abs",
+    unpack: "box_abs" := (TApp "box_abs") in
+    let: "mbox" := Fst (Fst "box_abs") (#0) in
+    let: <> := Snd "box_abs" (λ: "v", Snd (Fst "box_abs") (#1) "mbox") "mbox" in
+    #42.
+
+  Lemma box_client_1_typed : 
+    typed ∅ ∅ box_client_1 (TArrow ML_type TNat).
+  Proof.
+    econstructor; cbn in *.
+    eapply (UnpackIn_typed _ _ _ _ _ (ML_type_inner TNat)).
+    { cbn. eapply (TApp_typed _ _ _ (TExist (ML_type_inner (TVar 1))) TNat).
+      repeat econstructor. }
+    { cbn; rewrite fmap_insert fmap_empty insert_insert.
+      repeat econstructor. }
+  Qed.
+
+  Definition box_client : ML_lang.expr := box_client_1 ML_wrapper.
+
+  Lemma box_client_1_sem_typed :
+    ⊢ log_typed (p:=⟨ ∅, box_spec_ML ⟩) ∅ ∅ box_client TNat.
+  Proof.
+    iApply (sem_typed_app (p:=⟨ ∅, box_spec_ML ⟩) with "[] []").
+    - iApply fundamental. apply box_client_1_typed.
+    - iApply sem_typed_box; cbn; try done.
+      exact buf_library_spec_ML_sim.
+  Qed.
 End Proofs.
+
+
+Lemma box_client_1_adequacy : 
+umrel.trace (mlanguage.prim_step (combined_prog box_client box_prog))
+  (LkCall "main" [], adequacy.σ_init)
+  (λ '(e, σ), ∃ x, mlanguage.to_val e = Some (code_int x) ∧ True).
+Proof.
+  eapply typed_adequacy_trace.
+  intros Σ Hffi. split_and!.
+  3: apply box_client_1_sem_typed.
+  2: set_solver.
+  3: apply box_correct.
+  { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
+    rewrite !dom_insert dom_empty /= in H.
+    iDestruct (box_spec_ML_unfold with "H") as "[[H|H]|H]".
+    all: iNamed "H"; exfalso; cbn in H; set_solver. }
+  { iIntros (s vv Φ) "(%tl&%tr&%Heq&H1&H2&H3)".
+    by rewrite lookup_empty in Heq. }
+Qed.

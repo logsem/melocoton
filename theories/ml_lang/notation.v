@@ -183,6 +183,6 @@ Notation "unroll: e" := (Unroll e%MLE)
 Notation "pack: e" := (Pack e%MLE)
   (at level 200, e at level 200,
    format "'[' 'pack:' '/  ' e ']'") : ml_expr_scope.
-Notation "'unpack:' x := e1 'in' e2" := (UnpackIn x%binder e2%MLE e1%MLE)
+Notation "'unpack:' x := e1 'in' e2" := (UnpackIn x%binder e1%MLE e2%MLE)
   (at level 200, x at level 1, e1, e2 at level 200,
    format "'[' 'unpack:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : ml_expr_scope.

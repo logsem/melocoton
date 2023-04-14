@@ -312,7 +312,7 @@ Lemma typed_adequacy_trace
   (∀ `{!ffiG Σ},
     Ψ on prim_names ⊑ ⊥ ∧
     dom p ## prim_names ∧
-    typed Penv ∅ e TNat ∧
+    (⊢ log_typed (p := ⟨ ∅ , Ψ ⟩) Penv ∅ e TNat) ∧
     prog_env_proto ⟨ ∅ , Ψ ⟩ Penv nil ⊑ Ψ ∧
     prims_proto Ψ ||- p :: wrap_proto Ψ
   ) →
@@ -324,7 +324,7 @@ Proof.
   intros Σ H; destruct (Hspec Σ H) as (HH1&HH2&HH3&HH4&HH5).
   split_and!. 1-2,4: done.
   iIntros "Htok".
-  iPoseProof (fundamental (p := ⟨ ∅ , Ψ _ _ ⟩) _ _ _ _ HH3 $! nil ∅ with "[] [] Htok") as "Hsemtype".
+  iPoseProof (HH3 $! nil ∅ with "[] [] Htok") as "Hsemtype".
   { iApply interp_env_nil. }
   { iIntros (s vv Φ) "!> H1". wp_extern. iModIntro; cbn. iApply HH4.
     unfold prog_env_proto.
@@ -352,6 +352,7 @@ Proof.
   intros Hspec. eapply typed_adequacy_trace.
   intros Σ H; destruct (Hspec Σ H) as (HH1&HH2&HH3&HH5).
   split_and!; try done.
+  { iApply fundamental. apply HH3. }
   iIntros (s vv Φ) "(%tl&%tr&%Heq&H1&H2&H3)".
   by rewrite lookup_empty in Heq.
 Qed.
