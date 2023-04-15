@@ -1,5 +1,5 @@
 build:
-	dune build
+	dune build --display=short
 
 clean:
 	dune clean
