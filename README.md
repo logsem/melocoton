@@ -199,8 +199,6 @@ Section 4.1:
   from the paper)
 - `EmbedC` (Fig 8) is `combined_embed_c` in `combined/rules.v`
 
-Section 4.2:
-- The definition of the GC token is in `interop/gctoken.v`
 
 - Rules of Fig 9 are formulated in Coq as rules of the form "Ψ |- p : Π";
   they desugar to the rules given in the paper.
@@ -208,7 +206,8 @@ Section 4.2:
   + `RegisterRoot` is `registerroot_correct` in `interop/wp_prims/registerroot.v`
   + `ExecCallback` is `callback_correct` in `interop/wp_simulation.v`
 
-- The definition of the GC resource appears in `interop/gctoken.v`
+Section 4.2:
+- The definition of the GC resource is in `interop/gctoken.v`
 
 Section 4.3:
 
