@@ -16,6 +16,7 @@ afterwards.
 
 ```
     ./setup-artifact.sh
+    eval $(opam env) # to use dune and Coq in the current terminal
 ```
 
 
@@ -61,8 +62,8 @@ development and how it relates to the paper.
 
 ## Troubleshooting
 
-- When visiting the artifact from a new terminal session, one needs to call opam
-to re-setup the terminal environment. To do this, call:
+- Once the artifact is build, and also when visiting the artifact from a new terminal session,
+ one needs to call opam to re-setup the terminal environment. To do this, call:
 
 ```
     # From the directory containing this README
