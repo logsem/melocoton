@@ -296,7 +296,7 @@ Section Proofs.
 
 
   Import melocoton.ml_lang.proofmode melocoton.ml_lang.notation.
-  Lemma sem_typed_box p P Γ :
+  Lemma sem_typed_listener p P Γ :
     listener_prog_spec_ML p.(penv_proto) ⊑ p.(penv_proto) →
     p.(penv_prog) = ∅ →
     ⊢ log_typed (p:=p) P Γ ML_wrapper ML_type.
@@ -365,7 +365,7 @@ Section Proofs.
   Proof.
     iApply (sem_typed_app (p:=⟨ ∅, listener_spec_ML ⟩) with "[] []").
     - iApply fundamental. apply listener_client_1_typed.
-    - iApply sem_typed_box; cbn; try done.
+    - iApply sem_typed_listener; cbn; try done.
       exact buf_library_spec_ML_sim.
   Qed.
 End Proofs.
@@ -388,3 +388,12 @@ Proof.
   { iIntros (s vv Φ) "(%tl&%tr&%Heq&H1&H2&H3)".
     by rewrite lookup_empty in Heq. }
 Qed.
+
+(*Print Assumptions listener_client_1_adequacy.*)
+(* Should print the assumed axioms, which are:
+   - Prop Extensionality
+   - Proof Irrelevance
+   - (dependent) Fun Ext
+   - Excluded Middle
+   - Epsilon (i.e. computable choice)
+*)
