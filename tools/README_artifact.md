@@ -10,7 +10,7 @@ installed on your computer (version 2.0.0 or newer), and have gone through the
 initial `opam init` setup.
 
 From the directory containing this README file, run the `setup-artifact.sh`
-script (or read it and execute its commands). Nothing will be installed or
+script. Nothing will be installed or
 written outside of this directory. The directory can be safely removed
 afterwards.
 
@@ -18,6 +18,35 @@ afterwards.
     ./setup-artifact.sh
 ```
 
+
+**The build script** does the following automatically (which can also be done
+manually):
+1. It creates a new `opam` switch in the current directory (i.e., in the artifact folder)
+
+```
+opam switch -y create . ocaml-base-compiler.4.14.1
+eval $(opam env)
+```
+
+2. It then installs the dependencies of this development: Coq, Iris, and Transfinite Iris (as a plugin to Iris), and Autosubst.
+
+```
+opam repo add -y iris-dev git+https://gitlab.mpi-sws.org/iris/opam.git
+opam update
+opam install -y coq.8.16.1
+opam pin -y ./iris-parametric-index
+opam pin -y ./transfinite-parametric-stepindex
+opam pin -y coq-autosubst ./autosubst
+```
+
+3. Finally, it changes into the folder for the development of Melocoton, `melocoton`, and builds the development.
+
+```
+cd melocoton
+make
+```
+
+## Overview
 The Coq development accompanying our submission lives in the `melocoton`
 subdirectory.
 
