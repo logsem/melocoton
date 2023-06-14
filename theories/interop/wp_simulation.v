@@ -10,7 +10,8 @@ From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Export prims weakestpre prims_proto.
-From melocoton.interop Require Import wp_ext_call_laws wp_boundary_laws wp_utils.
+(* From melocoton.interop Require Import wp_ext_call_laws. *)
+From melocoton.interop Require Import wp_boundary_laws wp_utils.
 From melocoton.interop.wp_prims Require Import common.
 Import Wrap.
 
@@ -36,7 +37,7 @@ Proof using.
   iIntros "%st SI".
   iDestruct (SI_not_at_boundary_is_in_ML with "SI Hnb") as "%H"; destruct H as (ρml & σ & ->).
   iModIntro. iRight. iRight.
-  iSplit; first done.
+  iSplit; first done. Admitted. (*
 
   iAssert (⌜ml_to_c [v] ρml σ (λ ws ρc mem, ml_to_c_core [v] ρml σ ws ρc mem)⌝)%I as "%Hprog".
   { iNamed "SI". iNamed "SIML".
@@ -55,6 +56,7 @@ Proof using.
   iDestruct (big_sepL2_cons_inv_l with "Hsim") as "(% & % & -> & Hsim & _)".
   iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
+*)
 
 Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
   Ψ on prim_names ⊑ ⊥ →
@@ -71,7 +73,6 @@ Proof.
   iIntros "Hnb HWP %st Hst".
   iDestruct (SI_not_at_boundary_is_in_ML with "Hst Hnb") as %(ρml&σ&->).
   iNamed "Hst". iNamed "SIML".
-  iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as %Hpublocs.
   iMod ("HWP" $! σ with "[$HσML]") as "[HWP|[HWP|HWP]]".
   (* value *)
   + iDestruct "HWP" as "(%x & -> & Hσ & Hret)".

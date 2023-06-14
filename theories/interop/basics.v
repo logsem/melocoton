@@ -401,6 +401,10 @@ Lemma lloc_map_pubs_insert_foreign χ γ id :
   lloc_map_pubs (<[γ:=LlocForeign id]> χ) = delete γ (lloc_map_pubs χ).
 Proof. rewrite /lloc_map_pubs omap_insert //. Qed.
 
+Lemma lloc_map_pubs_delete χ γ :
+  lloc_map_pubs (delete γ χ) = delete γ (lloc_map_pubs χ).
+Proof. rewrite /lloc_map_pubs omap_delete //. Qed.
+
 Lemma elem_of_lloc_map_pub_locs ℓ χ :
   ℓ ∈ lloc_map_pub_locs χ ↔ ∃ γ, χ !! γ = Some (LlocPublic ℓ).
 Proof.
@@ -690,6 +694,22 @@ Lemma expose_llocs_inj χ1 χ2 :
 Proof. intro H. apply H. Qed.
 Global Hint Resolve expose_llocs_inj : core.
 
+Lemma expose_llocs_inj_backwards χ1 χ2 :
+  expose_llocs χ1 χ2 →
+  lloc_map_inj χ1.
+Proof.
+  intros (Hdom&Hinj2&Hsim) γ1 γ2 vis H1 H2 Hne.
+  destruct (χ2 !! γ1) as [vis21|] eqn:Heqvis1.
+  2: eapply elem_of_dom_2 in H1; eapply not_elem_of_dom in Heqvis1; rewrite Hdom in H1; done.
+  destruct (χ2 !! γ2) as [vis22|] eqn:Heqvis2.
+  2: eapply elem_of_dom_2 in H2; eapply not_elem_of_dom in Heqvis2; rewrite Hdom in H2; done.
+  pose proof (Hsim _ _ _ H1 Heqvis1) as Hexp1.
+  pose proof (Hsim _ _ _ H2 Heqvis2) as Hexp2.
+  destruct vis, vis21, vis22; simplify_eq;
+  inversion Hexp1; simplify_eq; inversion Hexp2; simplify_eq; try done;
+  by eapply Hinj2.
+Qed.
+
 Lemma expose_llocs_trans χ1 χ2 χ3 :
   expose_llocs χ1 χ2 →
   expose_llocs χ2 χ3 →
@@ -730,6 +750,12 @@ Proof.
   { by apply lloc_map_inj_insert. }
   { intros γ0 vis1 vis2 ?%lookup_insert_Some ?%lookup_insert_Some.
     destruct_or!; destruct_and!; simplify_eq; eauto. }
+Qed.
+
+Lemma expose_llocs_refl χ : lloc_map_inj χ → expose_llocs χ χ.
+Proof.
+  repeat split; try done.
+  intros γ v1 v2 H1 H2; simplify_eq. econstructor.
 Qed.
 
 Lemma is_val_mono χ χL ζ ζL x y :
