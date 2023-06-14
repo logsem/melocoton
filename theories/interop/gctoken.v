@@ -54,31 +54,57 @@ Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!wrapperGCtokG Σ}.
 
+Definition SI_block_level_old (ζ_future : lstore) (χ_future : lloc_map) : iProp Σ :=
+  ∃ (σMLvirt : store) (ζσ ζvirt : lstore),
+    "GCζvirt" ∷ lstore_own_auth ζvirt
+  ∗ "GCσMLv" ∷ state_interp (σMLvirt : language.language.state ML_lang)
+  ∗ "GCχvirt" ∷ lloc_own_auth χ_future
+  ∗ "GCχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χ_future ζvirt, ℓ ↦M/)
+  ∗ "%Hfreezeeq" ∷ ⌜ζ_future = ζσ ∪ ζvirt⌝
+  ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζvirt⌝
+  ∗ "%Hstore_blocks" ∷ ⌜is_store_blocks χ_future σMLvirt ζσ⌝
+  ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χ_future⌝
+  ∗ "%Hstore" ∷ ⌜is_store χ_future ζ_future σMLvirt⌝.
+
+Definition per_location_invariant (ζ_future : lstore) (σMLvirt : store)
+     (γ : lloc) (ℓ : loc) : iProp Σ :=
+  ∃ (vs : list val) tg lvs, 
+    ( ℓ ↦M/ ∗ ⌜ζ_future !! γ = Some (Bvblock (Mut, (tg, lvs)))⌝)
+  ∨ (⌜σMLvirt !! ℓ = Some (Some vs)⌝ ∗ (γ ↦mut (tg, lvs)) ∗ lvs ~~∗ vs ∗ ⌜tg = TagDefault⌝)
+  ∨ (⌜σMLvirt !! ℓ = None⌝ ∗ ⌜ζ_future !! γ = None⌝)
+  ∨ (⌜σMLvirt !! ℓ = Some None⌝ ∗ ⌜ζ_future !! γ = None⌝).
+(* the last two are "phony cases" -- they should not exist, but we do not control χ good enough in the op sem *)
+
+Definition SI_block_level (ζ_future : lstore) (χ_future : lloc_map) : iProp Σ :=
+  ∃ (σMLvirt : store),
+    "GCχauth" ∷ lloc_own_auth χ_future
+  ∗ "GCζauth" ∷ lstore_own_auth ζ_future
+  ∗ "%Hother_blocks" ∷ ⌜dom ζ_future ⊆ dom χ_future⌝
+  ∗ "GCσMLv" ∷ state_interp (σMLvirt : language.language.state ML_lang)
+  ∗ "GC_per_loc" ∷ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ_future,
+      per_location_invariant ζ_future σMLvirt γ ℓ)
+  ∗ "%Hstore" ∷ ⌜∀ ℓ, ℓ ∈ dom σMLvirt → ∃ γ, χ_future !! γ = Some (LlocPublic ℓ)⌝.
+
+Definition SI_GC (ζ_future : lstore) (θ : addr_map) (roots_s : gset addr) : iProp Σ :=
+  ∃ (roots_m : gmap addr lval),
+    "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
+  ∗ "GCrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
+  ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
+  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
+  ∗ "%HGCOK" ∷ ⌜GC_correct ζ_future θ⌝.
+
 Definition GC (θ : addr_map) : iProp Σ :=
-  ∃ (ζ ζfreeze ζσ ζvirt : lstore) (χ χvirt : lloc_map) (σMLvirt : store)
-    (roots_s : gset addr) (roots_m : gmap addr lval),
+  ∃ (ζ ζ_future : lstore) (χ χ_future : lloc_map)
+    (roots_s : gset addr),
     "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) θ
   ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
   ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
-  ∗ "GCζvirt" ∷ lstore_own_auth ζvirt
-  ∗ "GCσMLv" ∷ state_interp (σMLvirt : language.language.state ML_lang)
-  ∗ "GCχvirt" ∷ lloc_own_auth χvirt
-  ∗ "GCχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χvirt ζvirt, ℓ ↦M/)
-  ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
-  ∗ "GCrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
-  ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
-  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
-  ∗ "%Hfreezeρ" ∷ ⌜freeze_lstore ζ ζfreeze⌝
-  ∗ "%Hfreezeeq" ∷ ⌜ζfreeze = ζσ ∪ ζvirt⌝
-  ∗ "%Hfreezedj" ∷ ⌜ζσ ##ₘ ζvirt⌝
-  ∗ "%Hstore_blocks" ∷ ⌜is_store_blocks χvirt σMLvirt ζσ⌝
-  ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χvirt⌝
-  ∗ "%Hstore" ∷ ⌜is_store χvirt ζfreeze σMLvirt⌝
-  ∗ "%Hχvirt" ∷ ⌜expose_llocs χ χvirt⌝
-  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝ (* TODO redundant? *)
-  ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
+  ∗ "HSI_block_level" ∷ SI_block_level ζ_future χ_future
+  ∗ "HSI_GC" ∷ SI_GC ζ_future θ roots_s
+  ∗ "%Hζfuture" ∷ ⌜freeze_lstore ζ ζ_future⌝
+  ∗ "%Hχfuture" ∷ ⌜expose_llocs χ χ_future⌝.
 
 Definition at_init := ghost_var wrapperG_γat_init (1/2) true.
 

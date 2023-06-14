@@ -48,9 +48,9 @@ Definition preGCtok : iProp Σ :=
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) (∅:lloc_map)
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
   ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (∅:gset addr)
-  ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
+  ∗ "GCζ" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCML" ∷ state_interp (∅ : language.language.state ML_lang)
-  ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
+  ∗ "GCχ" ∷ lloc_own_auth (∅:lloc_map)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval).
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
@@ -63,28 +63,45 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) at_init
   ∗ "Hinit" ∷ if at_init then preGCtok else True.
 
-Definition GC_token_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) : iProp Σ :=
-   "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
- ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
- ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
- ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots_m)
- ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (roots_m : gmap loc lval)
- ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦C None).
 
-Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
-    "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζvirt
+Definition per_location_invariant_ML (ζ : lstore)
+     (γ : lloc) (ℓ : loc) : iProp Σ :=
+  ∃ (vs : list val) tg lvs, 
+    ( ℓ ↦M/ ∗ ⌜ζ !! γ = Some (Bvblock (Mut, (tg, lvs)))⌝)
+  ∨ (⌜ζ !! γ = None⌝ ∗ γ ~ℓ~ ℓ).
+
+Definition SI_block_level_ML (ζ : lstore) (χ : lloc_map) : iProp Σ :=
+    "GCχauth" ∷ lloc_own_auth χ
+  ∗ "GCζauth" ∷ lstore_own_auth ζ
+  ∗ "%Hother_blocks" ∷ ⌜dom ζ ⊆ dom χ⌝
+  ∗ "GCχNone" ∷ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ,
+      per_location_invariant_ML ζ γ ℓ).
+
+Definition SI_GC_ML (ζ : lstore) (roots_m : roots_map) : iProp Σ :=
+    "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
+  ∗ "GCrootspto" ∷ ([∗ map] a ↦ _ ∈ roots_m, a O↦C None).
+
+Definition GC_remnant_ML (roots_m : roots_map) : iProp Σ :=
+  ∃ (ζ : lstore) (χ : lloc_map),
+    "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
+  ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
+  ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅ : addr_map)
+  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots_m)
+  ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
+  ∗ "HSI_block_level" ∷ SI_block_level_ML ζ χ
+  ∗ "HSI_GC" ∷ SI_GC_ML ζ roots_m
+  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝.
+
+
+Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
+    "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperG_γθ (1/2) (∅ : addr_map)
   ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots)
   ∗ "SIbound" ∷ ghost_var wrapperG_γat_boundary (1/2) false
-  ∗ "SIinit" ∷ ghost_var wrapperG_γat_init 1 false
-  ∗ "SIζvirt" ∷ lstore_own_auth ζvirt
+  ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) false
+  ∗ "SIGCrem" ∷ GC_remnant_ML roots
   ∗ "HσCv" ∷ gen_heap_interp (memC ∪ (fmap (fun k => None) roots))
-  ∗ "SIAχ" ∷ lloc_own_auth χ
-  ∗ "SIAχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χ ζvirt, ℓ ↦M/)
-  ∗ "SIGCrem" ∷ GC_token_remnant ζvirt χ roots
-  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝
-  ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χ⌝
   ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
 
 Definition private_state_interp : wrapstateC → iProp Σ :=
