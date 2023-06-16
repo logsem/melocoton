@@ -47,6 +47,7 @@ Definition zigzag_tail_code (lst : C_lang.expr) : C_lang.expr :=
 
 Definition zigzag_pop_code (lst : C_lang.expr) : C_lang.expr :=
   let: "cc" := Custom_contents (lst) in
+  Custom_contents ( lst ) := #LitNull ;;
   (call: &"unregisterroot" with ("cc" +ₗ #0)) ;;
   (call: &"unregisterroot" with ("cc" +ₗ #1)) ;;
   let: "tl" := *("cc" +ₗ #1) in (* Feature: read the value after unregistering the root *)
@@ -111,7 +112,7 @@ Section Proofs.
       "->" ∷ ⌜s = "zigzag_pop"⌝
     ∗ "->" ∷ ⌜vv = [ lstV ]⌝
     ∗ "Htl" ∷ is_zigzag (hd::tl) lstV
-    ∗ "HWP" ∷ ▷ (∀ tlV, is_zigzag tl tlV -∗ Φ tlV))%I.
+    ∗ "HWP" ∷ ▷ (∀ tlV, is_zigzag tl tlV -∗ is_zigzag nil lstV -∗ Φ tlV))%I.
 
   Import melocoton.c_lang.primitive_laws melocoton.c_lang.proofmode.
 
@@ -254,9 +255,11 @@ Section Proofs.
     iIntros (Φ'') "Cont2".
     wp_pure _.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
-    wp_pures. rewrite loc_add_0.
-    wp_apply (wp_unregisterroot with "[$HGC $Ha0]"); [done..|]. iIntros (whd) "(HGC&Ha0&%Hrepr0)".
     wp_pures.
+    wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)". wp_pures.
+    rewrite loc_add_0.
+    wp_apply (wp_unregisterroot with "[$HGC $Ha0]"); [done..|]. iIntros (whd) "(HGC&Ha0&%Hrepr0)".
+    do 2 wp_pure _.
     wp_apply (wp_unregisterroot with "[$HGC $Ha1]"); [done..|]. iIntros (wtl) "(HGC&Ha1&%Hrepr1)".
     wp_pures.
     wp_apply (wp_load with "Ha1"). iIntros "Ha1".
@@ -265,8 +268,8 @@ Section Proofs.
     { iNext. cbn. rewrite !loc_add_0. iFrame. }
     iIntros "_". wp_pures. iModIntro.
     iApply "Cont2".
-    iApply ("Cont" with "HGC (HWP Hrec)"); last done.
-    done.
+    iApply ("Cont" with "HGC (HWP Hrec [Hγfgn])"); [|done..].
+    iExists _, _, _; iSplit; first done. iFrame "Hγfgn Hi". done.
   Qed.
   End InPsi.
 
