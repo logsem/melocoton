@@ -3,5 +3,6 @@ _build
 *.crashcoqide
 *#
 html
+*.install
 
 _opam

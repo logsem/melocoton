@@ -1,0 +1,25 @@
+name: "coq-melocoton"
+synopsis: "The Coq development of melocoton"
+opam-version: "2.0"
+maintainer: "anonymous"
+authors: [ "anonymous" ]
+homepage: "https://github.com/logsem/melocoton"
+bug-reports: "https://github.com/logsem/melocoton/issues"
+dev-repo: "git+https://github.com/logsem/melocoton.git"
+depends: [
+  "dune" {>= "2.9"}
+  "coq" {= "8.16.1"}
+  "coq-iris" {= "dev"}
+  "coq-iris-heap-lang" {= "dev"}
+  "coq-iris-transfinite" {= "dev"}
+  "coq-stdpp" {= "dev.2022-12-05.0.0231fed2"}
+  "coq-autosubst" {= "dev"}
+]
+pin-depends: [
+  [ "coq-iris-transfinite.dev" "git+https://gitlab.mpi-sws.org/simonspies/transfinite-parametric-stepindex.git#simon/parametric-index" ]
+  [ "coq-iris.dev" "git+https://gitlab.mpi-sws.org/simonspies/iris-parametric-index.git#simon/parametric-index" ]
+  [ "coq-iris-heap-lang.dev" "git+https://gitlab.mpi-sws.org/simonspies/iris-parametric-index.git#simon/parametric-index" ]
+]
+build: [
+  ["dune" "build" "-p" name "-j" jobs "@install"]
+]

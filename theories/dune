@@ -1,5 +1,6 @@
 (coq.theory
   (name melocoton)
+  (package coq-melocoton)
   (flags :standard
          -w -redundant-canonical-projection
          -w -inconsistent-scopes ; TODO properly eliminate this warning
