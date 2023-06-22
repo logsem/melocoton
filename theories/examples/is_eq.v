@@ -87,7 +87,7 @@ Section C_specs.
     all: cbn; iDestruct "Hsim" as "(Hy&?)"; try done.
     destruct ws as [|wx [|wy [|??]]]; decompose_Forall.
     iDestruct "Hx" as "-#Hx". iDestruct "Hy" as "-#Hy".
-    iAssert (▷ ∀ wret, GC θ -∗ na_tok -∗
+    iAssert (▷ ∀ wret, GC θ ∅ -∗ na_tok -∗
        ⌜repr_lval θ (Lint (bool_to_Z (bool_decide (x = y)))) wret⌝ -∗
        Φ'' wret)%I with "[Cont Hcont HΦ]" as "Cont". {
       iIntros "!>" (?) "??". iIntros (?).

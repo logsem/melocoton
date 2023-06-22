@@ -17,14 +17,14 @@ Section Proofs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Lemma buf_alloc_spec_C θ (n: nat) (wcap: word) Ψ :
+  Lemma buf_alloc_spec_C θ roots (n: nat) (wcap: word) Ψ :
     (0 < n)%Z →
     repr_lval θ (Lint n) wcap →
-    {{{ GC θ }}}
+    {{{ GC θ roots }}}
          call: &buffers_specs.buf_alloc_name with (wcap)
       at ⟨buf_lib_prog, prims_proto Ψ⟩
     {{{ w' θ' lv ℓ, RET w';
-       GC θ' ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
+       GC θ' roots ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
        ⌜repr_lval θ' lv w'⌝ }}}%CE.
   Proof.
     cbn. iIntros (Hb1 Hlval Φ) "HGC HΦ". wp_call_direct.
@@ -133,7 +133,7 @@ Section Proofs.
     destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons_inv_l in Hrepr as (wcap&?&Hlval&_&?); simplify_eq.
     cbn. iApply wp_fupd.
-    iApply (buf_alloc_spec_C _ (Z.to_nat z) with "HGC"); first lia.
+    iApply (buf_alloc_spec_C _ _ (Z.to_nat z) with "HGC"); first lia.
     { rewrite -(_: z = Z.to_nat z) //; lia. }
     iIntros "!>" (w' θ' lv ℓ) "(HGC & Hbuf & %)".
     iMod (bufToML with "HGC Hbuf") as "(HGC&%vv&Hbuffer&#Hsim)".

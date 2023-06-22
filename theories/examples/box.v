@@ -233,7 +233,7 @@ Section Proofs.
     iIntros "(HGC&_)". iDestruct "HH" as "(HI2&Hna&Hclose2)".
     wp_pures.
     wp_bind (If _ _ _).
-    iApply (wp_wand _ _ _ (λ _, (GC θ ∗ ∃ lv v, ℓ ↦roots lv ∗ lv ~~ v ∗ interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ v))%I
+    iApply (wp_wand _ _ _ (λ _, (GC θ ∅ ∗ ∃ lv v, ℓ ↦roots lv ∗ lv ~~ v ∗ interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ v))%I
             with "[HGC HI2]"); first iDestruct "HI2" as "[(%lv2&%v2&Hℓ0&#Hlv2&#(%b1&%b2&%ec&->&#Hcall))|Hℓ0]".
     - iDestruct "Hlv2" as (γcb ->) "Hlv2".
       wp_apply (load_from_root with "[$HGC $Hℓ0]").

@@ -43,7 +43,8 @@ Section C_specs.
     all: cbn; iDestruct "Hsim" as "(Hx&?)"; try done.
     destruct ws as [|wl [|wx [|??]]]; decompose_Forall.
     wp_call_direct.
-    iMod (ml_to_mut with "[$HGC $Hl]") as "(HGC&(%lvs&%γ'&Hl&#Hγ'&Hlvs))".
+    iMod (ml_to_mut with "[$HGC $Hl]") as "(%lvs&%γ'&HGC&Hl&#Hγ'&Hlvs)".
+    eassert (∅ ∖ _ = ∅) as -> by set_solver.
     destruct lvs as [|lvf [|??]]; try done.
     all: cbn; iDestruct "Hlvs" as "([%γ'' [-> #Hγ'']]&?)"; try done.
     iAssert (⌜γ = γ'⌝)%I as %<-. {
@@ -58,6 +59,7 @@ Section C_specs.
       iDestruct (lloc_own_pub_inj with "Hγ' Hγ''' HGC") as "[? %]".
       iPureIntro. naive_solver.
     }
+    eassert (∅ ∖ _ = ∅) as -> by set_solver.
     wp_apply (wp_callback with "[$HGC $Hx $Hγ'' HWP Hl]"); [done.. | |].
     { by iApply "HWP". }
     iIntros (θ' vret lvret wret) "(HGC&HΦ'&Hvret&%)". (* wp_pures. *)

@@ -78,7 +78,7 @@ Section Proofs.
     generalize (length vcontent) as vcontent_length. intros vcontent_length Hb3.
     clear vcontent.
 
-    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ ∗ GC θ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
+    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ ∗ GC θ ∅ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
               with "[HℓF Hℓbf Hℓi HGC HΨ]").
     { iRevert "HMerge HWP Hb1 Hb2". iLöb as "IH" forall (i θ).
       iIntros "#HMerge #HWP %Hb1 %Hb2".
@@ -118,7 +118,8 @@ Section Proofs.
       wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
       iIntros (vγref wγref) "(HGC&_&%Heq&%Hvwγref)". cbv in Heq. simplify_eq.
 
-      iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(HGC&%&%&HℓbufML&#Hsim2&HHsim2)".
+      iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%&%&HGC&HℓbufML&#Hsim2&HHsim2)".
+      eassert (∅ ∖ _ = ∅) as -> by set_solver.
       destruct lvs as [|? [|??]].
       1: cbn; done.
       all: iDestruct "HHsim2" as "(->&HHr)"; try done. iClear "HHr".
@@ -168,6 +169,7 @@ Section Proofs.
       wp_apply (wp_load with "Hℓi"). iIntros "Hℓi". wp_pure _.
       wp_apply (wp_store with "Hℓi"). iIntros "Hℓi". wp_pure _.
       iMod (mut_to_ml _ [ ML_lang.LitV (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
+      eassert (∅ ∖ _ = ∅) as -> by set_solver.
       iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2 HGC") as "(HGC&%Heq3)"; simplify_eq.
       replace ℓML2 with ℓML0 by by eapply Heq3.
       iMod ("HMerge" with "[] [] HΨframe HΦz [Hγfgnpto HContent Hℓbuf HℓbufML]") as "HH". 1-2: iPureIntro; lia.

@@ -85,7 +85,9 @@ Section Proofs.
       iSplit; iPureIntro; [eapply Heq2|eapply Heq1]; done.
     }
     iModIntro.
-    iApply "HΦ". iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
+    iApply "HΦ".
+    eassert (∅ ∖ _ = ∅) as -> by set_solver.
+    iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
   Qed.
 
 End Proofs.
