@@ -241,6 +241,23 @@ Proof.
   iApply ("IH" with "[$] [$]").
 Qed.
 
+Lemma wp_store_nochange dq pe E l i vs w :
+  (0 ≤ i < length vs)%Z →
+  (vs !! (Z.to_nat i) = Some w) →
+  {{{ ▷ l ↦∗{dq} vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) @ pe; E
+  {{{ RET LitV LitUnit; l ↦∗{dq} vs }}}.
+Proof.
+  iIntros (Hi Hlu Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
+  iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
+  assert (σ1 !! l.[i] = Some w) as Heqvs.
+  { rewrite store_lookup_eq. case_bool_decide; [|lia]. simplify_map_eq. done. }
+  iSplit; first by eauto with head_step.
+  iIntros (v2 σ2 Hstep); inv_head_step. iModIntro.
+  rewrite (store_insert_offset _ _ _ vs); auto; [].
+  rewrite list_insert_id; last done. rewrite insert_id; last done.
+  iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl". 
+Qed.
+
 Lemma wp_store pe E l v w :
   {{{ ▷ l ↦M v }}} Store (Val $ LitV $ LitLoc l) (Val w) @ pe; E
   {{{ RET LitV LitUnit; l ↦M w }}}.

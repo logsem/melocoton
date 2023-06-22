@@ -448,6 +448,12 @@ Lemma lloc_map_foreign_insert_foreign χ γ id :
   lloc_map_foreign (<[γ:=LlocForeign id]> χ) = <[γ := id]> (lloc_map_foreign χ).
 Proof. rewrite /lloc_map_foreign omap_insert //. Qed.
 
+Lemma lloc_map_pubs_inj χ : lloc_map_inj χ → gmap_inj (lloc_map_pubs χ).
+Proof.
+  intros H γ1 γ2 ℓ H1%lloc_map_pubs_lookup_Some H2%lloc_map_pubs_lookup_Some.
+  eapply H. all: done.
+Qed.
+
 Lemma pub_locs_in_lstore_empty :
   pub_locs_in_lstore ∅ ∅ = ∅.
 Proof. rewrite /pub_locs_in_lstore lloc_map_pubs_empty //. Qed.

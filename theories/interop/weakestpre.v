@@ -181,7 +181,7 @@ Proof.
   iApply (big_sepM_intro).
   iIntros "!>" (γ2 ℓ Hne) "(%vs'&%tg&%lvs&[(HNσ&%H1)|[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)]])"; iExists vs', tg, lvs.
   - iLeft; by iFrame.
-  - iRight. iLeft. by iFrame.
+  - iRight. iLeft. iFrame. done.
   - iRight. iRight. iFrame. iSplit; first done.
     iPureIntro. rewrite lookup_insert_ne; first done.
     intros ->. congruence.
@@ -197,10 +197,33 @@ Proof.
   iApply (big_sepM_intro).
   iIntros "!>" (γ2 ℓ Hne) "(%vs'&%tg&%lvs&[(HNσ&%H1)|[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)]])"; iExists vs', tg, lvs.
   - iLeft; by iFrame.
-  - iRight. iLeft. by iFrame.
+  - iRight. iLeft. iFrame. done.
   - iRight. iRight. iFrame. iSplit; first done.
     iPureIntro. rewrite lookup_delete_ne; first done.
     intros ->. congruence.
+Qed.
+
+Lemma delete_lookup_None {A B} `{Countable A} (m : gmap A B) k1 k2 : m !! k2 = None → delete k1 m !! k2 = None.
+Proof.
+  intros Hn. destruct (EqDecision0 k1 k2).
+  - subst. apply lookup_delete.
+  - by rewrite lookup_delete_ne.
+Qed.
+
+Lemma GC_per_loc_ML_delete_2 M ζ ζσ γ':
+   M !! γ' = None →
+(([∗ map] γ↦ℓ ∈ M, per_location_invariant_ML ζ ζσ γ ℓ)
+⊢ [∗ map] γ↦ℓ ∈ M, per_location_invariant_ML (delete γ' ζ) ζσ γ ℓ)%I.
+Proof.
+  iIntros (Hnℓ) "Hbig".
+  iApply (big_sepM_wand with "Hbig").
+  iApply (big_sepM_intro).
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%tg&%lvs&[(HNσ&%H1)|[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)]])"; iExists vs', tg, lvs.
+  - iLeft; iFrame; iPureIntro; try done. rewrite lookup_delete_ne; try done. intros ->; simplify_eq.
+  - iRight. iLeft. iFrame. iPureIntro.
+    by apply delete_lookup_None.
+  - iRight. iRight. iFrame. iSplit; last done. iPureIntro.
+    by apply delete_lookup_None.
 Qed.
 
 End WrapperWP.

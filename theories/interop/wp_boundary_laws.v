@@ -21,7 +21,6 @@ Context {Σ : gFunctors}.
 Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.
 Context `{!wrapperG Σ}.
-Check per_location_invariant_ML.
 
 
 Lemma GC_SI_to_C σMLvirt ζ ζplus χ :
@@ -29,7 +28,7 @@ Lemma GC_SI_to_C σMLvirt ζ ζplus χ :
   ∗ lstore_own_auth (ζplus ∪ ζ)
   ∗ ([∗ map] γ↦b ∈ ζplus, ghost_map_elem wrapperG_γζvirt γ (DfracOwn 1) b)
   ∗ state_interp (σMLvirt : language.language.state ML_lang)
-  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant ζ σMLvirt γ ℓ)
+  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant ζ σMLvirt ∅ γ ℓ)
   ∗ ⌜∀ ℓ, ℓ ∈ dom σMLvirt → ∃ γ, χ !! γ = Some (LlocPublic ℓ)⌝
  ⊢ ∃ ζσ ζvirt,
     lloc_own_auth χ
@@ -59,7 +58,7 @@ Proof.
       * intros (ℓ&Vs&[]%lookup_empty_Some&_).
     + intros ℓ Vs γ blk H1 []%lookup_empty_Some.
   - rewrite lloc_map_pubs_insert_pub.
-    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%tg&%lvs&[(Hℓ&%Hγζ)|[(%Hℓσ&Hγ&Hrest&->)|[(%Hnone1&%Hnone2)|(%Hnone1&%Hnone2)]]])&GC_per_loc)".
+    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%tg&%lvs&[(Hℓ&%Hγζ)|[(%Hℓσ&Hγ&Hrest&->)|[(%q&%r&Hℓ&Hγ&#Hsimm&->&%Hsum&%Hc)|[(%Hnone1&%Hnone2)|(%Hnone1&%Hnone2)]]]])&GC_per_loc)".
     1: apply lloc_map_pubs_lookup_None; left; done.
     + iDestruct (gen_heap_valid with "GCσMLv Hℓ") as %Hℓσ.
       iDestruct (IH ζ with "[$GCζauth $Hplus $GC_per_loc $GCσMLv $GCχauth]") as "(%ζσ&%ζvirt&GCχauth&GCζauth&Hownres&HχNone&->&%Hdisj&GCσMLv&(#_&%Hstore1)&%Hstore2)".
@@ -130,6 +129,7 @@ Proof.
         -- simplify_eq. by econstructor.
         -- eapply (is_heap_elt_weaken χ (delete γ ζ)); [|done|by apply delete_subset].
            eapply Hstore2; try done. by rewrite lookup_delete_ne.
+    + exfalso. set_solver. 
     + iDestruct (IH ζ with "[$GCζauth $Hplus $GC_per_loc $GCσMLv $GCχauth]") as "(%ζσ&%ζvirt&GCχauth&GCζauth&Hownres&HχNone&->&%Hdisj&GCσMLv&(#_&%Hstore1)&%Hstore2)".
       1: etransitivity; first apply insert_subseteq; done.
       iPoseProof (lloc_own_auth_get_pub with "GCχauth") as "#Hsim".
@@ -211,7 +211,7 @@ Qed.
 Lemma wrap_interp_c_to_ml ws ρc mem θ vs lvs :
   Forall2 (repr_lval θ) lvs ws →
   wrap_state_interp (Wrap.CState ρc mem) -∗
-  GC θ -∗
+  GC θ ∅ -∗
   at_boundary wrap_lang -∗
   lvs ~~∗ vs -∗
   ∃ ρml σ,
@@ -263,6 +263,22 @@ Proof using.
   destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
 Qed.
 
+
+Lemma wp_is_None σ χ ζ1 ζ2 : 
+  ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant_ML ζ1 ζ2 γ ℓ)
+ ∗ state_interp σ
+ ⊢ ⌜map_Forall (λ _ ℓ, σ !! ℓ = Some None) (pub_locs_in_lstore χ ζ1)⌝.
+Proof.
+  iIntros "(H1&H2)".
+  iAssert (⌜_⌝)%I as "%H".
+  2: { iPureIntro. apply map_Forall_lookup. exact H. }
+  iIntros (γ ℓ [Hin [v Hv]%elem_of_dom]%map_filter_lookup_Some).
+  iPoseProof (big_sepM_lookup with "H1") as "(%Vs&%tg&%lvs&[(H1&%H2)|[(%Hne&_)|(%Hne&_)]])"; first done.
+  - iApply (gen_heap_valid with "H2 H1").
+  - exfalso; simplify_eq. 
+  - exfalso; simplify_eq.
+Qed.
+
 Lemma gmap_new_elems {A B : Type} `{Countable A} (m1 m2 : gmap A B) : m1 ⊆ m2 → ∃ mr, m2 = m1 ∪ mr ∧ m1 ##ₘ mr.
 Proof.
   exists (filter (fun '(k,_) => (m1 !! k) = None) m2). split.
@@ -289,7 +305,7 @@ Lemma GC_SI_to_ML_one σMLvirt ζvirt ζσnew ζσold ζnewimm χ χplus:
   ∗ lstore_own_auth (ζσold ∪ (ζvirt ∪ ζnewimm))
   ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant_ML ζvirt ζσold γ ℓ)
  ⊢ |==> lstore_own_auth (ζσnew ∪ (ζvirt ∪ ζnewimm))
-  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant (ζσnew ∪ ζvirt) σMLvirt γ ℓ)
+  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant (ζσnew ∪ ζvirt) σMLvirt ∅ γ ℓ)
   ∗ lloc_own_auth χplus
   ∗ state_interp (σMLvirt : language.language.state ML_lang).
 Proof.
@@ -418,7 +434,7 @@ Proof.
         -- apply map_subseteq_spec. intros γ' v1 Hv1. eapply lookup_weaken. 2: exact Hsub.
            rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
         -- iModIntro. iFrame. iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; by left). iFrame.
-           iExists vs, tg, lvs. iRight. iRight. destruct HeqNone; [iRight|iLeft]; iFrame; iPureIntro; (split; first done).
+           iExists vs, tg, lvs. iRight. iRight. iRight. destruct HeqNone; [iRight|iLeft]; iFrame; iPureIntro; (split; first done).
            all: by apply lookup_union_None_2.
     + destruct (ζnewimm !! γ) as [?|] eqn:Hnewimm.
       { exfalso. apply elem_of_dom_2 in Hnewimm. unshelve epose proof (Himmut _ _ _ Hnewimm) as Hcontr.
@@ -485,7 +501,7 @@ Proof.
        -- apply map_subseteq_spec. intros γ' v1 Hv1. eapply lookup_weaken. 2: exact Hsub.
           rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
        -- iModIntro. iFrame. iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; by left). iFrame.
-          iExists vs, tg, lvs. iRight. iRight. destruct (σMLvirt !! ℓ) as [[?|]|] eqn:Heqsigma.
+          iExists vs, tg, lvs. iRight. iRight. iRight. destruct (σMLvirt !! ℓ) as [[?|]|] eqn:Heqsigma.
           1: { exfalso. eapply not_elem_of_dom in Heqblk. apply Heqblk, Hbl2.
                do 2 eexists; rewrite lookup_insert; done. }
           1: iRight; iPureIntro; split_and!; try done.
@@ -533,7 +549,7 @@ Lemma GC_SI_to_ML_2 σMLvirt ζvirt ζσold ζσnew ζnewimm χold χnew :
   ∗ lstore_own_auth (ζσold ∪ (ζvirt ∪ ζnewimm))
   ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χold, per_location_invariant_ML ζvirt ζσold γ ℓ)
  ⊢ |==> lstore_own_auth (ζσnew ∪ (ζvirt ∪ ζnewimm))
-  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χnew, per_location_invariant (ζσnew ∪ ζvirt) σMLvirt γ ℓ)
+  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χnew, per_location_invariant (ζσnew ∪ ζvirt) σMLvirt ∅ γ ℓ)
   ∗ lloc_own_auth χnew
   ∗ state_interp (σMLvirt : language.language.state ML_lang).
 Proof.
@@ -629,7 +645,7 @@ Proof.
         rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
       * iModIntro. iFrame. rewrite lloc_map_pubs_insert_pub. iApply big_sepM_insert.
         1: apply lloc_map_pubs_lookup_None; left; eapply lookup_union_None_2; done. iFrame.
-        iExists nil, TagDefault, nil. iRight. iRight.
+        iExists nil, TagDefault, nil. iRight. iRight. iRight.
         destruct HeqNone; [iRight|iLeft]; iPureIntro; (split; first done).
         all: apply lookup_union_None_2; try done; eapply not_elem_of_dom.
         all: intros HHH%Hother_blocks; by eapply not_elem_of_dom in Hnold.
@@ -673,7 +689,7 @@ Lemma GC_SI_to_ML σMLvirt ζvirt ζσold ζσnew ζnewimm χold χnew :
   ∗ lstore_own_auth (ζσold ∪ (ζvirt ∪ ζnewimm))
   ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χold, per_location_invariant_ML ζvirt ζσold γ ℓ)
  ⊢ |==> lstore_own_auth (ζσnew ∪ (ζvirt ∪ ζnewimm))
-  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χnew, per_location_invariant (ζσnew ∪ (ζvirt ∪ ζnewimm)) σMLvirt γ ℓ)
+  ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χnew, per_location_invariant (ζσnew ∪ (ζvirt ∪ ζnewimm)) σMLvirt ∅ γ ℓ)
   ∗ lloc_own_auth χnew
   ∗ state_interp (σMLvirt : language.language.state ML_lang).
 Proof.
@@ -706,7 +722,7 @@ Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
   ==∗
   wrap_state_interp (Wrap.CState ρc mem) ∗
   at_boundary wrap_lang ∗
-  GC (θC ρc) ∗
+  GC (θC ρc) ∅ ∗
   (∃ lvs, lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
 Proof using.
   iIntros (Hml_to_c) "Hst Hb".

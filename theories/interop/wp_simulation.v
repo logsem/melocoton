@@ -26,27 +26,10 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
-
-Lemma wp_is_None σ χ ζ1 ζ2 : 
-  ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant_ML ζ1 ζ2 γ ℓ)
- ∗ state_interp σ
- ⊢ ⌜map_Forall (λ _ ℓ, σ !! ℓ = Some None) (pub_locs_in_lstore χ ζ1)⌝.
-Proof.
-  iIntros "(H1&H2)".
-  iAssert (⌜_⌝)%I as "%H".
-  2: { iPureIntro. apply map_Forall_lookup. exact H. }
-  iIntros (γ ℓ [Hin [v Hv]%elem_of_dom]%map_filter_lookup_Some).
-  iPoseProof (big_sepM_lookup with "H1") as "(%Vs&%tg&%lvs&[(H1&%H2)|[(%Hne&_)|(%Hne&_)]])"; first done.
-  - iApply (gen_heap_valid with "H2 H1").
-  - exfalso; simplify_eq.
-  - exfalso; simplify_eq.
-Qed.
-  
-
 Lemma wp_to_val (pe : progenv.prog_environ wrap_lang Σ) v:
     not_at_boundary
  -∗ WP (WrSE (ExprML (ML_lang.Val v))) at pe {{ w,
-      ∃ θ' lv, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗
+      ∃ θ' lv, GC θ' ∅ ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗
       at_boundary wrap_lang }}.
 Proof using.
   iIntros "Hnb".
@@ -80,7 +63,7 @@ Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
   not_at_boundary -∗
   WP eml at ⟨ ∅, Ψ ⟩ {{ Φ }} -∗
   WP (WrSE (ExprML eml)) at ⟪ wrap_prog emain, wrap_proto Ψ ⟫ {{ w,
-    ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
+    ∃ θ' lv v, GC θ' ∅ ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
     at_boundary wrap_lang }}.
 Proof.
   intros Hnprims.
@@ -148,7 +131,7 @@ Proof.
     { iPureIntro. apply not_elem_of_dom.
       rewrite dom_wrap_prog not_elem_of_prim_names //. }
     iFrame "Hb Hst'".
-    iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
+    iExists (λ wret, ∃ θ' vret lvret, GC θ' ∅ ∗ Ξ vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
     iSplitL "HGC HT".
     { rewrite /wrap_proto /named /=. iExists _, _, _, _.
       iFrame "HGC HT Hblk". iSplit; first done.

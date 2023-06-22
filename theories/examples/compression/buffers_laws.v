@@ -16,14 +16,16 @@ Section Specs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Lemma bufToML lv ℓbuf Pb c θ:
-      GC θ
+  Lemma bufToML lv ℓbuf Pb c θ roots:
+      GC θ roots
    -∗ isBufferRecord lv ℓbuf Pb c
-  ==∗ GC θ ∗ ∃ v, isBufferRecordML v ℓbuf Pb c ∗ lv ~~ v.
+  ==∗ GC θ roots ∗ ∃ v, isBufferRecordML v ℓbuf Pb c ∗ lv ~~ v.
   Proof.
     iIntros "HGC H". iNamed "H". iNamed "Hbuf".
     iMod (mut_to_ml _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
     1: by cbn.
+    iPoseProof (GC_make_dirty _ _ roots with "HGC") as "HGC".
+    1: set_solver.
     iModIntro. iFrame "HGC".
     iExists _. iSplitL.
     { iExists ℓML, _, fid, γfgn. unfold named.
@@ -38,17 +40,19 @@ Section Specs.
       iExists _; iSplit; done. }
   Qed.
 
-  Lemma bufToC v ℓbuf Pb c lv θ:
-      GC θ
+  Lemma bufToC v ℓbuf Pb c lv θ roots:
+      GC θ roots
    -∗ isBufferRecordML v ℓbuf Pb c
    -∗ lv ~~ v
-  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c ∗ ∃ (ℓML:loc) fid, ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝.
+  ==∗ GC θ roots ∗ isBufferRecord lv ℓbuf Pb c ∗ ∃ (ℓML:loc) fid, ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝.
   Proof.
     iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
     iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
     iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim [$]") as "(HGC&%Hiff)".
     destruct Hiff as [_ ->]; last done.
-    iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(HGC&(%ℓvs&%γref2&Hγusedref&#Hsim2&#Hγrefsim))".
+    iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%ℓvs&%γref2&HGC&Hγusedref&#Hsim2&#Hγrefsim)".
+    iPoseProof (GC_make_dirty _ _ roots with "HGC") as "HGC".
+    1: set_solver.
     iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim [$]") as "(HGC&%Hiff)".
     destruct Hiff as [_ ->]; last done.
     iModIntro. iFrame "HGC". iSplit; last by repeat iExists _. 
@@ -62,21 +66,21 @@ Section Specs.
       iPureIntro; done. }
   Qed.
 
-  Lemma bufToC_fixed ℓbuf Pb (c:nat) ℓML fid lv θ:
-      GC θ
+  Lemma bufToC_fixed ℓbuf Pb (c:nat) ℓML fid lv θ roots :
+      GC θ roots
    -∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c
    -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c.
+  ==∗ GC θ roots ∗ isBufferRecord lv ℓbuf Pb c.
   Proof.
     iIntros "HGC H #Hsim".
     iMod (bufToC with "HGC H Hsim") as "($&$&%ℓML1&%fid1&%Href)". done.
   Qed.
 
-  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) fid θ:
-      GC θ
+  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) fid θ roots :
+      GC θ roots
    -∗ isBufferRecord lv ℓbuf Pb c
    -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-  ==∗ GC θ ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c.
+  ==∗ GC θ roots ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c.
   Proof.
     iIntros "HGC H #Hsim".
     iMod (bufToML with "HGC H") as "(HGC&%&HML&#Hsim2)".
