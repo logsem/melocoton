@@ -10,7 +10,7 @@ From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Export prims weakestpre prims_proto.
-(* From melocoton.interop Require Import wp_ext_call_laws. *)
+From melocoton.interop Require Import wp_ext_call_laws.
 From melocoton.interop Require Import wp_boundary_laws wp_utils.
 From melocoton.interop.wp_prims Require Import common.
 Import Wrap.
@@ -26,6 +26,23 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
+
+Lemma wp_is_None σ χ ζ1 ζ2 : 
+  ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant_ML ζ1 ζ2 γ ℓ)
+ ∗ state_interp σ
+ ⊢ ⌜map_Forall (λ _ ℓ, σ !! ℓ = Some None) (pub_locs_in_lstore χ ζ1)⌝.
+Proof.
+  iIntros "(H1&H2)".
+  iAssert (⌜_⌝)%I as "%H".
+  2: { iPureIntro. apply map_Forall_lookup. exact H. }
+  iIntros (γ ℓ [Hin [v Hv]%elem_of_dom]%map_filter_lookup_Some).
+  iPoseProof (big_sepM_lookup with "H1") as "(%Vs&%tg&%lvs&[(H1&%H2)|[(%Hne&_)|(%Hne&_)]])"; first done.
+  - iApply (gen_heap_valid with "H2 H1").
+  - exfalso; simplify_eq.
+  - exfalso; simplify_eq.
+Qed.
+  
+
 Lemma wp_to_val (pe : progenv.prog_environ wrap_lang Σ) v:
     not_at_boundary
  -∗ WP (WrSE (ExprML (ML_lang.Val v))) at pe {{ w,
@@ -37,12 +54,13 @@ Proof using.
   iIntros "%st SI".
   iDestruct (SI_not_at_boundary_is_in_ML with "SI Hnb") as "%H"; destruct H as (ρml & σ & ->).
   iModIntro. iRight. iRight.
-  iSplit; first done. Admitted. (*
+  iSplit; first done.
 
   iAssert (⌜ml_to_c [v] ρml σ (λ ws ρc mem, ml_to_c_core [v] ρml σ ws ρc mem)⌝)%I as "%Hprog".
-  { iNamed "SI". iNamed "SIML".
-    iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as "%H". iPureIntro.
-    split_and!; eauto. }
+  { iNamed "SI". iNamed "SIML". iNamed "SIGCrem". iNamed "HSI_block_level". iNamed "HSI_GC".
+    SI_GC_agree.
+    unfold ml_to_c. repeat iSplit; eauto.
+    iApply (wp_is_None with "[$]"). }
 
   iExists (λ '(e', σ'), ∃ w ρc mem,
     ml_to_c_core [v] ρml σ [w] ρc mem ∧
@@ -56,7 +74,6 @@ Proof using.
   iDestruct (big_sepL2_cons_inv_l with "Hsim") as "(% & % & -> & Hsim & _)".
   iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
-*)
 
 Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
   Ψ on prim_names ⊑ ⊥ →
@@ -98,7 +115,10 @@ Proof.
       e' = WrE (Wrap.ExprCall fn_name ws) [K'] ∧
       σ' = CState ρc mem).
     iSplit.
-    { iPureIntro.
+    { iNamed "SIGCrem". iNamed "HSI_GC". iNamed "HSI_block_level".
+      SI_GC_agree.
+      iPoseProof (wp_is_None with "[$]") as "%HisNone".
+      iPureIntro.
       eapply MakeCallS with (YC := (λ ws ρc mem, ml_to_c_core vs ρml σ ws ρc mem)); eauto.
       { done. }
       { apply not_elem_of_dom. rewrite dom_wrap_prog not_elem_of_prim_names //. }
@@ -108,7 +128,12 @@ Proof.
     iMod (wrap_interp_ml_to_c with "[- Hnb Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
       first done.
     { rewrite /wrap_state_interp /ML_state_interp /named.
-      iSplitL "Hσ"; first by iFrame. by iFrame. }
+      iNamed "SIGCrem". iNamed "HSI_GC". iNamed "HSI_block_level".
+      SI_GC_agree.
+      iSplitL "Hσ"; first by iFrame. iFrame.
+      iSplit; last done.
+      iExists _, _. iFrame.
+      iSplit; last done. iExists _; iFrame. iPureIntro; eauto. }
     do 3 iModIntro. iFrame "Hσ".
 
     (* step done; make an external call in the wrapper *)
@@ -185,10 +210,10 @@ Proof using.
             ζC ρc !! γ = Some (Bclosure f x e)⌝)%I
     as %(-> & Hθinj & Hγ).
   { iNamed "Hst". iNamed "HGC". iNamed "SIC". SI_GC_agree.
+    iNamed "HSI_GC". iNamed "HSI_block_level".
     iDestruct (lstore_own_immut_of with "[$] Hclos") as %(Hγvirt & _).
     iPureIntro. split; eauto. split; first by apply HGCOK.
-    eapply freeze_lstore_lookup_bclosure; first done.
-    eapply lookup_union_Some_r; eauto. }
+    eapply freeze_lstore_lookup_bclosure; done. }
 
   iDestruct "Hclos" as "#Hclos".
   iDestruct (wrap_interp_c_to_ml [w;w'] _ _ _ [RecV f x e; v']
@@ -247,9 +272,14 @@ Proof using.
   rewrite /ML_state_interp /= /named.
   rewrite /public_state_interp.
   rewrite !fmap_empty !right_id_L !dom_empty_L. iFrame.
-  rewrite pub_locs_in_lstore_empty big_sepM_empty dom_empty_L. iFrame.
-  rewrite big_sepS_empty. iSplit; first by iPureIntro.
-
+  iPoseProof (fractional.fractional_split _ _ _ (λ q, ghost_var wrapperG_γat_init q false) (1/2)%Qp (1/2)%Qp with "SIinit") as "[SIinit GCinit]".
+  { rewrite Qp.half_half. eapply ghost_var_as_fractional. } iFrame.
+  iSplitR "Hinitial_resources Cont Hcont Hb".
+  { iSplit. 2: done. iExists _, _. rewrite dom_empty_L. iFrame. rewrite lloc_map_pubs_empty.
+    iSplit. 2: iSplit; last done; iApply big_sepM_empty; by iFrame.
+    iExists _. erewrite map_empty_union. iFrame.
+    repeat (iSplit; first try done).
+    iApply big_sepM_empty; iFrame; done. }
   iApply (weakestpre.wp_wand with "[-Cont Hcont]").
   { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done.
     iApply (Hmain with "[$]"). }

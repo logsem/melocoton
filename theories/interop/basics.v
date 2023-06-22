@@ -849,6 +849,41 @@ Proof.
       split; [| set_solver]. apply Hs2. do 2 eexists. split; eauto. } }
 Qed.
 
+Lemma is_store_blocks_delete_from_sigma γ ll (ζσ ζrest : lstore) χind χnew χplus (σ : store) :
+   ζσ ##ₘ ζrest
+ → γ ∈ dom ζσ
+ → χind !! γ = None
+ → <[γ:=ll]> χind ⊆ χnew
+ → (∀ γ', γ' ∈ dom ζσ ↔ (∃ ℓ Vs, <[γ:=ll]> χind !! γ' = Some (LlocPublic ℓ) ∧ σ !! ℓ = Some (Some Vs)))
+ → χnew ⊆ χplus
+ → (∀ ℓ vs γ' blk, σ !! ℓ = Some (Some vs) → χnew !! γ' = Some (LlocPublic ℓ) → (ζσ ∪ ζrest) !! γ' = Some blk → is_heap_elt χplus (ζσ ∪ ζrest) vs blk)
+ → (∀ ℓ vs γ' blk, σ !! ℓ = Some (Some vs) → χnew !! γ' = Some (LlocPublic ℓ) → (delete γ ζσ ∪ ζrest) !! γ' = Some blk → is_heap_elt χplus (delete γ ζσ ∪ ζrest) vs blk).
+Proof.
+  intros H1 Hdom Hndom Hsub H2 Hnew H3 ℓ Vs γ' blk HH1 HH2 HH3.
+  unshelve epose proof (H3 ℓ Vs γ' blk HH1 HH2 _) as Helt.
+  { eapply lookup_union_Some in HH3 as [HH3|HH3].
+    - apply lookup_union_Some_l. apply lookup_delete_Some in HH3 as (Hne&HH3); done.
+    - by apply lookup_union_Some_r.
+    - by apply map_disjoint_delete_l. }
+  assert (delete γ ζσ ∪ ζrest = delete γ (ζσ ∪ ζrest)) as Hdel.
+  { rewrite delete_union. f_equal. rewrite delete_notin; try done.
+    eapply elem_of_dom in Hdom as [blkγ Hdom].
+    eapply map_disjoint_Some_l; done. }
+  inversion Helt; simplify_eq. econstructor.
+  eapply Forall2_impl; first eassumption.
+  assert (∃ ζ, ζ = ζσ ∪ ζrest) as [ζ Heqζ] by by eexists.
+  rewrite -Heqζ.
+  intros V v; induction 1; try by econstructor. all: econstructor; subst ζ.
+  1,4,6,8: rewrite Hdel; rewrite lookup_delete_ne; first eassumption.
+  1-4: intros <-; destruct (H2 γ) as [H2'' _]; destruct H2'' as (ℓ''&Vs''&HHH1&HHH2); first done;
+       rewrite lookup_insert in HHH1; simplify_eq;
+       unshelve epose proof (H3 ℓ'' Vs'' γ _ HHH2 _ _) as Helt2; [|eapply lookup_weaken; last eassumption; by rewrite lookup_insert|done|]; inversion Helt2; simplify_eq.
+  1: by eapply IHis_val1.
+  1: by eapply IHis_val2.
+  1: by eapply IHis_val.
+  1: by eapply IHis_val.
+Qed.
+
 Lemma is_store_discard_loc χ ζ σ ℓ :
   is_store χ ζ σ →
   is_store χ ζ (<[ℓ:=None]> σ).

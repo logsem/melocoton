@@ -35,7 +35,7 @@ Proof using.
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[-]"); last done.
-  do 9 iExists _; rewrite /named; iFrame. eauto.
+  do 5 iExists _. rewrite /named; iFrame. eauto.
 Qed.
 
 End Laws.

@@ -48,9 +48,9 @@ Definition preGCtok : iProp Σ :=
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) (∅:lloc_map)
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
   ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (∅:gset addr)
-  ∗ "GCζ" ∷ lstore_own_auth (∅:lstore)
+  ∗ "GCζauth" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCML" ∷ state_interp (∅ : language.language.state ML_lang)
-  ∗ "GCχ" ∷ lloc_own_auth (∅:lloc_map)
+  ∗ "GCχauth" ∷ lloc_own_auth (∅:lloc_map)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval).
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
@@ -64,18 +64,22 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "Hinit" ∷ if at_init then preGCtok else True.
 
 
-Definition per_location_invariant_ML (ζ : lstore)
+Definition per_location_invariant_ML (ζ ζvirt : lstore)
      (γ : lloc) (ℓ : loc) : iProp Σ :=
   ∃ (vs : list val) tg lvs, 
     ( ℓ ↦M/ ∗ ⌜ζ !! γ = Some (Bvblock (Mut, (tg, lvs)))⌝)
-  ∨ (⌜ζ !! γ = None⌝ ∗ γ ~ℓ~ ℓ).
+  ∨ (⌜ζ !! γ = None⌝ ∗ γ ↦mut (tg, lvs) ∗ γ ~ℓ~ ℓ)
+  ∨ (⌜ζ !! γ = None⌝ ∗ ⌜ζvirt !! γ = None⌝ ∗ γ ~ℓ~ ℓ).
 
 Definition SI_block_level_ML (ζ : lstore) (χ : lloc_map) : iProp Σ :=
+  ∃ ζvirt,
     "GCχauth" ∷ lloc_own_auth χ
-  ∗ "GCζauth" ∷ lstore_own_auth ζ
+  ∗ "GCζauth" ∷ lstore_own_auth (ζ ∪ ζvirt)
   ∗ "%Hother_blocks" ∷ ⌜dom ζ ⊆ dom χ⌝
+  ∗ "%Hvirt" ∷ ⌜∀ γ, γ ∈ dom ζvirt → ∃ ℓ, χ !! γ = Some (LlocPublic ℓ)⌝
+  ∗ "%Hdisj" ∷ ⌜ζ ##ₘ ζvirt⌝
   ∗ "GCχNone" ∷ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ,
-      per_location_invariant_ML ζ γ ℓ).
+      per_location_invariant_ML ζ ζvirt γ ℓ).
 
 Definition SI_GC_ML (ζ : lstore) (roots_m : roots_map) : iProp Σ :=
     "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
@@ -165,6 +169,38 @@ Proof.
   iIntros "Hσ Hnb". destruct σ as [ρml σ' | ρc mem]; eauto.
   iExFalso. iNamed "Hσ"; iNamed "SIC".
   iPoseProof (ghost_var_agree with "Hnb SIbound") as "%HH"; congruence.
+Qed.
+
+Lemma GC_per_loc_ML_insert M ζ ζσ γ' blk:
+   M !! γ' = None →
+(([∗ map] γ↦ℓ ∈ M, per_location_invariant_ML ζ ζσ γ ℓ)
+⊢ [∗ map] γ↦ℓ ∈ M, per_location_invariant_ML ζ (<[ γ' := blk ]> ζσ) γ ℓ)%I.
+Proof.
+  iIntros (Hnℓ) "Hbig".
+  iApply (big_sepM_wand with "Hbig").
+  iApply (big_sepM_intro).
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%tg&%lvs&[(HNσ&%H1)|[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)]])"; iExists vs', tg, lvs.
+  - iLeft; by iFrame.
+  - iRight. iLeft. by iFrame.
+  - iRight. iRight. iFrame. iSplit; first done.
+    iPureIntro. rewrite lookup_insert_ne; first done.
+    intros ->. congruence.
+Qed.
+
+Lemma GC_per_loc_ML_delete M ζ ζσ γ':
+   M !! γ' = None →
+(([∗ map] γ↦ℓ ∈ M, per_location_invariant_ML ζ ζσ γ ℓ)
+⊢ [∗ map] γ↦ℓ ∈ M, per_location_invariant_ML ζ (delete γ' ζσ) γ ℓ)%I.
+Proof.
+  iIntros (Hnℓ) "Hbig".
+  iApply (big_sepM_wand with "Hbig").
+  iApply (big_sepM_intro).
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%tg&%lvs&[(HNσ&%H1)|[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)]])"; iExists vs', tg, lvs.
+  - iLeft; by iFrame.
+  - iRight. iLeft. by iFrame.
+  - iRight. iRight. iFrame. iSplit; first done.
+    iPureIntro. rewrite lookup_delete_ne; first done.
+    intros ->. congruence.
 Qed.
 
 End WrapperWP.

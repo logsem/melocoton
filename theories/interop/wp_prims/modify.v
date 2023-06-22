@@ -3,7 +3,7 @@ From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From melocoton Require Import named_props stdpp_extra.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_interface Require Import defs notation resources.
-From melocoton.interop Require Import state lang basics_resources.
+From melocoton.interop Require Import state lang basics_resources update_laws.
 From melocoton.interop Require Import basics wp_utils.
 From melocoton.interop Require Export prims weakestpre prims_proto.
 From melocoton.interop.wp_prims Require Import common.
@@ -28,13 +28,13 @@ Proof using.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
-  SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  SI_at_boundary. iNamed "HGC". SI_GC_agree. iNamed "HSI_block_level".
   iDestruct (lstore_own_vblock_mutable_as_mut with "Hpto") as "(Hpto & Hptoacc)";
     first done.
-  iPoseProof (lstore_own_mut_of with "GCζvirt Hpto") as "%Helem". destruct Helem as [Helem _].
+  iPoseProof (lstore_own_mut_of with "GCζauth Hpto") as "%Helem". destruct Helem as [Helem _].
   iAssert ⌜ζC ρc !! γ = Some (Bvblock (Mut, (tg, vs0)))⌝%I as "%Helem2".
-  1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
-       destruct Hfreezeρ as [HL HR].
+  1: { iPureIntro.
+       destruct Hζfuture as [HL HR].
        assert (γ ∈ dom (ζC ρc)) as [v Hv]%elem_of_dom by by (rewrite HL; eapply elem_of_dom_2).
        specialize (HR _ _ _ Hv Helem) as Hinv. inversion Hinv; subst; done. }
 
@@ -49,9 +49,11 @@ Proof using.
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
 
-  destruct HGCOK as [HGCL HGCR].
-  iMod (lstore_own_update _ _ _ blk' with "GCζvirt Hpto") as "(GCζvirt&Hpto)".
+  iMod (lstore_own_update _ _ _ blk' with "GCζauth Hpto") as "(GCζvirt&Hpto)".
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
+
+  iPoseProof (GC_per_loc_modify_ζ_in_detail with "GC_per_loc") as "GC_per_loc".
+
   iPoseProof (interp_ML_discarded_locs_pub with "GCσMLv GCχNone") as "%Hpublocs".
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.

@@ -27,14 +27,13 @@ Proof using.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
-  SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  SI_at_boundary. iNamed "HGC". SI_GC_agree. iNamed "HSI_block_level".
   iDestruct "Hpto" as "(Hpto & Hsim)".
-  iDestruct (lstore_own_mut_of with "GCζvirt Hpto") as %[Helem _].
+  iDestruct (lstore_own_mut_of with "GCζauth Hpto") as %[Helem _].
   iAssert ⌜ζC ρc !! γ = Some (Bforeign (Some w'))⌝%I as "%Helem2".
-  { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
+  { iPureIntro.
     eapply freeze_lstore_lookup_backwards in Helem as (?&Hfrz&?); eauto.
     inversion Hfrz; by simplify_eq. }
-  destruct HGCOK as [HGCL HGCR]. inv_repr_lval.
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'), e' = WrSE (ExprV w') ∧ σ' = CState ρc mem).
@@ -45,8 +44,8 @@ Proof using.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hpto Hsim] [$Hpto $Hsim]").
   rewrite /GC /named.
-  iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.
-  iFrame. iPureIntro; split_and!; eauto. done.
+  do 5 iExists _. iFrame. iSplit; last done.
+  iExists _; iFrame. by iPureIntro.
 Qed.
 
 End Laws.

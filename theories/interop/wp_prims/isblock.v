@@ -38,7 +38,7 @@ Proof using.
   iApply "Hcont". iFrame.
   destruct lv; iApply ("Cont").
   all: rewrite /GC /named.
-  all: iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _; iExists _.
+  all: do 5 iExists _.
   all: iFrame; iPureIntro; split_and!; eauto; done.
 Qed.
 

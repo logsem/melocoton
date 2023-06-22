@@ -27,7 +27,7 @@ Proof using.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
-  SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  SI_at_boundary. iNamed "HGC". SI_GC_agree. iNamed "HSI_GC".
   iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom".
   1: { iIntros "%H". eapply elem_of_dom in H; destruct H as [k Hk].
        iPoseProof (big_sepM_lookup_acc with "GCrootspto") as "((%ww&Hww&_)&_)".
@@ -51,7 +51,8 @@ Proof using.
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hres] Hres").
-  do 9 iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
+  do 5 iExists _. unfold named, SI_GC. iFrame.
+  iSplit; last done. iExists _. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.
   - intros ℓ γ [[-> ->]|[Hne HH]]%lookup_insert_Some; last by eapply Hrootslive.
     inv_repr_lval. by eapply elem_of_dom_2.

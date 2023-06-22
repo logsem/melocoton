@@ -27,14 +27,14 @@ Proof using.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
-  SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  SI_at_boundary. iNamed "HGC". SI_GC_agree. iNamed "HSI_GC".
   iPoseProof (ghost_map_lookup with "GCrootsm Hpto") as "%Helem".
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
     e' = WrSE (ExprV #0) ∧
     σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := rootsC ρc ∖ {[l]} |} mem).
-  iSplit. { iPureIntro. econstructor; eauto. rewrite -H2. by eapply elem_of_dom_2. }
+  iSplit. { iPureIntro. econstructor; eauto. rewrite -Hrootsdom. by eapply elem_of_dom_2. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
   iMod (ghost_map_delete with "GCrootsm Hpto") as "GCrootsm".
@@ -45,7 +45,8 @@ Proof using.
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! W with "[-Hpto] Hpto []"). 2: done.
-  do 9 iExists _. iFrame. iPureIntro; split_and!; eauto.
+  do 5 iExists _. unfold named, SI_GC. iFrame.
+  iSplit; last done. iExists _. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
   - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
 Qed.

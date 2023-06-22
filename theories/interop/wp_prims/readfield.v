@@ -27,25 +27,17 @@ Proof using.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
-  SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  SI_at_boundary. iNamed "HGC". SI_GC_agree. iNamed "HSI_block_level".
   iDestruct "Hpto" as "(Hpto & Hptoacc)".
-  iPoseProof (lstore_own_elem_of with "GCζvirt Hpto") as "%Helem".
+  iPoseProof (lstore_own_elem_of with "GCζauth Hpto") as "%Helem".
   iAssert ⌜∃ m', ζC ρc !! γ = Some (Bvblock (m', (tg, vs0)))⌝%I as "%Helem2".
-  1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
+  1: { iPureIntro.
        eapply freeze_lstore_lookup_backwards in Helem as (?&Hfrz&?); eauto.
        inversion Hfrz; simplify_eq; eauto. }
   destruct Helem2 as [m' Helem2].
   assert (exists (vv:lval), vs0 !! (Z.to_nat i) = Some vv) as [vv Hvv].
   1: apply lookup_lt_is_Some; lia.
-  destruct HGCOK as [HGCL HGCR]. inv_repr_lval.
-
-  assert (exists w', repr_lval (θC ρc) vv w') as [w' Hw'].
-  1: { destruct vv as [vvz|vvl]; first (eexists; econstructor).
-       eapply elem_of_dom in HGCR as [w' Hw']; first (eexists; by econstructor).
-       1: eapply elem_of_dom_2, H1.
-       2: constructor; by eapply elem_of_list_lookup_2.
-       erewrite lookup_union_r; first done.
-       eapply map_disjoint_Some_l; done. }
+  iDestruct (HSI_GC_acc with "HSI_GC") as (w') "%Hw'"; [done..|].
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'), e' = WrSE (ExprV w') ∧ σ' = CState ρc mem).
@@ -56,8 +48,8 @@ Proof using.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hpto Hptoacc] [$Hpto $Hptoacc] [] []"); try done; [].
   rewrite /GC /named.
-  iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.
-  iFrame. iPureIntro; split_and!; eauto. done.
+  do 5 iExists _. iFrame. iSplit; last done.
+  iExists _; iFrame. by iPureIntro.
 Qed.
 
 End Laws.
