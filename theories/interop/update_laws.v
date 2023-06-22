@@ -85,6 +85,24 @@ Proof.
     intros ->. simplify_eq.
 Qed.
 
+Lemma GC_per_loc_modify_ζ_in_detail M ζ σMLvirt γ tg' lvs':
+ζ !! γ ≠ None →
+(([∗ map] ℓ↦y ∈ M, per_location_invariant ζ σMLvirt ℓ y)
+⊢ [∗ map] ℓ↦y ∈ M, per_location_invariant (<[ γ := (Bvblock (Mut, (tg', lvs'))) ]> ζ) σMLvirt ℓ y)%I.
+Proof.
+  iIntros (Hne) "Hbig".
+  iApply (big_sepM_wand with "Hbig").
+  iApply (big_sepM_intro).
+  iIntros "!>" (γ2 ℓ Hle) "(%vs'&%tg&%lvs&[(Hℓ&%Hsim)|[(%Hℓσ&Hγ&Hsim&%Heq)|[(%Hnone1&%Hnone2)|(%Hnone1&%Hnone2)]]])";
+  (destruct (decide (γ2 = γ)) as [Hl|Hr]; [subst γ2|]; iExists vs'); try (by simplify_eq).
+  - iExists tg', lvs'. iLeft. iFrame. iPureIntro. rewrite lookup_insert. done.
+  - iExists tg, lvs. iLeft. iFrame. iPureIntro. rewrite lookup_insert_ne; try done.
+  - iExists tg, lvs. iRight. iLeft. iFrame. by iPureIntro.
+  - iExists tg, lvs. iRight. iLeft. iFrame. by iPureIntro.
+  - iExists tg', lvs'. iRight. iRight. iLeft. rewrite lookup_insert_ne; done.
+  - iExists tg', lvs'. iRight. iRight. iRight. rewrite lookup_insert_ne; done.
+Qed.
+
 Lemma GC_per_loc_delete_ζ M ζ σMLvirt γ:
   M !! γ = None →
 (([∗ map] ℓ↦y ∈ M, per_location_invariant ζ σMLvirt ℓ y)

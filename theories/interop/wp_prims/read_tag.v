@@ -27,10 +27,10 @@ Proof using.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
-  SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iPoseProof (lstore_own_elem_of with "GCζvirt Hpto") as "%Helem".
+  SI_at_boundary. iNamed "HGC". SI_GC_agree. iNamed "HSI_block_level".
+  iPoseProof (lstore_own_elem_of with "GCζauth Hpto") as "%Helem".
   iAssert ⌜∃ bl2, ζC ρc !! γ = Some bl2 ∧ block_tag bl2 = block_tag bl⌝%I as "%Helem2".
-  1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
+  1: { iPureIntro.
        eapply freeze_lstore_lookup_backwards in Helem as (?&Hfrz&?); eauto.
        inversion Hfrz; simplify_eq; eauto. }
   edestruct Helem2 as (bl2&Hlu&Heqtag).
@@ -43,8 +43,8 @@ Proof using.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hpto] [$Hpto]"); try done; [].
   rewrite /GC /named.
-  iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.
-  iFrame. iPureIntro; split_and!; eauto.
+  do 5 iExists _; iFrame. iSplit; last done.
+  iExists _; iFrame; done.
 Qed.
 
 End Laws.
