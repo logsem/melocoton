@@ -119,7 +119,9 @@ Section Proofs.
       iIntros (vγref wγref) "(HGC&_&%Heq&%Hvwγref)". cbv in Heq. simplify_eq.
 
       iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%&%&HGC&HℓbufML&#Hsim2&HHsim2)".
-      eassert (∅ ∖ _ = ∅) as -> by set_solver.
+      iPoseProof (GC_confront_mutblock with "HGC HℓbufML") as "(HGC&HℓbufML)".
+      eassert ((∅ ∪ {[γ0]}) ∖ {[γ0]} = ∅) as -> by set_solver.
+
       destruct lvs as [|? [|??]].
       1: cbn; done.
       all: iDestruct "HHsim2" as "(->&HHr)"; try done. iClear "HHr".
@@ -168,8 +170,7 @@ Section Proofs.
       iIntros (vv) "((HGC&Hℓi&Hℓbf)&HℓbufML)". wp_pure _.
       wp_apply (wp_load with "Hℓi"). iIntros "Hℓi". wp_pure _.
       wp_apply (wp_store with "Hℓi"). iIntros "Hℓi". wp_pure _.
-      iMod (mut_to_ml _ [ ML_lang.LitV (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
-      eassert (∅ ∖ _ = ∅) as -> by set_solver.
+      iMod (mut_to_ml_store _ [ ML_lang.LitV (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
       iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2 HGC") as "(HGC&%Heq3)"; simplify_eq.
       replace ℓML2 with ℓML0 by by eapply Heq3.
       iMod ("HMerge" with "[] [] HΨframe HΦz [Hγfgnpto HContent Hℓbuf HℓbufML]") as "HH". 1-2: iPureIntro; lia.

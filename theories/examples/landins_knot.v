@@ -44,7 +44,6 @@ Section C_specs.
     destruct ws as [|wl [|wx [|??]]]; decompose_Forall.
     wp_call_direct.
     iMod (ml_to_mut with "[$HGC $Hl]") as "(%lvs&%γ'&HGC&Hl&#Hγ'&Hlvs)".
-    eassert (∅ ∖ _ = ∅) as -> by set_solver.
     destruct lvs as [|lvf [|??]]; try done.
     all: cbn; iDestruct "Hlvs" as "([%γ'' [-> #Hγ'']]&?)"; try done.
     iAssert (⌜γ = γ'⌝)%I as %<-. {
@@ -53,13 +52,14 @@ Section C_specs.
     }
     wp_apply (wp_readfield with "[$HGC $Hl]"); [done..|].
     iIntros (? wfaux) "(HGC&Hl&%Heq&%Hγaux)"; cbv in Heq; simplify_eq. wp_pures.
-    iMod (mut_to_ml _ [RecV _ _ _] with "[$HGC $Hl]") as "[HGC (%l'&Hl&#Hγ''')]".
+    iMod (mut_to_ml_store _ [RecV _ _ _] with "[$HGC $Hl]") as "[HGC (%l'&Hl&#Hγ''')]".
     { cbn. eauto with iFrame. }
     iAssert (⌜l' = l⌝)%I as %<-. {
       iDestruct (lloc_own_pub_inj with "Hγ' Hγ''' HGC") as "[? %]".
       iPureIntro. naive_solver.
     }
-    eassert (∅ ∖ _ = ∅) as -> by set_solver.
+    iPoseProof (GC_confront_MLloc with "HGC Hl Hγ") as "(HGC&Hl)".
+    eassert (((∅ ∪ {[γ]}) ∖ {[γ]}) = (∅:gset lloc)) as -> by set_solver.
     wp_apply (wp_callback with "[$HGC $Hx $Hγ'' HWP Hl]"); [done.. | |].
     { by iApply "HWP". }
     iIntros (θ' vret lvret wret) "(HGC&HΦ'&Hvret&%)". (* wp_pures. *)

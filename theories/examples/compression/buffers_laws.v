@@ -22,10 +22,8 @@ Section Specs.
   ==∗ GC θ roots ∗ ∃ v, isBufferRecordML v ℓbuf Pb c ∗ lv ~~ v.
   Proof.
     iIntros "HGC H". iNamed "H". iNamed "Hbuf".
-    iMod (mut_to_ml _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
+    iMod (mut_to_ml_store _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
     1: by cbn.
-    iPoseProof (GC_make_dirty _ _ roots with "HGC") as "HGC".
-    1: set_solver.
     iModIntro. iFrame "HGC".
     iExists _. iSplitL.
     { iExists ℓML, _, fid, γfgn. unfold named.
@@ -51,11 +49,11 @@ Section Specs.
     iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim [$]") as "(HGC&%Hiff)".
     destruct Hiff as [_ ->]; last done.
     iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%ℓvs&%γref2&HGC&Hγusedref&#Hsim2&#Hγrefsim)".
-    iPoseProof (GC_make_dirty _ _ roots with "HGC") as "HGC".
-    1: set_solver.
+    iPoseProof (GC_confront_mutblock with "HGC Hγusedref") as "(HGC&Hγusedref)".
     iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim [$]") as "(HGC&%Hiff)".
     destruct Hiff as [_ ->]; last done.
-    iModIntro. iFrame "HGC". iSplit; last by repeat iExists _. 
+    iPoseProof (GC_make_dirty with "HGC") as "$". 1: set_solver.
+    iModIntro. iSplit; last by repeat iExists _. 
     iExists _, _, _, _, _, _. unfold named.
     iSplit; first done.
     iFrame "Hγbuf". iFrame "Hγaux".

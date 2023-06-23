@@ -28,41 +28,7 @@ Proof.
   iApply GC_per_loc_make_dirty; done.
 Qed.
 
-Lemma ml_to_mut θ dirty ℓ vs :
-  ⊢ GC θ dirty ∗ ℓ ↦∗ vs ==∗
-    ∃ lvs γ, GC θ (dirty ∖ {[γ]}) ∗ γ ↦mut (TagDefault, lvs) ∗ γ ~ℓ~ ℓ ∗ lvs ~~∗ vs.
-Proof using.
-  iIntros "(HGC & Hl)". iNamed "HGC". iNamed "HSI_block_level".
-  iDestruct (gen_heap_valid with "GCσMLv Hl") as %Hlσ.
-  destruct (Hstore ℓ) as (γ & Hχγ%lloc_map_pubs_lookup_Some); first by eapply elem_of_dom_2.
-  iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "GC_per_loc") as "((%vs'&%tg&%lvs&[(Hℓ&_)|[(%Hℓσ&Hγ&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum)|[(%Hne1&%Hne2)|(%Hne1&%Hne2)]]]])&GC_per_loc)".
-  1: by iPoseProof (gen_heap.mapsto_ne with "Hl Hℓ") as "%Hbot".
-  3: by simplify_eq.
-  3: by simplify_eq.
-  2: { iPoseProof (gen_heap.mapsto_ne with "Hl Hmapsℓ") as "%Hf". done. }
-  simplify_eq.
-  iMod (gen_heap_update _ _ _ None with "GCσMLv Hl") as "[GCσMLv Hl]".
-  iDestruct "Hγ" as "(Hγ1&(%ℓ'&#Hγ2))".
-  iPoseProof (lstore_own_elem_of with "GCζauth Hγ1") as "%Hγζ".
-  iPoseProof (GC_per_loc_modify_σ with "GC_per_loc") as "GC_per_loc".
-  1: by eapply lloc_map_pubs_inj, expose_llocs_inj. 1: done.
-  iPoseProof (GC_per_loc_remove_dirty with "GC_per_loc") as "GC_per_loc".
-  1: eapply lookup_delete.
-  iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "[$GC_per_loc Hl]") as "GC_per_loc".
-  { iExists vs, TagDefault, lvs. iLeft. by iFrame. }
-  iPoseProof (lloc_own_pub_of with "GCχauth Hγ2") as "%Hγℓ".
-  apply lloc_map_pubs_lookup_Some in Hγℓ; simplify_eq.
-  iModIntro.
-  iExists _, _. iFrame "Hγ1 Hsim Hγ2".
-  iSplitR "Hγ2"; last by iExists _.
-  rewrite /GC /SI_block_level /named.
-  iExists ζ, ζ_future, χ, χ_future, roots_s. iFrame "GCζ GCχ GCθ GCroots GCinit GCχauth HSI_GC". iSplit; last done.
-  iExists (<[ℓ:=None]> σMLvirt). iFrame.
-  iPureIntro. split_and!; try done.
-  by rewrite dom_insert_lookup_L.
-Qed.
-
-Lemma ml_to_mut_frac θ dirty qp ℓ vs :
+Lemma ml_to_mut θ dirty qp ℓ vs :
   ⊢ GC θ dirty ∗ ℓ ↦∗{# qp} vs ==∗
     ∃ lvs γ, GC θ (dirty ∪ {[γ]}) ∗ γ ↦mut{DfracOwn qp} (TagDefault, lvs) ∗ γ ~ℓ~ ℓ ∗ lvs ~~∗ vs.
 Proof using.
@@ -130,9 +96,9 @@ Proof using.
     simplify_eq; by eexists.
 Qed.
 
-Lemma mut_to_ml γ vs lvs θ dirty :
+Lemma mut_to_ml_store γ vs lvs θ dirty :
   ⊢ GC θ dirty ∗ γ ↦mut (TagDefault, lvs) ∗ lvs ~~∗ vs ==∗
-    GC θ (dirty ∖ {[γ]}) ∗ ∃ ℓ, ℓ ↦∗ vs ∗ γ ~ℓ~ ℓ.
+    GC θ dirty ∗ ∃ ℓ, ℓ ↦∗ vs ∗ γ ~ℓ~ ℓ.
 Proof using.
   iIntros "(HGC & Hl & #Hsim)".
   iDestruct (lstore_own_vblock_M_as_mut with "Hl") as "(Hl & (%ℓ & #Hlℓ))".
@@ -150,8 +116,6 @@ Proof using.
   iMod (gen_heap_update _ _ _ (Some vs) with "GCσMLv Hℓ") as "[GCσMLv Hℓ]".
   iPoseProof (GC_per_loc_modify_σ with "GC_per_loc") as "GC_per_loc".
   1: by eapply lloc_map_pubs_inj, expose_llocs_inj. 1: done.
-  iPoseProof (GC_per_loc_remove_dirty with "GC_per_loc") as "GC_per_loc".
-  1: eapply lookup_delete.
   iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "[$GC_per_loc Hl]") as "GC_per_loc".
   { iExists vs, TagDefault, lvs. iRight; iLeft. rewrite lookup_insert. repeat iSplit; try done.
     1: by iApply lstore_own_mut_to_elem. by iExists _. }
@@ -165,7 +129,7 @@ Proof using.
   by rewrite dom_insert_lookup_L.
 Qed.
 
-Lemma mut_to_ml_frac θ dirty qp γ lvs :
+Lemma mut_to_ml θ dirty qp γ lvs :
   ⊢ GC θ dirty ∗ γ ↦mut{DfracOwn qp} (TagDefault, lvs) ∗ (∃ vs, lvs ~~∗ vs) ==∗
     GC θ (dirty ∪ {[ γ ]}) ∗ ∃ ℓ vs, ℓ ↦∗{# qp} vs ∗ γ ~ℓ~ ℓ ∗ lvs ~~∗ vs.
 Proof using.
@@ -242,6 +206,144 @@ Proof using.
   - iPureIntro. rewrite dom_insert_L. intros ℓ' [Hin%elem_of_singleton|Hin]%elem_of_union.
     2: by apply Hstore.
     simplify_eq; by eexists.
+Qed.
+
+Lemma GC_confront_lloc θ dirty γ (blk:basics.block) : 
+    GC θ dirty
+ -∗ γ ↪[wrapperG_γζvirt] blk
+ -∗ GC θ (dirty ∖ {[ γ ]}) ∗ γ ↪[wrapperG_γζvirt] blk.
+Proof.
+  iIntros "HGC Hγ".
+  iNamed "HGC". iNamed "HSI_block_level".
+  iNamed "GCζauth".
+  iPoseProof (ghost_map_lookup with "Hζgmap Hγ") as "%Hγζ".
+  destruct (lloc_map_pubs χ_future !! γ) as [ℓ|] eqn:Hχ.
+  - iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
+    iAssert (per_location_invariant ζ_future σMLvirt (dirty ∖ {[γ]}) γ ℓ 
+            ∗ γ ↪[wrapperG_γζvirt] blk)%I with "[HH Hγ]" as "(HH&Hγ)".
+    { iDestruct "HH" as "(%vs'&%tg&%lvs'&[HH|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|[HH|HH]]]])"; cbn.
+      - iFrame. iExists vs', tg, lvs'. iLeft. iFrame.
+      - iPoseProof (ghost_map_elem_ne with "Hγ Hγ'") as "%Heq". done.
+      - iDestruct "Hmapsγ" as "(Hγ'&_)". cbn.
+        iPoseProof (ghost_map_elem_ne with "Hγ Hγ'") as "%Heq". done.
+      - iFrame. iExists vs', tg, lvs'. done.
+      - iFrame. iExists vs', tg, lvs'. done. }
+    iSplitR "Hγ".
+    2: iFrame.
+    do 5 iExists _. iFrameNamed.
+    iExists _. iFrameNamed.
+    iSplitL "Hζgmap"; first by iFrame "Hζimmut Hζgmap".
+    iApply big_sepM_delete; first done.
+    iFrame "HH".
+    iApply GC_per_loc_remove_dirty; try done.
+    apply lookup_delete.
+  - iSplitR "Hγ".
+    2: iFrame.
+    do 5 iExists _. iFrameNamed.
+    iExists _. iFrameNamed.
+    iSplitR "GC_per_loc"; last by iApply GC_per_loc_remove_dirty.
+    iFrame "Hζimmut Hζgmap".
+Qed.
+
+Lemma GC_confront_mutblock θ dirty γ tg lvs : 
+    GC θ dirty
+ -∗ γ ↦mut (tg,lvs)
+ -∗ GC θ (dirty ∖ {[ γ ]}) ∗ γ ↦mut (tg,lvs).
+Proof.
+  iIntros "HGC (Hγ&#Hsim)".
+  cbn. iPoseProof (GC_confront_lloc with "HGC Hγ") as "(HGC&Hγ)".
+  by iFrame.
+Qed.
+
+Lemma GC_confront_MLloc θ dirty γ ℓ vs : 
+    GC θ dirty
+ -∗ ℓ ↦∗ vs
+ -∗ γ ~ℓ~ ℓ
+ -∗ GC θ (dirty ∖ {[ γ ]}) ∗ ℓ ↦∗ vs.
+Proof.
+  iIntros "HGC Hℓ #Hsim".
+  iNamed "HGC". iNamed "HSI_block_level".
+  iPoseProof (gen_heap_valid with "GCσMLv Hℓ") as "%Hℓσ".
+  iPoseProof (lloc_own_pub_of with "GCχauth Hsim") as "%Hγℓ".
+  apply lloc_map_pubs_lookup_Some_2 in Hγℓ as Hmappubs.
+  iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
+  iAssert (per_location_invariant ζ_future σMLvirt (dirty ∖ {[γ]}) γ ℓ 
+          ∗ ℓ ↦∗ vs)%I with "[HH Hℓ]" as "(HH&Hℓ)".
+  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%HH)|[HH|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|[HH|HH]]]])"; cbn.
+    - iPoseProof (gen_heap.mapsto_ne with "Hℓ Hℓ'") as "%Heq". done.
+    - iFrame. iExists vs', _, lvs'. iRight. iLeft. done.
+    - iPoseProof (gen_heap.mapsto_ne with "Hℓ Hmapsℓ") as "%Heq". done. 
+    - iFrame. iExists vs', tg, lvs'. done.
+    - iFrame. iExists vs', tg, lvs'. done. }
+  iFrame "Hℓ".
+  do 5 iExists _. iFrameNamed.
+  iExists _. iFrameNamed.
+  iApply big_sepM_delete; first done.
+  iFrame "HH".
+  iApply GC_per_loc_remove_dirty; try done.
+  apply lookup_delete.
+Qed.
+
+Lemma GC_confront_both θ dirty q1 γ blk q2 ℓ vs : 
+    GC θ dirty
+ -∗ lstore_own_elem γ (q1) blk
+ -∗ ℓ ↦∗{q2} vs
+ -∗ γ ~ℓ~ ℓ
+ -∗ ∃ lvs', GC θ dirty ∗ lstore_own_mut γ (q1) blk ∗ ℓ ↦∗{q2} vs ∗ lvs' ~~∗ vs ∗ ⌜blk = Bvblock (Mut, (TagDefault, lvs'))⌝.
+Proof.
+  iIntros "HGC Hγ Hℓ #Hsim".
+  iNamed "HGC". iNamed "HSI_block_level".
+  iPoseProof (gen_heap_valid with "GCσMLv Hℓ") as "%Hℓσ".
+  iPoseProof (lstore_own_elem_of with "GCζauth Hγ") as "%Hγζ".
+  iPoseProof (lloc_own_pub_of with "GCχauth Hsim") as "%Hγℓ".
+  apply lloc_map_pubs_lookup_Some_2 in Hγℓ as Hmappubs.
+  iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
+  iAssert (∃ lvs', lvs' ~~∗ vs ∗ ⌜blk = Bvblock (Mut, (TagDefault, lvs'))⌝)%I as "#(%lvs&Hsimvs&->)".
+  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%HH)|[(%Hℓσ'&(Hγ'&#Hγsim)&#Hsim'&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|[(%HH1&%HH2)|(%HH1&%HH2)]]]])"; cbn.
+    - iPoseProof (gen_heap.mapsto_ne with "Hℓ' Hℓ") as "%Heq". done.
+    - unfold lstore_own_elem; destruct (mutability blk);
+      by iPoseProof (@ghost_map_elem_ne with "Hγ' Hγ") as "%Heq".
+    - iPoseProof (gen_heap.mapsto_agree with "Hmapsℓ Hℓ") as "%Heq1"; simplify_eq.
+      iDestruct "Hmapsγ" as "(Hmapsγ&_)". cbn.
+      unfold lstore_own_elem; destruct (mutability blk) eqn:Heq;
+      iPoseProof (@ghost_map_elem_agree with "Hmapsγ Hγ") as "%Heq2"; simplify_eq.
+      iExists _; iFrame "Hsim'". done.
+    - by simplify_eq.
+    - by simplify_eq. }
+  iExists _.
+  iFrame "Hsimvs Hγ Hℓ". iSplit; last done.
+  do 5 iExists _. iFrameNamed.
+  iExists _. iFrameNamed.
+  iApply big_sepM_delete; first done; iFrame.
+Qed.
+
+Lemma GC_confront_foreign θ dirty γ fid : 
+    GC θ dirty
+ -∗ γ ~foreign~ fid
+ -∗ GC θ (dirty ∖ {[ γ ]}).
+Proof.
+  iIntros "HGC #Hfgn".
+  iNamed "HGC". iNamed "HSI_block_level".
+  iPoseProof (lloc_own_foreign_of with "GCχauth Hfgn") as "%Hγℓ".
+  iPoseProof (GC_per_loc_remove_dirty with "GC_per_loc") as "GC_per_loc".
+  1: eapply lloc_map_pubs_lookup_None; do 2 right; by eexists.
+  do 5 iExists _. iFrameNamed.
+  iExists _. iFrameNamed.
+Qed.
+
+Lemma GC_confront_private θ dirty γ dq : 
+    GC θ dirty
+ -∗ γ ~ℓ~/{dq}
+ -∗ GC θ (dirty ∖ {[ γ ]}) ∗ γ ~ℓ~/{dq}.
+Proof.
+  iIntros "HGC Hpriv".
+  iNamed "HGC". iNamed "HSI_block_level".
+  iPoseProof (lloc_own_priv_of with "GCχauth Hpriv") as "%Hγℓ".
+  iPoseProof (GC_per_loc_remove_dirty with "GC_per_loc") as "GC_per_loc".
+  1: eapply lloc_map_pubs_lookup_None; do 1 right; by left.
+  iFrame "Hpriv".
+  do 5 iExists _. iFrameNamed.
+  iExists _. iFrameNamed.
 Qed.
 
 Lemma freeze_to_mut γ lvs θ dirty :
