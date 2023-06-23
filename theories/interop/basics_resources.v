@@ -34,8 +34,8 @@ Context `{!wrapperBasicsG Σ}.
 
 (* Ghost state for [lloc_map] *)
 
-Definition lloc_own_priv (γ : lloc) : iProp Σ :=
-  γ ↪[wrapperG_γχvirt] LlocPrivate.
+Definition lloc_own_priv dq (γ : lloc) : iProp Σ :=
+  γ ↪[wrapperG_γχvirt]{dq} LlocPrivate.
 
 Definition lloc_own_foreign (γ : lloc) (id : nat) : iProp Σ :=
   γ ↪[wrapperG_γχvirt]□ (LlocForeign id).
@@ -56,8 +56,10 @@ Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
 
 Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
-Notation "γ ~ℓ~/" := (lloc_own_priv γ)
+Notation "γ ~ℓ~/" := (lloc_own_priv (DfracOwn 1) γ)
   (at level 20, format "γ  ~ℓ~/").
+Notation "γ ~ℓ~/{ dq }" := (lloc_own_priv dq γ)
+  (at level 20, format "γ  ~ℓ~/{ dq }").
 Notation "γ ~foreign~ id" := (lloc_own_foreign γ id)
   (at level 20, format "γ  ~foreign~  id").
 
@@ -95,9 +97,9 @@ Proof using.
   by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
 Qed.
 
-Lemma lloc_own_priv_of χ γ :
+Lemma lloc_own_priv_of dq χ γ :
   lloc_own_auth χ -∗
-  γ ~ℓ~/ -∗
+  γ ~ℓ~/{ dq } -∗
   ⌜χ !! γ = Some LlocPrivate⌝.
 Proof using.
   iIntros "Hχ Hpub". iNamed "Hχ".
@@ -735,7 +737,9 @@ Global Hint Constructors vblock_access_le : core.
 
 Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
-Notation "γ ~ℓ~/" := (lloc_own_priv γ)
+Notation "γ ~ℓ~/{ dq }" := (lloc_own_priv dq γ)
+  (at level 20, format "γ  ~ℓ~/{ dq }").
+Notation "γ ~ℓ~/" := (γ  ~ℓ~/{ DfracOwn 1 })
   (at level 20, format "γ  ~ℓ~/").
 Notation "γ ~foreign~ id" := (lloc_own_foreign γ id)
   (at level 20, format "γ  ~foreign~  id").
