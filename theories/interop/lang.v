@@ -118,7 +118,7 @@ Definition ml_to_c
 : Prop :=
   lloc_map_inj (χML ρml) ∧
   dom (ζML ρml) ⊆ dom (χML ρml) ∧
-  map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)) ∧
+  pub_locs_in_lstore (χML ρml) (ζML ρml) = ∅ ∧
   dom (privmemML ρml) ## dom (rootsML ρml) ∧
   ∀ ws ρc mem,
     ml_to_c_core vs ρml σ ws ρc mem →
@@ -223,8 +223,8 @@ Definition c_to_ml
        part ζσ that is going to be converted into the ML store σ. *)
     ζ = (ζML ρml) ∪ ζσ ∧
     (ζML ρml) ##ₘ ζσ ∧
-    (** Angelically pick an ML store σ where each location mapped to [Some
-       ...] corresponds to a block in ζσ. *)
+    (** Angelically pick an ML store σ where each location
+        corresponds to a block in ζσ. *)
     is_store_blocks (χML ρml) σ ζσ ∧
     (** The contents of ζ must represent the new σ. *)
     is_store (χML ρml) ζ σ ∧
