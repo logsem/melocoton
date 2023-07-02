@@ -8,7 +8,7 @@ From melocoton.ml_lang Require Export lang metatheory.
 
 Import ML_lang.
 
-Local Notation state := (gmap loc (option (list val))).
+Local Notation state := (gmap loc ((list val))).
 
 Local Lemma fill_class (K : list ectx_item) (e:expr) :
   is_Some (to_class_ML (fill K e)) → K = nil ∨ ∃ v, to_class_ML e = Some (ExprVal v).

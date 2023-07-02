@@ -57,7 +57,7 @@ Section AllocBasics.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γheap&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γmeta&Halloc).
-    - pose (GenHeapG _ (option (list MLval)) _ γheap γmeta) as Hgen_heapG.
+    - pose (GenHeapG _ ((list MLval)) _ γheap γmeta) as Hgen_heapG.
       pose (HeapG_ML _ _ Hgen_heapG) as HheapG_ML.
       exists HheapG_ML. eapply alloc_mono; last exact Halloc.
       iIntros "(($&H1)&H2)".

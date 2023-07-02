@@ -14,20 +14,20 @@ From melocoton Require Import monotone.
 
 
 Class heapGpre_ML {SI:indexT} Σ := HeapGpre_ML {
-  heapGpre_gen_heapGpre :> gen_heapPreG loc (option (list val)) Σ;
+  heapGpre_gen_heapGpre :> gen_heapPreG loc ((list val)) Σ;
 }.
 
 Class heapG_ML `{SI: indexT} Σ := HeapG_ML {
-  heapG_gen_heapG :> gen_heapG loc (option (list val)) Σ;
+  heapG_gen_heapG :> gen_heapG loc ((list val)) Σ;
 }.
 
 Definition heapΣ_ML {SI: indexT} : gFunctors :=
-  #[gen_heapΣ loc (option (list val))].
+  #[gen_heapΣ loc ((list val))].
 
 Global Instance subG_heapGpre_ML `{SI: indexT} Σ : subG heapΣ_ML Σ → heapGpre_ML Σ.
 Proof. solve_inG. Qed.
 
-Local Notation state := (gmap loc (option (list val))).
+Local Notation state := (gmap loc ((list val))).
 
 
 Global Program Instance heapG_langG_ML `{SI: indexT}`{heapG_ML Σ}
@@ -35,39 +35,28 @@ Global Program Instance heapG_langG_ML `{SI: indexT}`{heapG_ML Σ}
   state_interp σ := gen_heap_interp σ
 }.
 
-Notation "l ↦M{ dq } v" := (mapsto (L:=loc) (V:=option (list val)) l dq (Some [v%MLV]))
+Notation "l ↦M{ dq } v" := (mapsto (L:=loc) (V:=list val) l dq ([v%MLV]))
   (at level 20, format "l  ↦M{ dq }  v") : bi_scope.
-Notation "l ↦M□ v" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded (Some [v%MLV]))
+Notation "l ↦M□ v" := (mapsto (L:=loc) (V:=list val) l DfracDiscarded ([v%MLV]))
   (at level 20, format "l  ↦M□  v") : bi_scope.
-Notation "l ↦M{# q } v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) (Some [v%MLV]))
+Notation "l ↦M{# q } v" := (mapsto (L:=loc) (V:=list val) l (DfracOwn q) ([v%MLV]))
   (at level 20, format "l  ↦M{# q }  v") : bi_scope.
-Notation "l ↦M v" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) (Some [v%MLV]))
+Notation "l ↦M v" := (mapsto (L:=loc) (V:=list val) l (DfracOwn 1) ([v%MLV]))
   (at level 20, format "l  ↦M  v") : bi_scope.
 
-
-
-Notation "l ↦M/{ dq }" := (mapsto (L:=loc) (V:=option (list val)) l dq None)
-  (at level 20, format "l  ↦M/{ dq } ") : bi_scope.
-Notation "l ↦M/□" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded None)
-  (at level 20, format "l  ↦M/□") : bi_scope.
-Notation "l ↦M/{# q }" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) None)
-  (at level 20, format "l  ↦M/{# q }") : bi_scope.
-Notation "l ↦M/" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) None)
-  (at level 20, format "l  ↦M/") : bi_scope.
-
-Notation "l ↦∗{ dq } vs" := (mapsto (L:=loc) (V:=option (list val)) l dq (Some vs))
+Notation "l ↦∗{ dq } vs" := (mapsto (L:=loc) (V:=list val) l dq (vs))
   (at level 20, format "l  ↦∗{ dq }  vs") : bi_scope.
-Notation "l ↦∗□ vs" := (mapsto (L:=loc) (V:=option (list val)) l DfracDiscarded (Some vs))
+Notation "l ↦∗□ vs" := (mapsto (L:=loc) (V:=list val) l DfracDiscarded (vs))
   (at level 20, format "l  ↦∗□  vs") : bi_scope.
-Notation "l ↦∗{# q } vs" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn q) (Some vs))
+Notation "l ↦∗{# q } vs" := (mapsto (L:=loc) (V:=list val) l (DfracOwn q) (vs))
   (at level 20, format "l  ↦∗{# q }  vs") : bi_scope.
-Notation "l ↦∗ vs" := (mapsto (L:=loc) (V:=option (list val)) l (DfracOwn 1) (Some vs))
+Notation "l ↦∗ vs" := (mapsto (L:=loc) (V:=list val) l (DfracOwn 1) (vs))
   (at level 20, format "l  ↦∗  vs") : bi_scope.
 
 Global Instance: Params (@inv_mapsto_own) 5 := {}.
 Global Instance: Params (@inv_mapsto) 4 := {}.
 
-Notation inv_heap_inv := (inv_heap_inv loc (option (list val))).
+Notation inv_heap_inv := (inv_heap_inv loc ((list val))).
 Notation "l '↦∗_' I □" := (inv_mapsto l I%stdpp%type)
   (at level 20, I at level 9, format "l  '↦∗_' I  '□'") : bi_scope.
 Notation "l ↦∗_ I vs" := (inv_mapsto_own l vs I%stdpp%type)
@@ -137,7 +126,7 @@ Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
   iIntros (v2 σ2 Hstep). inv_head_step; last lia. iModIntro.
-  iMod (gen_heap_alloc _ l (Some (replicate (Z.to_nat n) v)) with "Hσ") as "(Hσ & Hl & Hm)".
+  iMod (gen_heap_alloc _ l ((replicate (Z.to_nat n) v)) with "Hσ") as "(Hσ & Hl & Hm)".
   { by apply not_elem_of_dom. }
   iModIntro. iFrame. iApply "HΦ"; iFrame.
 Qed.
