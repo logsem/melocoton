@@ -62,9 +62,9 @@ Section Proofs.
     eapply Forall2_cons in Hrepr as (Hrepr2&Hrepr).
     cbn. wp_call_direct.
 
-    iMod (bufToC with "HGC HBuf1 Hsim1") as "(HGC&HBuf1&%&%&->)".
+    iMod (bufToC with "HGC HBuf1 Hsim1") as "(%&%&%&HGC&HBuf1&->&#HHsim1)".
     iNamed "HBuf1". iNamed "Hbuf".
-    iMod (bufToC with "HGC HBuf2 Hsim2") as "(HGC&HBuf2&%&%&->)".
+    iMod (bufToC with "HGC HBuf2 Hsim2") as "(%&%&%&HGC&HBuf2&->&#HHsim2)".
     iDestruct "HBuf2" as "(%γ2&%γref2&%γaux2&%γfgn2&%used2&%fid2&->&#Hγbuf2&Hγusedref2&#Hγaux2&Hbuf2)".
     unfold named.
     iDestruct "Hbuf2" as "(%vcontent2&Hγfgnpto2&#Hγfgnsim2&Hℓbuf2&HContent2&->)". unfold named.
@@ -114,49 +114,50 @@ Section Proofs.
     iNext.
     iIntros (bout vout vrest vov Hbufout).
     iIntros "-> %Hvov %Hlen Hℓbuf2 Hℓbuf Hℓcap2". wp_finish.
-      apply map_eq_app in Hvov as (zvov&zvrest&->&<-&<-).
-      unfold isBuffer in Hbufout. subst vout.
-      rewrite !map_length in Hlen. rewrite !map_length.
+    apply map_eq_app in Hvov as (zvov&zvrest&->&<-&<-).
+    unfold isBuffer in Hbufout. subst vout.
+    rewrite !map_length in Hlen. rewrite !map_length.
 
-      wp_pure _.
-      wp_apply (wp_readfield with "[$HGC $Hγbuf2]"); [mdone..|].
-      iIntros (vγref2 wγref2) "(HGC&_&%Heq1&%Hreprγref2)". cbv in Heq1; simplify_eq.
-      wp_apply (wp_load with "Hℓcap2"). iIntros "Hℓcap2".
-      wp_apply (wp_int2val with "HGC"); [mdone..|].
-      iIntros (w0) "(HGC&%Hrepr0)".
-      wp_apply (wp_modify with "[$HGC $Hγusedref2]"); [mdone..|].
-      iIntros "(HGC&Hγusedref2)". wp_pure _.
-      wp_apply (wp_free with "Hℓcap2"). iIntros "_".
-      do 2 wp_pure _.
-      rewrite bool_decide_decide; destruct decide; try done.
-      wp_pure _. iApply (wp_post_mono with "[HGC]").
-      1: wp_apply (wp_int2val with "HGC"); [mdone..|iIntros (w) "H"; iAccu].
-      iIntros (ww1) "(HGC&%Hreprw1)".
-      iMod (bufToML_fixed with "HGC [Hγusedref Hγfgnpto Hℓbuf Hℓbufuninit HContent] Hsim1") as "(HGC&HBuf1)"; last first.
-      1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2") as "(HGC&HBuf2)"; last first.
-      1: iApply "HΦ".
-      1: iApply ("Cont" $! _ (ML_lang.LitV true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
-      { iExists _, _, _, _, _, _. unfold named.
-        iSplit; first done.
-        change (Z.to_nat 0) with 0; cbn.
-        iFrame "Hγbuf2 Hγaux2 Hγusedref2".
-        iExists _. unfold named.
-        iFrame "Hγfgnpto2 Hγfgnsim2".
-        iSplitL "Hℓbuf2"; last first.
-        - iSplit.
-          1: iExists _, zvrest, _.
-          1: repeat (iSplit; first done); iApply "HContent2".
-          iPureIntro. rewrite !app_length !map_length Hlen //.
-        - rewrite !map_app !map_map. cbn. done.
-      }
-      { iExists _, _, _, _, _, _. unfold named.
-        iSplit; first done.
-        iFrame "Hγbuf Hγaux Hγusedref".
-        iExists _. unfold named.
-        iFrame "Hγfgnpto Hγfgnsim". iSplitR "HContent".
-        2: { iSplit; [iSplit; [|iSplit]|]. 3: iApply "HContent".
-             all: done. }
-        rewrite map_app. iApply array_app. rewrite !map_length. rewrite !map_map. iFrame. }
+    wp_pure _.
+    wp_apply (wp_readfield with "[$HGC $Hγbuf2]"); [mdone..|].
+    iIntros (vγref2 wγref2) "(HGC&_&%Heq1&%Hreprγref2)". cbv in Heq1; simplify_eq.
+    wp_apply (wp_load with "Hℓcap2"). iIntros "Hℓcap2".
+    wp_apply (wp_int2val with "HGC"); [mdone..|].
+    iIntros (w0) "(HGC&%Hrepr0)".
+    wp_apply (wp_modify with "[$HGC $Hγusedref2]"); [mdone..|].
+    iIntros "(HGC&Hγusedref2)". wp_pure _.
+    wp_apply (wp_free with "Hℓcap2"). iIntros "_".
+    do 2 wp_pure _.
+    rewrite bool_decide_decide; destruct decide; try done.
+    wp_pure _. iApply (wp_post_mono with "[HGC]").
+    1: wp_apply (wp_int2val with "HGC"); [mdone..|iIntros (w) "H"; iAccu].
+    iIntros (ww1) "(HGC&%Hreprw1)".
+    iMod (bufToML_fixed with "HGC [Hγusedref Hγfgnpto Hℓbuf Hℓbufuninit HContent] Hsim1 HHsim1") as "(HGC&HBuf1)"; last first.
+    1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2 HHsim2") as "(HGC&HBuf2)"; last first.
+    1: iApply "HΦ".
+    1: assert ((∅ ∪ {[γ]} ∪ {[γ1]}) ∖ {[γ]} ∖ {[γ1]} = ∅) as -> by set_solver.
+    1: iApply ("Cont" $! _ (ML_lang.LitV true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
+    { iExists _, _, _, _, _, _. unfold named.
+      iSplit; first done.
+      change (Z.to_nat 0) with 0; cbn.
+      iFrame "Hγbuf2 Hγaux2 Hγusedref2".
+      iExists _. unfold named.
+      iFrame "Hγfgnpto2 Hγfgnsim2".
+      iSplitL "Hℓbuf2"; last first.
+      - iSplit.
+        1: iExists _, zvrest, _.
+        1: repeat (iSplit; first done); iApply "HContent2".
+        iPureIntro. rewrite !app_length !map_length Hlen //.
+      - rewrite !map_app !map_map. cbn. done.
+    }
+    { iExists _, _, _, _, _, _. unfold named.
+      iSplit; first done.
+      iFrame "Hγbuf Hγaux Hγusedref".
+      iExists _. unfold named.
+      iFrame "Hγfgnpto Hγfgnsim". iSplitR "HContent".
+      2: { iSplit; [iSplit; [|iSplit]|]. 3: iApply "HContent".
+           all: done. }
+      rewrite map_app. iApply array_app. rewrite !map_length. rewrite !map_map. iFrame. }
   Qed.
 
 End Proofs.

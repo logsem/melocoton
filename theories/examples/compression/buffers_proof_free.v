@@ -30,7 +30,7 @@ Section Proofs.
     eapply Forall2_cons_inv_l in Hrepr as (wγ&?&Hlγ&_&?); simplify_eq.
     cbn. wp_call_direct.
 
-    iMod (bufToC with "HGC Hbuf Hsim") as "(HGC&HBuf1&%&%&->)".
+    iMod (bufToC with "HGC Hbuf Hsim") as "(%&%&%&HGC&HBuf1&->&#Hsim1)".
     iNamed "HBuf1". iNamed "Hbuf".
     wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
     iIntros (vγaux1 wγaux1) "(HGC&_&%Heq1&%Hreprγaux1)". cbv in Heq1; simplify_eq.
@@ -70,7 +70,7 @@ Section Proofs.
     iIntros (w) "(HGC&%Hwunit)".
     iMod (mut_to_ml_store _ [ ML_lang.LitV (-1)%Z ] _ with "[$HGC $Hγusedref]") as "(HGC&%ℓML'&Hγusedref&#Hsim')". 1: cbn; iFrame; done.
 
-    iAssert (⌜ℓML' = ℓML⌝ ∗ ⌜fid0 = fid⌝)%I as "(->&->)".
+    iAssert (⌜ℓML' = ℓML⌝ ∗ ⌜fid0 = fid⌝ ∗ ⌜γ = γref⌝)%I as "(->&->&->)".
     { iDestruct "Hsim" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
       simplify_eq.
       unfold lstore_own_vblock, lstore_own_elem; cbn.
@@ -82,10 +82,16 @@ Section Proofs.
       iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
       iPoseProof (lloc_own_foreign_inj with "Hγfgnsim Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
       iPoseProof (lloc_own_pub_inj with "Hsim' Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
-      iSplit; iPureIntro; [eapply Heq2|eapply Heq1]; done.
+      iPoseProof (lloc_own_pub_inj with "Hsim' Hsim1 HGC") as "(HGC&%Heq3)"; simplify_eq.
+      destruct Heq1 as [Heq1 _]; specialize (Heq1 eq_refl); simplify_eq.
+      destruct Heq2 as [Heq2 _]; specialize (Heq2 eq_refl); simplify_eq.
+      destruct Heq3 as [_ Heq3]; specialize (Heq3 eq_refl); simplify_eq.
+      done.
     }
+    iPoseProof (GC_confront_MLloc with "HGC Hγusedref Hsim1") as "(HGC&Hγusedref)".
     iModIntro.
     iApply "HΦ".
+    assert ((∅ ∪ {[γref]}) ∖ {[γref]} = ∅) as -> by set_solver.
     iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
   Qed.
 
