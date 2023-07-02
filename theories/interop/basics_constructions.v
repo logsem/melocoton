@@ -320,7 +320,7 @@ Lemma deserialize_ML_heap χMLold σ :
   ∧ is_store χC (ζσ ∪ ζnewimm) σ.
 Proof.
   revert χMLold.
-  induction σ as [|ℓ [vv|] σ Hin IH] using map_ind; intros χMLold HχMLold .
+  induction σ as [|ℓ vv σ Hin IH] using map_ind; intros χMLold HχMLold .
   - exists χMLold, ∅, ∅; split_and!. 2: econstructor.
     + by eapply extended_to_refl.
     + intros γ; rewrite dom_empty_L; done.
@@ -334,12 +334,12 @@ Proof.
     edestruct (extended_to_trans) as (HextA&Hdisj1). 1: exact Hext. 1: eapply extended_to_trans; done.
     rewrite map_empty_union in Hdisj1.
     rewrite map_empty_union in HextA.
-    assert (is_store_blocks χ2 (<[ℓ:=Some vv]> σ) (<[γ:=lvs]> ζσ)) as Hstore2.
+    assert (is_store_blocks χ2 (<[ℓ:=vv]> σ) (<[γ:=lvs]> ζσ)) as Hstore2.
     1: {eapply is_store_blocks_restore_loc.
         * eapply is_store_blocks_mono_weaken; first done. eapply extended_to_trans; done.
         * apply Hext2.
         * eapply lookup_weaken. 1: done. apply Hext2.
-        * by right. }
+        * done. }
     assert (dom (<[γ:=lvs]> ζσ ∪ ζi0) ⊆ dom χ1) as Hsub3.
     { rewrite dom_union_L. eapply union_subseteq. split.
       * rewrite dom_insert_L. apply union_subseteq. split.
@@ -379,7 +379,7 @@ Proof.
       eapply insert_subseteq, not_elem_of_dom.
       intros H. destruct Hstbl as [HHL HHR]. eapply HHR in H.
       destruct H as (?&?&Heq1&HeqF). eapply lookup_weaken in Heq1; first erewrite Hγ in Heq1. 2: apply Hχ1.
-      injection Heq1; intros ->; rewrite HeqF in Hin; congruence.
+      injection Heq1; intros ->; rewrite HeqF in Hin; congruence. (*
   - destruct (IH χMLold) as (χ0 & ζσ & ζi0 & Hext & Hstbl & Hstore). 1: done.
     destruct (ensure_in_χ_pub χ0 ℓ) as (χ1 & γ & Hχ1 & Hγ & Hold); first by eapply extended_to_inj.
     edestruct (extended_to_trans) as (HextA&Hdisj1); first exact Hext. 1: eapply extended_to_mono, Hχ1.
@@ -406,13 +406,14 @@ Proof.
       3: done. 2: eapply Hχ1.
       destruct Hstbl as [HHL HHR].
       destruct (HHL ℓ1) as (k1&Hk1); first by eapply elem_of_dom_2.
-      rewrite <- Hk1. f_equal. eapply Hχ1; try done. eapply lookup_weaken, Hχ1; done.
+      rewrite <- Hk1. f_equal. eapply Hχ1; try done. eapply lookup_weaken, Hχ1; done. *)
 Qed.
+
 
 Lemma deserialize_ML_heap_extra ζMLold χMLold σ : 
   lloc_map_inj χMLold
 → dom ζMLold ⊆ dom χMLold
-→ (map_Forall (fun _ ℓ => σ !! ℓ = Some None) (pub_locs_in_lstore χMLold ζMLold))
+→ pub_locs_in_lstore (χMLold) (ζMLold) = ∅ 
 → ∃ χC ζσ ζnewimm,
     extended_to χMLold ζnewimm χC
   ∧ is_store_blocks χC σ ζσ
@@ -426,12 +427,12 @@ Proof.
   1: { eapply map_disjoint_spec. intros γ b1 b2 HH1 HH2.
        destruct HA2 as [_ HA2R]. eapply elem_of_dom_2 in HH2. apply HA2R in HH2.
        destruct HH2 as (ℓ & Vs & HH7 & HH8).
-       erewrite (map_Forall_lookup_1 _ _ _ _ H3) in HH8.
-       2: { eapply elem_of_dom_2 in HH1. erewrite pub_locs_in_lstore_lookup; first done; first done.
-            eapply elem_of_weaken in H2; last done.
-            eapply elem_of_dom in H2; destruct H2 as [k Hk]. rewrite Hk. 
-            eapply lookup_weaken in Hk; first erewrite HH7 in Hk. 2: eapply HA1. done. }
-       congruence. }
+       unshelve epose proof (pub_locs_in_lstore_lookup _ _ γ ℓ _ _) as HH; last (erewrite H3 in HH; by apply lookup_empty_Some in HH).
+       1: by eapply elem_of_dom_2.
+       eapply elem_of_dom_2 in HH1.
+       eapply elem_of_weaken in H2; last done.
+       eapply elem_of_dom in H2; destruct H2 as [k Hk]. rewrite Hk. 
+       eapply lookup_weaken in Hk; first erewrite HH7 in Hk. 2: eapply HA1. done. }
   do 3 eexists; split_and!; try done.
   - intros ℓ vs γ b He1 He2 He3.
     eapply is_heap_elt_weaken. 1: eapply HA3; try done. 2: done.
