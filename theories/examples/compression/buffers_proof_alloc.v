@@ -17,15 +17,17 @@ Section Proofs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
+  Definition isRefGamma γ lv : iProp Σ :=
+    ∃ γ1 γref γaux, ⌜lv = Lloc γ1⌝ ∗ γ1 ↦imm (TagDefault, [Lloc γref; Lloc γaux]) ∗ ⌜γ = γref⌝.
   Lemma buf_alloc_spec_C θ roots (n: nat) (wcap: word) Ψ :
     (0 < n)%Z →
     repr_lval θ (Lint n) wcap →
     {{{ GC θ roots }}}
          call: &buffers_specs.buf_alloc_name with (wcap)
       at ⟨buf_lib_prog, prims_proto Ψ⟩
-    {{{ w' θ' lv ℓ, RET w';
-       GC θ' roots ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
-       ⌜repr_lval θ' lv w'⌝ }}}%CE.
+    {{{ w' θ' lv ℓ γ, RET w';
+       GC θ' (roots ∪ {[γ]}) ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
+       ⌜repr_lval θ' lv w'⌝ ∗ isRefGamma γ lv }}}%CE.
   Proof.
     cbn. iIntros (Hb1 Hlval Φ) "HGC HΦ". wp_call_direct.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
@@ -102,14 +104,14 @@ Section Proofs.
     change (Z.to_nat 1) with 1.
     change (Z.to_nat 2) with 2.
     cbn.
-    iMod (freeze_to_immut with "[$HGC $Hγbf]") as "(HGC&Hγbf)".
-    iMod (freeze_to_immut with "[$HGC $Hγbf2]") as "(HGC&Hγbf2)".
+    iMod (freeze_to_immut with "[$HGC $Hγbf]") as "(HGC&#Hγbf)".
+    iMod (freeze_to_immut with "[$HGC $Hγbf2]") as "(HGC&#Hγbf2)".
     iMod (freeze_to_mut with "[$HGC $Hγbfref]") as "(HGC&Hγbfref)".
 
     iPoseProof "Hγbk" as "((Hγbk&%Hγbk)&%fid&#Hfid)".
 
     iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer n) n) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
-    { iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame.
+    { iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame. iFrame "Hγbf Hγbf2".
       iSplit; first done.
       iExists (replicate n None). unfold named, lstore_own_foreign.
       rewrite map_replicate; cbn.
@@ -119,7 +121,10 @@ Section Proofs.
       1: done.
       1: f_equal; lia.
       cbn. by rewrite replicate_length. }
-    iModIntro. iApply "HΦ". iFrame. eauto.
+    
+    iModIntro. iApply "HΦ". iFrame.
+    iSplit; first eauto.
+    iExists _, _, _. iFrame "Hγbf". done.
   Qed.
 
   Lemma buf_alloc_correct Ψ :
@@ -135,11 +140,24 @@ Section Proofs.
     cbn. iApply wp_fupd.
     iApply (buf_alloc_spec_C _ _ (Z.to_nat z) with "HGC"); first lia.
     { rewrite -(_: z = Z.to_nat z) //; lia. }
-    iIntros "!>" (w' θ' lv ℓ) "(HGC & Hbuf & %)".
-    iMod (bufToML with "HGC Hbuf") as "(HGC&%vv&Hbuffer&#Hsim)".
-    iModIntro. iApply "HΦ".
-     rewrite -(_: z = Z.to_nat z); last lia.
-    iApply ("Cont" with "HGC (HCont Hbuffer) Hsim [//]").
+    iIntros "!>" (w' θ' lv ℓ γ) "(HGC & Hbuf & % & Hisgam)".
+    iNamed "Hbuf".
+    iDestruct "Hisgam" as (γk1 γk2 γk3) "(%HH1&#HH2&->)". simplify_eq.
+    iPoseProof (@ghost_map.ghost_map_elem_agree with "[] []") as "%Heq".
+    1: iDestruct "Hγbuf" as "(HH&_)"; iApply "HH".
+    1: iDestruct "HH2" as "(HH&_)"; iApply "HH".
+    iDestruct "Hγusedref" as "(Helem&%ℓ2&#HHsim)". simplify_eq.
+    iAssert (γfgn ~foreign~ fid) as "#Hfgn".
+    { iNamed "Hbuf". done. }
+    iMod (bufToML_fixed with "HGC [Hbuf Helem] [] HHsim") as "(HGC&Hbuffer)".
+    - repeat iExists _. iSplit; first done. iFrame "Hγbuf Hγaux Helem Hbuf".
+      by iExists _.
+    - repeat progress (try iSplit; try done; try iExists _).
+    - iModIntro. iApply "HΦ".
+      rewrite -(_: z = Z.to_nat z); last lia.
+      assert ((∅ ∪ {[γk2]}) ∖ {[γk2]} = ∅) as -> by set_solver.
+      iApply ("Cont" with "HGC (HCont Hbuffer) [] [//]").
+      repeat progress (try iSplit; try done; try iExists _).
   Qed.
 
 End Proofs.

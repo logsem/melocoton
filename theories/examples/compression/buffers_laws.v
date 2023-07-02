@@ -42,18 +42,17 @@ Section Specs.
       GC θ roots
    -∗ isBufferRecordML v ℓbuf Pb c
    -∗ lv ~~ v
-  ==∗ GC θ roots ∗ isBufferRecord lv ℓbuf Pb c ∗ ∃ (ℓML:loc) fid, ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝.
+  ==∗ ∃ (ℓML:loc) fid γ, GC θ (roots ∪ {[γ]}) ∗ isBufferRecord lv ℓbuf Pb c ∗ ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝ ∗ γ ~ℓ~ ℓML.
   Proof.
     iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
     iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
     iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim [$]") as "(HGC&%Hiff)".
     destruct Hiff as [_ ->]; last done.
     iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%ℓvs&%γref2&HGC&Hγusedref&#Hsim2&#Hγrefsim)".
-    iPoseProof (GC_confront_mutblock with "HGC Hγusedref") as "(HGC&Hγusedref)".
     iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim [$]") as "(HGC&%Hiff)".
     destruct Hiff as [_ ->]; last done.
-    iPoseProof (GC_make_dirty with "HGC") as "$". 1: set_solver.
-    iModIntro. iSplit; last by repeat iExists _. 
+    iModIntro. do 3 iExists _.
+    iFrame "HGC Hsim". iSplit; last done.
     iExists _, _, _, _, _, _. unfold named.
     iSplit; first done.
     iFrame "Hγbuf". iFrame "Hγaux".
@@ -64,27 +63,30 @@ Section Specs.
       iPureIntro; done. }
   Qed.
 
-  Lemma bufToC_fixed ℓbuf Pb (c:nat) ℓML fid lv θ roots :
+  Lemma bufToC_fixed ℓbuf Pb (c:nat) (ℓML:loc) γ fid lv θ roots :
       GC θ roots
    -∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c
    -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-  ==∗ GC θ roots ∗ isBufferRecord lv ℓbuf Pb c.
+   -∗ γ ~ℓ~ ℓML
+  ==∗ GC θ (roots ∪ {[γ]}) ∗ isBufferRecord lv ℓbuf Pb c.
   Proof.
-    iIntros "HGC H #Hsim".
-    iMod (bufToC with "HGC H Hsim") as "($&$&%ℓML1&%fid1&%Href)". done.
+    iIntros "HGC H #Hsim #Hsim2".
+    iMod (bufToC with "HGC H Hsim") as "(%ℓML1&%fid1&%γ1&HGC&$&%Href&#Hsimm)". simplify_eq.
+    iModIntro.
+    iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimm HGC") as "(HGC&%Heq)".
+    destruct Heq as [_ Heq]. by rewrite Heq.
   Qed.
 
-  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) fid θ roots :
+  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) γ fid θ roots :
       GC θ roots
    -∗ isBufferRecord lv ℓbuf Pb c
    -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-  ==∗ GC θ roots ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c.
+   -∗ γ ~ℓ~ ℓML
+  ==∗ GC θ (roots ∖ {[γ]}) ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c.
   Proof.
-    iIntros "HGC H #Hsim".
+    iIntros "HGC H #Hsim #Hsimgam".
     iMod (bufToML with "HGC H") as "(HGC&%&HML&#Hsim2)".
-    iAssert (⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝)%I as "->"; last by iFrame.
-    iNamed "HML".
-    cbn.
+    iNamed "HML". rename γ into γinp.
     iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
     iDestruct "Hsim2" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
     simplify_eq.
@@ -97,9 +99,13 @@ Section Specs.
     iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
     iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
     iPoseProof (lloc_own_pub_inj with "Hsim Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
-    iPureIntro. f_equal; repeat f_equal.
-    - symmetry; by eapply Heq2.
-    - symmetry; by eapply Heq1.
+    iPoseProof (lloc_own_pub_inj with "Hsimgam Hsim HGC") as "(HGC&%Heq3)"; simplify_eq.
+    destruct Heq1 as [Heq1 _]; rewrite Heq1; last done.
+    destruct Heq2 as [Heq2 _]; rewrite Heq2; last done.
+    destruct Heq3 as [_ Heq3]; rewrite Heq3; last done.
+    iPoseProof (GC_confront_MLloc with "HGC HℓbufML Hsim2") as "($&HℓbufML)".
+    iModIntro.
+    repeat iExists _. iSplit; first done. iFrame.
   Qed.
 
 End Specs.

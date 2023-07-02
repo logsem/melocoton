@@ -32,7 +32,7 @@ Section Proofs.
     eapply Forall2_cons_inv_l in Hrepr as (wi&?&Hli&Hrepr&?); simplify_eq.
     cbn. wp_call_direct.
 
-    iMod (bufToC with "HGC Hbuf Hsimb") as "(HGC&HBuf1&%&%&->)".
+    iMod (bufToC with "HGC Hbuf Hsimb") as "(%&%&%&HGC&HBuf1&->&#Hsim1)".
     iNamed "HBuf1". iNamed "Hbuf".
     iDestruct "HContent" as "(HContent&%Heqres)".
     wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
@@ -51,8 +51,9 @@ Section Proofs.
     iApply (wp_post_mono with "[HGC]").
     1: wp_apply (wp_int2val with "HGC"); [done..|iIntros (w) "?"; iAccu].
     iIntros (w) "(HGC&%Hww)".
-    iMod (bufToML_fixed with "HGC [Hγusedref HContent Hγfgnpto Hℓbuf] Hsimb") as "(HGC&HBuffer)"; last first.
+    iMod (bufToML_fixed with "HGC [Hγusedref HContent Hγfgnpto Hℓbuf] Hsimb Hsim1") as "(HGC&HBuffer)"; last first.
     { iModIntro. iApply "HΦ".
+      assert ((∅ ∪ {[γ]}) ∖ {[γ]} = ∅) as -> by set_solver.
       iApply ("Cont" with "HGC (HCont HBuffer) [//] [//]"). }
     { do 6 iExists _. iSplit; first done. iFrameNamed.
       do 1 iExists _. iFrameNamed. done. }

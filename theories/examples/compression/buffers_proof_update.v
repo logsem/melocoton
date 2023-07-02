@@ -42,7 +42,7 @@ Section Proofs.
     iIntros (ℓbf) "(HGC&Hℓbf)"; wp_pures.
     wp_apply (store_to_root with "[$HGC $Hℓbf]"); [done..|].
     iIntros "(HGC&Hℓbf)". wp_pure _.
-    iMod (bufToC with "HGC Hrecord Hsim") as "(HGC&Hrecord&%&%&->)".
+    iMod (bufToC with "HGC Hrecord Hsim") as "(%&%&%&HGC&Hrecord&->&#HHsim)".
     iNamed "Hrecord". iNamed "Hbuf".
 
     wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
@@ -62,9 +62,8 @@ Section Proofs.
     iIntros "HGC".
     wp_apply (wp_store with "Hℓi").
     iIntros "Hℓi". wp_pure _.
-
-    iMod (bufToML_fixed (Lloc γ) ℓbuf (Pb i) (length vcontent)
-         with "HGC [Hγusedref Hℓbuf HContent Hγfgnpto] Hsim") as "(HGC&HBufML)".
+    iMod (bufToML_fixed (Lloc γ0) ℓbuf (Pb i) (length vcontent)
+         with "HGC [Hγusedref Hℓbuf HContent Hγfgnpto] Hsim HHsim") as "(HGC&HBufML)".
     { iExists _, _, _, _, _, _. unfold named. iSplit; first done.
       iFrame "Hγusedref Hγbuf Hγaux".
       iExists _. unfold named. by iFrame "Hγfgnpto Hγfgnsim Hℓbuf HContent". }
@@ -77,8 +76,9 @@ Section Proofs.
     revert Hb3.
     generalize (length vcontent) as vcontent_length. intros vcontent_length Hb3.
     clear vcontent.
+    assert ((∅ ∪ {[γ]}) ∖ {[γ]} = ∅) as -> by set_solver.
 
-    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ ∗ GC θ ∅ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
+    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ0 ∗ GC θ ∅ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
               with "[HℓF Hℓbf Hℓi HGC HΨ]").
     { iRevert "HMerge HWP Hb1 Hb2". iLöb as "IH" forall (i θ).
       iIntros "#HMerge #HWP %Hb1 %Hb2".
@@ -119,14 +119,12 @@ Section Proofs.
       iIntros (vγref wγref) "(HGC&_&%Heq&%Hvwγref)". cbv in Heq. simplify_eq.
 
       iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%&%&HGC&HℓbufML&#Hsim2&HHsim2)".
-      iPoseProof (GC_confront_mutblock with "HGC HℓbufML") as "(HGC&HℓbufML)".
-      eassert ((∅ ∪ {[γ0]}) ∖ {[γ0]} = ∅) as -> by set_solver.
 
       destruct lvs as [|? [|??]].
       1: cbn; done.
       all: iDestruct "HHsim2" as "(->&HHr)"; try done. iClear "HHr".
 
-      iAssert (⌜fid1 = fid0⌝ ∗ ⌜γfgn0 = γfgn⌝ ∗ ⌜γ0 = γref⌝)%I as "(->&->&->)".
+      iAssert (⌜fid1 = fid0⌝ ∗ ⌜γfgn0 = γfgn⌝ ∗ ⌜γ1 = γref⌝)%I as "(->&->&->)".
       { iDestruct "Hsim" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim3)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
         simplify_eq.
         unfold lstore_own_vblock, lstore_own_elem; cbn.
@@ -173,6 +171,8 @@ Section Proofs.
       iMod (mut_to_ml_store _ [ ML_lang.LitV (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
       iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2 HGC") as "(HGC&%Heq3)"; simplify_eq.
       replace ℓML2 with ℓML0 by by eapply Heq3.
+      iPoseProof (GC_confront_MLloc with "HGC HℓbufML Hsim2") as "(HGC&HℓbufML)".
+      assert ((∅ ∪ {[γref]}) ∖ {[γref]} = ∅) as -> by set_solver.
       iMod ("HMerge" with "[] [] HΨframe HΦz [Hγfgnpto HContent Hℓbuf HℓbufML]") as "HH". 1-2: iPureIntro; lia.
       { iExists _, _, _, _. unfold named. iSplit; first done. iFrame "HℓbufML".
         iExists _. unfold named. iFrame "Hγfgnpto Hγfgnsim Hℓbuf".
