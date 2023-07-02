@@ -40,28 +40,27 @@ Bind Scope loc_scope with locoff.
 Section store.
 Context {val : Type}.
 
-Local Notation store := (gmap loc (option (list val))).
+Local Notation store := (gmap loc ((list val))).
 
 Global Instance store_lookup : Lookup locoff val store :=
   λ '(Locoff ℓ i) σ,
     if bool_decide (0 ≤ i)%Z then
-      σ !! ℓ ≫= λ oblk, oblk ≫= λ (blk : list _), blk !! Z.to_nat i
+      σ !! ℓ ≫=  λ (blk : list _), blk !! Z.to_nat i
     else None.
 
 Global Instance store_insert : Insert locoff val store :=
   λ '(Locoff ℓ i) s σ,
     if bool_decide (0 ≤ i)%Z then
       match σ !! ℓ with
-      | None            => σ
-      | Some None       => σ
-      | Some (Some blk) => <[ℓ := Some (<[Z.to_nat i := s]> blk)]> σ
+      | None     => σ
+      | Some blk => <[ℓ := (<[Z.to_nat i := s]> blk)]> σ
       end
     else σ.
 
 Lemma store_lookup_eq (σ : store) (ℓ : loc) (i : offset) :
   σ !! (ℓ.[i])%L =
     if bool_decide (0 ≤ i)%Z then
-      σ !! ℓ ≫= λ oblk, oblk ≫= λ (blk : list _), blk !! Z.to_nat i
+      σ !! ℓ ≫= λ (blk : list _), blk !! Z.to_nat i
     else None.
 Proof. reflexivity. Qed.
 
@@ -71,7 +70,7 @@ Lemma store_lookup_insert (σ : store) (ℓi : locoff) (v0 v : val) :
 Proof.
   destruct ℓi as [ℓ i]. rewrite /lookup /insert /=.
   case_bool_decide ; last done.
-  do 2 (case_match ; last done). cbn=>?.
+  case_match ; last done. cbn=>?.
   rewrite lookup_insert /= list_lookup_insert//. by eapply lookup_lt_Some.
 Qed.
 
@@ -82,7 +81,7 @@ Proof.
   destruct ℓi as [ℓ i], ℓi' as [ℓ' i']. rewrite /lookup /insert /=.
   intros ?. case_bool_decide ; last done.
   case_bool_decide ; last done.
-  destruct (σ !! ℓ) as [[blk|]|] eqn:Hσℓ ; last done. 2:done.
+  destruct (σ !! ℓ) as [blk|] eqn:Hσℓ ; last done.
   destruct (decide (ℓ = ℓ')) as [<-|].
   - destruct (decide (i = i')) as [<-|] ; first done.
     assert (Z.to_nat i ≠ Z.to_nat i') by lia.
@@ -91,9 +90,9 @@ Proof.
 Qed.
 
 Lemma store_insert_offset (σ : store) (ℓ : loc) (i : offset) (vs : list val) (w : val):
-  σ !! ℓ = Some (Some vs) →
+  σ !! ℓ = (Some vs) →
   (0 ≤ i < length vs)%Z →
-  <[(ℓ.[i])%L := w]> σ = <[ℓ := Some (<[Z.to_nat i := w]> vs)]> σ.
+  <[(ℓ.[i])%L := w]> σ = <[ℓ := (<[Z.to_nat i := w]> vs)]> σ.
 Proof.
   intros Hvs Hi. rewrite /insert /store_insert -/(insert _ _ _).
   case_bool_decide; [|lia]. by simplify_map_eq.
