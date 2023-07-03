@@ -105,7 +105,7 @@ Section ML_code.
   Proof.
     intros Hproto ?. destruct p. simplify_eq/=. unfold knot_code. wp_pures.
     wp_apply (wp_allocN); [done..|] => /=.
-    iIntros (l) "[Hl _]". wp_pures.
+    iIntros (l) "Hl". wp_pures.
     wp_apply (wp_store with "Hl").
     iIntros "Hl". wp_pures.
     iMod (na_inv_alloc logrel.logrel_nais _ (nroot .@ "knot") with "[Hl]") as "#HL".

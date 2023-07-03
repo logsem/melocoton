@@ -57,7 +57,7 @@ Proof using.
 
   iPoseProof (GC_per_loc_modify_ζ_in_detail with "GC_per_loc") as "GC_per_loc".
   1: by erewrite Helem.
-  1: intros ?? Heq; simplify_eq; eapply insert_length.
+  1: intros ?? Heq; simplify_eq; split; first done; eapply insert_length.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).

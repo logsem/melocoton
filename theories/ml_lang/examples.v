@@ -34,7 +34,7 @@ Lemma prog_correct
 Proof.
   iStartProof. unfold call_inc.
   wp_pures. unfold Z.add.
-  wp_apply (wp_alloc with "[//]"); iIntros (l) "[Hl _]".
+  wp_apply (wp_alloc with "[//]"); iIntros (l) "Hl".
   wp_pures.
   wp_apply (wp_store with "Hl"); iIntros "Hl". wp_pures.
   wp_extern.

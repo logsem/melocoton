@@ -323,7 +323,7 @@ Section typed_interp.
     destruct (decide (0 ≤ n)%Z) as [Hn|Hn].
     { iApply wp_fupd.
       wp_apply (wp_allocN with "[//]"); first done.
-      iIntros (l) "(Hl&_)". iFrame "Htok".
+      iIntros (l) "Hl". iFrame "Htok".
       iMod (ghost_var_alloc (replicate (Z.to_nat n) v2)) as (γ) "Hγ".
       rewrite <- Qp.half_half.
       iPoseProof (ghost_var_split with "Hγ") as "(HγL&HγR)".

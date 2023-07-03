@@ -33,7 +33,7 @@ Lemma ml_to_mut θ dirty qp ℓ vs :
     ∃ lvs γ, GC θ (dirty ∪ {[γ]}) ∗ γ ↦mut{DfracOwn qp} (TagDefault, lvs) ∗ γ ~ℓ~ ℓ ∗ lvs ~~∗ vs.
 Proof using.
   iIntros "(HGC & Hl)". iNamed "HGC". iNamed "HSI_block_level".
-  iDestruct (gen_heap_valid with "GCσMLv Hl") as %Hlσ.
+  iDestruct (pgm_lookup with "GCσMLv Hl") as %Hlσ.
   destruct (Hstore ℓ) as (γ & Hχγ%lloc_map_pubs_lookup_Some); first by eapply elem_of_dom_2.
   iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "GC_per_loc") as "(HH&GC_per_loc)".
   iAssert (|==> ∃ lvs w',
@@ -43,9 +43,9 @@ Proof using.
     ∗ state_interp (<[ ℓ := w' ]> σMLvirt)
     ∗ lstore_own_auth ζ_future)%I with "[HH GCσMLv Hl GCζauth]" as "Hmod".
   { iDestruct "HH" as "(%vs'&%tg&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&(Hγ&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])".
-    1: by iPoseProof (gen_heap.mapsto_ne with "Hℓ Hl") as "%Hbot".
+    1: by iPoseProof (pgm_elem_ne with "Hℓ Hl") as "%Hbot".
     3: by simplify_eq.
-    - iDestruct (gen_heap.mapsto_valid with "Hl") as "%Hlt".
+    - iDestruct (pgm_elem_valid with "Hl") as "%Hlt".
       edestruct dfrac_valid_own as [HL _]. apply HL in Hlt; clear HL.
       apply Qp.le_lteq in Hlt. destruct Hlt as [Hlt|Hlt]; simplify_eq.
       + apply Qp.lt_sum in Hlt as (qr&Hqr).
@@ -53,14 +53,17 @@ Proof using.
         iModIntro. iExists lvs, vs. rewrite insert_id; last done. iFrame. iFrame "Hsim Hγsim".
         iExists _, _, _. iRight. iRight. iLeft. iExists _, _. iFrame.
         iFrame "Hsim". iPureIntro; split_and!; try done. set_solver.
-      + iMod (gen_heap.gen_heap_update _ _ _ (replicate _ _) with "GCσMLv Hl") as "(GCσMLv&Hl)".
+      + iPoseProof (big_sepL2_length with "Hsim") as "%Hlen".
+        iMod (pgm_update (replicate _ _) with "GCσMLv Hl") as "(GCσMLv&Hl)".
+        1: by rewrite replicate_length.
         iDestruct (lstore_own_elem_of with "GCζauth Hγ") as "%HH".
         iModIntro. iExists lvs, (replicate _ _). cbn. iFrame "Hγ Hsim GCζauth Hγsim".
         iSplitR "GCσMLv". 2: iApply "GCσMLv".
         iExists  (replicate _ _), TagDefault, _. iLeft. iFrame.
-        iPureIntro. split_and!; try done. set_solver.
-    - iPoseProof (gen_heap.mapsto_agree with "Hmapsℓ Hl") as "%Heq"; simplify_eq.
-      iCombine "Hmapsℓ Hl" as "Hℓ". iDestruct (gen_heap.mapsto_valid with "Hℓ") as "%Hlt".
+        iPureIntro. split_and!; try done. 1: f_equal; try done. set_solver.
+    - iPoseProof (pgm_elem_agree with "Hmapsℓ Hl") as "%Heq"; simplify_eq.
+      iPoseProof (big_sepL2_length with "Hsim") as "%Hlen".
+      iCombine "Hmapsℓ Hl" as "Hℓ". iDestruct (pgm_elem_valid with "Hℓ") as "%Hlt".
       edestruct dfrac_valid_own as [HL _]. apply HL in Hlt; clear HL.
       apply Qp.le_lteq in Hlt. destruct Hlt as [Hlt|Hlt]; simplify_eq.
       + apply Qp.lt_sum in Hlt as (qr&Hqr).
@@ -74,7 +77,8 @@ Proof using.
         set_solver.
       + assert (r = qp)%Qp as Hr; last simplify_eq.
         { rewrite -Hlt in Hsum. by eapply Qp.add_inj_r. }
-        rewrite Hlt. iMod (gen_heap.gen_heap_update _ _ _ (replicate _ _) with "GCσMLv Hℓ") as "(GCσMLv&Hl)".
+        rewrite Hlt. iMod (pgm_update (replicate _ _) with "GCσMLv Hℓ") as "(GCσMLv&Hl)".
+        1: by rewrite replicate_length.
         iDestruct "Hmapsγ" as "(Hγ&#Hsimγ)".
         iDestruct (lstore_own_elem_of with "GCζauth Hγ") as "%HH".
         iModIntro. iExists lvs, _. iFrame "Hγ Hsimγ Hsim GCζauth". iSplitR "GCσMLv"; last iApply "GCσMLv".
@@ -112,8 +116,11 @@ Proof using.
   3: simplify_eq.
   2: { iDestruct "Hl" as "(Hl&_)". iDestruct "Hmapsγ" as "(Hmapsγ&_)".
        iPoseProof (ghost_map_elem_ne with "Hl Hmapsγ") as "%Hf". done. }
-  iDestruct (gen_heap_valid with "GCσMLv Hℓ") as %Hℓσ.
-  iMod (gen_heap_update _ _ _ vs with "GCσMLv Hℓ") as "[GCσMLv Hℓ]".
+  iDestruct (pgm_lookup with "GCσMLv Hℓ") as %Hℓσ.
+  iPoseProof (big_sepL2_length with "Hsim") as "%Hlen1".
+  destruct Hγζ' as (Hγζ'&Hvs'&Hdirty). simplify_eq.
+  iMod (pgm_update vs with "GCσMLv Hℓ") as "[GCσMLv Hℓ]".
+  1: rewrite Hlen1 replicate_length //.
   iPoseProof (GC_per_loc_modify_σ with "GC_per_loc") as "GC_per_loc".
   1: by eapply lloc_map_pubs_inj, expose_llocs_inj. 1: done.
   iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "[$GC_per_loc Hl]") as "GC_per_loc".
@@ -144,13 +151,16 @@ Proof using.
     ∗ lvs ~~∗ vs
     ∗ state_interp (<[ ℓ := w']> σMLvirt)
     ∗ lstore_own_auth ζ_future)%I with "[HH GCσMLv Hγ GCζauth]" as "Hmod".
-  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ&_)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])"; cbn.
+  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ&%Hζfut&->&Hdirty&->)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])"; cbn.
     4: by simplify_eq.
     2: by iPoseProof (ghost_map_elem_ne with "Hγ' Hγ") as "%Hbot".
     - iDestruct "Hreprinit" as (vs) "Hsim".
-      iDestruct (gen_heap_valid with "GCσMLv Hℓ") as "%Helem".
-      iMod (gen_heap_update _ _ _ vs with "GCσMLv Hℓ") as "(GCσMLv&Hℓ)".
+      iDestruct (pgm_lookup with "GCσMLv Hℓ") as "%Helem".
       iDestruct (ghost_map_elem_valid with "Hγ") as "%Hlt".
+      simplify_eq.
+      iPoseProof (big_sepL2_length with "Hsim") as "%Hlen1".
+      iMod (pgm_update vs with "GCσMLv Hℓ") as "(GCσMLv&Hℓ)".
+      1: rewrite replicate_length; done.
       iExists vs, vs.
       edestruct dfrac_valid_own as [HL _]. apply HL in Hlt; clear HL.
       apply Qp.le_lteq in Hlt. destruct Hlt as [Hlt|Hlt].
@@ -167,7 +177,8 @@ Proof using.
       iPoseProof (ghost_map_elem_agree with "Hγ Hγ'") as "%Heq"; simplify_eq.
       iCombine "Hγ Hγ'" as "Hγ".
       iDestruct (ghost_map_elem_valid with "Hγ") as "%Hlt".
-      iDestruct (gen_heap_valid with "GCσMLv Hmapsℓ") as "%Helemℓ".
+      iPoseProof (big_sepL2_length with "Hsim") as "%Hlen1".
+      iDestruct (pgm_lookup with "GCσMLv Hmapsℓ") as "%Helemℓ".
       edestruct dfrac_valid_own as [HL _]. apply HL in Hlt; clear HL.
       apply Qp.le_lteq in Hlt. destruct Hlt as [Hlt|Hlt]; simplify_eq.
       + apply Qp.lt_sum in Hlt as (qr&Hqr).
@@ -221,8 +232,8 @@ Proof.
   - iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
     iAssert (per_location_invariant ζ_future σMLvirt (dirty ∖ {[γ]}) γ ℓ 
             ∗ γ ↪[wrapperG_γζvirt] blk )%I with "[HH Hγ]" as "(HH&Hγ)".
-    { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|HH]]])"; cbn.
-      - simplify_map_eq. by specialize (Hne tg lvs').
+    { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ&%Hzeta&%Hrepl&%Hdirty&->)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|HH]]])"; cbn.
+      - simplify_map_eq. by specialize (Hne TagDefault lvs').
       - iPoseProof (ghost_map_elem_ne with "Hγ Hγ'") as "%Heq". done.
       - iDestruct "Hmapsγ" as "(Hγ'&_)". cbn.
         iPoseProof (ghost_map_elem_ne with "Hγ Hγ'") as "%Heq". done.
@@ -252,16 +263,16 @@ Lemma GC_confront_MLloc θ dirty γ ℓ vs :
 Proof.
   iIntros "HGC Hℓ #Hsim".
   iNamed "HGC". iNamed "HSI_block_level".
-  iPoseProof (gen_heap_valid with "GCσMLv Hℓ") as "%Hℓσ".
+  iPoseProof (pgm_lookup with "GCσMLv Hℓ") as "%Hℓσ".
   iPoseProof (lloc_own_pub_of with "GCχauth Hsim") as "%Hγℓ".
   apply lloc_map_pubs_lookup_Some_2 in Hγℓ as Hmappubs.
   iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
   iAssert (per_location_invariant ζ_future σMLvirt (dirty ∖ {[γ]}) γ ℓ 
           ∗ ℓ ↦∗ vs)%I with "[HH Hℓ]" as "(HH&Hℓ)".
   { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%HH)|[HH|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|HH]]])"; cbn.
-    - iPoseProof (gen_heap.mapsto_ne with "Hℓ Hℓ'") as "%Heq". done.
+    - iPoseProof (pgm_elem_ne with "Hℓ Hℓ'") as "%Heq". done.
     - iFrame. iExists vs', _, lvs'. iRight. iLeft. done.
-    - iPoseProof (gen_heap.mapsto_ne with "Hℓ Hmapsℓ") as "%Heq". done. 
+    - iPoseProof (pgm_elem_ne with "Hℓ Hmapsℓ") as "%Heq". done. 
     - iFrame. iExists vs', tg, lvs'. done. }
   iFrame "Hℓ".
   do 5 iExists _. iFrameNamed.
@@ -281,17 +292,17 @@ Lemma GC_confront_both θ dirty q1 γ blk q2 ℓ vs :
 Proof.
   iIntros "HGC Hγ Hℓ #Hsim".
   iNamed "HGC". iNamed "HSI_block_level".
-  iPoseProof (gen_heap_valid with "GCσMLv Hℓ") as "%Hℓσ".
+  iPoseProof (pgm_lookup with "GCσMLv Hℓ") as "%Hℓσ".
   iPoseProof (lstore_own_elem_of with "GCζauth Hγ") as "%Hγζ".
   iPoseProof (lloc_own_pub_of with "GCχauth Hsim") as "%Hγℓ".
   apply lloc_map_pubs_lookup_Some_2 in Hγℓ as Hmappubs.
   iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
   iAssert (∃ lvs', lvs' ~~∗ vs ∗ ⌜blk = Bvblock (Mut, (TagDefault, lvs'))⌝)%I as "#(%lvs&Hsimvs&->)".
   { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%HH)|[(%Hℓσ'&(Hγ'&#Hγsim)&#Hsim'&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|(%HH1&%HH2)]]])"; cbn.
-    - iPoseProof (gen_heap.mapsto_ne with "Hℓ' Hℓ") as "%Heq". done.
+    - iPoseProof (pgm_elem_ne with "Hℓ' Hℓ") as "%Heq". done.
     - unfold lstore_own_elem; destruct (mutability blk);
       by iPoseProof (@ghost_map_elem_ne with "Hγ' Hγ") as "%Heq".
-    - iPoseProof (gen_heap.mapsto_agree with "Hmapsℓ Hℓ") as "%Heq1"; simplify_eq.
+    - iPoseProof (pgm_elem_agree with "Hmapsℓ Hℓ") as "%Heq1"; simplify_eq.
       iDestruct "Hmapsγ" as "(Hmapsγ&_)". cbn.
       unfold lstore_own_elem; destruct (mutability blk) eqn:Heq;
       iPoseProof (@ghost_map_elem_agree with "Hmapsγ Hγ") as "%Heq2"; simplify_eq.
@@ -303,6 +314,38 @@ Proof.
   iExists _. iFrameNamed.
   iApply big_sepM_delete; first done; iFrame.
 Qed.
+
+Lemma GC_confront_length θ dirty q1 γ blk ℓ vlen : 
+    GC θ dirty
+ -∗ lstore_own_elem γ (q1) blk
+ -∗ ℓ ↦Mlen vlen
+ -∗ γ ~ℓ~ ℓ
+ -∗ ⌜∃ lvs', blk = Bvblock (Mut, (TagDefault, lvs')) ∧ length lvs' = vlen⌝.
+Proof.
+  iIntros "HGC Hγ #Hℓ #Hsim".
+  iNamed "HGC". iNamed "HSI_block_level".
+  iPoseProof (pgm_lookup_pers with "GCσMLv Hℓ") as "(%vs&->&%Hℓσ)".
+  iPoseProof (lstore_own_elem_of with "GCζauth Hγ") as "%Hγζ".
+  iPoseProof (lloc_own_pub_of with "GCχauth Hsim") as "%Hγℓ".
+  apply lloc_map_pubs_lookup_Some_2 in Hγℓ as Hmappubs.
+  iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
+  iAssert (∃ lvs', ⌜blk = Bvblock (Mut, (TagDefault, lvs'))⌝ ∗ ⌜length vs = length lvs'⌝)%I as "#(%lvs&->&%Hlen)".
+  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%Hζf&->&%Hdirty&->)|[(%Hℓσ'&(Hγ'&#Hγsim)&#Hsim'&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|(%HH1&%HH2)]]])"; cbn.
+    - iPoseProof (pgm_lookup with "GCσMLv Hℓ'") as "%Heq".
+      iPoseProof (lstore_own_elem_of with "GCζauth Hγ") as "%Hζf2". simplify_eq. rewrite replicate_length.
+      by iExists lvs'.
+    - unfold lstore_own_elem; destruct (mutability blk);
+      by iPoseProof (@ghost_map_elem_ne with "Hγ' Hγ") as "%Heq".
+    - iPoseProof (pgm_elem_pers_agree with "Hmapsℓ Hℓ") as "<-"; simplify_eq.
+      iDestruct "Hmapsγ" as "(Hmapsγ&_)". cbn.
+      unfold lstore_own_elem; destruct (mutability blk) eqn:Heq;
+      iPoseProof (@ghost_map_elem_agree with "Hmapsγ Hγ") as "%Heq2"; simplify_eq.
+      iPoseProof (big_sepL2_length with "Hsim'") as "->".
+      iExists _; done.
+    - by simplify_eq. }
+  iExists _.
+  iSplit; try done.
+Qed. 
 
 Lemma GC_confront_foreign θ dirty γ fid : 
     GC θ dirty
@@ -334,8 +377,8 @@ Proof.
 Qed.
 
 Lemma freeze_to_mut γ lvs θ dirty :
-  ⊢ GC θ dirty ∗ γ ↦fresh lvs ==∗
-    GC θ (dirty ∪ {[γ]}) ∗ γ ↦mut lvs.
+  ⊢ GC θ dirty ∗ γ ↦fresh (TagDefault, lvs) ==∗
+    GC θ (dirty ∪ {[γ]}) ∗ γ ↦mut (TagDefault, lvs).
 Proof using.
   iIntros "(HGC & Hγ)".
   iDestruct (lstore_own_vblock_F_as_mut with "Hγ") as "(Hmtζ & Hmtfresh)".
@@ -350,8 +393,7 @@ Proof using.
     destruct (Hstore _ Hℓ) as (γ'&Hγ'). by apply elem_of_lloc_map_pub_locs_1 in Hγ'. }
   iDestruct (lloc_own_priv_of with "GCχauth Hmtfresh") as %Hχγ.
   iMod (lloc_own_expose _ _ ℓ with "GCχauth Hmtfresh") as "[GCχvirt #Hℓγ]".
-  destruct lvs as [tg lvs].
-  iMod (gen_heap_alloc _ ℓ (replicate _ _) with "GCσMLv") as "(GCσMLv & HℓNone & Hmeta)".
+  iMod (pgm_insert ℓ (replicate _ _) with "GCσMLv") as "(GCσMLv & HℓNone)".
   1: by eapply not_elem_of_dom_1.
   iPoseProof (GC_per_loc_insert _ _ _ _ ℓ with "GC_per_loc") as "GC_per_loc".
   1: { intros γ' Hγ'%lloc_map_pubs_lookup_Some. apply elem_of_lloc_map_pub_locs_1 in Hγ'. apply H, Hγ'. }
@@ -359,7 +401,7 @@ Proof using.
   1: set_solver.
   iPoseProof (big_sepM_insert _ _ γ ℓ with "[$GC_per_loc HℓNone]") as "GC_per_loc".
   1: eapply lloc_map_pubs_lookup_None; eauto.
-  1: { iExists _, tg, lvs; iLeft; iFrame. iPureIntro; split_and!; try done. set_solver. } 
+  1: { iExists _, TagDefault, lvs; iLeft; iFrame. iPureIntro; split_and!; try done. set_solver. } 
   iModIntro. iSplitR "Hℓγ Hmtζ".
   2: { iApply lstore_own_vblock_M_as_mut. iFrame "Hmtζ". eauto. }
   rewrite /GC /SI_block_level /named.

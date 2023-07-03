@@ -58,7 +58,7 @@ Proof.
       * intros (ℓ&Vs&[]%lookup_empty_Some&_).
     + intros ℓ Vs γ blk H1 []%lookup_empty_Some.
   - rewrite lloc_map_pubs_insert_pub.
-    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%tg&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&Hrest&->)|[(%q&%r&Hℓ&Hγ&#Hsimm&->&%Hsum&%Hc)|(%Hnone1&%Hnone2)]]])&GC_per_loc)".
+    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%tg&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty&->)|[(%Hℓσ&Hγ&Hrest&->)|[(%q&%r&Hℓ&Hγ&#Hsimm&->&%Hsum&%Hc)|(%Hnone1&%Hnone2)]]])&GC_per_loc)".
     1: apply lloc_map_pubs_lookup_None; left; done.
     + by eapply elem_of_empty in Hdirty. (*
       iDestruct (gen_heap_valid with "GCσMLv Hℓ") as %Hℓσ.
