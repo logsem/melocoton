@@ -4,6 +4,7 @@ From iris.prelude Require Import options.
 From melocoton Require Import named_props multirelations.
 From melocoton.ml_lang.logrel Require Import typing logrel fundamental.
 From melocoton.language Require Import language weakestpre.
+From melocoton.interop.extra_ghost_state Require Import persistent_ghost_map gmap_view_pluspers.
 From melocoton.interop Require Import basics basics_resources prims_proto.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import state lang weakestpre update_laws wp_utils wp_simulation.
@@ -56,14 +57,11 @@ Section AllocBasics.
   Proof using.
     intros P _ Halloc.
     eapply alloc_fresh_res in Halloc as (γheap&Halloc).
-    1: eapply alloc_fresh_res in Halloc as (γmeta&Halloc).
-    - pose (GenHeapG _ ((list MLval)) _ γheap γmeta) as Hgen_heapG.
-      pose (HeapG_ML _ _ Hgen_heapG) as HheapG_ML.
+    - pose (HeapG_ML _ _ _ γheap) as HheapG_ML.
       exists HheapG_ML. eapply alloc_mono; last exact Halloc.
-      iIntros "(($&H1)&H2)".
-      iExists ∅. iSplit; first done. cbn in *. iFrame.
-    - eapply gmap_view.gmap_view_auth_valid.
-    - eapply gmap_view.gmap_view_auth_valid.
+      iIntros "($&H1)". cbn.
+      rewrite persistent_ghost_map.pgm_auth_unseal. iApply "H1".
+    - eapply gmap_view_plus_auth_valid.
   Qed.
 
   Lemma alloc_heapG_C `{!heapGpre_C Σ}  : @Alloc _ Σ (heapG_C Σ) 
