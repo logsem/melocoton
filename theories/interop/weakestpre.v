@@ -67,7 +67,7 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
 Definition per_location_invariant_ML (ζ ζvirt : lstore)
      (γ : lloc) (ℓ : loc) : iProp Σ :=
   ∃ (vs : list val) lvs, 
-    (⌜ζ !! γ = None⌝ ∗ γ ↦mut (TagDefault, lvs) ∗ γ ~ℓ~ ℓ)
+    (⌜ζ !! γ = None⌝ ∗ γ ↦mut (TagDefault, lvs) ∗ γ ~ℓ~ ℓ ∗ ℓ ↦Mlen (length lvs))
   ∨ (⌜ζ !! γ = None⌝ ∗ ⌜ζvirt !! γ = None⌝ ∗ γ ~ℓ~ ℓ).
 
 Definition SI_block_level_ML (ζ : lstore) (χ : lloc_map) : iProp Σ :=
@@ -178,7 +178,7 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hsim&Hlen)|(%H1&%H2&Hsim)])"; iExists vs', lvs.
   - iLeft. iFrame. done.
   - iRight. iFrame. iSplit; first done.
     iPureIntro. rewrite lookup_insert_ne; first done.
@@ -193,7 +193,7 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hsim&Hlen)|(%H1&%H2&Hsim)])"; iExists vs', lvs.
   - iLeft. iFrame. done.
   - iRight. iFrame. iSplit; first done.
     iPureIntro. rewrite lookup_delete_ne; first done.
@@ -215,7 +215,7 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hsim&Hlen)|(%H1&%H2&Hsim)])"; iExists vs', lvs.
   - iLeft. iFrame. iPureIntro.
     by apply delete_lookup_None.
   - iRight. iFrame. iSplit; last done. iPureIntro.

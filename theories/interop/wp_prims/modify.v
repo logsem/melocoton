@@ -50,7 +50,8 @@ Proof using.
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
 
-  iMod (lstore_own_update with "GCζauth Hpto") as "(GCζvirt&Hpto)".
+  iMod (lstore_own_update _ _ _ (Bvblock (Mut, (tg, <[Z.to_nat i:=v']> vs0))) with "GCζauth Hpto") as "(GCζvirt&Hpto)".
+  1: cbn; by rewrite insert_length.
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
 
   inversion Hblk'; simplify_eq.

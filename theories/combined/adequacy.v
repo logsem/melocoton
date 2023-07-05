@@ -90,7 +90,7 @@ Section AllocBasics.
     - pose (WrapperBasicsG _ Σ _ γζvirt γχvirt γroots_map) as HWrapperBasicsG.
       exists HWrapperBasicsG. eapply alloc_mono; last exact Halloc.
       iIntros "((($&H1)&H2)&H3)". unfold lstore_own_auth, lloc_own_auth.
-      rewrite /named /ghost_map_auth !ghost_map.ghost_map_auth_aux.(seal_eq) /ghost_map.ghost_map_auth_def.
+      rewrite /named /ghost_map_auth !ghost_map.ghost_map_auth_aux.(seal_eq) /ghost_map.ghost_map_auth_def persistent_ghost_map.pgm_auth_unseal.
       cbn in *. iFrame. repeat iSplitL.
       + unfold lstore_immut_blocks. rewrite map_filter_empty. by iApply big_sepM_empty.
       + unfold lloc_map_pubs. rewrite omap_empty. by iApply big_sepM_empty.
@@ -98,7 +98,7 @@ Section AllocBasics.
       + done.
     - eapply gmap_view.gmap_view_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.
-    - eapply gmap_view.gmap_view_auth_valid.
+    - by eapply gmap_view_plus_auth_valid.
   Qed.
 
 Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=

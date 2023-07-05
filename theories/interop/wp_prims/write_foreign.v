@@ -46,7 +46,8 @@ Proof using.
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
 
-  iMod (lstore_own_update with "GCζauth Hpto") as "(GCζvirt&Hpto)".
+  iMod (lstore_own_update _ _ _ (Bforeign (Some w')) with "GCζauth Hpto") as "(GCζvirt&Hpto)".
+  1: done. 
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
   { eapply lloc_map_pubs_lookup_None. do 2 right. by eexists. }
