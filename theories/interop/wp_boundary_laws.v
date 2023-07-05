@@ -26,14 +26,14 @@ Context `{!wrapperG Σ}.
 Lemma GC_SI_to_C σMLvirt ζ ζplus χ :
     lloc_own_auth χ
   ∗ lstore_own_auth (ζplus ∪ ζ)
-  ∗ ([∗ map] γ↦b ∈ ζplus, ghost_map_elem wrapperG_γζvirt γ (DfracOwn 1) b)
+  ∗ ([∗ map] γ↦b ∈ ζplus, pgm_elem wrapperG_γζvirt γ (DfracOwn 1) b)
   ∗ state_interp (σMLvirt : language.language.state ML_lang)
   ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant ζ σMLvirt ∅ γ ℓ)
   ∗ ⌜∀ ℓ, ℓ ∈ dom σMLvirt → ∃ γ, χ !! γ = Some (LlocPublic ℓ)⌝
  ⊢ ∃ ζσ ζvirt,
     lloc_own_auth χ
   ∗ lstore_own_auth (ζplus ∪ ζ)
-  ∗ ([∗ map] γ↦b ∈ ζplus, ghost_map_elem wrapperG_γζvirt γ (DfracOwn 1) b)
+  ∗ ([∗ map] γ↦b ∈ ζplus, pgm_elem wrapperG_γζvirt γ (DfracOwn 1) b)
   ∗ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ, per_location_invariant_ML ζvirt ζσ γ ℓ)
   ∗ ⌜ζ = ζσ ∪ ζvirt⌝ ∗ ⌜ζσ ##ₘ ζvirt⌝
   ∗ state_interp (σMLvirt : language.language.state ML_lang)
@@ -58,7 +58,7 @@ Proof.
       * intros (ℓ&Vs&[]%lookup_empty_Some&_).
     + intros ℓ Vs γ blk H1 []%lookup_empty_Some.
   - rewrite lloc_map_pubs_insert_pub.
-    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&Hrest)|[(%q&%r&Hℓ&Hγ&#Hsimm&%Hsum&%Hc)|(%Hnone1&%Hnone2)]]])&GC_per_loc)".
+    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&Hrest&#Hlen)|[(%q&%r&Hℓ&Hγ&#Hsimm&%Hsum&%Hc)|(%Hnone1&%Hnone2)]]])&GC_per_loc)".
     1: apply lloc_map_pubs_lookup_None; left; done.
     + by eapply elem_of_empty in Hdirty. (*
       iDestruct (gen_heap_valid with "GCσMLv Hℓ") as %Hℓσ.
@@ -88,7 +88,7 @@ Proof.
       iPoseProof (lstore_own_mut_to_elem with "Hγ") as "Hγ".
       eapply lookup_union_Some_raw in Hζγ as [Hζγ|(Hne&Hζγ)].
       1: { iPoseProof (big_sepM_lookup_acc with "Hplus") as "(Hcontr&_)"; first done.
-           rewrite /lstore_own_elem /mutability. cbn. iPoseProof (ghost_map_elem_ne with "Hcontr Hγ") as "%H". done. }
+           rewrite /lstore_own_elem /mutability. cbn. iPoseProof (pgm_elem_ne with "Hcontr Hγ") as "%H". done. }
       iPoseProof (GC_per_loc_delete_ζ with "GC_per_loc") as "GC_per_loc".
       1: apply lloc_map_pubs_lookup_None; by left.
       iPoseProof (block_sim_arr_auth_is_val_strong with "GCχauth GCζauth Hplus Hrest") as "%His_val".
@@ -111,7 +111,7 @@ Proof.
       * iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; left; done).
         iSplitR "HχNone". 2: (iApply GC_per_loc_ML_insert; try iFrame).
         { iExists vs, lvs. iLeft. iFrame. iSplit; try by iPureIntro.
-          iFrame "Hℓγ"; by iExists _. }
+          iFrame "Hℓγ Hlen". by iExists _. }
         eapply lloc_map_pubs_lookup_None. by left.
       * by rewrite <- insert_union_l, <-Heqζ, insert_delete.
       * apply map_disjoint_insert_l_2; done.
@@ -307,7 +307,7 @@ Proof.
          destruct (Holdblocks _ Hdom) as (ℓ&[]%lookup_empty_Some). }
     rewrite map_empty_union. iFrame. iModIntro. done.
   - rewrite lloc_map_pubs_insert_pub.
-    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%lvs&[(%Hne&Hmaps&Hsim)|(%Hne1&%Hne2&Hsim)])&GC_per_loc)".
+    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%lvs&[(%Hne&Hmaps&Hsim&Hlen)|(%Hne1&%Hne2&Hsim)])&GC_per_loc)".
     + apply lloc_map_pubs_lookup_None. by left. (*
     + assert (ζσold !! γ = None) by by eapply map_disjoint_Some_l.
       assert (ζσnew !! γ = None) by by eapply map_disjoint_Some_l.
@@ -343,7 +343,10 @@ Proof.
         eassert ((delete γ ζσold ∪ (ζvirt ∪ <[γ:=_]> ζnewimm)) = (ζσold ∪ (ζvirt ∪ ζnewimm))) as Hzetaeqold.
         { do 2 (rewrite -insert_union_r; last try done). 2: by apply lookup_delete.
           rewrite insert_union_l. rewrite insert_delete; done. }
-        iMod (lstore_own_update with "GCζauth [$Hmaps //]") as "(GCζauth&Hmaps)".
+        iDestruct (pgm_lookup_pers with "GCσMLv Hlen") as %(x'&Hlenx'&Hx').
+        assert (x' = Vs) as -> by (cbn in *; congruence).
+        iMod (lstore_own_update _ _ _ blk with "GCζauth [$Hmaps //]") as "(GCζauth&Hmaps)".
+        { inversion Helt; simplify_eq. cbn. f_equal. rewrite /= Hlenx'. cbn. by eapply Forall2_length. }
         iMod (IH (delete γ ζσnew) (delete γ ζσold) (<[ γ := blk ]> ζnewimm) with "[$GCχauth $GCσMLv GCζauth GC_per_loc]") as "(GCζauth&GC_per_loc&GCχauth&GCσMLv)"; try done.
         1: by apply map_disjoint_insert_r_2.
         1: (apply map_disjoint_insert_r_2; first by rewrite lookup_delete); by apply map_disjoint_delete_l.
@@ -380,40 +383,12 @@ Proof.
         iModIntro. iFrame. iApply big_sepM_insert.
         1: apply lloc_map_pubs_lookup_None; by left.
         iSplitR "GC_per_loc".
-        -- iExists _, _. iRight. iLeft. iFrame; iSplitR; done.
+        -- iExists _, _. iRight. iLeft. iFrame. repeat iSplit; try done.
+           rewrite /= Hlenx'. cbn. apply Forall2_length in H1. by rewrite -H1.
         -- iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
            1: apply lloc_map_pubs_lookup_None; by left.
            erewrite insert_union_l. by rewrite insert_delete.
-      * assert (γ ∉ dom ζσnew) as Hnin%not_elem_of_dom.
-        1: intros H; apply Hbl2 in H as (ℓ'&Vs&HH1&HH2); rewrite lookup_insert in HH1; simplify_eq.
-        iDestruct "Hmaps" as "(Hmaps&Hmaps2)".
-        iPoseProof (lstore_own_elem_of with "GCζauth Hmaps") as "%Hlookup".
-        apply lookup_union_Some_raw in Hlookup as [Hl|(Hne'&[Hr|(Hne2&Hr)]%lookup_union_Some_raw)].
-        2: simplify_eq.
-        2: { eapply elem_of_dom_2 in Hr. unshelve epose proof (Himmut γ _ _ Hr). 2: by rewrite lookup_insert. simplify_eq. }
-        assert (ζnewimm !! γ = None). 1: eapply map_disjoint_Some_l; first exact Hdisj5; done.
-        iMod (lstore_own_delete with "GCζauth [$Hmaps //]") as "GCζauth".
-        assert (delete γ (ζσold ∪ (ζvirt ∪ ζnewimm)) = (delete γ ζσold) ∪ (ζvirt ∪ ζnewimm)) as Heqzeta.
-        { rewrite !delete_union. f_equal. rewrite !delete_notin; done. }
-        rewrite Heqzeta.
-        iPoseProof (GC_per_loc_ML_delete with "GC_per_loc") as "GC_per_loc".
-        1: eapply lloc_map_pubs_lookup_None; by left.
-        iMod (IH ζσnew (delete γ ζσold) with "[$GCχauth $GCσMLv $GCζauth $GC_per_loc]") as "(GCχauth&GCσMLv&GCζauth&GC_per_loc)"; try done.
-        -- by apply map_disjoint_delete_r.
-        -- by apply map_disjoint_delete_l.
-        -- intros γ'; destruct (Hbl2 γ') as [HblL HblR]; split.
-           ++ intros Hg; destruct (HblL Hg) as (ℓ'&Vs&HH1&HH2). repeat eexists; try done.
-              rewrite lookup_insert_ne in HH1; try done. intros ->; eapply not_elem_of_dom in Hnin; done.
-           ++ intros (ℓ'&Vs&HH1&HH2). eapply HblR. repeat eexists; try done.
-              rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
-        -- intros γ' vs' H1 H2. eapply Himmut; try done. rewrite lookup_insert_ne; first done. intros ->. simplify_eq.
-        -- rewrite dom_delete_L. intros γ' (H1&Hnee%not_elem_of_singleton)%elem_of_difference.
-           destruct (Holdblocks _ H1) as [ℓ' Hℓ']. rewrite lookup_insert_ne in Hℓ'; first by eexists. done.
-        -- apply map_subseteq_spec. intros γ' v1 Hv1. eapply lookup_weaken. 2: exact Hsub.
-           rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
-        -- iModIntro. iFrame. iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; by left). iFrame.
-           iExists vs, lvs. iRight. iRight. iRight. iFrame; iPureIntro; (split; first done).
-           all: by apply lookup_union_None_2.
+      * iExFalso. iDestruct (pgm_lookup_pers with "GCσMLv Hlen") as %(?&?&?). cbn in *; simplify_eq.
     + destruct (ζnewimm !! γ) as [?|] eqn:Hnewimm.
       { exfalso. apply elem_of_dom_2 in Hnewimm. unshelve epose proof (Himmut _ _ _ Hnewimm) as Hcontr.
         2: by apply lookup_insert. congruence. }
@@ -458,11 +433,12 @@ Proof.
         iPoseProof (lloc_own_auth_get_pub with "GCχauth") as "#Hsimell".
         1: eapply lookup_weaken; last (etransitivity; try exact Hsub; done); by erewrite lookup_insert.
         simplify_eq.
+        iMod (pgm_get_pers with "GCσMLv") as "(GCσMLv&#Hlen)". 1: exact HH2.
         iModIntro. iFrame. iApply big_sepM_insert.
         1: apply lloc_map_pubs_lookup_None; by left.
         iSplitR "GC_per_loc".
-        -- iExists _, _. iRight. iLeft. iFrame. iSplitR; first done.
-           repeat iSplit; try done. by iExists _.
+        -- iExists _, _. iRight. iLeft. iFrame. repeat iSplit; try done. 1: by iExists _.
+           apply Forall2_length in H. by rewrite -H.
         -- iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
            1: apply lloc_map_pubs_lookup_None; by left.
            erewrite insert_union_l. by rewrite insert_delete.
@@ -599,11 +575,12 @@ Proof.
       { eapply Forall2_impl; first eassumption. intros x y HH. eapply is_val_mono; last done; done. }
       iPoseProof (lloc_own_auth_get_pub with "GCχauth") as "#Hsimell".
       1: eapply lookup_union_Some_r; first done; eapply lookup_weaken; last exact Hsub; by erewrite lookup_insert.
+        iMod (pgm_get_pers with "GCσMLv") as "(GCσMLv&#Hlen)". 1: exact Heq.
       iModIntro. iFrame. rewrite lloc_map_pubs_insert_pub. iApply big_sepM_insert.
       1: apply lloc_map_pubs_lookup_None; left; eapply lookup_union_None_2; done.
       iSplitR "GC_per_loc".
-      * iExists _, _. iRight. iLeft. iFrame. iFrame "Hsimvs". iSplit; first done.
-        by iExists _.
+      * iExists _, _. iRight. iLeft. iFrame. iFrame "Hsimvs". repeat iSplit; try done.
+        1: by iExists _. apply Forall2_length in H1. by rewrite -H1.
       * iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
         1: apply lloc_map_pubs_lookup_None; left; eapply lookup_union_None_2; done.
         erewrite insert_union_l. by rewrite insert_delete.

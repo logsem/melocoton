@@ -126,6 +126,18 @@ Definition block_tag (b: block) : tag :=
   | Bforeign _ => TagForeign
   end.
 
+Inductive block_header :=
+  | Hvblock (tg : vblock_tag) (len : nat)
+  | Hclosure (* (clos_f clos_x : binder) (clos_body : ML_lang.expr) *)
+  | Hforeign.
+
+Definition block_get_header (b: block) : block_header :=
+  match b with
+  | Bvblock (_, (tg, lvs)) => Hvblock tg (length lvs)
+  | Bclosure b1 b2 e => Hclosure (* b1 b2 e *)
+  | Bforeign _ => Hforeign
+  end.
+
 Inductive lval_in_block : block → lval → Prop :=
   | ValInVblock v m tg vs :
     v ∈ vs → lval_in_block (Bvblock (m, (tg, vs))) v.
