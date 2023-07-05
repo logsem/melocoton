@@ -42,7 +42,7 @@ Proof using.
     ∗ lvs ~~∗ vs
     ∗ state_interp (<[ ℓ := w' ]> σMLvirt)
     ∗ lstore_own_auth ζ_future)%I with "[HH GCσMLv Hl GCζauth]" as "Hmod".
-  { iDestruct "HH" as "(%vs'&%tg&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&(Hγ&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])".
+  { iDestruct "HH" as "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&(Hγ&#Hγsim)&#Hsim)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])".
     1: by iPoseProof (pgm_elem_ne with "Hℓ Hl") as "%Hbot".
     3: by simplify_eq.
     - iDestruct (pgm_elem_valid with "Hl") as "%Hlt".
@@ -51,7 +51,7 @@ Proof using.
       + apply Qp.lt_sum in Hlt as (qr&Hqr).
         rewrite Hqr. iDestruct "Hγ" as "(Hγ1&Hγ2)".
         iModIntro. iExists lvs, vs. rewrite insert_id; last done. iFrame. iFrame "Hsim Hγsim".
-        iExists _, _, _. iRight. iRight. iLeft. iExists _, _. iFrame.
+        iExists _, _. iRight. iRight. iLeft. iExists _, _. iFrame.
         iFrame "Hsim". iPureIntro; split_and!; try done. set_solver.
       + iPoseProof (big_sepL2_length with "Hsim") as "%Hlen".
         iMod (pgm_update (replicate _ _) with "GCσMLv Hl") as "(GCσMLv&Hl)".
@@ -59,7 +59,7 @@ Proof using.
         iDestruct (lstore_own_elem_of with "GCζauth Hγ") as "%HH".
         iModIntro. iExists lvs, (replicate _ _). cbn. iFrame "Hγ Hsim GCζauth Hγsim".
         iSplitR "GCσMLv". 2: iApply "GCσMLv".
-        iExists  (replicate _ _), TagDefault, _. iLeft. iFrame.
+        iExists  (replicate _ _), _. iLeft. iFrame.
         iPureIntro. split_and!; try done. 1: f_equal; try done. set_solver.
     - iPoseProof (pgm_elem_agree with "Hmapsℓ Hl") as "%Heq"; simplify_eq.
       iPoseProof (big_sepL2_length with "Hsim") as "%Hlen".
@@ -72,7 +72,7 @@ Proof using.
         iDestruct "Hmapsγ" as "((Hmapsγ1&Hmapsγ2)&#Hsim2)".
         iExists lvs, vs. rewrite insert_id; last done.
         iFrame "Hsim GCζauth GCσMLv Hmapsγ1 Hsim2".
-        iModIntro. iExists _, _, _. iRight. iRight. iLeft. iExists _, _.
+        iModIntro. iExists _, _. iRight. iRight. iLeft. iExists _, _.
         iFrame. iFrame "Hsim". iPureIntro; split_and!; try done.
         set_solver.
       + assert (r = qp)%Qp as Hr; last simplify_eq.
@@ -82,7 +82,7 @@ Proof using.
         iDestruct "Hmapsγ" as "(Hγ&#Hsimγ)".
         iDestruct (lstore_own_elem_of with "GCζauth Hγ") as "%HH".
         iModIntro. iExists lvs, _. iFrame "Hγ Hsimγ Hsim GCζauth". iSplitR "GCσMLv"; last iApply "GCσMLv".
-        iExists _, TagDefault, _. iLeft. iFrame. iPureIntro; split_and!; try done. set_solver. }
+        iExists _, _. iLeft. iFrame. iPureIntro; split_and!; try done. set_solver. }
   iMod "Hmod" as "(%lvs&%w'&Hperloc&Hf1&#Hf2&GCσMLv&GCζauth)".
   apply lloc_map_pubs_lookup_Some_1 in Hχγ as Hχγ2.
   iPoseProof (lloc_own_auth_get_pub with "[$]") as "#Hf3"; first done.
@@ -111,7 +111,7 @@ Proof using.
   iPoseProof (lstore_own_mut_of with "GCζauth Hl") as "(%Hγζ&#_)".
   iPoseProof (lloc_own_pub_of with "GCχauth Hlℓ") as "%Hχγ".
   apply lloc_map_pubs_lookup_Some in Hχγ.
-  iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "GC_per_loc") as "((%vs'&%tg&%lvs'&[(Hℓ&%Hγζ')|[(%Hℓσ&(Hγ&_)&_)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsimm&->&%Hsum)|(%Hne1&%Hne2)]]])&GC_per_loc)".
+  iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "GC_per_loc") as "((%vs'&%lvs'&[(Hℓ&%Hγζ')|[(%Hℓσ&(Hγ&_)&_)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsimm&%Hsum)|(%Hne1&%Hne2)]]])&GC_per_loc)".
   2: iDestruct "Hl" as "(Hl&_)"; by iPoseProof (ghost_map_elem_ne with "Hl Hγ") as "%Hne".
   3: simplify_eq.
   2: { iDestruct "Hl" as "(Hl&_)". iDestruct "Hmapsγ" as "(Hmapsγ&_)".
@@ -124,7 +124,7 @@ Proof using.
   iPoseProof (GC_per_loc_modify_σ with "GC_per_loc") as "GC_per_loc".
   1: by eapply lloc_map_pubs_inj, expose_llocs_inj. 1: done.
   iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "[$GC_per_loc Hl]") as "GC_per_loc".
-  { iExists vs, TagDefault, lvs. iRight; iLeft. rewrite lookup_insert. repeat iSplit; try done.
+  { iExists vs, lvs. iRight; iLeft. rewrite lookup_insert. repeat iSplit; try done.
     1: by iApply lstore_own_mut_to_elem. by iExists _. }
   iModIntro.
   iSplitR "Hℓ".
@@ -151,7 +151,7 @@ Proof using.
     ∗ lvs ~~∗ vs
     ∗ state_interp (<[ ℓ := w']> σMLvirt)
     ∗ lstore_own_auth ζ_future)%I with "[HH GCσMLv Hγ GCζauth]" as "Hmod".
-  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ&%Hζfut&->&Hdirty&->)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])"; cbn.
+  { iDestruct "HH" as "(%vs'&%lvs'&[(Hℓ&%Hζfut&->&Hdirty)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])"; cbn.
     4: by simplify_eq.
     2: by iPoseProof (ghost_map_elem_ne with "Hγ' Hγ") as "%Hbot".
     - iDestruct "Hreprinit" as (vs) "Hsim".
@@ -167,11 +167,11 @@ Proof using.
       + simplify_eq. apply Qp.lt_sum in Hlt as (qr&Hqr).
         rewrite Hqr. iDestruct "Hℓ" as "(Hℓ1&Hℓ2)".
         iModIntro. iFrame. iFrame "Hsim".
-        iExists _, _, _. iRight. iRight. iLeft. iExists _, _. iFrame.
+        iExists _, _. iRight. iRight. iLeft. iExists _, _. iFrame.
         repeat iSplit; try done; try by iExists _. 2: iPureIntro; set_solver.
         by rewrite Qp.add_comm.
       + subst qp. iModIntro. iFrame "Hℓ GCσMLv Hsim GCζauth".
-        iExists _, TagDefault, _. iRight. iLeft. rewrite lookup_insert. iFrame.
+        iExists _, _. iRight. iLeft. rewrite lookup_insert. iFrame.
         repeat iSplit; try done. by iExists _.
     - iDestruct "Hmapsγ" as "(Hγ'&_)". cbn.
       iPoseProof (ghost_map_elem_agree with "Hγ Hγ'") as "%Heq"; simplify_eq.
@@ -188,7 +188,7 @@ Proof using.
         iDestruct "Hmapsℓ" as "(Hmapsℓ1&Hmapsℓ2)".
         iExists _, _. rewrite insert_id; last done.
         iFrame "Hsim GCζauth GCσMLv Hmapsℓ1".
-        iModIntro. iExists _, _, _. iRight. iRight. iLeft. iExists _, _.
+        iModIntro. iExists _, _. iRight. iRight. iLeft. iExists _, _.
         iFrame. iFrame "Hsim". iSplit; first by iExists _. iPureIntro; split_and!; try done.
         2: set_solver. 
         by rewrite (Qp.add_comm _ r) Qp.add_comm -Qp.add_assoc.
@@ -197,7 +197,7 @@ Proof using.
         rewrite Hlt.
         iModIntro. iExists _, _. rewrite insert_id; last done.
         iFrame "Hmapsℓ GCσMLv Hsim GCζauth".
-        iExists _, _, _. iRight. iLeft. iFrame. repeat iSplit; try done.
+        iExists _, _. iRight. iLeft. iFrame. repeat iSplit; try done.
         by iExists _. }
   iMod "Hmod" as "(%vs&%w'&Hperloc&Hf1&#Hf2&GCσMLv&GCζauth)".
   apply lloc_map_pubs_lookup_Some_1 in Hχγ as Hχγ2.
@@ -232,12 +232,12 @@ Proof.
   - iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
     iAssert (per_location_invariant ζ_future σMLvirt (dirty ∖ {[γ]}) γ ℓ 
             ∗ γ ↪[wrapperG_γζvirt] blk )%I with "[HH Hγ]" as "(HH&Hγ)".
-    { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ&%Hzeta&%Hrepl&%Hdirty&->)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&->&%Hsum&%Hdirty)|HH]]])"; cbn.
+    { iDestruct "HH" as "(%vs'&%lvs'&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&(Hγ'&#Hγsim)&#Hsim)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|HH]]])"; cbn.
       - simplify_map_eq. by specialize (Hne TagDefault lvs').
       - iPoseProof (ghost_map_elem_ne with "Hγ Hγ'") as "%Heq". done.
       - iDestruct "Hmapsγ" as "(Hγ'&_)". cbn.
         iPoseProof (ghost_map_elem_ne with "Hγ Hγ'") as "%Heq". done.
-      - iFrame. iExists vs', tg, lvs'. done. }
+      - iFrame. iExists vs', lvs'. done. }
     iSplitR "Hγ".
     2: iFrame.
     do 5 iExists _. iFrameNamed.
@@ -269,11 +269,11 @@ Proof.
   iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
   iAssert (per_location_invariant ζ_future σMLvirt (dirty ∖ {[γ]}) γ ℓ 
           ∗ ℓ ↦∗ vs)%I with "[HH Hℓ]" as "(HH&Hℓ)".
-  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%HH)|[HH|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|HH]]])"; cbn.
+  { iDestruct "HH" as "(%vs'&%lvs'&[(Hℓ'&%HH)|[HH|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&%Hsum&%Hdirty)|HH]]])"; cbn.
     - iPoseProof (pgm_elem_ne with "Hℓ Hℓ'") as "%Heq". done.
-    - iFrame. iExists vs', _, lvs'. iRight. iLeft. done.
+    - iFrame. iExists vs', lvs'. iRight. iLeft. done.
     - iPoseProof (pgm_elem_ne with "Hℓ Hmapsℓ") as "%Heq". done. 
-    - iFrame. iExists vs', tg, lvs'. done. }
+    - iFrame. iExists vs', lvs'. done. }
   iFrame "Hℓ".
   do 5 iExists _. iFrameNamed.
   iExists _. iFrameNamed.
@@ -298,7 +298,7 @@ Proof.
   apply lloc_map_pubs_lookup_Some_2 in Hγℓ as Hmappubs.
   iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
   iAssert (∃ lvs', lvs' ~~∗ vs ∗ ⌜blk = Bvblock (Mut, (TagDefault, lvs'))⌝)%I as "#(%lvs&Hsimvs&->)".
-  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%HH)|[(%Hℓσ'&(Hγ'&#Hγsim)&#Hsim'&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|(%HH1&%HH2)]]])"; cbn.
+  { iDestruct "HH" as "(%vs'&%lvs'&[(Hℓ'&%HH)|[(%Hℓσ'&(Hγ'&#Hγsim)&#Hsim')|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&%Hsum&%Hdirty)|(%HH1&%HH2)]]])"; cbn.
     - iPoseProof (pgm_elem_ne with "Hℓ' Hℓ") as "%Heq". done.
     - unfold lstore_own_elem; destruct (mutability blk);
       by iPoseProof (@ghost_map_elem_ne with "Hγ' Hγ") as "%Heq".
@@ -330,7 +330,7 @@ Proof.
   apply lloc_map_pubs_lookup_Some_2 in Hγℓ as Hmappubs.
   iPoseProof (big_sepM_delete with "GC_per_loc") as "(HH&GC_per_loc)"; first done.
   iAssert (∃ lvs', ⌜blk = Bvblock (Mut, (TagDefault, lvs'))⌝ ∗ ⌜length vs = length lvs'⌝)%I as "#(%lvs&->&%Hlen)".
-  { iDestruct "HH" as "(%vs'&%tg&%lvs'&[(Hℓ'&%Hζf&->&%Hdirty&->)|[(%Hℓσ'&(Hγ'&#Hγsim)&#Hsim'&->)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&->&%Hsum&%Hdirty)|(%HH1&%HH2)]]])"; cbn.
+  { iDestruct "HH" as "(%vs'&%lvs'&[(Hℓ'&%Hζf&->&%Hdirty)|[(%Hℓσ'&(Hγ'&#Hγsim)&#Hsim')|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim'&%Hsum&%Hdirty)|(%HH1&%HH2)]]])"; cbn.
     - iPoseProof (pgm_lookup with "GCσMLv Hℓ'") as "%Heq".
       iPoseProof (lstore_own_elem_of with "GCζauth Hγ") as "%Hζf2". simplify_eq. rewrite replicate_length.
       by iExists lvs'.
@@ -401,7 +401,7 @@ Proof using.
   1: set_solver.
   iPoseProof (big_sepM_insert _ _ γ ℓ with "[$GC_per_loc HℓNone]") as "GC_per_loc".
   1: eapply lloc_map_pubs_lookup_None; eauto.
-  1: { iExists _, TagDefault, lvs; iLeft; iFrame. iPureIntro; split_and!; try done. set_solver. } 
+  1: { iExists _, lvs; iLeft; iFrame. iPureIntro; split_and!; try done. set_solver. } 
   iModIntro. iSplitR "Hℓγ Hmtζ".
   2: { iApply lstore_own_vblock_M_as_mut. iFrame "Hmtζ". eauto. }
   rewrite /GC /SI_block_level /named.

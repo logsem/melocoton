@@ -58,7 +58,7 @@ Proof.
       * intros (ℓ&Vs&[]%lookup_empty_Some&_).
     + intros ℓ Vs γ blk H1 []%lookup_empty_Some.
   - rewrite lloc_map_pubs_insert_pub.
-    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%tg&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty&->)|[(%Hℓσ&Hγ&Hrest&->)|[(%q&%r&Hℓ&Hγ&#Hsimm&->&%Hsum&%Hc)|(%Hnone1&%Hnone2)]]])&GC_per_loc)".
+    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&Hrest)|[(%q&%r&Hℓ&Hγ&#Hsimm&%Hsum&%Hc)|(%Hnone1&%Hnone2)]]])&GC_per_loc)".
     1: apply lloc_map_pubs_lookup_None; left; done.
     + by eapply elem_of_empty in Hdirty. (*
       iDestruct (gen_heap_valid with "GCσMLv Hℓ") as %Hℓσ.
@@ -110,7 +110,7 @@ Proof.
       iSplitL; last repeat iSplit; try iPureIntro.
       * iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; left; done).
         iSplitR "HχNone". 2: (iApply GC_per_loc_ML_insert; try iFrame).
-        { iExists vs, TagDefault, lvs. iLeft. iFrame. iSplit; try by iPureIntro.
+        { iExists vs, lvs. iLeft. iFrame. iSplit; try by iPureIntro.
           iFrame "Hℓγ"; by iExists _. }
         eapply lloc_map_pubs_lookup_None. by left.
       * by rewrite <- insert_union_l, <-Heqζ, insert_delete.
@@ -138,7 +138,7 @@ Proof.
       iExists ζσ, ζvirt. iFrame "GCζauth GCσMLv GCχauth Hownres".
       iSplitL; last repeat iSplit; try iPureIntro.
       * iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; left; done).
-        iFrame "HχNone". iExists vs, tg, lvs. iRight. iFrame "Hsim". iPureIntro.
+        iFrame "HχNone". iExists vs, lvs. iRight. iFrame "Hsim". iPureIntro.
         eapply lookup_union_None in Hnone2 as [HH1 HH2]; done.
       * done.
       * done.
@@ -254,7 +254,7 @@ Proof.
   2: { iPureIntro. eapply map_eq_iff. intros i. destruct (pub_locs_in_lstore χ ζ1 !! i) eqn:Heq.
        2: rewrite lookup_empty; reflexivity. exfalso. revert i l Heq. refine H. }
   iIntros (γ ℓ [Hin [v Hv]%elem_of_dom]%map_filter_lookup_Some).
-  iPoseProof (big_sepM_lookup with "H1") as "(%vs&%tg&%lvs&[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)])"; first done.
+  iPoseProof (big_sepM_lookup with "H1") as "(%vs&%lvs&[(%H1&Hζ&Hsim)|(%H1&%H2&Hsim)])"; first done.
   - exfalso; simplify_eq.
   - exfalso; simplify_eq.
 Qed.
@@ -307,7 +307,7 @@ Proof.
          destruct (Holdblocks _ Hdom) as (ℓ&[]%lookup_empty_Some). }
     rewrite map_empty_union. iFrame. iModIntro. done.
   - rewrite lloc_map_pubs_insert_pub.
-    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%tg&%lvs&[(%Hne&Hmaps&Hsim)|(%Hne1&%Hne2&Hsim)])&GC_per_loc)".
+    iPoseProof (big_sepM_insert with "GC_per_loc") as "((%vs&%lvs&[(%Hne&Hmaps&Hsim)|(%Hne1&%Hne2&Hsim)])&GC_per_loc)".
     + apply lloc_map_pubs_lookup_None. by left. (*
     + assert (ζσold !! γ = None) by by eapply map_disjoint_Some_l.
       assert (ζσnew !! γ = None) by by eapply map_disjoint_Some_l.
@@ -380,8 +380,7 @@ Proof.
         iModIntro. iFrame. iApply big_sepM_insert.
         1: apply lloc_map_pubs_lookup_None; by left.
         iSplitR "GC_per_loc".
-        -- iExists _, TagDefault, _. iRight. iLeft. iFrame. iSplitR; first done.
-           iSplit; done.
+        -- iExists _, _. iRight. iLeft. iFrame; iSplitR; done.
         -- iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
            1: apply lloc_map_pubs_lookup_None; by left.
            erewrite insert_union_l. by rewrite insert_delete.
@@ -413,7 +412,7 @@ Proof.
         -- apply map_subseteq_spec. intros γ' v1 Hv1. eapply lookup_weaken. 2: exact Hsub.
            rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
         -- iModIntro. iFrame. iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; by left). iFrame.
-           iExists vs, tg, lvs. iRight. iRight. iRight. iFrame; iPureIntro; (split; first done).
+           iExists vs, lvs. iRight. iRight. iRight. iFrame; iPureIntro; (split; first done).
            all: by apply lookup_union_None_2.
     + destruct (ζnewimm !! γ) as [?|] eqn:Hnewimm.
       { exfalso. apply elem_of_dom_2 in Hnewimm. unshelve epose proof (Himmut _ _ _ Hnewimm) as Hcontr.
@@ -462,7 +461,7 @@ Proof.
         iModIntro. iFrame. iApply big_sepM_insert.
         1: apply lloc_map_pubs_lookup_None; by left.
         iSplitR "GC_per_loc".
-        -- iExists _, TagDefault, _. iRight. iLeft. iFrame. iSplitR; first done.
+        -- iExists _, _. iRight. iLeft. iFrame. iSplitR; first done.
            repeat iSplit; try done. by iExists _.
         -- iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
            1: apply lloc_map_pubs_lookup_None; by left.
@@ -480,7 +479,7 @@ Proof.
        -- apply map_subseteq_spec. intros γ' v1 Hv1. eapply lookup_weaken. 2: exact Hsub.
           rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
        -- iModIntro. iFrame. iApply big_sepM_insert; first (apply lloc_map_pubs_lookup_None; by left). iFrame.
-          iExists vs, tg, lvs. iRight. iRight. iRight. destruct (σMLvirt !! ℓ) as [?|] eqn:Heqsigma.
+          iExists vs, lvs. iRight. iRight. iRight. destruct (σMLvirt !! ℓ) as [?|] eqn:Heqsigma.
           1: { exfalso. eapply not_elem_of_dom in Heqblk. apply Heqblk, Hbl2.
                do 2 eexists; rewrite lookup_insert; done. }
           iPureIntro; split_and!; try done.
@@ -603,8 +602,8 @@ Proof.
       iModIntro. iFrame. rewrite lloc_map_pubs_insert_pub. iApply big_sepM_insert.
       1: apply lloc_map_pubs_lookup_None; left; eapply lookup_union_None_2; done.
       iSplitR "GC_per_loc".
-      * iExists _, _, _. iRight. iLeft. iFrame. iFrame "Hsimvs". iSplit; first done.
-        iSplit; last done. by iExists _.
+      * iExists _, _. iRight. iLeft. iFrame. iFrame "Hsimvs". iSplit; first done.
+        by iExists _.
       * iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
         1: apply lloc_map_pubs_lookup_None; left; eapply lookup_union_None_2; done.
         erewrite insert_union_l. by rewrite insert_delete.
@@ -622,7 +621,7 @@ Proof.
         rewrite lookup_insert_ne; try done. intros ->; simplify_eq.
       * iModIntro. iFrame. rewrite lloc_map_pubs_insert_pub. iApply big_sepM_insert.
         1: apply lloc_map_pubs_lookup_None; left; eapply lookup_union_None_2; done. iFrame.
-        iExists nil, TagDefault, nil. iRight. iRight. iRight.
+        iExists nil, nil. iRight. iRight. iRight.
         iPureIntro; (split; first done).
         apply lookup_union_None_2; try done; eapply not_elem_of_dom.
         intros HHH%Hother_blocks; by eapply not_elem_of_dom in Hnold.
