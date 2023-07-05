@@ -142,7 +142,7 @@ Section Proofs.
     { iNext. iExists _, _. iFrame "Hℓ1 Hsimv Hv". }
     iMod (na_inv_alloc logrel_nais _ _ (box_invariant_2 ℓ (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)) with "[Hℓ0]") as "#Hinv2".
     { iNext. iRight. iFrame. }
-    iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
+    iMod (pgm_elem_persist with "Hγfgn'") as "#Hγfgn'".
     iModIntro. iApply "Cont2". iApply ("Cont" $! θ1 (#(LitForeign i)) with "HGC [-] [] []").
     2: iExists _; by iFrame "Hi".
     2: done.
