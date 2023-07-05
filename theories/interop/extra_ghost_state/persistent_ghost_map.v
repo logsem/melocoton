@@ -319,6 +319,14 @@ Section lemmas.
     iPureIntro. by eexists.
   Qed.
 
+  Lemma pgm_get_pers {γ q m k v} :
+    m !! k = Some v →
+    pgm_auth γ q m ==∗ pgm_auth γ q m ∗ k □↪[γ]= (Fpers v).
+  Proof.
+    unseal. iIntros (Hm). rewrite -own_op.
+    by apply own_update, gmap_view_plus_auth_get_pers.
+  Qed.
+
   Lemma pgm_insert {γ m} k v :
     m !! k = None →
     (Pmap m → Pmap (<[k := v]> m)) →

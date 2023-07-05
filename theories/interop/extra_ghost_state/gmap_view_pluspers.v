@@ -508,6 +508,29 @@ Section lemmas.
 
 
   (** Frame-preserving updates *)
+  Lemma gmap_view_plus_auth_get_pers m dq k v :
+    m !! k = Some v →
+    gmap_view_plus_auth dq m ~~> gmap_view_plus_auth dq m ⋅ (gmap_view_plus_pers k (Fpers v)).
+  Proof.
+    intros Hfresh Hdq Hpers. apply view_update_dfrac_alloc=>n bf [Hrel HP].
+    split; last by apply HP.
+    move => j [dvo vp] /=.
+    destruct (decide (j = k)) as [->|Hne].
+    - destruct (bf !! k) as [[dvo' vp']|] eqn:Hbf.
+      + specialize (Hrel _ _ Hbf) as (v' & Hm & Hagr1 & Hopt).
+        rewrite lookup_op lookup_singleton Hbf -Some_op -pair_op op_None_left_id.
+        simplify_eq.
+        intros [= <- <-].
+        eexists; split_and!; try done.
+        rewrite Hagr1 agree_idemp //.
+      + rewrite lookup_op lookup_singleton Hbf op_None_right_id.
+        intros [= <- <-]. exists v; done.
+    - rewrite lookup_op lookup_singleton_ne; last done.
+      rewrite left_id=>Hbf.
+      specialize (Hrel _ _ Hbf). destruct Hrel as (v' & Hm & Hvp & Hopt).
+      eexists. split_and!; try done.
+  Qed.
+
   Lemma gmap_view_plus_alloc m k dq v :
     m !! k = None →
     ✓ dq →
