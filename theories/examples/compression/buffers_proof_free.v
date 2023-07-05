@@ -78,8 +78,8 @@ Section Proofs.
       iDestruct "Hγbuf2" as "(Hγbuf2&_)".
       iDestruct "Hγaux" as "(Hγaux&_)".
       iDestruct "Hγaux2" as "(Hγaux2&_)".
-      iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
-      iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
+      iPoseProof (pgm_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
+      iPoseProof (pgm_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
       iPoseProof (lloc_own_foreign_inj with "Hγfgnsim Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
       iPoseProof (lloc_own_pub_inj with "Hsim' Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
       iPoseProof (lloc_own_pub_inj with "Hsim' Hsim1 HGC") as "(HGC&%Heq3)"; simplify_eq.

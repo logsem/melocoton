@@ -143,7 +143,7 @@ Section Proofs.
     iIntros "!>" (w' θ' lv ℓ γ) "(HGC & Hbuf & % & Hisgam)".
     iNamed "Hbuf".
     iDestruct "Hisgam" as (γk1 γk2 γk3) "(%HH1&#HH2&->)". simplify_eq.
-    iPoseProof (@ghost_map.ghost_map_elem_agree with "[] []") as "%Heq".
+    iPoseProof (@pgm_elem_agree with "[] []") as "%Heq".
     1: iDestruct "Hγbuf" as "(HH&_)"; iApply "HH".
     1: iDestruct "HH2" as "(HH&_)"; iApply "HH".
     iDestruct "Hγusedref" as "(Helem&%ℓ2&#HHsim)". simplify_eq.

@@ -147,7 +147,7 @@ Section Proofs.
     iDestruct "Hγfgn" as "((Hγfgn'&_)&%i&#Hi)".
     iMod (na_inv_alloc logrel_nais _ _ (listener_invariant a _) with "[Ha]") as "#Hinv".
     { iNext. iRight. iFrame "Ha". }
-    iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
+    iMod (pgm_elem_persist with "Hγfgn'") as "#Hγfgn'".
     iModIntro. iApply "Cont2". iApply ("Cont" $! θ1 (#(LitForeign i)) with "HGC [-] [] []").
     2: iExists _; by iFrame "Hi".
     2: done.
