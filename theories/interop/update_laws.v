@@ -44,19 +44,19 @@ Proof using.
     ∗ lstore_own_auth ζ_future)%I with "[HH GCσMLv Hl GCζauth]" as "Hmod".
   { iDestruct "HH" as "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&(Hγ&#Hγsim)&#Hsim)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hne1&%Hne2)]]])".
     1: by iPoseProof (pgm_elem_ne with "Hℓ Hl") as "%Hbot".
-    3: by simplify_eq.
+    3: by rewrite Hne1 in Hlσ.
     - iDestruct (pgm_elem_valid with "Hl") as "%Hlt".
       edestruct dfrac_valid_own as [HL _]. apply HL in Hlt; clear HL.
       apply Qp.le_lteq in Hlt. destruct Hlt as [Hlt|Hlt]; simplify_eq.
       + apply Qp.lt_sum in Hlt as (qr&Hqr).
         rewrite Hqr. iDestruct "Hγ" as "(Hγ1&Hγ2)".
-        iModIntro. iExists lvs, vs. rewrite insert_id; last done. iFrame. iFrame "Hsim Hγsim".
+        iModIntro. iExists lvs, vs. rewrite insert_id; last done. cbn in *; simplify_eq. iFrame. iFrame "Hsim Hγsim".
         iExists _, _. iRight. iRight. iLeft. iExists _, _. iFrame.
         iFrame "Hsim". iPureIntro; split_and!; try done. set_solver.
       + iPoseProof (big_sepL2_length with "Hsim") as "%Hlen".
-        iMod (pgm_update (replicate _ _) with "GCσMLv Hl") as "(GCσMLv&Hl)".
-        1: by rewrite replicate_length.
-        iDestruct (lstore_own_elem_of with "GCζauth Hγ") as "%HH".
+        iMod (pgm_update (D:=MLHeapPGMData) (replicate _ _) with "GCσMLv Hl") as "(GCσMLv&Hl)".
+        1: cbn; by rewrite replicate_length. 1: done.
+        iDestruct (lstore_own_elem_of with "GCζauth Hγ") as "%HH". cbn in *; simplify_eq.
         iModIntro. iExists lvs, (replicate _ _). cbn. iFrame "Hγ Hsim GCζauth Hγsim".
         iSplitR "GCσMLv". 2: iApply "GCσMLv".
         iExists  (replicate _ _), _. iLeft. iFrame.
@@ -77,8 +77,8 @@ Proof using.
         set_solver.
       + assert (r = qp)%Qp as Hr; last simplify_eq.
         { rewrite -Hlt in Hsum. by eapply Qp.add_inj_r. }
-        rewrite Hlt. iMod (pgm_update (replicate _ _) with "GCσMLv Hℓ") as "(GCσMLv&Hl)".
-        1: by rewrite replicate_length.
+        rewrite Hlt. iMod (pgm_update (D:=MLHeapPGMData) (replicate _ _) with "GCσMLv Hℓ") as "(GCσMLv&Hl)".
+        1: cbn; by rewrite replicate_length. 1: done.
         iDestruct "Hmapsγ" as "(Hγ&#Hsimγ)".
         iDestruct (lstore_own_elem_of with "GCζauth Hγ") as "%HH".
         iModIntro. iExists lvs, _. iFrame "Hγ Hsimγ Hsim GCζauth". iSplitR "GCσMLv"; last iApply "GCσMLv".
@@ -119,8 +119,8 @@ Proof using.
   iDestruct (pgm_lookup with "GCσMLv Hℓ") as %Hℓσ.
   iPoseProof (big_sepL2_length with "Hsim") as "%Hlen1".
   destruct Hγζ' as (Hγζ'&Hvs'&Hdirty). simplify_eq.
-  iMod (pgm_update vs with "GCσMLv Hℓ") as "[GCσMLv Hℓ]".
-  1: rewrite Hlen1 replicate_length //.
+  iMod (pgm_update (D:=MLHeapPGMData) vs with "GCσMLv Hℓ") as "[GCσMLv Hℓ]".
+  1: cbn; rewrite Hlen1 replicate_length //. 1: done.
   iPoseProof (GC_per_loc_modify_σ with "GC_per_loc") as "GC_per_loc".
   1: by eapply lloc_map_pubs_inj, expose_llocs_inj. 1: done.
   iPoseProof (big_sepM_delete _ _ _ _ Hχγ with "[$GC_per_loc Hl]") as "GC_per_loc".
@@ -159,8 +159,8 @@ Proof using.
       iDestruct (ghost_map_elem_valid with "Hγ") as "%Hlt".
       simplify_eq.
       iPoseProof (big_sepL2_length with "Hsim") as "%Hlen1".
-      iMod (pgm_update vs with "GCσMLv Hℓ") as "(GCσMLv&Hℓ)".
-      1: rewrite replicate_length; done.
+      iMod (pgm_update (D:=MLHeapPGMData) vs with "GCσMLv Hℓ") as "(GCσMLv&Hℓ)".
+      1: cbn; rewrite replicate_length; done. 1: done.
       iExists vs, vs.
       edestruct dfrac_valid_own as [HL _]. apply HL in Hlt; clear HL.
       apply Qp.le_lteq in Hlt. destruct Hlt as [Hlt|Hlt].
@@ -393,8 +393,8 @@ Proof using.
     destruct (Hstore _ Hℓ) as (γ'&Hγ'). by apply elem_of_lloc_map_pub_locs_1 in Hγ'. }
   iDestruct (lloc_own_priv_of with "GCχauth Hmtfresh") as %Hχγ.
   iMod (lloc_own_expose _ _ ℓ with "GCχauth Hmtfresh") as "[GCχvirt #Hℓγ]".
-  iMod (pgm_insert ℓ (replicate _ _) with "GCσMLv") as "(GCσMLv & HℓNone)".
-  1: by eapply not_elem_of_dom_1.
+  iMod (pgm_insert (D:=MLHeapPGMData) ℓ (replicate _ _) with "GCσMLv") as "(GCσMLv & HℓNone)".
+  1: by eapply not_elem_of_dom_1. 1: done.
   iPoseProof (GC_per_loc_insert _ _ _ _ ℓ with "GC_per_loc") as "GC_per_loc".
   1: { intros γ' Hγ'%lloc_map_pubs_lookup_Some. apply elem_of_lloc_map_pub_locs_1 in Hγ'. apply H, Hγ'. }
   iPoseProof (GC_per_loc_make_dirty _ _ _ _ (dirty ∪ {[γ]}) with "GC_per_loc") as "GC_per_loc".
