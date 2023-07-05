@@ -62,6 +62,7 @@ Section AllocBasics.
       iIntros "($&H1)". cbn.
       rewrite persistent_ghost_map.pgm_auth_unseal. iApply "H1".
     - eapply gmap_view_plus_auth_valid.
+      intros n. apply (@Pmap_init MLHeapPGMData).
   Qed.
 
   Lemma alloc_heapG_C `{!heapGpre_C Σ}  : @Alloc _ Σ (heapG_C Σ) 

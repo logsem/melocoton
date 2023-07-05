@@ -11,18 +11,27 @@ From melocoton.ml_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 From melocoton Require Import monotone.
 
+Local Program Instance MLHeapPGMData : PGMData := {
+  K := loc;
+  V := list val;
+  Vpers := nat;
+  Fpers := length;
+  Pmap m := True;
+}.
+Next Obligation. eauto. Qed.
+Next Obligation. done. Qed.
 
 Class heapGpre_ML {SI:indexT} Σ := HeapGpre_ML {
-  heapGpre_ghost_map :> pgmG Σ loc (list val) _ length;
+  heapGpre_ghost_map :> pgmG Σ MLHeapPGMData;
 }.
 
 Class heapG_ML `{SI: indexT} Σ := HeapG_ML {
-  heapG_ghost_map :> pgmG Σ loc (list val) _ length;
+  heapG_ghost_map :> pgmG Σ MLHeapPGMData;
   γheapGML : gname
 }.
 
 Definition heapΣ_ML {SI: indexT} : gFunctors :=
-  #[pgmΣ loc (list val) _ length].
+  #[pgmΣ MLHeapPGMData].
 
 Global Instance subG_heapGpre_ML `{SI: indexT} Σ : subG heapΣ_ML Σ → heapGpre_ML Σ.
 Proof. solve_inG. Qed.
@@ -35,24 +44,24 @@ Global Program Instance heapG_langG_ML `{SI: indexT}`{heapG_ML Σ}
   state_interp σ := pgm_auth γheapGML 1 σ
 }.
 
-Notation "l ↦M{ dq } v" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l dq ([v%MLV]))
+Notation "l ↦M{ dq } v" := (pgm_elem (D:=MLHeapPGMData) γheapGML l dq ([v%MLV]))
   (at level 20, format "l  ↦M{ dq }  v") : bi_scope.
-Notation "l ↦M□ v" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l DfracDiscarded ([v%MLV]))
+Notation "l ↦M□ v" := (pgm_elem (D:=MLHeapPGMData) γheapGML l DfracDiscarded ([v%MLV]))
   (at level 20, format "l  ↦M□  v") : bi_scope.
-Notation "l ↦M{# q } v" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l (DfracOwn q) ([v%MLV]))
+Notation "l ↦M{# q } v" := (pgm_elem (D:=MLHeapPGMData) γheapGML l (DfracOwn q) ([v%MLV]))
   (at level 20, format "l  ↦M{# q }  v") : bi_scope.
-Notation "l ↦M v" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l (DfracOwn 1) ([v%MLV]))
+Notation "l ↦M v" := (pgm_elem (D:=MLHeapPGMData) γheapGML l (DfracOwn 1) ([v%MLV]))
   (at level 20, format "l  ↦M  v") : bi_scope.
 
-Notation "l ↦∗{ dq } vs" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l dq (vs))
+Notation "l ↦∗{ dq } vs" := (pgm_elem (D:=MLHeapPGMData) γheapGML l dq (vs))
   (at level 20, format "l  ↦∗{ dq }  vs") : bi_scope.
-Notation "l ↦∗□ vs" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l DfracDiscarded (vs))
+Notation "l ↦∗□ vs" := (pgm_elem (D:=MLHeapPGMData) γheapGML l DfracDiscarded (vs))
   (at level 20, format "l  ↦∗□  vs") : bi_scope.
-Notation "l ↦∗{# q } vs" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l (DfracOwn q) (vs))
+Notation "l ↦∗{# q } vs" := (pgm_elem (D:=MLHeapPGMData) γheapGML l (DfracOwn q) (vs))
   (at level 20, format "l  ↦∗{# q }  vs") : bi_scope.
-Notation "l ↦∗ vs" := (pgm_elem (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l (DfracOwn 1) (vs))
+Notation "l ↦∗ vs" := (pgm_elem (D:=MLHeapPGMData) γheapGML l (DfracOwn 1) (vs))
   (at level 20, format "l  ↦∗  vs") : bi_scope.
-Notation "l ↦Mlen n" := (pgm_pers (K:=loc) (V:=list val) (Vpers:=nat) (Fpers:=length) γheapGML l n)
+Notation "l ↦Mlen n" := (pgm_pers (D:=MLHeapPGMData) γheapGML l n)
   (at level 20, format "l  ↦Mlen  n") : bi_scope.
 
 Section lifting.
@@ -104,9 +113,9 @@ Qed.
 
 Lemma mapsto_frac_ne l1 l2 dq1 dq2 v1 v2 :
   ¬ ✓(dq1 ⋅ dq2) → l1 ↦M{dq1} v1 -∗ l2 ↦M{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
-Proof. apply pgm_elem_frac_ne. Qed.
+Proof. eapply @pgm_elem_frac_ne. Qed.
 Lemma mapsto_ne l1 l2 dq2 v1 v2 : l1 ↦M v1 -∗ l2 ↦M{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
-Proof. apply pgm_elem_ne. Qed.
+Proof. apply @pgm_elem_ne. Qed.
 
 Lemma mapsto_persist l dq v : l ↦M{dq} v ==∗ l ↦M□ v.
 Proof. apply pgm_elem_persist. Qed.
@@ -119,8 +128,9 @@ Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
   iIntros (v2 σ2 Hstep). inv_head_step; last lia. iModIntro.
-  iMod (pgm_insert l ((replicate (Z.to_nat n) v)) with "Hσ") as "(Hσ & Hl)".
+  iMod (@pgm_insert _ _ MLHeapPGMData _ _ _ l ((replicate (Z.to_nat n) v)) with "Hσ") as "(Hσ & Hl)".
   { by apply not_elem_of_dom. }
+  1: done.
   iModIntro. iFrame. iApply "HΦ"; iFrame.
 Qed.
 
@@ -202,7 +212,8 @@ Proof.
   iMod (pgm_update with "Hσ Hl") as "[Hσ Hl]"; last first.
   - rewrite (store_insert_offset _ _ _ vs); auto; [].
     iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl".
-  - by rewrite insert_length.
+  - done.
+  - cbn. by rewrite insert_length.
 Qed.
 
 Lemma wp_storeN_oob pe E l i vs w :
