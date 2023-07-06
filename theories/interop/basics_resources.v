@@ -289,6 +289,77 @@ Proof using.
       by epose proof (Hinj k γ' _ vis' (ltac:(by rewrite lookup_insert)) (ltac:(by rewrite lookup_insert_ne)) (ltac:(by left))).
 Qed.
 
+Lemma lloc_own_pub_inj γ1 γ2 ℓ1 ℓ2 fid1 fid2 :
+    γ1 ~ℓ~ ℓ1 @ fid1
+ -∗ γ2 ~ℓ~ ℓ2 @ fid2
+ -∗ ⌜γ1 = γ2 ↔ (ℓ1 = ℓ2 ∨ fid1 = fid2)⌝.
+Proof.
+  iIntros "#Hsim1 #Hsim2".
+  destruct (decide (γ1 = γ2)) as [->|Hne].
+  { iDestruct (pgm_elem_agree with "Hsim1 Hsim2") as %Heq; simplify_eq;
+    iPureIntro; naive_solver. }
+  iPoseProof (pgm_lookup_prop (D:=LlocPGMData) (<[γ1 := LlocPublic fid1 ℓ1]> {[γ2 := LlocPublic fid2 ℓ2 ]}) with "[Hsim1 Hsim2]") as "%HH".
+  - iApply big_sepM_insert. 1: by rewrite lookup_singleton_ne.
+    iSplitL; first by iExists _.
+    iApply big_sepM_singleton. by iExists _.
+  - iPureIntro; split; first by by intros.
+    intros H; eapply HH.
+    1: by rewrite lookup_insert.
+    1: by rewrite lookup_insert_ne // lookup_singleton.
+    destruct H as [-> | ->].
+    + right; by eexists.
+    + by left.
+Qed.
+
+Lemma lloc_own_foreign_inj γ1 γ2 fid1 fid2 :
+    γ1 ~foreign~ fid1
+ -∗ γ2 ~foreign~ fid2
+ -∗ ⌜γ1 = γ2 ↔ fid1 = fid2⌝.
+Proof.
+  iIntros "#Hsim1 #Hsim2".
+  destruct (decide (γ1 = γ2)) as [->|Hne].
+  { iDestruct (pgm_elem_agree with "Hsim1 Hsim2") as %Heq; simplify_eq;
+    iPureIntro; naive_solver. }
+  iPoseProof (pgm_lookup_prop (D:=LlocPGMData) (<[γ1 := LlocForeign fid1]> {[γ2 := LlocForeign fid2]}) with "[Hsim1 Hsim2]") as "%HH".
+  - iApply big_sepM_insert. 1: by rewrite lookup_singleton_ne.
+    iSplitL; first by iExists _.
+    iApply big_sepM_singleton. by iExists _.
+  - iPureIntro; split; first by by intros.
+    intros H; eapply HH.
+    1: by rewrite lookup_insert.
+    1: by rewrite lookup_insert_ne // lookup_singleton.
+    left; done.
+Qed.
+
+Lemma lloc_own_fid_inj γ1 γ2 fid1 fid2 :
+    γ1 ~@~ fid1
+ -∗ γ2 ~@~ fid2
+ -∗ ⌜γ1 = γ2 ↔ fid1 = fid2⌝.
+Proof.
+  iIntros "#Hsim1 #Hsim2".
+  destruct (decide (γ1 = γ2)) as [->|Hne].
+  { iDestruct (pgm_pers_agree with "Hsim1 Hsim2") as %Heq; simplify_eq;
+    iPureIntro; naive_solver. }
+  iDestruct (pgm_lookup_pers_prop (D:=LlocPGMData) (<[γ1 := inr fid1]> {[γ2 := inr fid2]}) with "[Hsim1 Hsim2]") as %(m1&Hdom&Hpmap&Hagree).
+  - iApply big_sepM_insert. 1: by rewrite lookup_singleton_ne.
+    iSplitL; first by iApply "Hsim1".
+    iApply big_sepM_singleton. done.
+  - iPureIntro; split; first by by intros.
+    intros H.
+    rewrite dom_insert_L dom_singleton_L in Hdom.
+    destruct (m1 !! γ1) eqn:Heq1.
+    2: eapply not_elem_of_dom in Heq1; rewrite Hdom in Heq1; set_solver.
+    destruct (m1 !! γ2) eqn:Heq2.
+    2: eapply not_elem_of_dom in Heq2; rewrite Hdom in Heq2; set_solver.
+    epose proof (Hagree _ _ _ Heq1) as Hagr1.
+    rewrite lookup_insert in Hagr1. specialize (Hagr1 eq_refl).
+    epose proof (Hagree _ _ _ Heq2) as Hagr2.
+    rewrite lookup_insert_ne // lookup_singleton in Hagr2. specialize (Hagr2 eq_refl).
+    cbn in *.
+    eapply Hpmap. 1-2: done.
+    left; by simplify_eq.
+Qed.
+
 (* Ghost state for [lstore] *)
 
 Definition lstore_own_elem (γ : lloc) (dq : dfrac) (b : block) :=

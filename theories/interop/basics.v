@@ -824,8 +824,21 @@ Qed.
 Lemma expose_llocs_insert_foreign_both χ χ' γ fid :
   expose_llocs χ χ' →
   χ !! γ = None →
-  (∀ γ' vis'', χ' !! γ' = Some vis'' → fid ≠ lloc_visibility_fid vis'') →
+  (∀ γ' vis'', γ ≠ γ' → χ' !! γ' = Some vis'' → fid ≠ lloc_visibility_fid vis'') →
   expose_llocs (<[γ:=LlocForeign fid]> χ) (<[γ:=LlocForeign fid]> χ').
+Proof.
+  intros (Hdom & Hinj & Hexp) Hγ Hvis. repeat split.
+  - rewrite !dom_insert_L Hdom //.
+  - apply lloc_map_inj_insert; first done. naive_solver.
+  - intros γ0 vis1 vis2 ?%lookup_insert_Some ?%lookup_insert_Some.
+    destruct_or!; destruct_and!; simplify_eq; eauto.
+Qed.
+
+Lemma expose_llocs_insert_private_both χ χ' γ fid :
+  expose_llocs χ χ' →
+  χ !! γ = None →
+  (∀ γ' vis'', γ ≠ γ' → χ' !! γ' = Some vis'' → fid ≠ lloc_visibility_fid vis'') →
+  expose_llocs (<[γ:=LlocPrivate fid]> χ) (<[γ:=LlocPrivate fid]> χ').
 Proof.
   intros (Hdom & Hinj & Hexp) Hγ Hvis. repeat split.
   - rewrite !dom_insert_L Hdom //.
