@@ -43,7 +43,7 @@ Proof using.
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'), ∃ γ fid χC' ζC' θC' (a:loc) mem',
     χC ρc !! γ = None ∧
-    (∀ γ' id', χC ρc !! γ' = Some (LlocForeign id') → id' ≠ fid) ∧
+    (∀ γ' vis', γ ≠ γ' → (χC ρc) !! γ' = Some vis' → fid ≠ lloc_visibility_fid vis') ∧
     χC' = <[γ := LlocForeign fid]> (χC ρc) ∧
     ζC' = <[γ := Bforeign None]> (ζC ρc) ∧
     GC_correct ζC' θC' ∧
@@ -80,8 +80,17 @@ Proof using.
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ&SIχ)".
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ&SIθ)".
 
+  assert (∀ γ' vis'', γ ≠ γ' → χ_future !! γ' = Some vis'' → fid ≠ lloc_visibility_fid vis'') as Hfidfresh2.
+  { intros γ' vis' Hne Hfut ->.
+    destruct Hχfuture as (HH1&HH2&HH3).
+    destruct ((χC ρc) !! γ') as [vis'1|] eqn:Heqold.
+    2: eapply not_elem_of_dom in Heqold; eapply elem_of_dom_2 in Hfut; 
+       by rewrite HH1 in Heqold.
+    eapply Hfidfresh. 1: exact Hne. 1: done.
+    epose proof (HH3 _ _ _ Heqold Hfut) as HH. inversion HH; simplify_eq; done. }
+
   iMod (lstore_own_insert _ γ _ with "GCζauth") as "(GCζauth & Hbp1)". 1: done.
-  iMod (lloc_own_allocate_foreign _ γ fid with "[] GCχauth") as "(GCχauth&Hbp2)". 1: done.
+  iMod (lloc_own_allocate_foreign _ γ fid with "[] GCχauth") as "(GCχauth&Hbp2)". 1-2: done.
 
   do 3 iModIntro. iFrame. cbn -[wrap_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
@@ -100,18 +109,12 @@ Proof using.
     * rewrite dom_insert_L; set_solver.
     * rewrite lloc_map_pubs_insert_foreign delete_notin.
       2: apply lloc_map_pubs_lookup_None; by left. done.
-    * intros ℓ Hℓ; destruct (Hstore _ Hℓ) as (γ'&Hγ'); exists γ'; rewrite lookup_insert_ne; first done.
+    * intros ℓ Hℓ; destruct (Hstore _ Hℓ) as (γ'&fid'&Hγ'); exists γ', fid'; rewrite lookup_insert_ne; first done.
       intros ->; simplify_eq.
   - iExists roots_m. iFrame. iPureIntro; split_and!; try done.
     by eapply GC_correct_transport.
   - done.
-  - apply expose_llocs_insert_both; try done.
-    destruct Hχfuture as (Hf1&Hf2&Hf3).
-    intros γ' [|id'|] _ Hf Heq; simplify_eq.
-    edestruct (χC ρc !! γ') eqn:Heq.
-    2: eapply elem_of_dom_2 in Hf; eapply not_elem_of_dom in Heq; set_solver.
-    pose proof (Hf3 _ _ _ Heq Hf) as Hinv; inversion Hinv; simplify_eq.
-    by eapply (Hfidfresh γ' fid).
+  - by apply expose_llocs_insert_foreign_both.
 Qed.
 
 End Laws.

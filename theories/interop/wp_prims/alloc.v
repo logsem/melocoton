@@ -41,9 +41,10 @@ Proof using.
   { eapply GC_correct_transport_rev; last done; done. }
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iExists (λ '(e', σ'), ∃ γ χC' ζC' θC' (a:loc) mem',
+  iExists (λ '(e', σ'), ∃ γ fid χC' ζC' θC' (a:loc) mem',
     χC ρc !! γ = None ∧
-    χC' = <[γ := LlocPrivate]> (χC ρc) ∧
+    (∀ γ' vis', γ ≠ γ' → (χC ρc) !! γ' = Some vis' → fid ≠ lloc_visibility_fid vis') ∧
+    χC' = <[γ := LlocPrivate fid]> (χC ρc) ∧
     ζC' = <[γ := Bvblock (Mut, (tg, repeat (Lint 0) (Z.to_nat sz)))]> (ζC ρc) ∧
     GC_correct ζC' θC' ∧
     repr θC' _ _ _ ∧
@@ -52,8 +53,8 @@ Proof using.
     e' = WrSE (ExprV #a) ∧
     σ' = CState {| χC := χC'; ζC := ζC'; θC := θC'; rootsC := rootsC ρc |} mem').
   iSplit. { iPureIntro. econstructor; naive_solver. }
-  iIntros (? ? ? (γ & χC' & ζC' & θC' & a & mem' &
-                  HγNone & -> & -> & HGCOK' & Hrepr' & Hrootslive' & ?)).
+  iIntros (? ? ? (γ & fid & χC' & ζC' & θC' & a & mem' &
+                  HγNone & Hfidfresh & -> & -> & HGCOK' & Hrepr' & Hrootslive' & ?)).
   destruct_and!; simplify_eq.
 
   assert (χ_future !! γ = None) as Hχfutγ.
@@ -79,8 +80,17 @@ Proof using.
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ&SIχ)".
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ&SIθ)".
 
+  assert (∀ γ' vis'', γ ≠ γ' → χ_future !! γ' = Some vis'' → fid ≠ lloc_visibility_fid vis'') as Hfidfresh2.
+  { intros γ' vis' Hne Hfut ->.
+    destruct Hχfuture as (HH1&HH2&HH3).
+    destruct ((χC ρc) !! γ') as [vis'1|] eqn:Heqold.
+    2: eapply not_elem_of_dom in Heqold; eapply elem_of_dom_2 in Hfut; 
+       by rewrite HH1 in Heqold.
+    eapply Hfidfresh. 1: exact Hne. 1: done.
+    epose proof (HH3 _ _ _ Heqold Hfut) as HH. inversion HH; simplify_eq; done. }
+
   iMod (lstore_own_insert _ γ (Bvblock (Mut, blk)) with "GCζauth") as "(GCζauth & Hbp1)". 1: done.
-  iMod (lloc_own_allocate _ γ with "[] GCχauth") as "(GCχauth&Hbp2)". 1: done.
+  iMod (lloc_own_allocate _ γ with "[] GCχauth") as "(GCχauth&Hbp2)". 1-2: done.
 
   do 3 iModIntro. iFrame. cbn -[wrap_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
@@ -88,7 +98,7 @@ Proof using.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! θC' γ with "[-Hbp2 Hbp1] [Hbp2 Hbp1] []"); try done.
   3: iPureIntro; by econstructor.
-  2: iFrame; done.
+  2: iFrame; by iExists _.
   rewrite /GC /named.
   do 5 iExists _. iFrame.
   iSplitL "GCσMLv GC_per_loc". 2: iSplit; last iSplit; try iPureIntro.
@@ -99,7 +109,7 @@ Proof using.
     * rewrite dom_insert_L; set_solver.
     * rewrite lloc_map_pubs_insert_priv delete_notin.
       2: apply lloc_map_pubs_lookup_None; by left. done.
-    * intros ℓ Hℓ; destruct (Hstore _ Hℓ) as (γ'&Hγ'); exists γ'; rewrite lookup_insert_ne; first done.
+    * intros ℓ Hℓ; destruct (Hstore _ Hℓ) as (γ'&fid'&Hγ'); exists γ', fid'; rewrite lookup_insert_ne; first done.
       intros ->; simplify_eq.
   - iExists roots_m. iFrame. iPureIntro; split_and!; try done.
     by eapply GC_correct_transport.
@@ -107,7 +117,7 @@ Proof using.
   - destruct Hχfuture as (Hf1&Hf2&Hf3); split_and!.
     * rewrite !dom_insert_L Hf1; done.
     * by apply lloc_map_inj_insert_priv.
-    * by apply expose_llocs_insert_both; eauto.
+    * by apply expose_llocs_insert_private_both; eauto.
 Qed.
 
 End Laws.

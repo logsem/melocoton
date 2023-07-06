@@ -50,7 +50,7 @@ Proof using.
   1: done. 
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iPoseProof (GC_per_loc_modify_ζ with "GC_per_loc") as "GC_per_loc".
-  { eapply lloc_map_pubs_lookup_None. do 2 right. by eexists. }
+  { eapply lloc_map_pubs_lookup_None. right. eexists. right. done. }
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).

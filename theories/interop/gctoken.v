@@ -71,7 +71,7 @@ Definition SI_block_level (ζ_future : lstore) (χ_future : lloc_map) (dirty : g
   ∗ "GCσMLv" ∷ state_interp (σMLvirt : language.language.state ML_lang)
   ∗ "GC_per_loc" ∷ ([∗ map] γ↦ℓ ∈ lloc_map_pubs χ_future,
       per_location_invariant ζ_future σMLvirt dirty γ ℓ)
-  ∗ "%Hstore" ∷ ⌜∀ ℓ, ℓ ∈ dom σMLvirt → ∃ γ, χ_future !! γ = Some (LlocPublic ℓ)⌝.
+  ∗ "%Hstore" ∷ ⌜∀ ℓ, ℓ ∈ dom σMLvirt → ∃ fid γ, χ_future !! γ = Some (LlocPublic fid ℓ)⌝.
 
 Definition SI_GC (ζ_future : lstore) (θ : addr_map) (roots_s : gset addr) : iProp Σ :=
   ∃ (roots_m : gmap addr lval),
