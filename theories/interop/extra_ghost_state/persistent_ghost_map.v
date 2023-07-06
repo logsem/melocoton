@@ -407,58 +407,122 @@ Section lemmas.
     apply: gmap_view_plus_update_big; done.
   Qed.
 
-  Lemma pgm_lookup_prop {γ q m} m0 :
-    ([∗ map] k↦v ∈ m0, ∃ dq, k □↪[γ]{dq} v) -∗
-    ⌜Pmap m0⌝.
+  Lemma pgm_lookup_pers_prop {γ} (m0 : gmap K (sum V Vpers)) :
+    ([∗ map] k↦vs ∈ m0, match vs with inl v => ∃ dq, k □↪[γ]{dq} v | inr vp => k □↪[γ]= vp end) -∗
+    ⌜∃ m1, dom m1 = dom m0 ∧ Pmap m1 ∧ ∀ k v1 vs2, m1 !! k = Some v1 → m0 !! k = Some vs2 → match vs2 with inl v => v = v1 | inr vp => vp = Fpers v1 end⌝.
   Proof.
-    iIntros "Hfrag". unseal.
-    epose (∃ (m1 : gmap K (prod V dfrac)), ⌜dom m1 = dom m0⌝ ∧ ⌜∀ k v dq, m1 !! k = Some (v,dq) → m0 !! k = Some v⌝ ∧ (⌜m1 = ∅⌝ ∨ own γ (◯V (fmap (λ '(v,dq), (Some (dq, to_agree v), to_agree (Fpers v))) m1)
+    iIntros "Hfrag".
+    epose (∃ (m3 : gmap K (sum (prod V dfrac) Vpers)), 
+              ⌜dom m3 = dom m0⌝
+            ∧ ⌜∀ k v dq, m3 !! k = Some (inl (v,dq)) → m0 !! k = Some (inl v)⌝
+            ∧ ⌜∀ k vp, m3 !! k = Some (inr vp) → m0 !! k = Some (inr vp)⌝
+            ∧ (⌜m3 = ∅⌝ ∨ own γ (◯V (fmap (λ 'vs, match vs with inl (v,dq) => (Some (dq, to_agree v), to_agree (Fpers v))
+                                                              | inr vp => (None, to_agree vp) end) m3)
             : gmap_view_pluspers.gmap_view_plusUR _)))%I.
-    iAssert b with "[Hfrag]" as "(%m1&%Hdom&%Hcont&[->|Hm1])"; unfold b; clear b.
+    iAssert b with "[Hfrag]" as "(%m1&%Hdom&%Hcont1&%Hcont2&[->|Hm1])"; unfold b; clear b.
     - iStopProof.
-      induction m0 as [|k v m0 Hne IH] using map_ind; iStartProof; iIntros "Hfrag".
+      induction m0 as [|k vs m0 Hne IH] using map_ind; iStartProof; iIntros "Hfrag".
       { iExists ∅; iSplit. 1: rewrite !dom_empty_L //.
-        iSplit; last by iLeft.
-        iPureIntro. intros k v ? []%lookup_empty_Some. }
-      iPoseProof (big_sepM_insert with "Hfrag") as "((%dq&Hpto)&Hfrag)"; first done.
-      iPoseProof (IH with "Hfrag") as "(%m1&%Hdom&%Hcont&[->|IH])".
-      + iExists {[ k := (v,dq) ]}. iSplit.
-        1: iPureIntro; rewrite dom_empty_L in Hdom; rewrite dom_insert_L dom_singleton_L -Hdom; set_solver.
-        iSplit; last (iRight; erewrite map_fmap_singleton; iApply "Hpto").
-        iPureIntro. intros k' v' dq' [<- [= <- <-]]%lookup_singleton_Some. by rewrite lookup_insert.
-      + iExists (<[ k := (v,dq) ]> m1). iSplit.
-        1: iPureIntro; rewrite dom_insert_L; set_solver.
-        iSplit.
-        { iPureIntro; intros k' v' dq' [[-> [= -> ->]]|[Hne1 HH]]%lookup_insert_Some.
+        repeat iSplit; last by iLeft. 1: iIntros (?).
+        all: iPureIntro; intros ?? []%lookup_empty_Some. }
+      iPoseProof (big_sepM_insert with "Hfrag") as "(Hinsert&Hfrag)"; first done.
+      iPoseProof (IH with "Hfrag") as "(%m1&%Hdom&%Hcont1&%Hcont2&[->|IH])"; destruct vs as [v|vp].
+      + iDestruct "Hinsert" as "(%dq&Hinsert)".
+        iExists {[ k := inl (v,dq) ]}. iSplit.
+        1: iPureIntro; rewrite dom_empty_L in Hdom.
+        1: rewrite dom_insert_L dom_singleton_L -Hdom; set_solver.
+        iSplit; last iSplit.
+        * iPureIntro. intros k' v' dq' [<- [= <- <-]]%lookup_singleton_Some. by rewrite lookup_insert.
+        * iPureIntro. intros k' v' (<-&[=])%lookup_singleton_Some.
+        * iRight. erewrite map_fmap_singleton. unseal. iApply "Hinsert".
+      + iExists {[ k := inr vp ]}. iSplit.
+        1: iPureIntro; rewrite dom_empty_L in Hdom.
+        1: rewrite dom_insert_L dom_singleton_L -Hdom; set_solver.
+        iSplit; last iSplit.
+        * iPureIntro. intros k' v' dq' [<- [=]]%lookup_singleton_Some.
+        * iPureIntro. intros k' v' (<-&[= ->])%lookup_singleton_Some. by rewrite lookup_insert.
+        * iRight. erewrite map_fmap_singleton. unseal. iApply "Hinsert".
+      + iDestruct "Hinsert" as "(%dq&Hinsert)".
+        iExists (<[ k := inl (v,dq) ]> m1). iSplit.
+        1: iPureIntro; rewrite dom_insert_L; set_solver. iSplit; last iSplit.
+        * iPureIntro; intros k' v' dq' [[-> [= -> ->]]|[Hne1 HH]]%lookup_insert_Some.
           1: by rewrite lookup_insert.
-          rewrite lookup_insert_ne; first by eapply Hcont. done. }
-        iRight.
-        iPoseProof (own_op with "[$Hpto $IH]") as "HH".
-        unfold gmap_view_plus_frag. rewrite -view_frag_op.
-        rewrite fmap_insert.
-        rewrite (@insert_singleton_op _ _ _ _ ((prodR (optionR (prodR dfracR (agreeR (leibnizO V)))) (agreeR (leibnizO Vpers))))).
-        2: { rewrite lookup_fmap. destruct (m1 !! k) eqn:Heqn; last done.
-             eapply elem_of_dom_2 in Heqn. eapply not_elem_of_dom in Hne. by rewrite Hdom in Heqn. }
-        done.
-    - iPureIntro. enough (m0 = ∅) as -> by eapply Pmap_init.
-      rewrite dom_empty_L in Hdom. eapply dom_empty_inv_L. done.
+          rewrite lookup_insert_ne; first by eapply Hcont1. done.
+        * iPureIntro; intros k' v' [[? [=]]|[HH1 HH2]]%lookup_insert_Some.
+          rewrite lookup_insert_ne; last done. by eapply Hcont2.
+        * iRight. rewrite fmap_insert. unseal.
+          iPoseProof (own_op with "[$Hinsert $IH]") as "HH".
+          unfold gmap_view_plus_frag. rewrite -view_frag_op.
+          rewrite (@insert_singleton_op _ _ _ _ ((prodR (optionR (prodR dfracR (agreeR (leibnizO V)))) (agreeR (leibnizO Vpers))))).
+          2: { rewrite lookup_fmap. destruct (m1 !! k) as [s|] eqn:Heqn; rewrite Heqn; last done.
+               eapply elem_of_dom_2 in Heqn. eapply not_elem_of_dom in Hne. by rewrite Hdom in Heqn. }
+          done.
+      + iExists (<[ k := inr vp ]> m1). iSplit.
+        1: iPureIntro; rewrite dom_insert_L; set_solver. iSplit; last iSplit.
+        * iPureIntro; intros k' v' dq' [[? [=]]|[HH1 HH2]]%lookup_insert_Some.
+          rewrite lookup_insert_ne; last done. by eapply Hcont1.
+        * iPureIntro; intros k' v' [[-> [= ->]]|[Hne1 HH]]%lookup_insert_Some.
+          1: by rewrite lookup_insert.
+          rewrite lookup_insert_ne; first by eapply Hcont2. done.
+        * iRight. rewrite fmap_insert. unseal.
+          iPoseProof (own_op with "[$Hinsert $IH]") as "HH".
+          unfold gmap_view_plus_frag. rewrite -view_frag_op.
+          rewrite (@insert_singleton_op _ _ _ _ ((prodR (optionR (prodR dfracR (agreeR (leibnizO V)))) (agreeR (leibnizO Vpers))))).
+          2: { rewrite lookup_fmap. destruct (m1 !! k) as [s|] eqn:Heqn; rewrite Heqn; last done.
+               eapply elem_of_dom_2 in Heqn. eapply not_elem_of_dom in Hne. by rewrite Hdom in Heqn. }
+          done.
+    - iPureIntro. enough (m0 = ∅) as ->.
+      * exists ∅. split; first by rewrite !dom_empty_L.
+        split; first by eapply Pmap_init.
+        intros ??? []%lookup_empty_Some.
+      * rewrite dom_empty_L in Hdom. eapply dom_empty_inv_L. done.
     - iDestruct (own_valid with "Hm1") as %Hm1.
       iPureIntro.
       apply view_frag_valid in Hm1.
       specialize (Hm1 zero) as (mv&Hmv&Hmprop).
       cbn in *.
-      eapply Pmap_mono; first done.
-      eapply map_subseteq_spec.
-      intros k v Hin.
-      destruct (m1 !! k) as [[v' dq]|] eqn:Heq; last first.
-      { exfalso. apply elem_of_dom_2 in Hin. eapply not_elem_of_dom in Heq. by rewrite Hdom in Heq. }
-      epose proof (Hcont _ _ _ Heq) as Heq2. simplify_eq.
-      eapply (map_Forall_lookup_1 _ _ k) in Hmv; last first.
-      { rewrite lookup_fmap Heq; done. }
-      destruct Hmv as (v'&Hmv'&Hagr1&Hagr2&Hdv). cbn in *.
-      rewrite Hmv'. f_equal.
-      eapply @to_agree_injN, discrete_iff in Hagr2; last apply _.
-      done.
+      exists (filter (λ '(k,_), k ∈ dom m0) mv). split_and!.
+      * erewrite @dom_filter_L. all: try apply _. 1: reflexivity.
+        intros k; split; last naive_solver.
+        intros Hh0. epose proof Hh0 as Hh. rewrite -Hdom in Hh.
+        eapply elem_of_dom in Hh as [[[v dq]|vp] Hv].
+        all: epose proof (Hmv k _) as HH.
+        all: rewrite !lookup_fmap Hv /= in HH.
+        all: destruct (HH eq_refl) as (v'&Heq&Hagr1&Hopt).
+        all: eexists; done.
+      * eapply Pmap_mono; first done. eapply @map_filter_subseteq. apply _.
+      * intros k v1 v2 Hin Hin2. eapply @map_filter_lookup_Some in Hin as (Hin1L&Hin1R). 2: apply _.
+        rewrite -Hdom in Hin1R.
+        eapply elem_of_dom in Hin1R as [[[v dq]|vp] Hlu];
+        epose proof (Hmv k _) as Hv;
+        rewrite lookup_fmap Hlu /= in Hv;
+        destruct (Hv eq_refl) as (x&Hmv'&Hagr1&Hopt); cbn in *;
+        assert (v1 = x) as <- by (rewrite Hin1L in Hmv'; simplify_eq; done).
+        -- epose proof (Hcont1 _ _ _ Hlu) as Hlu2; simplify_eq.
+           destruct Hopt as (Hagr2 & HH). eapply @to_agree_injN in Hagr2.
+           rewrite Hagr2. done.
+        -- epose proof (Hcont2 _ _ Hlu) as Hlu2; simplify_eq.
+           eapply @to_agree_injN in Hagr1.
+           rewrite Hagr1. done.
+  Qed.
+
+  Lemma pgm_lookup_prop {γ} m0 :
+    ([∗ map] k↦v ∈ m0, ∃ dq, k □↪[γ]{dq} v) -∗
+    ⌜Pmap m0⌝.
+  Proof.
+    iIntros "Hfrag".
+    iDestruct (pgm_lookup_pers_prop (fmap inl m0) with "[Hfrag]") as %(m1&Hdom&HPmap&Hagree);
+    first by iApply big_sepM_fmap.
+    enough (m0 = m1) as -> by done.
+    rewrite dom_fmap_L in Hdom.
+    eapply map_eq_iff.
+    intros k. destruct (m1 !! k) eqn:Heq.
+    2: eapply not_elem_of_dom in Heq; eapply not_elem_of_dom; by rewrite -Hdom.
+    destruct (m0 !! k) eqn:Heq0.
+    2: eapply elem_of_dom_2 in Heq; eapply not_elem_of_dom in Heq0; by rewrite -Hdom in Heq0.
+    specialize (Hagree k v (inl v0) Heq).
+    rewrite lookup_fmap Heq0 in Hagree.
+    by rewrite Hagree.
   Qed.
 
 End lemmas.
