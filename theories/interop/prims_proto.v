@@ -78,6 +78,7 @@ Definition modify_proto : C_proto := (λ fn vl Φ,
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
     "%Hptomut" ∷ ⌜vblock_access_le M mut⌝ ∗
     "Hpto" ∷ γ ↦vblk[mut] (tg, vs) ∗
+    "Hv'safe" ∷ (∀ γ', ⌜v' = Lloc γ'⌝ → ∃ fid, γ' ~@~ fid) ∗
     "%Hreprw'" ∷ ⌜repr_lval θ v' w'⌝ ∗
     "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
     "%Hi2" ∷ ⌜i < length vs⌝%Z ∗

@@ -57,7 +57,7 @@ Context `{!wrapperGCtokG Σ}.
 Definition per_location_invariant (ζ_future : lstore) (σMLvirt : store) (dirty : gset lloc)
      (γ : lloc) (ℓ : loc) : iProp Σ :=
   ∃ (vs : list val) lvs, 
-    ( ℓ ↦∗ vs ∗ ⌜ζ_future !! γ = Some (Bvblock (Mut, (TagDefault, lvs)))⌝ ∗ ⌜vs = replicate (length lvs) (LitV (LitInt 0))⌝ ∗ ⌜γ ∈ dirty⌝)
+    ( ℓ ↦∗ vs ∗ ⌜ζ_future !! γ = Some (Bvblock (Mut, (TagDefault, lvs)))⌝ ∗ block_canon_arr lvs vs)
   ∨ (⌜σMLvirt !! ℓ = Some vs⌝ ∗ (γ ↦mut (TagDefault, lvs)) ∗ lvs ~~∗ vs ∗ ℓ ↦Mlen (length lvs))
   ∨ (∃ (q r : Qp), ℓ ↦∗{# q} vs ∗ (γ ↦mut{DfracOwn r} (TagDefault, lvs)) ∗ lvs ~~∗ vs ∗ ⌜(q+r=1)%Qp⌝ ∗ ⌜γ ∈ dirty⌝)
   ∨ (⌜σMLvirt !! ℓ = None⌝ ∗ ⌜ζ_future !! γ = None⌝).
@@ -101,13 +101,13 @@ Section Laws.
 Lemma GC_per_loc_modify_σ M ζ σMLvirt dirty γ ℓ' v:
   gmap_inj M →
   M !! γ = Some ℓ' →
-(([∗ map] ℓ↦y ∈ delete γ M, per_location_invariant ζ σMLvirt dirty ℓ y)
-⊢ [∗ map] ℓ↦y ∈ delete γ M, per_location_invariant ζ (<[ ℓ' := v ]> σMLvirt) dirty ℓ y)%I.
+(([∗ map] y↦ℓ ∈ delete γ M, per_location_invariant ζ σMLvirt dirty y ℓ)
+⊢ [∗ map] y↦ℓ ∈ delete γ M, per_location_invariant ζ (<[ ℓ' := v ]> σMLvirt) dirty y ℓ)%I.
 Proof.
   iIntros (Hinj Hlu) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ (Hne&Hlu2)%lookup_delete_Some) "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ (Hne&Hlu2)%lookup_delete_Some) "(%vs'&%lvs&[(Hℓ&%Hzeta&Hcanon)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
   - iLeft. by iFrame.
   - iRight. iLeft. iFrame "Hγ Hsim Hlen". iPureIntro.
     rewrite lookup_insert_ne; first done.
@@ -126,7 +126,7 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(Hℓ&%Hzeta&Hcanon)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
   - iLeft; by iFrame.
   - iRight. iLeft. iFrame "Hγ Hsim Hlen". iPureIntro.
     rewrite lookup_insert_ne; first done.
@@ -139,13 +139,13 @@ Qed.
 
 Lemma GC_per_loc_modify_ζ M ζ σMLvirt dirty γ v:
   M !! γ = None →
-(([∗ map] ℓ↦y ∈ M, per_location_invariant ζ σMLvirt dirty ℓ y)
-⊢ [∗ map] ℓ↦y ∈ M, per_location_invariant (<[ γ := v ]> ζ) σMLvirt dirty ℓ y)%I.
+(([∗ map] x↦ℓ ∈ M, per_location_invariant ζ σMLvirt dirty x ℓ)
+⊢ [∗ map] x↦ℓ ∈ M, per_location_invariant (<[ γ := v ]> ζ) σMLvirt dirty x ℓ)%I.
 Proof.
   iIntros (Hne) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hle) "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&Hsim&Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ Hle) "(%vs'&%lvs&[(Hℓ&%Hzeta&Hcanon)|[(%Hℓσ&Hγ&Hsim&Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
   - iLeft. iFrame. rewrite lookup_insert_ne; first done.
     intros ->; congruence.
   - iRight. iLeft. by iFrame.
@@ -155,25 +155,42 @@ Proof.
     intros ->. simplify_eq.
 Qed.
 
-Lemma GC_per_loc_modify_ζ_in_detail M ζ σMLvirt dirty γ tg' lvs':
-ζ !! γ ≠ None →
-(∀ tg lvs2, ζ !! γ = Some (Bvblock (Mut, (tg, lvs2))) → tg = tg' ∧ length lvs' = length lvs2) →
-(([∗ map] ℓ↦y ∈ M, per_location_invariant ζ σMLvirt dirty ℓ y)
-⊢ [∗ map] ℓ↦y ∈ M, per_location_invariant (<[ γ := (Bvblock (Mut, (tg', lvs'))) ]> ζ) σMLvirt dirty ℓ y)%I.
+
+Lemma GC_per_loc_modify_ζ_in_detail M ζ σMLvirt dirty γ' tg lvs lvs':
+  gmap_inj M →
+  ζ !! γ' = Some (Bvblock (Mut, (tg, lvs))) →
+  (length lvs = length lvs') →
+  (∀ vs, block_canon_arr lvs vs -∗ ∃ vs', block_canon_arr lvs' vs') -∗
+  lstore_own_elem γ' (DfracOwn 1) (Bvblock (Mut, (tg, lvs'))) -∗
+  state_interp σMLvirt -∗
+  ([∗ map] γ↦ℓ ∈ M, per_location_invariant ζ σMLvirt dirty γ ℓ)
+  ==∗ ∃ σMLvirt', ⌜dom σMLvirt' = dom σMLvirt⌝ ∗
+      lstore_own_elem γ' (DfracOwn 1) (Bvblock (Mut, (tg, lvs')))
+    ∗ state_interp σMLvirt'
+    ∗([∗ map] γ↦ℓ ∈ M, per_location_invariant (<[ γ' := (Bvblock (Mut, (tg, lvs'))) ]> ζ) σMLvirt' dirty γ ℓ)%I.
 Proof.
-  iIntros (Hne Hlen) "Hbig".
-  iApply (big_sepM_wand with "Hbig").
-  iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hle) "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&Hsim&Hlen)|[HH|(%Hnone1&%Hnone2)]]])";
-  (destruct (decide (γ2 = γ)) as [Hl|Hr]; [subst γ2|]; iExists vs'); try (by simplify_eq).
-  - iExists lvs'. iLeft. iFrame. iPureIntro. rewrite lookup_insert.
-    edestruct Hlen as (<-&->); done.
-  - iExists lvs. iLeft. iFrame. iPureIntro. rewrite lookup_insert_ne; try done.
-  - iExists lvs. iRight. iLeft. iFrame. by iPureIntro.
-  - iExists lvs. iRight. iLeft. iFrame. by iPureIntro.
-  - iExists lvs. iRight. iRight. iLeft. iFrame.
-  - iExists lvs. iRight. iRight. iLeft. iFrame.
-  - iExists lvs'. iRight. iRight. iRight. rewrite lookup_insert_ne; done.
+  iIntros (Hinj Heq Hlen) "Hsafe Hpto HSI Hbig".
+  destruct (M !! γ') as [ℓ|] eqn:Hin.
+  2: iModIntro; iExists _; iFrame; iSplit; first done; by iApply GC_per_loc_modify_ζ.
+  iPoseProof (big_sepM_delete with "Hbig") as "((%vs'&%lvsin&[(Hℓ&%Hzeta&#Hcanon)|[(%Hℓσ&Hγ&Hsim&Hlen)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hnone1&%Hnone2)]]])&Hbig)"; first done.
+  2: iDestruct "Hγ" as "(Hγ&_)"; by iDestruct (pgm_elem_ne with "Hpto Hγ") as %H.
+  2: iDestruct "Hmapsγ" as "(Hγ&_)"; by iDestruct (pgm_elem_ne with "Hpto Hγ") as %H.
+  2: exfalso; congruence.
+  simplify_eq.
+  iDestruct (big_sepL2_length with "Hcanon") as %Hlen1.
+  iDestruct ("Hsafe" with "Hcanon") as "(%vs2&Hcanon2)".
+  iDestruct (big_sepL2_length with "Hcanon2") as %Hlen2.
+  iDestruct (pgm_lookup with "HSI Hℓ") as %Hinsigma.
+  iMod (pgm_update (D:=MLHeapPGMData) vs2 with "HSI Hℓ") as "(HSI&Hℓ)".
+  2: done. 1: cbn; rewrite Hlen1 Hlen2 //.
+  iModIntro. iExists _.
+  iFrame "HSI Hpto".
+  iSplit; first by rewrite dom_insert_lookup_L.
+  iApply big_sepM_delete; first done.
+  iSplitR "Hbig".
+  - iExists _,_. iLeft. iFrame. by rewrite lookup_insert.
+  - iApply GC_per_loc_modify_ζ; first by rewrite lookup_delete.
+    iApply GC_per_loc_modify_σ; done.
 Qed.
 
 Lemma GC_per_loc_make_dirty M ζ σMLvirt dirty dirty':
@@ -184,7 +201,7 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(Hℓ&%Hzeta&Hcanon)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
   - iLeft; iFrame; repeat iSplit; try done; iPureIntro; set_solver.
   - iRight. iLeft. iFrame "Hγ Hsim Hlen". iPureIntro. done.
   - iRight. iRight. iLeft. iExists q,r. iFrame. iFrame "Hsim". iPureIntro; split_and!; try done.
@@ -195,29 +212,28 @@ Qed.
 Lemma GC_per_loc_remove_dirty M ζ σMLvirt dirty γ':
   M !! γ' = None →
 (([∗ map] γ↦ℓ ∈ M, per_location_invariant ζ σMLvirt dirty γ ℓ)
-⊢ [∗ map] γ↦ℓ ∈ M, per_location_invariant ζ σMLvirt (dirty ∖ {[ γ' ]}) γ ℓ)%I.
+⊢ [∗ map] γ↦ℓ ∈ M, per_location_invariant ζ σMLvirt (dirty ∖ {[ γ' ]} ) γ ℓ)%I.
 Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
-  - iLeft; iFrame; repeat iSplit; try done. iPureIntro. eapply elem_of_difference. split; first done.
-    eapply not_elem_of_singleton; intros ->; congruence.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(Hℓ&%Hzeta&Hcanon)|[(%Hℓσ&Hγ&#Hsim&#Hlen)|[(%q&%r&Hmapsℓ&Hmapsγ&#Hsim&%Hsum&%Hdirty)|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
+  - iLeft; iFrame; repeat iSplit; try done.
   - iRight. iLeft. iFrame "Hγ Hsim Hlen". iPureIntro. done.
   - iRight. iRight. iLeft. iExists q,r. iFrame. iFrame "Hsim". iPureIntro; split_and!; try done.
     eapply elem_of_difference; split; first done. eapply not_elem_of_singleton; intros HH; simplify_eq.
   - iRight. iRight. iRight. done.
 Qed.
 
-Lemma GC_per_loc_delete_ζ M ζ σMLvirt dirty γ:
-  M !! γ = None →
-(([∗ map] ℓ↦y ∈ M, per_location_invariant ζ σMLvirt dirty ℓ y)
-⊢ [∗ map] ℓ↦y ∈ M, per_location_invariant (delete γ ζ) σMLvirt dirty ℓ y)%I.
+Lemma GC_per_loc_delete_ζ M ζ σMLvirt dirty γ':
+  M !! γ' = None →
+(([∗ map] γ↦ℓ ∈ M, per_location_invariant ζ σMLvirt dirty γ ℓ)
+⊢ [∗ map] γ↦ℓ ∈ M, per_location_invariant (delete γ' ζ) σMLvirt dirty γ ℓ)%I.
 Proof.
   iIntros (Hne) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hle) "(%vs'&%lvs&[(Hℓ&%Hzeta&%Hrepl&%Hdirty)|[(%Hℓσ&Hγ&Hsim&Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
+  iIntros "!>" (γ2 ℓ Hle) "(%vs'&%lvs&[(Hℓ&%Hzeta&Hcanon)|[(%Hℓσ&Hγ&Hsim&Hlen)|[HH|(%Hnone1&%Hnone2)]]])"; iExists vs', lvs.
   - iLeft. iFrame. rewrite lookup_delete_ne; first done.
     intros ->; congruence.
   - iRight. iLeft. by iFrame.

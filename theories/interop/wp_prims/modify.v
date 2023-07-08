@@ -56,31 +56,51 @@ Proof using.
 
   inversion Hblk'; simplify_eq.
 
-  iPoseProof (GC_per_loc_modify_ζ_in_detail with "GC_per_loc") as "GC_per_loc".
-  1: by erewrite Helem.
-  1: intros ?? Heq; simplify_eq; split; first done; eapply insert_length.
-  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done.
-  change (Z.of_nat 0) with (Z0).
-  iApply "Hcont". iFrame.
-  iApply ("Cont" with "[-Hpto Hptoacc] [Hpto Hptoacc]").
-  2: { iApply lstore_own_vblock_mutable_as_mut; eauto. iFrame. done. } 
-  do 5 iExists _. iFrame. iSplitR "HSI_GC"; last iSplitL.
-  - iExists _. iFrame. iPureIntro; split_and!; try done.
-    rewrite dom_insert_L subseteq_union_1_L; first done.
-    by eapply singleton_subseteq_l, elem_of_dom_2.
-  - iApply HSI_GC_modify; try done.
-    intros γ' Hinv.
-    inversion Hinv as [?????Hinv']; simplify_eq.
-    apply list_insert_lookup_inv in Hinv' as [Hbef|Hnew].
-    2: simplify_eq; right; by eexists.
-    inversion Hreprw'; simplify_eq.
-    left; by eapply elem_of_dom_2.
-  - iPureIntro. split_and; last done. cbn. destruct Hζfuture as [Hf1 Hf2]; split.
-    1: by rewrite !dom_insert_L Hf1.
-    intros γ' b1 b2 [(Heq&H1)|(Hne&H1)]%lookup_insert_Some H2.
-    + subst γ' b1. rewrite lookup_insert in H2. by simplify_eq.
-    + eapply Hf2; try done. by rewrite lookup_insert_ne in H2.
+  iMod (GC_per_loc_modify_ζ_in_detail with "[Hv'safe] Hpto GCσMLv GC_per_loc") as "(%σMLvirt'&%Hdom&Hpto&GCσMLv&GC_per_loc)".
+  - eapply lloc_map_pubs_inj, Hχfuture.
+  - done.
+  - by rewrite insert_length.
+  - iIntros (vhi) "#Hcanon".
+    iPoseProof (big_sepL2_forall with "Hcanon") as "(%Hlen&#Hforall)".
+    destruct v' as [z|γ'].
+    + iExists (<[Z.to_nat i := ML_lang.LitV (ML_lang.LitInt z) ]> vhi).
+      iApply big_sepL2_forall.
+      rewrite !insert_length. iSplit; first done.
+      iIntros (k x1 x2 HH1 [(Heq1&Heq2&Hlt)|(Hne1&Hne2)]%list_lookup_insert_Some).
+      2: rewrite list_lookup_insert_ne in HH1; last done; by iApply "Hforall".
+      simplify_eq. rewrite list_lookup_insert in HH1; last by rewrite Hlen.
+      by simplify_eq.
+    + iDestruct ("Hv'safe" with "[]") as "(%fid&Hfid)". 1: done.
+      iExists (<[Z.to_nat i := ML_lang.LitV (LitForeign fid) ]> vhi).
+      iApply big_sepL2_forall.
+      rewrite !insert_length. iSplit; first done.
+      iIntros (k x1 x2 HH1 [(Heq1&Heq2&Hlt)|(Hne1&Hne2)]%list_lookup_insert_Some).
+      2: rewrite list_lookup_insert_ne in HH1; last done; by iApply "Hforall".
+      simplify_eq. rewrite list_lookup_insert in HH1; last by rewrite Hlen.
+      iExists fid. iFrame "Hfid". by simplify_eq.
+  - do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+    iApply wp_value; first done.
+    change (Z.of_nat 0) with (Z0).
+    iApply "Hcont". iFrame.
+    iApply ("Cont" with "[-Hpto Hptoacc] [Hpto Hptoacc]").
+    2: { iApply lstore_own_vblock_mutable_as_mut; eauto. iFrame. done. }
+    do 5 iExists _. iFrame. iSplitR "HSI_GC"; last iSplitL.
+    + iExists σMLvirt'. rewrite Hdom. iFrame.
+      iPureIntro; split_and!; try done.
+      rewrite dom_insert_L subseteq_union_1_L; first done.
+      by eapply singleton_subseteq_l, elem_of_dom_2.
+    + iApply HSI_GC_modify; try done.
+      intros γ' Hinv.
+      inversion Hinv as [?????Hinv']; simplify_eq.
+      apply list_insert_lookup_inv in Hinv' as [Hbef|Hnew].
+      2: simplify_eq; right; by eexists.
+      inversion Hreprw'; simplify_eq.
+      left; by eapply elem_of_dom_2.
+    + iPureIntro. split_and; last done. cbn. destruct Hζfuture as [Hf1 Hf2]; split.
+      1: by rewrite !dom_insert_L Hf1.
+      intros γ' b1 b2 [(Heq&H1)|(Hne&H1)]%lookup_insert_Some H2.
+      * subst γ' b1. rewrite lookup_insert in H2. by simplify_eq.
+      * eapply Hf2; try done. by rewrite lookup_insert_ne in H2.
 Qed.
 
 End Laws.
