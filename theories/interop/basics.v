@@ -362,6 +362,15 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
     σ !! ℓ = (Some vs) → χ !! γ = Some (LlocPublic fid ℓ) → ζ !! γ = Some blk →
     is_heap_elt χ ζ vs blk.
 
+Inductive is_canon : lloc_map → lval → val → Prop :=
+  (** non-loc base literals *)
+  | is_canon_int χ x :
+    is_canon χ (Lint x) (ML_lang.LitV (ML_lang.LitInt x))
+  | is_canon_block χ γ vis fid :
+    χ !! γ = Some vis →
+    lloc_visibility_fid vis = fid →
+    is_canon χ (Lloc γ) (ML_lang.LitV (ML_lang.LitForeign fid)).
+
 
 (******************************************************************************)
 (** auxiliary definitions and lemmas *)
@@ -851,6 +860,61 @@ Lemma expose_llocs_refl χ : lloc_map_inj χ → expose_llocs χ χ.
 Proof.
   repeat split; try done.
   intros γ v1 v2 H1 H2; simplify_eq. econstructor.
+Qed.
+
+Lemma is_canon_mono χ χL x y :
+  χ ⊆ χL →
+  is_canon χ  x y →
+  is_canon χL x y.
+Proof.
+  intros H1; induction 1 in χL,H1|-*; econstructor; eauto.
+  all: eapply lookup_weaken; done.
+Qed.
+
+Lemma is_canon_inj χ x1 x2 y1 y2 :
+  lloc_map_inj χ →
+  is_canon χ x1 y1 →
+  is_canon χ x2 y2 →
+  (x1 = x2 ↔ y1 = y2).
+Proof.
+  intros H1 H2 H3; split; intros H;
+  inversion H2; inversion H3; simplify_eq.
+  1-3: done.
+  f_equal. eapply H1.
+  - done.
+  - done.
+  - by left.
+Qed.
+
+Lemma is_canon_inj_1 χ x1 x2 y1 y2 :
+  lloc_map_inj χ →
+  is_canon χ x1 y1 →
+  is_canon χ x2 y2 →
+  x1 = x2 → y1 = y2.
+Proof.
+  intros ????. by eapply is_canon_inj.
+Qed.
+
+Lemma is_canon_inj_2 χ x1 x2 y1 y2 :
+  lloc_map_inj χ →
+  is_canon χ x1 y1 →
+  is_canon χ x2 y2 →
+  y1 = y2 → x1 = x2.
+Proof.
+  intros ????. by eapply is_canon_inj.
+Qed.
+
+Lemma is_canon_to_val χ ζ x y : is_canon χ y x → is_val χ ζ x y.
+Proof.
+  intros H; inversion H; by econstructor.
+Qed.
+
+Lemma to_val_find_canon χ ζ x y : dom ζ ⊆ dom χ → is_val χ ζ x y → ∃ xcanon, is_canon χ y xcanon.
+Proof.
+  intros Hsub H; inversion H; simplify_eq.
+  1-4,9: by repeat econstructor.
+  all: eapply elem_of_dom_2, elem_of_weaken in H0; last done; eapply elem_of_dom in H0 as [vis Hvis].
+  all: eexists; econstructor; done.
 Qed.
 
 Lemma is_val_mono χ χL ζ ζL x y :

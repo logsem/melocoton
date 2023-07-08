@@ -659,45 +659,7 @@ Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=
 
 Notation "lvs  ~~∗  vs" := (block_sim_arr vs lvs) (at level 20).
 
-Lemma block_sim_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
-   v b :
-  ζfreeze = ζσ ∪ ζvirt →
-  is_store_blocks χvirt σMLvirt ζσ →
-  is_store χvirt ζfreeze σMLvirt →
-  ζσ ##ₘ ζvirt →
-  is_val χvirt ζfreeze v b →
-  lloc_own_auth χvirt -∗
-  lstore_own_auth ζvirt -∗
-  b ~~ v.
-Proof using.
-  iIntros (Hfreeze Hstorebl Hstore Hdisj H) "Hχ Hζ".
-  iDestruct (lstore_own_auth_get_immut_all with "Hζ") as "#Hζimm".
-  iInduction H as [] "IH" forall "Hζ Hχ"; cbn; try done.
-  1: iExists γ, fid; iSplit; first done.
-  1: by iApply (lloc_own_auth_get_pub with "Hχ").
-  1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
-  3-4: iExists γ, lv; iSplit; first done; iSplit.
-  7: iExists γ; iSplit; first done.
-  8: iExists γ; iSplit; first done.
-  8: simplify_eq; by iApply (lloc_own_auth_get_fid with "Hχ").
-  1,3,5,7:
-    try iApply lstore_own_vblock_I_as_imm;
-    iApply (big_sepM_lookup with "Hζimm"); try done.
-  5: iSplit.
-  5,7,8: by iApply ("IH" with "[] [] [] Hζ Hχ").
-  5: by iApply ("IH1" with "[] [] [] Hζ Hχ").
-  all: simplify_eq.
-  all: apply lstore_immut_blocks_lookup_immut.
-  all: match goal with H: (_ ∪ _) !! _ = Some _ |- _ =>
-      apply lookup_union_Some in H as [|]; eauto end.
-  all: destruct Hstorebl as [_ Hstorebl2].
-  all: specialize (Hstorebl2 γ) as [Hstorebl2 _].
-  all: destruct Hstorebl2 as (fid & ℓ & Vs & Hχ & Hσml); [by eapply elem_of_dom_2|].
-  all: efeed specialize Hstore; eauto; [eapply lookup_union_Some; by eauto|].
-  all: inversion Hstore.
-Qed.
-
-Lemma block_sim_of_auth_strong (ζfreeze : lstore) (χvirt : lloc_map)
+Lemma block_sim_of_auth (ζfreeze : lstore) (χvirt : lloc_map)
    v b :
   is_val χvirt ζfreeze v b →
   lloc_own_auth χvirt -∗
@@ -723,25 +685,7 @@ Proof using.
   iApply ("IH1" with "Hζ Hχ").
 Qed.
 
-Lemma block_sim_arr_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
-   vs bb :
-  ζfreeze = ζσ ∪ ζvirt →
-  is_store_blocks χvirt σMLvirt ζσ →
-  is_store χvirt ζfreeze σMLvirt →
-  ζσ ##ₘ ζvirt →
-  Forall2 (is_val χvirt ζfreeze) vs bb →
-  lloc_own_auth χvirt -∗
-  lstore_own_auth ζvirt -∗
-  bb ~~∗ vs.
-Proof using.
-  iIntros (Hfreeze Hstorebl Hstore Hdisj H) "Hχ Hζ".
-  iApply big_sepL2_forall; iSplit; first (iPureIntro; by eapply Forall2_length).
-  iIntros "%k %v %l %H1 %H2".
-  iApply (block_sim_of_auth with "Hχ Hζ"); try done.
-  eapply Forall2_lookup_lr; done.
-Qed.
-
-Lemma block_sim_arr_of_auth_strong (ζfreeze : lstore) (χvirt : lloc_map)
+Lemma block_sim_arr_of_auth (ζfreeze : lstore) (χvirt : lloc_map)
    vs bb :
   Forall2 (is_val χvirt ζfreeze) vs bb →
   lloc_own_auth χvirt -∗
@@ -751,7 +695,7 @@ Proof using.
   iIntros (H) "Hχ Hζ".
   iApply big_sepL2_forall; iSplit; first (iPureIntro; by eapply Forall2_length).
   iIntros "%k %v %l %H1 %H2".
-  iApply (block_sim_of_auth_strong with "Hχ Hζ"); try done.
+  iApply (block_sim_of_auth with "Hχ Hζ"); try done.
   eapply Forall2_lookup_lr; done.
 Qed. 
 
@@ -876,6 +820,130 @@ Proof using.
   iApply (block_sim_arr_auth_is_val _ ∅ _ with "Hχ Hζ Hsim").
   - by rewrite map_empty_union.
   - eapply map_disjoint_empty_l.
+Qed.
+
+
+(* Ghost state for canonical representatives *)
+
+Definition block_canon (l : lval) (v : val) : iProp Σ := match l with
+  | Lint x => ⌜v = ML_lang.LitV (ML_lang.LitInt x)⌝
+  | Lloc γ => ∃ fid, ⌜v = ML_lang.LitV (ML_lang.LitForeign fid)⌝ ∗ γ ~@~ fid end.
+
+Global Instance block_canon_pers l v : Persistent (block_canon l v).
+Proof using.
+  destruct l; cbn; unshelve eapply (_).
+Qed.
+
+Definition block_canon_arr (ls : list lval) (vs:list ML_lang.val) : iProp Σ :=
+  [∗ list] v;l ∈ vs;ls, block_canon l v.
+
+Global Instance block_canon_arr_pers ls vs : Persistent (block_canon_arr ls vs).
+Proof using.
+  eapply _.
+Qed.
+
+Lemma block_canon_of_auth (χvirt : lloc_map)
+   v b :
+  is_canon χvirt b v →
+  lloc_own_auth χvirt -∗
+  block_canon b v.
+Proof using.
+  iIntros (H) "Hχ".
+  iInduction H as [] "IH" forall "Hχ"; cbn; first done.
+  iExists fid. iSplit; first done. simplify_eq.
+  by iApply lloc_own_auth_get_fid.
+Qed.
+
+Lemma block_canon_arr_of_auth (χvirt : lloc_map)
+   bb vs :
+  Forall2 (is_canon χvirt) bb vs →
+  lloc_own_auth χvirt -∗
+  block_canon_arr bb vs.
+Proof using.
+  iIntros (H) "Hχ".
+  iApply big_sepL2_forall; iSplit; first (iPureIntro; symmetry; by eapply Forall2_length).
+  iIntros "%k %v %l %H1 %H2".
+  iApply (block_canon_of_auth with "Hχ"); try done.
+  eapply Forall2_lookup_lr; done.
+Qed.
+
+Lemma block_canon_auth_is_canon (χvirt : lloc_map)
+   b v :
+  lloc_own_auth χvirt -∗
+  block_canon b v -∗
+  ⌜is_canon χvirt b v⌝.
+Proof using.
+  iIntros "Hχ Hsim". destruct b as [z|γ].
+  - iPure "Hsim" as ->; iPureIntro. econstructor.
+  - iDestruct "Hsim" as "(%fid&->&#Hsim)".
+    iDestruct (lloc_own_pers_of with "Hχ Hsim") as %(vis&->&Hvis).
+    iPureIntro; by econstructor.
+Qed.
+
+Lemma block_canon_arr_auth_is_canon (χvirt : lloc_map)
+   bs vs :
+  lloc_own_auth χvirt -∗
+  block_canon_arr bs vs -∗
+  ⌜Forall2 (is_canon χvirt) bs vs⌝.
+Proof using.
+  iIntros "Hχ #Hsim".
+  iPoseProof (big_sepL2_forall with "Hsim") as "(%Heq & Hsim2)".
+  iAssert (⌜(∀ i x y, bs !! i = Some x → vs !! i = Some y → is_canon χvirt x y)⌝)%I as "%HF".
+  2: iPureIntro; by apply Forall2_same_length_lookup_2.
+  iIntros (i b v H1 H2).
+  iApply (block_canon_auth_is_canon with "Hχ"); try done.
+  iApply ("Hsim2" $! i v b H2 H1).
+Qed.
+
+Lemma block_sim_find_canon ζ χ b v :
+  dom ζ ⊆ dom χ →
+  lloc_own_auth χ -∗
+  lstore_own_auth ζ -∗
+  block_sim v b -∗
+  ∃ v', block_canon b v'.
+Proof.
+  iIntros (Hdom) "Hχ Hζ Hsim".
+  iDestruct (block_sim_auth_is_val_simple with "Hχ Hζ Hsim") as %Hisval.
+  apply to_val_find_canon in Hisval as (canon&Hcanon); last done.
+  iExists canon.
+  by iApply block_canon_of_auth.
+Qed.
+
+Lemma block_sim_arr_find_canon ζ χ bs vs :
+  dom ζ ⊆ dom χ →
+  lloc_own_auth χ -∗
+  lstore_own_auth ζ -∗
+  block_sim_arr vs bs -∗
+  ∃ vs', block_canon_arr bs vs'.
+Proof.
+  iIntros (Hdom) "Hχ Hζ Hsim".
+  iInduction bs as [|b bs] "IH" forall (vs) "Hsim".
+  - iExists nil. cbn. by iFrame.
+  - destruct vs as [|v vs]; cbn; first done.
+    iDestruct "Hsim" as "(Hsim&Hsims)".
+    iDestruct ("IH" with "Hχ Hζ Hsims") as "#(%canons&Hcanons)".
+    iDestruct (block_sim_find_canon with "Hχ Hζ Hsim") as "#(%canon&Hcanon)"; first done.
+    iExists (canon::canons). cbn. iFrame "Hcanon Hcanons".
+Qed.
+
+
+Lemma block_canon_to_block_sim b v :
+  block_canon b v -∗ block_sim v b.
+Proof.
+  iIntros "Hsim". destruct b as [z|γ].
+  - cbn. iDestruct "Hsim" as "->". done.
+  - cbn. iDestruct "Hsim" as "(%fid&->&H2)". iExists γ; iSplit; done.
+Qed.
+
+Lemma block_canon_arr_to_block_sim_arr bs vs :
+  block_canon_arr bs vs -∗ block_sim_arr vs bs.
+Proof.
+  iIntros "H".
+  iApply (big_sepL2_forall); iSplit.
+  1: by iApply big_sepL2_length.
+  iIntros (i v l H1 H2).
+  iApply block_canon_to_block_sim.
+  iApply (big_sepL2_lookup with "H"); done.
 Qed.
 
 

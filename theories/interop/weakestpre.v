@@ -67,7 +67,8 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
 Definition per_location_invariant_ML (ζ ζvirt : lstore)
      (γ : lloc) (ℓ : loc) : iProp Σ :=
   ∃ (vs : list val) lvs, 
-    (⌜ζ !! γ = None⌝ ∗ γ ↦mut (TagDefault, lvs) ∗ ℓ ↦Mlen (length lvs))
+    (⌜ζvirt !! γ = Some (Bvblock (Mut, (TagDefault, lvs)))⌝ ∗ ⌜ζ !! γ = None⌝ ∗ ℓ ↦∗ vs ∗ block_canon_arr lvs vs)
+  ∨ (⌜ζ !! γ = None⌝ ∗ γ ↦mut (TagDefault, lvs) ∗ ℓ ↦Mlen (length lvs))
   ∨ (⌜ζ !! γ = None⌝ ∗ ⌜ζvirt !! γ = None⌝).
 
 Definition SI_block_level_ML (ζ : lstore) (χ : lloc_map) : iProp Σ :=
@@ -178,9 +179,26 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hlen)|(%H1&%H2)])"; iExists vs', lvs.
-  - iLeft. iFrame. done.
-  - iRight. iFrame. iSplit; first done.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%Hne1&%Hne2&Hpto&Hcanon)|[(%H1&Hζ&Hlen)|(%H1&%H2)]])"; iExists vs', lvs.
+  - iLeft. iFrame. rewrite lookup_insert_ne; first done. intros ->; congruence.
+  - iRight. iLeft. iFrame. done.
+  - iRight. iRight. iFrame. iSplit; first done.
+    iPureIntro. rewrite lookup_insert_ne; first done.
+    intros ->. congruence.
+Qed.
+
+Lemma GC_per_loc_ML_insert_2 M ζ ζσ γ' blk:
+   M !! γ' = None →
+(([∗ map] γ↦ℓ ∈ M, per_location_invariant_ML ζ ζσ γ ℓ)
+⊢ [∗ map] γ↦ℓ ∈ M, per_location_invariant_ML (<[ γ' := blk ]> ζ) ζσ γ ℓ)%I.
+Proof.
+  iIntros (Hnℓ) "Hbig".
+  iApply (big_sepM_wand with "Hbig").
+  iApply (big_sepM_intro).
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%Hne1&%Hne2&Hpto&Hcanon)|[(%H1&Hζ&Hlen)|(%H1&%H2)]])"; iExists vs', lvs.
+  - iLeft. iFrame. rewrite lookup_insert_ne; first done. intros ->; congruence.
+  - iRight. iLeft. iFrame. rewrite lookup_insert_ne; first done. intros ->; congruence.
+  - iRight. iRight. iFrame. iSplit; last done.
     iPureIntro. rewrite lookup_insert_ne; first done.
     intros ->. congruence.
 Qed.
@@ -193,9 +211,10 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hlen)|(%H1&%H2)])"; iExists vs', lvs.
-  - iLeft. iFrame. done.
-  - iRight. iFrame. iSplit; first done.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%Hne1&%Hne2&Hpto&Hcanon)|[(%H1&Hζ&Hlen)|(%H1&%H2)]])"; iExists vs', lvs.
+  - iLeft. iFrame. rewrite lookup_delete_ne; first done. intros ->; congruence.
+  - iRight. iLeft. iFrame. done.
+  - iRight. iRight. iFrame. iSplit; first done.
     iPureIntro. rewrite lookup_delete_ne; first done.
     intros ->. congruence.
 Qed.
@@ -215,10 +234,12 @@ Proof.
   iIntros (Hnℓ) "Hbig".
   iApply (big_sepM_wand with "Hbig").
   iApply (big_sepM_intro).
-  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%H1&Hζ&Hlen)|(%H1&%H2)])"; iExists vs', lvs.
-  - iLeft. iFrame. iPureIntro.
+  iIntros "!>" (γ2 ℓ Hne) "(%vs'&%lvs&[(%Hne1&%Hne2&Hpto&Hcanon)|[(%H1&Hζ&Hlen)|(%H1&%H2)]])"; iExists vs', lvs.
+  - iLeft. iFrame. iPureIntro. split; first done.
+    rewrite lookup_delete_ne; first done. intros ->; congruence.
+  - iRight. iLeft. iFrame. iPureIntro.
     by apply delete_lookup_None.
-  - iRight. iFrame. iSplit; last done. iPureIntro.
+  - iRight. iRight. iFrame. iSplit; last done. iPureIntro.
     by apply delete_lookup_None.
 Qed.
 

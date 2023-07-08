@@ -120,11 +120,11 @@ Lemma wp_modify p Ψ θ dirty γ w mut tg vs v' w' i :
   vblock_access_le M mut →
   repr_lval θ v' w' →
   (0 ≤ i < length vs)%Z →
-  {{{ GC θ dirty ∗ γ ↦vblk[mut] (tg, vs) }}}
+  {{{ GC θ dirty ∗ γ ↦vblk[mut] (tg, vs) ∗ (∀ γ', ⌜v' = Lloc γ'⌝ → ∃ fid, γ' ~@~ fid) }}}
     (call: &"modify" with (Val w, Val (# i), Val w'))%CE at ⟨p, Ψ⟩
   {{{ RET (# 0); GC θ dirty ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) }}}.
 Proof.
-  intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
+  intros Hp Hproto **. iIntros "(HGC & Hpto & Hv'safe) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /modify_proto /named.
