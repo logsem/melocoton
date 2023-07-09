@@ -62,9 +62,9 @@ Section Proofs.
     eapply Forall2_cons in Hrepr as (Hrepr2&Hrepr).
     cbn. wp_call_direct.
 
-    iMod (bufToC with "HGC HBuf1 Hsim1") as "(%&%&%&HGC&HBuf1&->&#HHsim1)".
+    iMod (bufToC with "HGC HBuf1 Hsim1") as "(%fidB1&%&%&%&HGC&HBuf1&->&#HHsim1)".
     iNamed "HBuf1". iNamed "Hbuf".
-    iMod (bufToC with "HGC HBuf2 Hsim2") as "(%&%&%&HGC&HBuf2&->&#HHsim2)".
+    iMod (bufToC with "HGC HBuf2 Hsim2") as "(%fidB2&%&%&%&HGC&HBuf2&->&#HHsim2)".
     iDestruct "HBuf2" as "(%γ2&%γref2&%γaux2&%γfgn2&%used2&%fid2&->&#Hγbuf2&Hγusedref2&#Hγaux2&Hbuf2)".
     unfold named.
     iDestruct "Hbuf2" as "(%vcontent2&Hγfgnpto2&#Hγfgnsim2&Hℓbuf2&HContent2&->)". unfold named.
@@ -124,7 +124,8 @@ Section Proofs.
     wp_apply (wp_load with "Hℓcap2"). iIntros "Hℓcap2".
     wp_apply (wp_int2val with "HGC"); [mdone..|].
     iIntros (w0) "(HGC&%Hrepr0)".
-    wp_apply (wp_modify with "[$HGC $Hγusedref2]"); [mdone..|].
+    wp_apply (wp_modify with "[#] [$HGC $Hγusedref2]"); [mdone..| |].
+    1: iIntros (? [=]).
     iIntros "(HGC&Hγusedref2)". wp_pure _.
     wp_apply (wp_free with "Hℓcap2"). iIntros "_".
     do 2 wp_pure _.

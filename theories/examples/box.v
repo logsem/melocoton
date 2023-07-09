@@ -144,7 +144,7 @@ Section Proofs.
     { iNext. iRight. iFrame. }
     iMod (pgm_elem_persist with "Hγfgn'") as "#Hγfgn'".
     iModIntro. iApply "Cont2". iApply ("Cont" $! θ1 (#(LitForeign i)) with "HGC [-] [] []").
-    2: iExists _; by iFrame "Hi".
+    2: iExists _; iSplit; first done; iPoseProof (pgm_elem_to_pers with "Hi") as "$".
     2: done.
     iApply ("HWP" with "Hna [-]").
     iExists i, γ, ℓ.
@@ -167,8 +167,9 @@ Section Proofs.
     wp_pure _.
     iDestruct "Hbox" as (i γ ℓ) "(->&#Hsimγ&#Hγfgn&#Hinv1&#Hinv2)".
     iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iPoseProof (pgm_elem_to_pers with "Hsimγ") as "#Hγ'2".
+    iDestruct (lloc_own_fid_inj with "Hγ' Hγ'2") as %[_ Heq].
+    specialize (Heq eq_refl); simplify_eq.
     iMod (na_inv_acc_open with "Hinv1 Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)". iDestruct "HH" as "((%lv1&%v1&Hℓ1&#Hlv1&#Hv1)&Hna&Hclose1)".
@@ -226,8 +227,9 @@ Section Proofs.
     wp_pure _.
     iDestruct "Hbox" as (i γ ℓ) "(->&#Hsimγ&#Hγfgn&#Hinv1&#Hinv2)".
     iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iPoseProof (pgm_elem_to_pers with "Hsimγ") as "#Hγ'2".
+    iDestruct (lloc_own_fid_inj with "Hγ' Hγ'2") as %[_ Heq].
+    specialize (Heq eq_refl); simplify_eq.
     iMod (na_inv_acc_open with "Hinv2 Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)". iDestruct "HH" as "(HI2&Hna&Hclose2)".

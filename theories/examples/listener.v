@@ -149,7 +149,7 @@ Section Proofs.
     { iNext. iRight. iFrame "Ha". }
     iMod (pgm_elem_persist with "Hγfgn'") as "#Hγfgn'".
     iModIntro. iApply "Cont2". iApply ("Cont" $! θ1 (#(LitForeign i)) with "HGC [-] [] []").
-    2: iExists _; by iFrame "Hi".
+    2: iExists _; iSplit; first done; by iPoseProof (pgm_elem_to_pers with "Hi") as "#$".
     2: done.
     iApply ("HWP" with "Hna [-]").
     iExists i, γ, a.
@@ -173,8 +173,9 @@ Section Proofs.
     Local Transparent listener_interp.
     iDestruct "Hbox" as (i γ a) "(->&#Hsimγ&#Hγfgn&#Hinv)".
     iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iPoseProof (pgm_elem_to_pers with "Hsimγ") as "#Hγ'2".
+    iDestruct (lloc_own_fid_inj with "Hγ' Hγ'2") as %[_ Heq].
+    specialize (Heq eq_refl); simplify_eq.
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)". wp_pures.
@@ -224,8 +225,9 @@ Section Proofs.
     Local Transparent listener_interp.
     iDestruct "Hbox" as (i γ a) "(->&#Hsimγ&#Hγfgn&#Hinv)".
     iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iPoseProof (pgm_elem_to_pers with "Hsimγ") as "#Hγ'2".
+    iDestruct (lloc_own_fid_inj with "Hγ' Hγ'2") as %[_ Heq].
+    specialize (Heq eq_refl); simplify_eq.
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)".
@@ -273,8 +275,9 @@ Section Proofs.
     Local Transparent listener_interp.
     iDestruct "Hbox" as (i γ a) "(->&#Hsimγ&#Hγfgn&#Hinv)".
     iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iPoseProof (pgm_elem_to_pers with "Hsimγ") as "#Hγ'2".
+    iDestruct (lloc_own_fid_inj with "Hγ' Hγ'2") as %[_ Heq].
+    specialize (Heq eq_refl); simplify_eq.
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)".
@@ -475,7 +478,7 @@ Proof.
     by rewrite lookup_empty in Heq. }
 Qed.
 
-(*Print Assumptions listener_client_1_adequacy.*)
+(* Print Assumptions listener_client_1_adequacy. *)
 (* Should print the assumed axioms, which are:
    - Prop Extensionality
    - Proof Irrelevance

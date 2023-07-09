@@ -22,7 +22,7 @@ Section Specs.
   ==∗ GC θ roots ∗ ∃ v, isBufferRecordML v ℓbuf Pb c ∗ lv ~~ v.
   Proof.
     iIntros "HGC H". iNamed "H". iNamed "Hbuf".
-    iMod (mut_to_ml_store _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
+    iMod (mut_to_ml_store _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%fidℓ&%ℓML&HℓbufML&#HγML))".
     1: by cbn.
     iModIntro. iFrame "HGC".
     iExists _. iSplitL.
@@ -32,26 +32,27 @@ Section Specs.
       unfold named. by iFrame "Hγfgnpto Hℓbuf Hγfgnsim HContent". }
     { cbn. iExists _, _, _. iSplitL; first done.
       iFrame "Hγbuf".
-      iSplitL; first (iExists _; iSplit; done).
+      iSplitL; first (iExists _, _; iSplit; done).
       iExists _, _, _. iSplit; first done.
       iFrame "Hγaux". iSplit; first done.
-      iExists _; iSplit; done. }
+      iExists _; iSplit; first done. by iPoseProof (pgm_elem_to_pers with "Hγfgnsim") as "$". }
   Qed.
 
   Lemma bufToC v ℓbuf Pb c lv θ roots:
       GC θ roots
    -∗ isBufferRecordML v ℓbuf Pb c
    -∗ lv ~~ v
-  ==∗ ∃ (ℓML:loc) fid γ, GC θ (roots ∪ {[γ]}) ∗ isBufferRecord lv ℓbuf Pb c ∗ ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝ ∗ γ ~ℓ~ ℓML.
+  ==∗ ∃ fidℓ (ℓML:loc) fid γ, GC θ (roots ∪ {[γ]}) ∗ isBufferRecord lv ℓbuf Pb c ∗ ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))%MLV⌝ ∗ γ ~ℓ~ ℓML @ fidℓ.
   Proof.
     iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
-    iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
-    iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim [$]") as "(HGC&%Hiff)".
-    destruct Hiff as [_ ->]; last done.
-    iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%ℓvs&%γref2&HGC&Hγusedref&#Hsim2&#Hγrefsim)".
-    iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim [$]") as "(HGC&%Hiff)".
-    destruct Hiff as [_ ->]; last done.
-    iModIntro. do 3 iExists _.
+    iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&%fidℓ&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
+    iPoseProof (pgm_elem_to_pers with "Hγfgnsim") as "#Hγfgnsim'".
+    iDestruct (lloc_own_fid_inj with "Hγfgnsim2 Hγfgnsim'") as %[_ Heq].
+    specialize (Heq eq_refl); simplify_eq.
+    iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(%ℓvs&%γref2&%fid2'&HGC&Hγusedref&#Hsim2&#Hγrefsim)".
+    iDestruct (lloc_own_pub_inj_2 with "Hsim2 Hsim []") as "%Hiff". 1: by iLeft.
+    subst γref2.
+    iModIntro. do 4 iExists _.
     iFrame "HGC Hsim". iSplit; last done.
     iExists _, _, _, _, _, _. unfold named.
     iSplit; first done.
@@ -63,32 +64,31 @@ Section Specs.
       iPureIntro; done. }
   Qed.
 
-  Lemma bufToC_fixed ℓbuf Pb (c:nat) (ℓML:loc) γ fid lv θ roots :
+  Lemma bufToC_fixed ℓbuf Pb (c:nat) (ℓML:loc) fidℓ γ fid lv θ roots :
       GC θ roots
    -∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c
    -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-   -∗ γ ~ℓ~ ℓML
+   -∗ γ ~ℓ~ ℓML @ fidℓ
   ==∗ GC θ (roots ∪ {[γ]}) ∗ isBufferRecord lv ℓbuf Pb c.
   Proof.
     iIntros "HGC H #Hsim #Hsim2".
-    iMod (bufToC with "HGC H Hsim") as "(%ℓML1&%fid1&%γ1&HGC&$&%Href&#Hsimm)". simplify_eq.
+    iMod (bufToC with "HGC H Hsim") as "(%fidℓ2&%ℓML1&%fid1&%γ1&HGC&$&%Href&#Hsimm)". simplify_eq.
     iModIntro.
-    iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimm HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ Heq]. by rewrite Heq.
+    iDestruct (lloc_own_pub_inj_2 with "Hsim2 Hsimm []") as %<-. 1: by iLeft. done.
   Qed.
 
-  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) γ fid θ roots :
+  Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) fidℓ γ fid θ roots :
       GC θ roots
    -∗ isBufferRecord lv ℓbuf Pb c
    -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid)))
-   -∗ γ ~ℓ~ ℓML
+   -∗ γ ~ℓ~ ℓML @ fidℓ
   ==∗ GC θ (roots ∖ {[γ]}) ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign fid))) ℓbuf Pb c.
   Proof.
     iIntros "HGC H #Hsim #Hsimgam".
     iMod (bufToML with "HGC H") as "(HGC&%&HML&#Hsim2)".
     iNamed "HML". rename γ into γinp.
-    iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
-    iDestruct "Hsim2" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
+    iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&%fidref&->&Hsim)&%γaux&%&%&->&Hγaux&->&%γfgn2&->&Hγfgnsim2)".
+    iDestruct "Hsim2" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&%fidref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
     simplify_eq.
     unfold lstore_own_vblock, lstore_own_elem; cbn.
     iDestruct "Hγbuf" as "(Hγbuf&_)".
@@ -97,12 +97,9 @@ Section Specs.
     iDestruct "Hγaux2" as "(Hγaux2&_)".
     iPoseProof (pgm_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
     iPoseProof (pgm_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
-    iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
-    iPoseProof (lloc_own_pub_inj with "Hsim Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
-    iPoseProof (lloc_own_pub_inj with "Hsimgam Hsim HGC") as "(HGC&%Heq3)"; simplify_eq.
-    destruct Heq1 as [Heq1 _]; rewrite Heq1; last done.
-    destruct Heq2 as [Heq2 _]; rewrite Heq2; last done.
-    destruct Heq3 as [_ Heq3]; rewrite Heq3; last done.
+    iDestruct (lloc_own_fid_inj with "Hγfgnsim2 Hγfgnsim3") as %[Heq1 _]; specialize (Heq1 eq_refl); simplify_eq.
+    iDestruct (lloc_own_pub_inj_1 with "Hsim Hsim2 [//]") as %(Heq2&Heq2b); simplify_eq.
+    iDestruct (lloc_own_pub_inj_2 with "Hsimgam Hsim []") as %Heq3; first by iLeft. simplify_eq.
     iPoseProof (GC_confront_MLloc with "HGC HℓbufML Hsim2") as "($&HℓbufML)".
     iModIntro.
     repeat iExists _. iSplit; first done. iFrame.

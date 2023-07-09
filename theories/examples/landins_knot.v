@@ -39,25 +39,19 @@ Section C_specs.
     iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
     iSplit; first done. iIntros (Φ'') "HΦ".
     destruct lvs as [|lvl [|lvx [|??]]]; try done.
-    all: cbn; iDestruct "Hsim" as "([%γ [-> #Hγ]]&Hsim)"; try done.
+    all: cbn; iDestruct "Hsim" as "((%γ&%fid&[-> #Hγ])&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hx&?)"; try done.
     destruct ws as [|wl [|wx [|??]]]; decompose_Forall.
     wp_call_direct.
-    iMod (ml_to_mut with "[$HGC $Hl]") as "(%lvs&%γ'&HGC&Hl&#Hγ'&Hlvs)".
+    iMod (ml_to_mut with "[$HGC $Hl]") as "(%lvs&%γ'&%fid2&HGC&Hl&#Hγ'&Hlvs)".
     destruct lvs as [|lvf [|??]]; try done.
     all: cbn; iDestruct "Hlvs" as "([%γ'' [-> #Hγ'']]&?)"; try done.
-    iAssert (⌜γ = γ'⌝)%I as %<-. {
-      iDestruct (lloc_own_pub_inj with "Hγ Hγ' HGC") as "[? %]".
-      iPureIntro. naive_solver.
-    }
+    iDestruct (lloc_own_pub_inj_2 with "Hγ Hγ' []") as %<-; first by iLeft.
     wp_apply (wp_readfield with "[$HGC $Hl]"); [done..|].
     iIntros (? wfaux) "(HGC&Hl&%Heq&%Hγaux)"; cbv in Heq; simplify_eq. wp_pures.
-    iMod (mut_to_ml_store _ [RecV _ _ _] with "[$HGC $Hl]") as "[HGC (%l'&Hl&#Hγ''')]".
+    iMod (mut_to_ml_store _ [RecV _ _ _] with "[$HGC $Hl]") as "[HGC (%fid'&%l'&Hl&#Hγ''')]".
     { cbn. eauto with iFrame. }
-    iAssert (⌜l' = l⌝)%I as %<-. {
-      iDestruct (lloc_own_pub_inj with "Hγ' Hγ''' HGC") as "[? %]".
-      iPureIntro. naive_solver.
-    }
+    iDestruct (lloc_own_pub_inj_1 with "Hγ Hγ''' [//]") as %(<-&_).
     iPoseProof (GC_confront_MLloc with "HGC Hl Hγ") as "(HGC&Hl)".
     eassert (((∅ ∪ {[γ]}) ∖ {[γ]}) = (∅:gset lloc)) as -> by set_solver.
     wp_apply (wp_callback with "[$HGC $Hx $Hγ'' HWP Hl]"); [done.. | |].

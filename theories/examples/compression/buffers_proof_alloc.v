@@ -62,25 +62,29 @@ Section Proofs.
     wp_pure _.
     wp_apply (wp_int2val with "HGC"); [done..|].
     iIntros (wunit) "(HGC&%Hwunit)".
-    wp_apply (wp_modify with "[$HGC $Hγbfref]"); [done..|].
+    wp_apply (wp_modify with "[#] [$HGC $Hγbfref]"); [done..| |].
+    1: iIntros (? [=]).
     iIntros "(HGC&Hγbfref)".
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
     iIntros (wbf'4) "(Hℓbf&HGC&%Hbf'4)".
-    wp_apply (wp_modify with "[$HGC $Hγbf]"); [done..|].
+    wp_apply (wp_modify with "[#] [$HGC $Hγbf]"); [done..| |].
+    1: iIntros (? [= <-]); iApply (GC_lloc_to_fid with "HGC"); iDestruct "Hγbfref" as "($&_)".
     iIntros "(HGC&Hγbf)".
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
     iIntros (wbf'4') "(Hℓbf&HGC&%Hbf'4')".
     wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
     iIntros (wbf2'4) "(Hℓbf2&HGC&%Hbf2'4)".
-    wp_apply (wp_modify with "[$HGC $Hγbf]"); [done..|].
+    wp_apply (wp_modify with "[#] [$HGC $Hγbf]"); [done..| |].
+    1: iIntros (? [= <-]); iApply (GC_lloc_to_fid with "HGC"); iDestruct "Hγbf2" as "($&_)".
     iIntros "(HGC&Hγbf)".
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
     iIntros (wbf2'4') "(Hℓbf2&HGC&%Hbf2'4')".
-    wp_apply (wp_modify with "[$HGC $Hγbf2]"); [try done..|].
+    wp_apply (wp_modify with "[#] [$HGC $Hγbf2]"); [try done..|].
     1: by eapply repr_lval_lint.
+    1: iIntros (? [=]).
     iIntros "(HGC&Hγbf2)".
     wp_pure _.
 
@@ -88,7 +92,8 @@ Section Proofs.
     iIntros (wbf2'4'') "(Hℓbf2&HGC&%Hbf2'4'')".
     wp_apply (load_from_root with "[$HGC $Hℓbk]"); [done..|].
     iIntros (wbk'4') "(Hℓbk&HGC&%Hbk'4')".
-    wp_apply (wp_modify with "[$HGC $Hγbf2]"); [done..|].
+    wp_apply (wp_modify with "[#] [$HGC $Hγbf2]"); [done..| |].
+    1: iIntros (? [= <-]); iApply (GC_lloc_to_fid with "HGC"); iDestruct "Hγbk" as "(($&_)&_)".
     iIntros "(HGC&Hγbf2)".
     wp_pure _.
 
@@ -106,16 +111,17 @@ Section Proofs.
     cbn.
     iMod (freeze_to_immut with "[$HGC $Hγbf]") as "(HGC&#Hγbf)".
     iMod (freeze_to_immut with "[$HGC $Hγbf2]") as "(HGC&#Hγbf2)".
-    iMod (freeze_to_mut with "[$HGC $Hγbfref]") as "(HGC&Hγbfref)".
+    iMod (freeze_to_mut _ _ _ _ [_] with "[$HGC $Hγbfref]") as "(HGC&Hγbfref)".
+    1: cbn; iSplit; done.
 
-    iPoseProof "Hγbk" as "((Hγbk&%Hγbk)&%fid&#Hfid)".
+    iPoseProof "Hγbk" as "((Hγbk&%Hγbk)&%fidblk&#Hfidblk)".
 
     iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer n) n) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
-    { iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame. iFrame "Hγbf Hγbf2".
+    { iExists γbf, γbfref, γbf2, γbk, 0, fidblk. unfold named. iFrame. iFrame "Hγbf Hγbf2".
       iSplit; first done.
       iExists (replicate n None). unfold named, lstore_own_foreign.
       rewrite map_replicate; cbn.
-      iFrame. iFrame "Hfid". iSplit; first (iSplit; first done; by iExists fid).
+      iFrame. iFrame "Hfidblk". iSplit; first (iSplit; first done; by iExists fidblk).
       rewrite (_: Z.to_nat n = n); last lia. iFrame.
       iPureIntro; split_and!.
       1: done.
@@ -146,12 +152,13 @@ Section Proofs.
     iPoseProof (@pgm_elem_agree with "[] []") as "%Heq".
     1: iDestruct "Hγbuf" as "(HH&_)"; iApply "HH".
     1: iDestruct "HH2" as "(HH&_)"; iApply "HH".
-    iDestruct "Hγusedref" as "(Helem&%ℓ2&#HHsim)". simplify_eq.
+    iDestruct "Hγusedref" as "(Helem&%fidℓ&%ℓ2&#HHsim)". simplify_eq.
     iAssert (γfgn ~foreign~ fid) as "#Hfgn".
     { iNamed "Hbuf". done. }
+    iPoseProof (pgm_elem_to_pers with "Hfgn") as "#fgnfid".
     iMod (bufToML_fixed with "HGC [Hbuf Helem] [] HHsim") as "(HGC&Hbuffer)".
     - repeat iExists _. iSplit; first done. iFrame "Hγbuf Hγaux Helem Hbuf".
-      by iExists _.
+      by repeat iExists _.
     - repeat progress (try iSplit; try done; try iExists _).
     - iModIntro. iApply "HΦ".
       rewrite -(_: z = Z.to_nat z); last lia.
