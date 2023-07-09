@@ -14,8 +14,8 @@ From melocoton.examples.compression Require Import compression_defs buffers_spec
 Section ListUtils.
 
   (* construction for the list insertion/update syntax:
-     list [i := f(i), ... j-1 := f(j-1) ] is defined by
-      list_parallel_insert_extending f i j l *)
+     $lst [i := f(i), ... j-1 := f(j-1) ]$ is defined by
+     list_parallel_insert_extending f i j lst *)
 
   Fixpoint tabulate {A:Type} (f : nat → A) (n:nat) : list A := match n with
     0 => nil

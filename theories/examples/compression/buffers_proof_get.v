@@ -32,7 +32,7 @@ Section Proofs.
     eapply Forall2_cons_inv_l in Hrepr as (wi&?&Hli&Hrepr&?); simplify_eq.
     cbn. wp_call_direct.
 
-    iMod (bufToC with "HGC Hbuf Hsimb") as "(%&%&%&HGC&HBuf1&->&#Hsim1)".
+    iMod (bufToC with "HGC Hbuf Hsimb") as "(%&%&%&%&HGC&HBuf1&->&#Hsim1)".
     iNamed "HBuf1". iNamed "Hbuf".
     iDestruct "HContent" as "(HContent&%Heqres)".
     wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
