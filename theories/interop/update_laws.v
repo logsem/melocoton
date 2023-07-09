@@ -459,16 +459,46 @@ Proof using.
   eapply freeze_lstore_freeze_lloc; eauto.
 Qed.
 
+Lemma GC_lloc_to_fid_pers θ dirty γ hdr : 
+    GC θ dirty
+ -∗ lstore_own_head γ hdr
+ -∗ (∃ fid, γ ~@~ fid).
+Proof.
+  iIntros "HGC Hγ".
+  iNamed "HGC". iNamed "HSI_block_level".
+  iDestruct (lstore_own_head_of with "GCζauth Hγ") as %(blk&Hγζ&Hhead).
+  assert (γ ∈ dom χ_future) as (vis&Hγχ)%elem_of_dom by by eapply elem_of_dom_2, elem_of_weaken in Hγζ.
+  iExists _. by iApply lloc_own_auth_get_fid.
+Qed.
+
 Lemma GC_lloc_to_fid θ dirty γ dq (blk:basics.block) : 
     GC θ dirty
  -∗ lstore_own_elem γ dq blk
  -∗ (∃ fid, γ ~@~ fid).
 Proof.
-  iIntros "HGC Hγ".
+  iIntros "HGC Hγ". iApply (GC_lloc_to_fid_pers with "HGC [Hγ]").
+  unfold lstore_own_elem; destruct (mutability blk).
+  all: iPoseProof (pgm_elem_to_pers with "Hγ") as "$".
+Qed.
+
+Lemma GC_block_sim_to_canon θ dirty v lv : 
+    GC θ dirty
+ -∗ block_sim v lv
+ -∗ ∃ v', block_canon lv v'.
+Proof.
+  iIntros "HGC Hsim".
   iNamed "HGC". iNamed "HSI_block_level".
-  iPoseProof (lstore_own_elem_of with "GCζauth Hγ") as "%Hγζ".
-  assert (γ ∈ dom χ_future) as (vis&Hγχ)%elem_of_dom by by eapply elem_of_dom_2, elem_of_weaken in Hγζ.
-  iExists _. by iApply lloc_own_auth_get_fid.
+  by iApply (block_sim_find_canon with "GCχauth GCζauth Hsim").
+Qed.
+
+Lemma GC_block_sim_arr_to_canon θ dirty vs lvs : 
+    GC θ dirty
+ -∗ block_sim_arr vs lvs
+ -∗ ∃ vs', block_canon_arr lvs vs'.
+Proof.
+  iIntros "HGC Hsim".
+  iNamed "HGC". iNamed "HSI_block_level".
+  by iApply (block_sim_arr_find_canon with "GCχauth GCζauth Hsim").
 Qed.
 
 Lemma update_root θ dirty (l:loc) v E :

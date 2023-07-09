@@ -909,12 +909,20 @@ Proof.
   intros H; inversion H; by econstructor.
 Qed.
 
-Lemma to_val_find_canon χ ζ x y : dom ζ ⊆ dom χ → is_val χ ζ x y → ∃ xcanon, is_canon χ y xcanon.
+Lemma is_val_find_canon χ ζ x y : dom ζ ⊆ dom χ → is_val χ ζ x y → ∃ xcanon, is_canon χ y xcanon.
 Proof.
   intros Hsub H; inversion H; simplify_eq.
   1-4,9: by repeat econstructor.
   all: eapply elem_of_dom_2, elem_of_weaken in H0; last done; eapply elem_of_dom in H0 as [vis Hvis].
   all: eexists; econstructor; done.
+Qed.
+
+Lemma is_val_arr_find_canon χ ζ xs ys : dom ζ ⊆ dom χ → Forall2 (is_val χ ζ) xs ys → ∃ xcanons, Forall2 (is_canon χ) ys xcanons.
+Proof.
+  intros Hdom.
+  induction 1 as [|x xs y ys (xc&Hxc)%is_val_find_canon _ (xsc&Hxsc)]; first by eexists.
+  2: done.
+  eexists (xc::xsc). by econstructor.
 Qed.
 
 Lemma is_val_mono χ χL ζ ζL x y :
