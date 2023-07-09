@@ -289,24 +289,34 @@ Proof using.
       by epose proof (Hinj k γ' _ vis' (ltac:(by rewrite lookup_insert)) (ltac:(by rewrite lookup_insert_ne)) (ltac:(by left))).
 Qed.
 
-Lemma lloc_own_pub_inj γ1 γ2 ℓ1 ℓ2 fid1 fid2 :
+Lemma lloc_own_pub_inj_1 γ1 γ2 ℓ1 ℓ2 fid1 fid2 :
     γ1 ~ℓ~ ℓ1 @ fid1
  -∗ γ2 ~ℓ~ ℓ2 @ fid2
- -∗ ⌜γ1 = γ2 ↔ (ℓ1 = ℓ2 ∨ fid1 = fid2)⌝.
+ -∗ ⌜γ1 = γ2⌝
+ →  ⌜(ℓ1 = ℓ2 ∧ fid1 = fid2)⌝.
 Proof.
-  iIntros "#Hsim1 #Hsim2".
+  iIntros "#Hsim1 #Hsim2 ->".
+  iDestruct (pgm_elem_agree with "Hsim1 Hsim2") as %Heq; simplify_eq.
+  iPureIntro; done.
+Qed.
+
+Lemma lloc_own_pub_inj_2 γ1 γ2 ℓ1 ℓ2 fid1 fid2 :
+    γ1 ~ℓ~ ℓ1 @ fid1
+ -∗ γ2 ~ℓ~ ℓ2 @ fid2
+ -∗ ⌜(ℓ1 = ℓ2 ∨ fid1 = fid2)⌝
+ →  ⌜γ1 = γ2⌝.
+Proof.
+  iIntros "#Hsim1 #Hsim2 %Heq".
   destruct (decide (γ1 = γ2)) as [->|Hne].
-  { iDestruct (pgm_elem_agree with "Hsim1 Hsim2") as %Heq; simplify_eq;
-    iPureIntro; naive_solver. }
+  1: done.
   iPoseProof (pgm_lookup_prop (D:=LlocPGMData) (<[γ1 := LlocPublic fid1 ℓ1]> {[γ2 := LlocPublic fid2 ℓ2 ]}) with "[Hsim1 Hsim2]") as "%HH".
   - iApply big_sepM_insert. 1: by rewrite lookup_singleton_ne.
     iSplitL; first by iExists _.
     iApply big_sepM_singleton. by iExists _.
-  - iPureIntro; split; first by by intros.
-    intros H; eapply HH.
+  - iPureIntro. eapply HH.
     1: by rewrite lookup_insert.
     1: by rewrite lookup_insert_ne // lookup_singleton.
-    destruct H as [-> | ->].
+    destruct Heq as [-> | ->].
     + right; by eexists.
     + by left.
 Qed.
@@ -842,6 +852,9 @@ Proof using.
   eapply _.
 Qed.
 
+Lemma block_canon_to_fid γ v : block_canon (Lloc γ) v ⊢ ∃ fid, γ ~@~ fid.
+Proof. iIntros "(%fid&_&Hfid)"; by iExists fid. Qed.
+
 Lemma block_canon_of_auth (χvirt : lloc_map)
    v b :
   is_canon χvirt b v →
@@ -904,7 +917,7 @@ Lemma block_sim_find_canon ζ χ b v :
 Proof.
   iIntros (Hdom) "Hχ Hζ Hsim".
   iDestruct (block_sim_auth_is_val_simple with "Hχ Hζ Hsim") as %Hisval.
-  apply to_val_find_canon in Hisval as (canon&Hcanon); last done.
+  apply is_val_find_canon in Hisval as (canon&Hcanon); last done.
   iExists canon.
   by iApply block_canon_of_auth.
 Qed.
