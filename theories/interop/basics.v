@@ -138,6 +138,12 @@ Definition block_get_header (b: block) : block_header :=
   | Bforeign _ => Hforeign
   end.
 
+Definition block_header_tag (h: block_header) :=
+  match h with
+  | Hvblock tg _ => TagVblock tg
+  | Hclosure => TagClosure
+  | Hforeign => TagForeign end.
+
 Inductive lval_in_block : block → lval → Prop :=
   | ValInVblock v m tg vs :
     v ∈ vs → lval_in_block (Bvblock (m, (tg, vs))) v.
@@ -650,6 +656,11 @@ Proof.
   rewrite lookup_delete_ne//. rewrite !map_filter_lookup.
   destruct (lloc_map_pubs χ !! γ'); eauto; cbn.
   apply option_guard_iff. set_solver.
+Qed.
+
+Lemma block_header_tag_compat blk hd : hd = block_get_header blk → block_tag blk = block_header_tag hd.
+Proof.
+  intros ->; by destruct blk as [(?&?&?)| |].
 Qed.
 
 Lemma lstore_immut_blocks_lookup_Some ζ γ b :
