@@ -65,29 +65,29 @@ Proof using.
   iMod "HWP" as "(Hσ & HWP)". by iFrame.
 Qed.
 
-Lemma HSI_GC_acc ζ θ roots γ w m tg vs i vv :
+Lemma HSI_GC_acc ζ θ roots χ γ w m tg vs i vv :
   repr_lval θ (Lloc γ) w
 → ζ !! γ = Some (Bvblock (m, (tg, vs)))
 → vs !! i = Some vv
-→ SI_GC ζ θ roots
+→ SI_GC ζ θ roots χ
 ⊢ ⌜∃ ww, repr_lval θ vv ww⌝.
 Proof.
   iIntros (H1 H2 H3) "H4". iNamed "H4".
-  destruct HGCOK as [HGCL HGCR]. inv_repr_lval.
+  destruct HGCOK as (HGCL&Hdom&HGCR). inv_repr_lval.
   destruct vv as [vvz|vvl]; first (iExists _; iPureIntro; econstructor).
   eapply elem_of_dom in HGCR as [w' Hw']; first (iExists _; iPureIntro; econstructor).
   1: eapply Hw'. 1: eapply elem_of_dom_2, H4. 1: done.
   constructor; by eapply elem_of_list_lookup_2.
 Qed.
 
-Lemma HSI_GC_modify ζ θ roots γ blk':
+Lemma HSI_GC_modify ζ θ χ roots γ blk':
   (∀ γ', lval_in_block blk' (Lloc γ') → γ' ∈ dom θ ∨ ∃ blk, ζ !! γ = Some blk ∧ lval_in_block blk (Lloc γ')) →
-  SI_GC ζ θ roots
-⊢ SI_GC (<[ γ := blk' ]> ζ) θ roots.
+  SI_GC ζ θ roots χ
+⊢ SI_GC (<[ γ := blk' ]> ζ) θ roots χ.
 Proof.
   iIntros (H) "H". iNamed "H".
   iExists roots_m. iFrame. iPureIntro; split_and!; try done.
-  destruct HGCOK as [HL HR]; split; first done.
+  destruct HGCOK as (HL&Hdom&HR); split_and!; [done..|].
   intros γ1 blk γ2 Hγ1 [(Heq&Hlu)|(Hne&Hlu)]%lookup_insert_Some H2; simplify_eq.
   2: by eapply HR.
   destruct (H _ H2) as [Hl|(blk1&Hblk&Hr)]; first done.

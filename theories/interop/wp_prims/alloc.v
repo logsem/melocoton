@@ -37,7 +37,7 @@ Proof using.
        iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
 
-  assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
+  assert (GC_correct (ζC ρc) (θC ρc) (χC ρc)) as HGC'.
   { eapply GC_correct_transport_rev; last done; done. }
 
   iApply wp_pre_cases_c_prim; [done..|].
@@ -46,7 +46,7 @@ Proof using.
     (∀ γ' vis', γ ≠ γ' → (χC ρc) !! γ' = Some vis' → fid ≠ lloc_visibility_fid vis') ∧
     χC' = <[γ := LlocPrivate fid]> (χC ρc) ∧
     ζC' = <[γ := Bvblock (Mut, (tg, repeat (Lint 0) (Z.to_nat sz)))]> (ζC ρc) ∧
-    GC_correct ζC' θC' ∧
+    GC_correct ζC' θC' χC' ∧
     repr θC' _ _ _ ∧
     roots_are_live θC' _ ∧
     θC' !! γ = Some a ∧
@@ -92,6 +92,12 @@ Proof using.
   iMod (lstore_own_insert _ γ (Bvblock (Mut, blk)) with "GCζauth") as "(GCζauth & Hbp1)". 1: done.
   iMod (lloc_own_allocate _ γ with "[] GCχauth") as "(GCχauth&Hbp2)". 1-2: done.
 
+  assert (expose_llocs (<[γ:=LlocPrivate fid]> (χC ρc)) (<[γ:=LlocPrivate fid]> χ_future)) as Hχfuturenew.
+  { destruct Hχfuture as (Hf1&Hf2&Hf3); split_and!.
+    * rewrite !dom_insert_L Hf1; done.
+    * by apply lloc_map_inj_insert_priv.
+    * by apply expose_llocs_insert_private_both; eauto. }
+
   do 3 iModIntro. iFrame. cbn -[wrap_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
@@ -114,10 +120,7 @@ Proof using.
   - iExists roots_m. iFrame. iPureIntro; split_and!; try done.
     by eapply GC_correct_transport.
   - done.
-  - destruct Hχfuture as (Hf1&Hf2&Hf3); split_and!.
-    * rewrite !dom_insert_L Hf1; done.
-    * by apply lloc_map_inj_insert_priv.
-    * by apply expose_llocs_insert_private_both; eauto.
+  - done.
 Qed.
 
 End Laws.

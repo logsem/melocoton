@@ -462,6 +462,34 @@ Proof.
     + erewrite <- map_union_assoc. eapply map_union_subseteq_r. done.
 Qed.
 
+Lemma extend_by_gset γset χold :
+  lloc_map_inj χold →
+  ∃ χnew, extended_to χold ∅ χnew ∧ γset ⊆ dom χnew.
+Proof.
+  revert χold.
+  pose (Bforeign (Some (LitV LitNull))) as v.
+  induction γset as [|γ γset Hni IH] using set_ind_L; intros χold Hinj.
+  - exists χold. repeat split.
+    1: done. 1: done. 1: by rewrite dom_empty_L.
+    1: intros γ Hγ; rewrite dom_empty_L in Hγ; set_solver.
+    1: set_solver.
+  - destruct (IH χold Hinj) as (χnew1 & Hextended & Helemof).
+    destruct (χnew1 !! γ) as [vis|] eqn:Hin.
+    { exists χnew1. split; first done.
+      apply union_least; last done. eapply elem_of_dom_2 in Hin.
+      set_solver. }
+    destruct (find_fresh_fid χnew1) as (fid&Hfid).
+    exists (<[γ := LlocPrivate fid]> χnew1).
+    destruct Hextended as (He1&He2&He3).
+    repeat split.
+    + etransitivity; last by eapply insert_subseteq. apply He1.
+    + eapply lloc_map_inj_insert_priv. 1: apply He1.
+      intros ?? _; eapply Hfid.
+    + rewrite dom_empty_L. set_solver.
+    + intros ? H. by rewrite dom_empty_L in H.
+    + rewrite dom_insert_L. set_solver.
+Qed.
+
 
 End ChiZetaConstruction.
 

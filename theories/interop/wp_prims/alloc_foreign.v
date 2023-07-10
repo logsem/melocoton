@@ -37,7 +37,7 @@ Proof using.
        iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
 
-  assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
+  assert (GC_correct (ζC ρc) (θC ρc) (χC ρc)) as HGC'.
   { eapply GC_correct_transport_rev; last done; done. }
 
   iApply wp_pre_cases_c_prim; [done..|].
@@ -46,7 +46,7 @@ Proof using.
     (∀ γ' vis', γ ≠ γ' → (χC ρc) !! γ' = Some vis' → fid ≠ lloc_visibility_fid vis') ∧
     χC' = <[γ := LlocForeign fid]> (χC ρc) ∧
     ζC' = <[γ := Bforeign None]> (ζC ρc) ∧
-    GC_correct ζC' θC' ∧
+    GC_correct ζC' θC' χC' ∧
     repr θC' _ _ _ ∧
     roots_are_live θC' _ ∧
     θC' !! γ = Some a ∧
@@ -112,7 +112,8 @@ Proof using.
     * intros ℓ Hℓ; destruct (Hstore _ Hℓ) as (γ'&fid'&Hγ'); exists γ', fid'; rewrite lookup_insert_ne; first done.
       intros ->; simplify_eq.
   - iExists roots_m. iFrame. iPureIntro; split_and!; try done.
-    by eapply GC_correct_transport.
+    eapply GC_correct_transport; try done.
+    by eapply expose_llocs_insert_foreign_both.
   - done.
   - by apply expose_llocs_insert_foreign_both.
 Qed.

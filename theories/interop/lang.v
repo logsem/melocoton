@@ -101,7 +101,7 @@ Definition ml_to_c_core
     (** Demonically pick block-level values lvs that represent the arguments vs. *)
     Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
     (** Demonically pick an addr_map θC satisfying the GC_correct property. *)
-    GC_correct (ζC ρc) (θC ρc) ∧
+    GC_correct (ζC ρc) (θC ρc) (χC ρc) ∧
     (** Rooted values must additionally be live in θC. *)
     roots_are_live (θC ρc) (rootsML ρml) ∧
     (** Pick C-level words that are live and represent the arguments of the
@@ -167,38 +167,44 @@ Proof.
   1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. }
   destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
 
-  eexists ws, (WrapstateC χ2 ζC θC _), mem. unfold ml_to_c; cbn.
+  destruct (extend_by_gset (dom θC) χ2) as (χ3&Hχ3&Hdom3).
+  1: apply Hext2.
+
+  pose proof (extended_to_trans _ _ _ _ _ Hext2 Hχ3) as (HextG&_).
+  rewrite map_union_empty in HextG.
+
+  eexists ws, (WrapstateC χ3 ζC θC _), mem. unfold ml_to_c; cbn.
   eapply HY. exists ζσ, (ζσimm ∪ ζimm), lvs; split_and!; try done; cbn.
   { eapply extended_to_trans; done. }
   { destruct Hstorebl as [HL HR]; split.
-    { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (fid & γ & Hγ). exists fid, γ. eapply lookup_weaken; first done. apply Hext2. }
+    { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (fid & γ & Hγ). exists fid, γ. eapply lookup_weaken; first done. apply HextG. }
     { intros γ; destruct (HR γ) as [HRL HRH]; split.
-       1: intros H; destruct (HRL H) as (fid & ℓ & Vs & H1 & H2); exists fid, ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2.
+       1: intros H; destruct (HRL H) as (fid & ℓ & Vs & H1 & H2); exists fid, ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply HextG.
        intros (fid & ℓ & Vs & H1 & H2). apply HRH. exists fid, ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (fid2 & γ2 & Hγ2).
-       eapply lookup_weaken in Hγ2 as Hγ2'. 2: eapply Hext2.
+       eapply lookup_weaken in Hγ2 as Hγ2'. 2: eapply HextG.
        enough (γ2 = γ) as Heqeq by by simplify_eq.
-       eapply Hext2. 1-2: done. right; by eexists. } }
+       eapply HextG. 1-2: done. right; by eexists. } }
   { assert (∀ A (P Q : A → Prop), (∀ x, P x → Q x) → ex P → ex Q) as Hhelp.
     1: intros ??? H1 (x&H2); exists x; eauto.
     intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply Hhelp.
     1,3: intros k Hk; eapply lookup_weaken; first exact Hk; cbn in Hk.
-    3: eapply Hext; done. 1: eapply Hext2.
-    2: eapply Hext2; done. done. }
+    3: eapply Hext; done. 1: eapply HextG.
+    2: eapply HextG; done. done. }
   { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.
     eapply map_disjoint_dom, disjoint_weaken; first eapply map_disjoint_dom, Hdis1; try done.
     erewrite ! dom_union_L; set_solver. }
   { intros fid ℓ vs' γ b H1 H2 H3. unfold ζC in *. rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3.
     apply lookup_union_Some_inv_l in H3.
-    2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc as (?&Hc'); congruence.
+    2: apply not_elem_of_dom; intros Hc; apply HextG in Hc as (?&Hc'); congruence.
     destruct Hstorebl as [HL HR]; destruct (HL ℓ) as (fid'&v&Hv); first by eapply elem_of_dom_2.
     eapply is_heap_elt_weaken. 1: eapply Hstore; try done.
-    2: apply Hext2.
-    + rewrite -H3. f_equal. eapply Hext2; try done. 1: eapply lookup_weaken, Hext2; try done.
+    2: apply HextG.
+    + rewrite -H3. f_equal. eapply HextG; try done. 1: eapply lookup_weaken, HextG; try done.
       right; by eexists.
     + eapply map_union_subseteq_l. }
-  { eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono; last done; first done.
+  { eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono. 3: done. 1: apply Hχ3.
     unfold ζC. rewrite ! map_union_assoc. eapply map_union_subseteq_r. done. }
-  { split; first done. subst θdom3. intros γ blk γ' _ H2 H3.
+  { split_and!; [done..|]. subst θdom3. intros γ blk γ' _ H2 H3.
     apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 2 eexists; done. }
 Qed.
 
@@ -264,14 +270,14 @@ Inductive c_prim_step :
     (0 ≤ sz)%Z →
     dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
-    GC_correct (ζC ρc) (θC ρc) →
+    GC_correct (ζC ρc) (θC ρc) (χC ρc) →
     roots_are_live (θC ρc) roots →
     (∀ γ fid χC' ζC' θC' a mem',
       χC ρc !! γ = None →
       (∀ γ' vis', χC ρc !! γ' = Some vis' → fid ≠ lloc_visibility_fid vis') →
       χC' = <[ γ := LlocPrivate fid ]> (χC ρc) →
       ζC' = <[ γ := (Bvblock (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz)))) ]> (ζC ρc) →
-      GC_correct ζC' θC' →
+      GC_correct ζC' θC' χC' →
       repr θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
@@ -335,14 +341,14 @@ Inductive c_prim_step :
   | PrimAllocForeignS roots privmem ρc mem Y :
     dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
-    GC_correct (ζC ρc) (θC ρc) →
+    GC_correct (ζC ρc) (θC ρc) (χC ρc) →
     roots_are_live (θC ρc) roots →
     (∀ γ id χC' ζC' θC' a mem',
       χC ρc !! γ = None →
       (∀ γ' vis', χC ρc !! γ' = Some vis' → id ≠ lloc_visibility_fid vis') →
       χC' = <[ γ := LlocForeign id ]> (χC ρc) →
       ζC' = <[ γ := Bforeign None ]> (ζC ρc) →
-      GC_correct ζC' θC' →
+      GC_correct ζC' θC' χC' →
       repr θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
@@ -393,10 +399,11 @@ Proof.
     - intros γ' vis' Hlu1 Heq.
       eapply is_fresh, elem_of_lloc_map_fids. eexists γ', vis'. done.
       Unshelve. all: apply _.
-    - split.
+    - split_and!.
       + eapply gmap_inj_extend; try done.
         intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).
         eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin.
+      + rewrite !dom_insert_L. set_solver.
       + intros γ1 blk1 γ' HH1 [(->&HH)|(HA&HB)]%lookup_insert_Some HH3.
         1: subst blk1; by apply lval_in_vblock, elem_of_list_In, repeat_spec in HH3.
         rewrite dom_insert_L in HH1.
@@ -427,10 +434,11 @@ Proof.
     - intros γ' vis' Hlu1 Heq.
       eapply is_fresh, elem_of_lloc_map_fids. eexists γ', vis'. done.
       Unshelve. all: apply _.
-    - split.
+    - split_and!.
       + eapply gmap_inj_extend; try done.
         intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).
         eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin.
+      + rewrite dom_insert_L. set_solver.
       + intros γ1 blk1 γ' HH0 [(->&HH)|(HH1&HH2)]%lookup_insert_Some H3.
         1: subst; by inversion H3.
         rewrite dom_insert_L in HH0.
