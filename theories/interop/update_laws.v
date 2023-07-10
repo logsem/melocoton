@@ -385,6 +385,17 @@ Proof.
   iExists _. iFrameNamed.
 Qed.
 
+Lemma SI_GC_mono ζ θ roots_s χ1 χ2 : dom χ1 ⊆ dom χ2 →
+  SI_GC ζ θ roots_s χ1
+⊢ SI_GC ζ θ roots_s χ2.
+Proof.
+  iIntros (Hdom) "H". iNamed "H". iExists roots_m. iFrame.
+  iPureIntro; split_and!; try done.
+  split_and!; try apply HGCOK.
+  etransitivity; last exact Hdom. apply HGCOK.
+Qed.
+  
+
 Lemma freeze_to_mut γ lvs θ dirty vs :
   ⊢ GC θ dirty ∗ γ ↦fresh (TagDefault, lvs) ∗ block_canon_arr lvs vs ==∗
     GC θ (dirty ∪ {[γ]}) ∗ γ ↦mut (TagDefault, lvs).
@@ -417,7 +428,9 @@ Proof using.
   2: { iApply lstore_own_vblock_M_as_mut. iFrame "Hmtζ". eauto. }
   rewrite /GC /SI_block_level /named.
   iExists ζ, ζ_future, χ, (<[γ:=LlocPublic fid ℓ]> χ_future), roots_s.
-  iFrame "GCζ GCχ GCθ GCroots GCinit GCχvirt HSI_GC". iSplit; last first.
+  iPoseProof (SI_GC_mono with "HSI_GC") as "HSI_GC".
+  2: iFrame "GCζ GCχ GCθ GCroots GCinit GCχvirt HSI_GC"; iSplit; last first.
+  { rewrite dom_insert_L. eapply elem_of_dom_2 in Hχγ. set_solver. }
   { iSplit; first done.
     iPureIntro. eapply expose_llocs_trans; first eassumption.
     eapply expose_llocs_insert; eauto. }

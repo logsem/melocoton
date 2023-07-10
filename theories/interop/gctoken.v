@@ -73,13 +73,13 @@ Definition SI_block_level (ζ_future : lstore) (χ_future : lloc_map) (dirty : g
       per_location_invariant ζ_future σMLvirt dirty γ ℓ)
   ∗ "%Hstore" ∷ ⌜∀ ℓ, ℓ ∈ dom σMLvirt → ∃ fid γ, χ_future !! γ = Some (LlocPublic fid ℓ)⌝.
 
-Definition SI_GC (ζ_future : lstore) (θ : addr_map) (roots_s : gset addr) : iProp Σ :=
+Definition SI_GC (ζ_future : lstore) (θ : addr_map) (roots_s : gset addr) (χ : lloc_map) : iProp Σ :=
   ∃ (roots_m : gmap addr lval),
     "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
   ∗ "GCrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
   ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
   ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
-  ∗ "%HGCOK" ∷ ⌜GC_correct ζ_future θ⌝.
+  ∗ "%HGCOK" ∷ ⌜GC_correct ζ_future θ χ⌝.
 
 Definition GC (θ : addr_map) (dirty : gset lloc) : iProp Σ :=
   ∃ (ζ ζ_future : lstore) (χ χ_future : lloc_map)
@@ -90,7 +90,7 @@ Definition GC (θ : addr_map) (dirty : gset lloc) : iProp Σ :=
   ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
   ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
   ∗ "HSI_block_level" ∷ SI_block_level ζ_future χ_future dirty
-  ∗ "HSI_GC" ∷ SI_GC ζ_future θ roots_s
+  ∗ "HSI_GC" ∷ SI_GC ζ_future θ roots_s χ_future
   ∗ "%Hζfuture" ∷ ⌜freeze_lstore ζ ζ_future⌝
   ∗ "%Hχfuture" ∷ ⌜expose_llocs χ χ_future⌝.
 

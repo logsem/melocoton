@@ -268,9 +268,9 @@ Inductive modify_block : block → nat → lval → block → Prop :=
    reachable from live blocks are also live.
 
    (+ administrative side-conditions: θ must be injective and map locations that
-   exist in ζ) *)
-Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
-  gmap_inj θ ∧
+   exist in χ) *)
+Definition GC_correct (ζ : lstore) (θ : addr_map) (χ : lloc_map) : Prop :=
+  gmap_inj θ ∧ dom θ ⊆ dom χ ∧
   ∀ γ blk γ',
     γ ∈ dom θ →
     ζ !! γ = Some blk →
@@ -1159,16 +1159,16 @@ Proof.
     intros x y H5. eapply is_val_insert_immut; eauto.
 Qed.
 
-Lemma GC_correct_freeze_lloc ζ θ γ b :
-  GC_correct ζ θ →
+Lemma GC_correct_freeze_lloc ζ χ θ γ b :
+  GC_correct ζ θ χ →
   ζ !! γ = Some (Bvblock (Mut, b)) →
-  GC_correct (<[γ := Bvblock (Immut, b)]> ζ) θ.
+  GC_correct (<[γ := Bvblock (Immut, b)]> ζ) θ χ.
 Proof.
-  intros [H1 H2] Hζγ; split; first done. intros γ1 * ? ?.
+  intros (H1&H2&H3) Hζγ; split_and!; first done. 1:done. intros γ1 * ? ?.
   inversion 1; subst.
   destruct (decide (γ1 = γ)) as [-> |];
     simplify_map_eq; eauto.
-  eapply H2; eauto. by constructor.
+  eapply H3; eauto. by constructor.
 Qed.
 
 Global Instance freeze_lstore_refl : Reflexive (freeze_lstore).
@@ -1270,9 +1270,10 @@ Lemma lval_in_vblock v m tg vs :
 Proof. split. by inversion 1. intros; by constructor. Qed.
 
 
-Lemma GC_correct_transport ζ1 ζ2 θ : freeze_lstore ζ1 ζ2 → GC_correct ζ1 θ → GC_correct ζ2 θ.
+Lemma GC_correct_transport ζ1 ζ2 θ χ1 χ2 : freeze_lstore ζ1 ζ2 → expose_llocs χ1 χ2 → GC_correct ζ1 θ χ1 → GC_correct ζ2 θ χ2.
 Proof.
-  intros (H1L&H1R) (H2&H3). split; first done.
+  intros (H1L&H1R) (He1&_) (H2&H2b&H3). split_and!; first done.
+  1: by rewrite -He1.
   intros γ blk γ' HH1 HH2 HH3.
   destruct (ζ1 !! γ) as [b|] eqn:Heq.
   2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite H1L in Heq; tauto. }
@@ -1283,9 +1284,10 @@ Proof.
 Qed.
 
 
-Lemma GC_correct_transport_rev ζ1 ζ2 θ : freeze_lstore ζ2 ζ1 → GC_correct ζ1 θ → GC_correct ζ2 θ.
+Lemma GC_correct_transport_rev ζ1 ζ2 θ χ1 χ2 : freeze_lstore ζ2 ζ1 → expose_llocs χ2 χ1 → GC_correct ζ1 θ χ1 → GC_correct ζ2 θ χ2.
 Proof.
-  intros (H1L&H1R) (H2&H3). split; first done.
+  intros (H1L&H1R) (He1&_) (H2&H2b&H3). split_and!; first done.
+  1: by rewrite He1.
   intros γ blk γ' HH1 HH2 HH3.
   destruct (ζ1 !! γ) as [b|] eqn:Heq.
   2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite -H1L in Heq; tauto. }
@@ -1295,8 +1297,8 @@ Proof.
   eapply H3. 1: exact HH1. 1: done. eapply lval_in_vblock. done.
 Qed.
 
-Lemma GC_correct_gmap_inj ζ θ :
-  GC_correct ζ θ →
+Lemma GC_correct_gmap_inj ζ θ χ :
+  GC_correct ζ θ χ →
   gmap_inj θ.
 Proof. intros H; apply H. Qed.
 Global Hint Resolve GC_correct_gmap_inj : core.
