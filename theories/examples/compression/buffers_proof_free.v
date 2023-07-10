@@ -62,8 +62,7 @@ Section Proofs.
     iIntros (vγref2 wγref2) "(HGC&_&%Heq1&%Hreprγref2)". cbv in Heq1; simplify_eq.
     wp_apply (wp_int2val with "HGC"); [done..|].
     iIntros (wnum) "(HGC&%Hreprm1)".
-    wp_apply (wp_modify with "[] [$HGC $Hγusedref]"); [done..| |].
-    1: iIntros (? [=]).
+    wp_apply (wp_modify with "[$HGC $Hγusedref]"); [done..|].
     change (Z.to_nat 0) with 0. cbn.
     iIntros "(HGC&Hγusedref)". wp_pure _.
     iApply (wp_post_mono with "[HGC]").

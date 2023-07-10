@@ -62,29 +62,25 @@ Section Proofs.
     wp_pure _.
     wp_apply (wp_int2val with "HGC"); [done..|].
     iIntros (wunit) "(HGC&%Hwunit)".
-    wp_apply (wp_modify with "[#] [$HGC $Hγbfref]"); [done..| |].
-    1: iIntros (? [=]).
+    wp_apply (wp_modify with "[$HGC $Hγbfref]"); [done..|].
     iIntros "(HGC&Hγbfref)".
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
     iIntros (wbf'4) "(Hℓbf&HGC&%Hbf'4)".
-    wp_apply (wp_modify with "[#] [$HGC $Hγbf]"); [done..| |].
-    1: iIntros (? [= <-]); iApply (GC_lloc_to_fid with "HGC"); iDestruct "Hγbfref" as "($&_)".
+    wp_apply (wp_modify with "[$HGC $Hγbf]"); [done..|].
     iIntros "(HGC&Hγbf)".
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
     iIntros (wbf'4') "(Hℓbf&HGC&%Hbf'4')".
     wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
     iIntros (wbf2'4) "(Hℓbf2&HGC&%Hbf2'4)".
-    wp_apply (wp_modify with "[#] [$HGC $Hγbf]"); [done..| |].
-    1: iIntros (? [= <-]); iApply (GC_lloc_to_fid with "HGC"); iDestruct "Hγbf2" as "($&_)".
+    wp_apply (wp_modify with "[$HGC $Hγbf]"); [done..|].
     iIntros "(HGC&Hγbf)".
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
     iIntros (wbf2'4') "(Hℓbf2&HGC&%Hbf2'4')".
-    wp_apply (wp_modify with "[#] [$HGC $Hγbf2]"); [try done..|].
+    wp_apply (wp_modify with "[$HGC $Hγbf2]"); [try done..|].
     1: by eapply repr_lval_lint.
-    1: iIntros (? [=]).
     iIntros "(HGC&Hγbf2)".
     wp_pure _.
 
@@ -92,8 +88,7 @@ Section Proofs.
     iIntros (wbf2'4'') "(Hℓbf2&HGC&%Hbf2'4'')".
     wp_apply (load_from_root with "[$HGC $Hℓbk]"); [done..|].
     iIntros (wbk'4') "(Hℓbk&HGC&%Hbk'4')".
-    wp_apply (wp_modify with "[#] [$HGC $Hγbf2]"); [done..| |].
-    1: iIntros (? [= <-]); iApply (GC_lloc_to_fid with "HGC"); iDestruct "Hγbk" as "(($&_)&_)".
+    wp_apply (wp_modify with "[$HGC $Hγbf2]"); [done..|].
     iIntros "(HGC&Hγbf2)".
     wp_pure _.
 
