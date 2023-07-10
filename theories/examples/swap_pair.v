@@ -95,10 +95,7 @@ Proof.
   iIntros (wlv1') "(Hr1&HGC&%Hrepr1')".
 
   (* modify 1 *)
-  wp_apply (wp_modify with "[#] [$HGC $Hnew]"); [done..| |].
-  { iIntros (??); simplify_eq.
-    iPoseProof (GC_block_sim_to_canon with "HGC Hlv1") as "#(%&Hcanon)".
-    by iApply block_canon_to_fid. }
+  wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
   iIntros "(HGC & Hnew)". change (Z.to_nat 1) with 1. cbn.
   wp_pures.
 
@@ -108,10 +105,7 @@ Proof.
   iIntros (wlv2') "(Hr2&HGC&%Hrepr2')".
 
   (* modify 2 *)
-  wp_apply (wp_modify with "[#] [$HGC $Hnew]"); [done..| |].
-  { iIntros (??); simplify_eq.
-    iPoseProof (GC_block_sim_to_canon with "HGC Hlv2") as "#(%&Hcanon)".
-    by iApply block_canon_to_fid. }
+  wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
   iIntros "(HGC & Hnew)". change (Z.to_nat 0) with 0. cbn.
   wp_pures.
 

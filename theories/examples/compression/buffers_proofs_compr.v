@@ -124,8 +124,7 @@ Section Proofs.
     wp_apply (wp_load with "Hℓcap2"). iIntros "Hℓcap2".
     wp_apply (wp_int2val with "HGC"); [mdone..|].
     iIntros (w0) "(HGC&%Hrepr0)".
-    wp_apply (wp_modify with "[#] [$HGC $Hγusedref2]"); [mdone..| |].
-    1: iIntros (? [=]).
+    wp_apply (wp_modify with "[$HGC $Hγusedref2]"); [mdone..|].
     iIntros "(HGC&Hγusedref2)". wp_pure _.
     wp_apply (wp_free with "Hℓcap2"). iIntros "_".
     do 2 wp_pure _.

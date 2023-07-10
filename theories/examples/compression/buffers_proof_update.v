@@ -162,8 +162,7 @@ Section Proofs.
           iIntros "Hℓi". wp_pure _.
           wp_apply (wp_int2val with "HGC"); [done..|].
           iIntros (vnp1) "(HGC&%Hnp1)".
-          wp_apply (wp_modify with "[#] [$HGC $HℓbufML]"); [done..| |].
-          1: iIntros (? [=]).
+          wp_apply (wp_modify with "[$HGC $HℓbufML]"); [done..|].
           iIntros "(HGC&HℓbufML)". iFrame "HGC Hℓbf Hℓi".
           rewrite max_r; last lia. change (Z.to_nat 0) with 0; cbn.
           rewrite Z2Nat.id; last lia. done. }

@@ -56,7 +56,16 @@ Proof using.
 
   inversion Hblk'; simplify_eq.
 
-  iMod (GC_per_loc_modify_ζ_in_detail with "[Hv'safe] Hpto GCσMLv GC_per_loc") as "(%σMLvirt'&%Hdom&Hpto&GCσMLv&GC_per_loc)".
+  iAssert (⌜dom (θC ρc) ⊆ dom χ_future⌝)%I as "%Hdomtheta".
+  1: iNamed "HSI_GC"; by destruct HGCOK as (HH1&HH2&HH3).
+  iAssert (∀ γ, ⌜v' = Lloc γ⌝ → ∃ v, block_canon (Lloc γ) v)%I as "#Hcanonv'".
+  { iIntros (γ' Heq); subst v'.
+    inversion Hreprw'; simplify_eq.
+    eapply elem_of_dom_2, Hdomtheta, elem_of_dom in H1 as [vis Hvis].
+    iExists _, (lloc_visibility_fid vis); cbn. iSplit; first done.
+    by iApply lloc_own_auth_get_fid. }
+
+  iMod (GC_per_loc_modify_ζ_in_detail with "[] Hpto GCσMLv GC_per_loc") as "(%σMLvirt'&%Hdom&Hpto&GCσMLv&GC_per_loc)".
   - eapply lloc_map_pubs_inj, Hχfuture.
   - done.
   - by rewrite insert_length.
@@ -70,14 +79,14 @@ Proof using.
       2: rewrite list_lookup_insert_ne in HH1; last done; by iApply "Hforall".
       simplify_eq. rewrite list_lookup_insert in HH1; last by rewrite Hlen.
       by simplify_eq.
-    + iDestruct ("Hv'safe" with "[]") as "(%fid&Hfid)". 1: done.
-      iExists (<[Z.to_nat i := ML_lang.LitV (LitForeign fid) ]> vhi).
+    + iDestruct ("Hcanonv'" $! γ' eq_refl) as "(%xcanon&Hx)".
+      iExists (<[Z.to_nat i := xcanon ]> vhi).
       iApply big_sepL2_forall.
       rewrite !insert_length. iSplit; first done.
       iIntros (k x1 x2 HH1 [(Heq1&Heq2&Hlt)|(Hne1&Hne2)]%list_lookup_insert_Some).
       2: rewrite list_lookup_insert_ne in HH1; last done; by iApply "Hforall".
       simplify_eq. rewrite list_lookup_insert in HH1; last by rewrite Hlen.
-      iExists fid. iFrame "Hfid". by simplify_eq.
+      by simplify_eq.
   - do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
     iApply wp_value; first done.
     change (Z.of_nat 0) with (Z0).
