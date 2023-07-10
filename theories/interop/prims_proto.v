@@ -110,27 +110,25 @@ Definition isblock_proto : C_proto := (λ fn vl Φ,
                   (match lv with Lloc _ => 1 | _ => 0 end))))%I.
 
 Definition read_tag_proto : C_proto := (λ fn vl Φ,
-  ∃ θ dirty γ w dq bl tg,
+  ∃ θ dirty γ w hd tg,
     "->" ∷ ⌜fn = "read_tag"⌝ ∗
     "HGC" ∷ GC θ dirty ∗
     "->" ∷ ⌜vl = [ w ]⌝ ∗
-    "->" ∷ ⌜tg = block_tag bl⌝ ∗
+    "->" ∷ ⌜tg = block_header_tag hd⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ lstore_own_elem γ dq bl ∗
+    "Hpto" ∷ lstore_own_head γ hd ∗
     "Cont" ∷ ▷ (GC θ dirty -∗
-                 lstore_own_elem γ dq bl -∗
                  Φ (C_intf.LitV $ C_intf.LitInt $ (tag_as_int tg))))%I.
 
 Definition length_proto : C_proto := (λ fn vl Φ,
-  ∃ θ dirty γ w a dq bl,
+  ∃ θ dirty γ w tg ln,
     "->" ∷ ⌜fn = "length"⌝ ∗
     "HGC" ∷ GC θ dirty ∗
     "->" ∷ ⌜vl = [ w ]⌝ ∗
     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ γ ↦vblk[ a ]{ dq } bl ∗
+    "Hpto" ∷ γ ↦head Hvblock tg ln ∗
     "Cont" ∷ ▷ (GC θ dirty -∗
-                 γ ↦vblk[ a ]{ dq } bl -∗
-                 Φ (C_intf.LitV $ C_intf.LitInt $ length $ snd $ bl)))%I.
+                 Φ (C_intf.LitV $ C_intf.LitInt $ ln)))%I.
 
 Definition alloc_proto : C_proto := (λ fn vl Φ,
    ∃ θ dirty tg sz,

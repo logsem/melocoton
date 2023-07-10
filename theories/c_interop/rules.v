@@ -198,6 +198,24 @@ Proof.
   iIntros "!> HGC". by iApply "Cont".
 Qed.
 
+
+Lemma wp_read_tag_header p Ψ θ dirty γ w hdr :
+  p !! "read_tag" = None →
+  read_tag_proto ⊑ Ψ →
+  repr_lval θ (Lloc γ) w →
+  {{{ GC θ dirty ∗ lstore_own_head γ hdr}}}
+    (call: &"read_tag" with (Val w))%CE at ⟨p, Ψ⟩
+  {{{ RET #(tag_as_int (block_header_tag hdr)); GC θ dirty}}}.
+Proof.
+  intros Hp Hproto **. iIntros "(HGC&#Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /read_tag_proto /named.
+  do 6 iExists _. iFrame "HGC Hpto".
+  do 4 (iSplit; first done). iNext.
+  iIntros "HGC". wp_pures. iApply ("Cont" with "[$]").
+Qed.
+
 Lemma wp_read_tag p Ψ θ dirty γ w dq bl :
   p !! "read_tag" = None →
   read_tag_proto ⊑ Ψ →
@@ -207,12 +225,34 @@ Lemma wp_read_tag p Ψ θ dirty γ w dq bl :
   {{{ RET #(tag_as_int (block_tag bl)); GC θ dirty ∗ lstore_own_elem γ dq bl }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC&Hpto) Cont".
+  iAssert (lstore_own_head γ (block_get_header bl)) as "#Hpers".
+  1: unfold lstore_own_elem; destruct (mutability bl); by iPoseProof (pgm_elem_to_pers with "Hpto") as "$".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /read_tag_proto /named.
-  do 7 iExists _. iFrame "HGC Hpto".
+  do 6 iExists _. iFrame "HGC Hpers".
   do 4 (iSplit; first done). iNext.
-  iIntros "HGC Hpto". wp_pures. iApply ("Cont" with "[$]").
+  iIntros "HGC". wp_pures. erewrite <- block_header_tag_compat; last done.
+  iApply ("Cont" with "[$]").
+Qed.
+
+
+Lemma wp_length_header p Ψ θ dirty γ w tg ln :
+  p !! "length" = None →
+  length_proto ⊑ Ψ →
+  repr_lval θ (Lloc γ) w →
+  {{{ GC θ dirty ∗ γ ↦head Hvblock tg ln }}}
+    (call: &"length" with (Val w))%CE at ⟨p, Ψ⟩
+  {{{ RET #ln; GC θ dirty}}}.
+Proof.
+  intros Hp Hproto **. iIntros "(HGC & #Hpto) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /length_proto /named.
+  do 6 iExists _. iFrame. iFrame "Hpto".
+  do 3 (iSplit; first by eauto with lia). iIntros "!> HGC".
+  cbn.
+  iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
 Lemma wp_length p Ψ θ dirty γ w m dq tg vs :
@@ -226,10 +266,12 @@ Lemma wp_length p Ψ θ dirty γ w m dq tg vs :
 Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
+  iAssert (lstore_own_head γ (Hvblock tg (length vs))) as "#Hpers".
+  1: iDestruct "Hpto" as "(H&_)"; destruct m; by iPoseProof (pgm_elem_to_pers with "H") as "$".
   iModIntro. cbn. iApply Hproto.
   rewrite /length_proto /named.
-  do 7 iExists _. iFrame.
-  do 3 (iSplit; first by eauto with lia). iIntros "!> HGC Hpto".
+  do 6 iExists _. iFrame "HGC Hpers".
+  do 3 (iSplit; first by eauto with lia). iIntros "!> HGC".
   cbn.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.

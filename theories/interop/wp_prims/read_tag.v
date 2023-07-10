@@ -22,13 +22,13 @@ Import mlanguage.
 
 Lemma read_tag_correct e : |- wrap_prog e :: read_tag_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H". iPoseProof "Hpto" as "#Hpto".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree. iNamed "HSI_block_level".
-  iPoseProof (lstore_own_elem_of with "GCζauth Hpto") as "%Helem".
+  iDestruct (lstore_own_head_of with "GCζauth Hpto") as %(bl&Helem&HH); subst hd.
   iAssert ⌜∃ bl2, ζC ρc !! γ = Some bl2 ∧ block_tag bl2 = block_tag bl⌝%I as "%Helem2".
   1: { iPureIntro.
        eapply freeze_lstore_lookup_backwards in Helem as (?&Hfrz&?); eauto.
@@ -39,9 +39,9 @@ Proof using.
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done. rewrite -Heqtag.
+  iApply wp_value; first done. rewrite Heqtag. erewrite <- block_header_tag_compat; last done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[-Hpto] [$Hpto]"); try done; [].
+  iApply ("Cont"); try done; [].
   rewrite /GC /named.
   do 5 iExists _; iFrame. iSplit; last done.
   iExists _; iFrame; done.
