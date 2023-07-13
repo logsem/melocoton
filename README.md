@@ -107,6 +107,7 @@ The Coq development lives in the `theories/` directory.
 
 - `examples/`: example programs leveraging the FFI
 
+- `extra/`: Actual OCaml+C code implementing (and testing) some of the examples.
 
 ## Guide through the development following the paper
 
@@ -279,6 +280,7 @@ non-constructive axioms:
 - Proof Irrelevance (`Coq.Logic.ProofIrrelevance.proof_irrelevance`)
 - (Dependent) Functional extensionality (`Coq.Logic.FunctionalExtensionality.functional_extensionality_dep`)
 - Excluded Middle (`Coq.Logic.Classical_Prop.classic`)
+- A version of the axiom of choice (`Coq.Logic.Epsilon.epsilon_statement`)
 
 These axioms [can be safely added to
 Coq](https://github.com/coq/coq/wiki/The-Logic-of-Coq#what-axioms-can-be-safely-added-to-coq).

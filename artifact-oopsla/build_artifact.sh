@@ -20,6 +20,17 @@ get_github_archive () {
   rm "$3.zip"
 }
 
+get_github_archive_by_tag () {
+  wget -q "https://github.com/$1/$2/archive/refs/tags/$3.zip"
+  unzip -q "$3.zip"
+  mv "$2-$3" "$4"
+  rm "$3.zip"
+}
+
+get_github_tag_commit_hash () {
+  curl https://api.github.com/repos/$1/$2/tags | jq -r ".[] | select(.name==\"$3\") .commit.sha"
+}
+
 # Archives for private repos
 # Arguments: user, project, hash, output_dir_name.
 get_local_archive () {
@@ -46,7 +57,7 @@ mkdir ${ARTIFACT_DIR}
 STDPP_HASH="0231fed2d94280c383be3bb0b1c3eafecdde0fe1"
 IRIS_HASH="d6e890ee978b27893eb1bac1f50d766441570180"
 TRANSFINITE_HASH="aa492e2ce211c55392147498b0dcadcf5ea93457"
-MELOCOTON_HASH="8539ebdb9e958bcb4ae7fb976a0a21e5d215299e"
+MELOCOTON_TAG="artifact-oopsla23"
 AUTOSUBST_HASH="495d547fa2a3e40da0f7d2a31469ac8caab058d2"
 
 
@@ -55,7 +66,7 @@ cd ${ARTIFACT_DIR}
 get_gitlab_archive iris stdpp            ${STDPP_HASH}    coq-stdpp
 get_gitlab_archive simonspies iris-parametric-index ${IRIS_HASH} iris-parametric-index
 get_gitlab_archive simonspies transfinite-parametric-stepindex ${TRANSFINITE_HASH} transfinite-parametric-stepindex
-get_github_archive logsem melocoton ${MELOCOTON_HASH} melocoton
+get_github_archive_by_tag logsem melocoton ${MELOCOTON_TAG} melocoton
 get_github_archive coq-community autosubst ${AUTOSUBST_HASH} autosubst
 # ugly hack
 sed -i s/8.16/8.17/g autosubst/coq-autosubst.opam
@@ -68,7 +79,7 @@ echo "================================"           >> ${GENDATA}
 echo "iris/stdpp.git    : ${STDPP_HASH}"          >> ${GENDATA}
 echo "simonspies/iris-parametric-index.git    : ${IRIS_HASH}"          >> ${GENDATA}
 echo "simonspies/transfinite-parametric-stepindex.git    : ${TRANSFINITE_HASH}"          >> ${GENDATA}
-echo "logsem/melocoton.git    : ${MELOCOTON_HASH}"          >> ${GENDATA}
+echo "logsem/melocoton.git    : $(get_github_tag_commit_hash logsem melocoton $MELOCOTON_TAG)"          >> ${GENDATA}
 echo "coq-community/autosubst.git    : ${AUTOSUBST_HASH}"          >> ${GENDATA}
 # Copying static files.
 cp resources/README.md ${ARTIFACT_DIR}/
