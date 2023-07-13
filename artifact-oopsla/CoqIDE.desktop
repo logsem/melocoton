@@ -1,0 +1,5 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Name=CoqIDE
+Type=Application
+Exec=opam exec coqide --switch=melocoton

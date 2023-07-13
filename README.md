@@ -275,11 +275,19 @@ Section 5:
 This development uses Transfinite Iris, which itself relies on the following
 non-constructive axioms:
 
-- Propositional Extensionnality (`Coq.Logic.PropExtensionality.propositional_extensionality`)
+- Propositional Extensionality (`Coq.Logic.PropExtensionality.propositional_extensionality`)
 - Proof Irrelevance (`Coq.Logic.ProofIrrelevance.proof_irrelevance`)
 - (Dependent) Functional extensionality (`Coq.Logic.FunctionalExtensionality.functional_extensionality_dep`)
 - Excluded Middle (`Coq.Logic.Classical_Prop.classic`)
 
 These axioms [can be safely added to
 Coq](https://github.com/coq/coq/wiki/The-Logic-of-Coq#what-axioms-can-be-safely-added-to-coq).
+
+### Verifying consistency
+To check that these are the only axioms, and that we have not `Admitted.` any proofs, use the `Print Assumptions` command.
+
+For example, execute `Print Assumptions buffers_adequate` at the end of `theories/examples/buffers_adequacy.v` to see that
+the only assumptions used to validate the buffer examples are the ones above
+
+
 

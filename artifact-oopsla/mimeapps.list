@@ -1,0 +1,5 @@
+[Added Associations]
+text/x-verilog=CoqIDE.desktop;
+
+[Default Applications]
+text/x-verilog=CoqIDE.desktop;

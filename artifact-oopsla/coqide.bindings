@@ -1,0 +1,71 @@
+# LaTeX-like sequences are natively supported (eg, \forall, \mapsto)
+# Iris-specific abbreviations
+\fun            λ
+\mult           ⋅ 1
+\ent            ⊢ 1
+\valid          ✓
+\diamond        ◇
+\box            □ 1
+\bbox           ■
+\later          ▷
+\pred           φ
+\and            ∧
+\or             ∨
+\comp           ∘ 1
+\ccomp          ◎
+\all            ∀
+\ex             ∃
+\to             →
+\sep            ∗
+\lc             ⌜ 1
+\rc             ⌝ 1
+\Lc             ⎡ 1
+\Rc             ⎤ 1
+\lam            λ
+\empty          ∅
+\Lam            Λ
+\Sig            Σ
+\-              ∖ 1
+\aa             ● 1
+\af             ◯ 1
+\auth           ●
+\frag           ◯
+\iff            ↔ 1
+\gname          γ
+\incl           ≼
+\latert         ▶
+\update         ⇝
+# accents
+\"o             ö
+\Lob            Löb
+# subscripts and superscripts
+\^+             ⁺
+\_+             ₊
+\^-             ⁻
+\_0             ₀
+\_1             ₁
+\_2             ₂
+\_3             ₃
+\_4             ₄
+\_5             ₅
+\_6             ₆
+\_7             ₇
+\_8             ₈
+\_9             ₉
+\_a             ₐ
+\_e             ₑ
+\_h             ₕ
+\_i             ᵢ
+\_k             ₖ
+\_l             ₗ
+\_m             ₘ
+\_n             ₙ
+\_o             ₒ
+\_p             ₚ
+\_r             ᵣ
+\_s             ₛ
+\_t             ₜ
+\_u             ᵤ
+\_v             ᵥ
+\_x             ₓ
+ 
