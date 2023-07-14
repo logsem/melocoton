@@ -3,3 +3,6 @@
 /the_artifact.zip
 /.vagrant
 *-console.log
+/melocoton_artifact.*
+/melocoton_artifact/
+*.ova

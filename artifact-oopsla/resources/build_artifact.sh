@@ -4,9 +4,7 @@
 set -euo pipefail
 
 # Create a fresh directory swith.
-opam switch -y create melocoton ocaml-base-compiler.4.14.1
-opam switch melocoton
-opam switch link melocoton
+opam switch -y create . ocaml-base-compiler.4.14.1
 eval $(opam env)
 
 # Pin the local dependencies and install.

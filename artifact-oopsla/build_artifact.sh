@@ -3,7 +3,7 @@
 set -e
 
 # Directory name for the artifact:
-ARTIFACT_DIR="the_artifact"
+ARTIFACT_DIR="melocoton_artifact"
 
 # Arguments: user, project, hash, output_dir_name.
 get_gitlab_archive () {

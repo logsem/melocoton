@@ -2,4 +2,4 @@
 [Desktop Entry]
 Name=CoqIDE
 Type=Application
-Exec=opam exec coqide --switch=melocoton
+Exec=opam exec coqide --switch=/home/vagrant/Desktop/the_artifact
