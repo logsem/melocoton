@@ -20,7 +20,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.synced_folder ".", "/vagrant", disabled: true
-  config.vm.provision "file", source: "the_artifact.tgz", destination: "Desktop/the_artifact.tgz"
+  config.vm.provision "file", source: "melocoton_artifact.tgz", destination: "Desktop/melocoton_artifact.tgz"
   config.vm.provision "shell", inline: <<-SHELL
     set -e
     apt-get update
@@ -54,8 +54,8 @@ Vagrant.configure("2") do |config|
 
     whoami
     cd Desktop
-    tar xf the_artifact.tgz
-    cd the_artifact
+    tar xf melocoton_artifact.tgz
+    cd melocoton_artifact
     ./build_artifact.sh
   SHELL
 
