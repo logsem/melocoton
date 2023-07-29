@@ -239,6 +239,7 @@ Section typed_interp.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP /= Htok".
     iApply wp_pure_step_later; first done; iIntros "!>".
     iApply wp_value; first done. cbn. iFrame "Htok".
+    iExists _, _, _. iSplit; first done.
     iModIntro; iIntros (τi) "Htok".
     iApply wp_pure_step_later; first done. iIntros "!>". cbn.
     iApply "IH"; last done. 1: by iApply interp_env_ren.
@@ -249,7 +250,7 @@ Section typed_interp.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP /=".
     iApply (interp_expr_bind [AppLCtx _]); first by iApply "IH". cbn.
-    iIntros (v) "#Hv /= Htok".
+    iIntros (v) "#(%&%&%&_&Hv) /= Htok".
     iApply wp_wand_r; iSplitL;
       [iApply ("Hv" $! (⟦ τ' ⟧ Δ)); last done; iPureIntro; apply _|]; cbn.
     iIntros (w) "[? $]". by iApply interp_subst.
