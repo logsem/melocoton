@@ -328,7 +328,9 @@ Section Proofs.
     ⊢ log_typed (p:=p) P Γ ML_wrapper ML_type.
   Proof.
     intros ??. iIntros "!>" (Δ vs) "#HΔ #Hvs".
-    iIntros "?". wp_pures. iModIntro. iFrame. iIntros "!>" (τ) "Htok".
+    iIntros "?". wp_pures. iModIntro. iFrame.
+    iExists _, _, _. iSplit; first done.
+    iIntros "!>" (τ) "Htok". fold interp.
     wp_pures. iModIntro. iFrame "Htok".
     iExists (box_interp p.(penv_proto) (λne _, τ)%I Δ), _.
     iSplit; first done.

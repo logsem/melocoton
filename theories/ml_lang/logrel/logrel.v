@@ -83,7 +83,7 @@ Section logrel.
   Program Definition interp_forall
       (interp : listO D -n> D) : listO D -n> D :=
     λne Δ,
-    PersPred (λ w, □ ∀ τi : D,
+    PersPred (λ w, ∃ b1 b2 e, ⌜w = RecV b1 b2 e⌝ ∗ □ ∀ τi : D,
       na_tok -∗ WP TApp (of_val w) {{ λ v, interp (τi :: Δ) v ∗ na_tok }})%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
