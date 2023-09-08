@@ -71,6 +71,23 @@ The Coq development lives in the `theories/` directory.
 
 ## Guide through the development following the paper
 
+All paths are relative to the `theories/` directory.
+
+General notes: 
+- Hoare-triples shown in the paper will sometimes omit "later" modalities (▷)
+  that appear in front of *preconditions* of the Coq version. Later modalities
+  in preconditions make the Coq statement *slightly stronger* than the paper
+  version. In other words, omitting the "later" on paper is sound, and the
+  on-paper rule is a *consequence* of the corresponding rule in Coq.
+- The syntax `"foo_name" ∷ foo` is equivalent to `foo`. The extra string is 
+  a naming hint for tactics and has no semantic meaning.
+- The Coq scripts sometimes formulate rules in terms of weakest-preconditions
+  (`WP e {{ Q }}`) where the paper uses Hoare-triples (`{ P } e { Q }`). To help
+  matching the two, in first approach, a triple `{ P } e { Q }` can be read as
+  sugar for (`P -∗ WP e {{ Q }}`). (The exact definition is slightly different
+  and includes extra modalities, see "Texan triples" in iris, in
+  `bi/weakestpre.v`.)
+
 Section 2.1:
 
 - λC (toy) implementation of the compression library functions (Fig 2): in `examples/compression/compression_proofs.v`
@@ -112,12 +129,11 @@ Section 2.2:
   `examples/compression/compression_proofs.v`
 
 - The triple for `is_compressible` appears in `examples/compression/buffers_client.v`
+  (`ML_client_spec`, albeit with a stronger specification wrt the return boolean)
 
-- The triple for `buf_alloc` appears in `examples/compression/buffers_proof_alloc.v`
-
-- The λML interface Ψbuf_alloc for `buf_alloc` is defined in `examples/compression/buffers_specs_simpler.v`.
+- The λML interface Ψbuf_alloc for `buf_alloc` is defined in `examples/compression/buffers_specs_simpler.v` (`buf_alloc_spec_ML_simple`).
   Note that the interface shown in the paper is derived from a stronger specification of
-  `buf_alloc`, shown in `examples/compression/buffers_specs.v`.
+  `buf_alloc`, shown in `examples/compression/buffers_specs.v` (`buf_alloc_spec_ML`).
 
 - Note: we currently only have binary pairs in the Coq formalization, whereas
   the paper use tuples with 3 elements for representing λML buffers. In the Coq
@@ -125,7 +141,8 @@ Section 2.2:
 
 Section 2.3:
 
-- The λC implementation for `buf_alloc` (Fig 5) appears in `examples/compression/buffers_code.v`.
+- The λC implementation for `buf_alloc` (Fig 5) appears in `examples/compression/buffers_code.v`
+  (`buf_alloc_code`).
 
 Section 2.4:
 
@@ -154,14 +171,16 @@ Section 2.5:
 - `ML-TO-FFI` (Fig 6) is `ml_to_mut` in `interop/update_laws.v`
 - `FFI-TO-ML` (Fig 6) is `mut_to_ml` in `interop/update_laws.v`
 
-- The view reconciliation rule for buffers is proved in `examples/compression/buffers_specs.v`.
+- The view reconciliation rule for buffers is proved in `examples/compression/buffers_laws.v`
+  (`bufToML`).
 
 Section 3:
 
 - Small-step operational semantics of λML appear in `ml_lang/lang.v` (`head_step`)
 - Small-step operational semantics of λC appear in `c_lang/lang.v` (`head_step`)
-- The linking operational semantics appear in `linking/lang.v`
-- The wrapper operational semantics appear in `interop/lang.v`
+- The linking operational semantics appear in `linking/lang.v` (`prim_step_mrel`)
+- The wrapper operational semantics appear in `interop/lang.v` 
+  (`prim_step_mrel`, using `c_prim_step` as an auxiliary definition)
 - [e]_FFI (as a program) is `wrap_prog` defined in `interop/lang.v`
 - Linking of two programs is `link_prog` defined in `linking/lang.v`
 
@@ -170,7 +189,7 @@ Section 3.1:
 - The runtime state of the wrapper is defined in `interop/lang.v` (`state`),
   using auxiliary definitions in `interop/state.v` and `interop/basics.v`
 - The generic lifting from languages with relational semantics to multirelation
-  semantics is defined in `lang_to_mlang/lang.v`
+  semantics is defined in `lang_to_mlang/lang.v` (`prim_step_mrel`)
 - The definition `closed` corresponds to `GC_correct` in `interop/basics.v`
 - The definition `roots` corresponds to `roots_are_live` in `interop/basics.v`
 - The list of runtime primitives is defined in `interop/prims.v`
@@ -200,7 +219,7 @@ Section 4.1:
   + `ExecCallback` is `callback_correct` in `interop/wp_simulation.v`
 
 Section 4.2:
-- The definition of the GC resource is in `interop/gctoken.v`
+- The definition of the GC resource is in `interop/gctoken.v` (`GC`)
 
 Section 4.3:
 
