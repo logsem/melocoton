@@ -4,7 +4,12 @@ set -euo pipefail
 
 ## Run this script by passing it an empty directory as argument
 
-if [ -z "$1" ]; then
+## This script must be run in an environment that can build melocoton (we need
+## this in order to generate the html documentation with coqdoc and include it
+## in the archive). For some reason, odoc also needs to be installed in the
+## ambient opam switch for the html docs to build successfully.
+
+if [ $# -eq 0 ]; then
     echo "Usage: make-artifact.sh <name of empty artifact directory>"
     exit 1
 fi
@@ -12,7 +17,7 @@ fi
 DIR=$1
 
 if [ -d "$DIR" ]; then
-    if [ "$(ls -A $DIR)" ]; then
+    if [ "$(ls -A "$DIR")" ]; then
         echo "Artifact directory $DIR is not empty. Aborting."
         exit 1
     fi

@@ -5,7 +5,7 @@ clean:
 	dune clean
 
 html:
-	dune build @doc
+	dune build --display=short @doc
 	rm -rf html
 	cp -r _build/default/theories/melocoton.html html
 	chmod -R +w html
