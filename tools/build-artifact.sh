@@ -12,7 +12,7 @@ if [ -d "_opam" ]; then
 fi
 
 opam switch -y create . ocaml-base-compiler.4.14.1
-eval $(opam env)
+eval $(opam env --switch=. --set-switch)
 
 # Pin the local dependencies and install.
 opam update

@@ -49,9 +49,11 @@ coq-community/autosubst.git: $(git -C autosubst rev-parse HEAD)
 iris/stdpp.git: $(git -C stdpp rev-parse HEAD)
 " > generation_data.txt
 
-# move the setup script and artifact readme at the root of the archive
+# move the setup script and create the artifact readme at the root of the archive
 mv melocoton/tools/build-artifact.sh .
 mv melocoton/tools/README_artifact.md README.md
+cat melocoton/OVERVIEW.md >> README.md
+rm melocoton/OVERVIEW.md
 
 # build the html docs
 cd melocoton
@@ -64,7 +66,6 @@ rm -rf melocoton/_build
 rm -r melocoton/tools
 rm -r melocoton/examples
 rm -r melocoton/extra
-rm melocoton/coq-melocoton.opam
 
 echo "Changing directory to $CWD."
 cd "$CWD"
