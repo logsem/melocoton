@@ -26,17 +26,26 @@ CWD=$(pwd)
 cd "$DIR"
 echo "Changing directory to $DIR."
 
-# clone git repos
+# clone git repos (the branches or commit hashes must match the ones in coq-melocoton.opam)
 git clone git@github.com:logsem/melocoton.git
 git clone -b simon/parametric-index git-rts@gitlab.mpi-sws.org:simonspies/iris-parametric-index.git
 git clone -b simon/parametric-index git-rts@gitlab.mpi-sws.org:simonspies/transfinite-parametric-stepindex.git
-git clone -b master https://github.com/coq-community/autosubst
+git clone https://github.com/coq-community/autosubst
+( cd autosubst && git checkout e20eee1 )
+git clone https://gitlab.mpi-sws.org/iris/stdpp
+( cd stdpp && git checkout 0231fed2 )
 
-# fix the autosubst opam file...
-sed -i s/8.16/8.17/g autosubst/coq-autosubst.opam
+echo "Generation data for the artifact
+================================
+melocoton-project/melocoton.git: $(git -C melocoton rev-parse HEAD)
+simonspies/iris-parametric-index.git: $(git -C iris-parametric-index rev-parse HEAD)
+simonspies/transfinite-parametric-stepindex.git: $(git -C transfinite-parametric-stepindex rev-parse HEAD)
+coq-community/autosubst.git: $(git -C autosubst rev-parse HEAD)
+iris/stdpp.git: $(git -C stdpp rev-parse HEAD)
+" > generation_data.txt
 
 # move the setup script and artifact readme at the root of the archive
-mv melocoton/tools/setup-artifact.sh .
+mv melocoton/tools/build-artifact.sh .
 mv melocoton/tools/README_artifact.md README.md
 
 # build the html docs
@@ -45,13 +54,12 @@ make html
 cd ..
 
 # cleanup
-rm -rf melocoton/.git iris-parametric-index/.git transfinite-parametric-stepindex/.git autosubst/.git
+rm -rf melocoton/.git iris-parametric-index/.git transfinite-parametric-stepindex/.git autosubst/.git stdpp/.git
 rm -rf melocoton/_build
 rm -r melocoton/tools
 rm -r melocoton/examples
 rm -r melocoton/extra
-rm melocoton/opam
-rm melocoton/install-transfinite-iris.sh
+rm melocoton/coq-melocoton.opam
 
 echo "Changing directory to $CWD."
 cd "$CWD"

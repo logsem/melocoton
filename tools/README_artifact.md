@@ -9,13 +9,13 @@ Requirements: you need [opam](https://opam.ocaml.org/doc/Install.html) to be
 installed on your computer (version 2.0.0 or newer), and have gone through the
 initial `opam init` setup.
 
-From the directory containing this README file, run the `setup-artifact.sh`
+From the directory containing this README file, run the `build-artifact.sh`
 script. Nothing will be installed or
 written outside of this directory. The directory can be safely removed
 afterwards.
 
 ```
-    ./setup-artifact.sh
+    ./build-artifact.sh
     eval $(opam env) # to use dune and Coq in the current terminal
 ```
 
@@ -71,11 +71,11 @@ development and how it relates to the paper.
 ```
 
 
-- If the setup script fails for some reason, to restart from the beginning, it
+- If the build script fails for some reason, to restart from the beginning, it
 should be enough to remove the `_opam` subdirectory created by the script, and
 launch the script again.
 
 ```
     rm -rf ./_opam
-    ./setup-artifact.sh
+    ./build-artifact.sh
 ```
