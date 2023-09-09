@@ -54,6 +54,7 @@ mv melocoton/tools/build-artifact.sh .
 mv melocoton/tools/README_artifact.md README.md
 cat melocoton/OVERVIEW.md >> README.md
 rm melocoton/OVERVIEW.md
+rm melocoton/README.md
 
 # build the html docs
 cd melocoton
