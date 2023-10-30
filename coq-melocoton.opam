@@ -17,8 +17,8 @@ depends: [
 ]
 pin-depends: [
   [ "coq-iris-transfinite.dev" "git+https://gitlab.mpi-sws.org/johannes/transfinite-parametric-stepindex.git#simon/parametric-index" ]
-  [ "coq-iris.dev" "git+https://gitlab.mpi-sws.org/johannes/iris-parametric-index.git#simon/parametric-index" ]
-  [ "coq-iris-heap-lang.dev" "git+https://gitlab.mpi-sws.org/johannes/iris-parametric-index.git#simon/parametric-index" ]
+  [ "coq-iris.dev" "git+https://gitlab.mpi-sws.org/johannes/iris.git#simon/parametric-index" ]
+  [ "coq-iris-heap-lang.dev" "git+https://gitlab.mpi-sws.org/johannes/iris.git#simon/parametric-index" ]
 ]
 build: [
   ["dune" "build" "-p" name "-j" jobs "@install"]
