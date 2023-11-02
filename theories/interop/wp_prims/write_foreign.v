@@ -30,7 +30,6 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iDestruct "Hpto" as "(Hpto & Hsim)".
   iDestruct (lstore_own_mut_of with "GCζvirt Hpto") as %[Helem _].
   iAssert ⌜ζC ρc !! γ = Some (Bforeign wo)⌝%I as "%Helem2".
   { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
@@ -53,7 +52,7 @@ Proof using.
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[-Hpto Hsim] [$Hpto $Hsim]").
+  iApply ("Cont" with "[-Hpto] [$Hpto]").
   { iExists _, (<[γ:=Bforeign (Some w')]> (ζσ ∪ ζvirt)), ζσ, (<[γ:=Bforeign (Some w')]>ζvirt), _, χvirt, σMLvirt.
     iExists _, _. unfold named. iFrame.
     erewrite pub_locs_in_lstore_insert_existing; last by eapply elem_of_dom_2. iFrame.

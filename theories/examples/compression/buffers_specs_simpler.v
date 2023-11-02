@@ -228,9 +228,9 @@ Section Specs.
   Definition Pbu (arr : list Z) : nat → list (option Z) → iProp Σ := (λ used k, ∃ (zrest : list (option Z)), ⌜k = fmap Some arr ++ zrest⌝ ∗ ⌜used  = length arr⌝)%I.
 
   Definition bytes (V : MLval) (cap : Z) (arr : list Z) : iProp Σ :=
-    ∃ γ ℓbuf fid (ncap:nat),
-      ⌜V = ML_lang.LitV (ML_lang.LitForeign fid)⌝ ∗ ⌜cap = ncap⌝
-    ∗ isBufferForeignBlock γ ℓbuf (Pb ncap arr) ncap fid.
+    ∃ γ ℓbuf (ncap:nat),
+      ⌜V = ML_lang.LitV (ML_lang.LitForeign γ)⌝ ∗ ⌜cap = ncap⌝
+    ∗ isBufferForeignBlock γ ℓbuf (Pb ncap arr) ncap.
 
   Definition buf_RT γ (cap : Z) (arr : list Z) : iProp Σ :=
     ∃ ℓ (ncap:nat), ⌜cap = ncap⌝ ∗ isBufferRecord (Lloc γ) ℓ (Pbu arr) ncap .

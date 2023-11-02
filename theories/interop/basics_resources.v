@@ -37,29 +37,20 @@ Context `{!wrapperBasicsG Σ}.
 Definition lloc_own_priv (γ : lloc) : iProp Σ :=
   γ ↪[wrapperG_γχvirt] LlocPrivate.
 
-Definition lloc_own_foreign (γ : lloc) (id : nat) : iProp Σ :=
-  γ ↪[wrapperG_γχvirt]□ (LlocForeign id).
-
 Definition lloc_own_pub (γ : lloc) (ℓ : loc) : iProp Σ :=
   γ ↪[wrapperG_γχvirt]□ LlocPublic ℓ.
 
 Instance lloc_own_pub_persistent γ ℓ : Persistent (lloc_own_pub γ ℓ).
 Proof using. apply _. Qed.
 
-Instance lloc_own_foreign_persistent γ id : Persistent (lloc_own_foreign γ id).
-Proof using. apply _. Qed.
-
 Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
   "Hχgmap" ∷ ghost_map_auth wrapperG_γχvirt 1 χ ∗
-  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ) ∗
-  "Hχforeign" ∷ ([∗ map] γ↦id ∈ (lloc_map_foreign χ), lloc_own_foreign γ id).
+  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ).
 
 Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
 Notation "γ ~ℓ~/" := (lloc_own_priv γ)
   (at level 20, format "γ  ~ℓ~/").
-Notation "γ ~foreign~ id" := (lloc_own_foreign γ id)
-  (at level 20, format "γ  ~foreign~  id").
 
 Lemma lloc_own_auth_get_pub_all χ :
   lloc_own_auth χ -∗
@@ -75,15 +66,6 @@ Lemma lloc_own_auth_get_pub χ γ ℓ :
 Proof using.
   intros Hγ. iNamed 1.
   iDestruct (big_sepM_lookup with "Hχpubs") as "?"; eauto.
-Qed.
-
-Lemma lloc_own_auth_get_foreign χ γ id :
-  χ !! γ = Some (LlocForeign id) →
-  lloc_own_auth χ -∗
-  γ ~foreign~ id.
-Proof using.
-  intros Hγ. iNamed 1.
-  iApply (big_sepM_lookup with "Hχforeign"); eauto.
 Qed.
 
 Lemma lloc_own_pub_of χ γ ℓ :
@@ -104,15 +86,6 @@ Proof using.
   by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
 Qed.
 
-Lemma lloc_own_foreign_of χ γ id :
-  lloc_own_auth χ -∗
-  γ ~foreign~ id -∗
-  ⌜χ !! γ = Some (LlocForeign id)⌝.
-Proof using.
-  iIntros "Hχ Hfor". iNamed "Hχ".
-  by iDestruct (ghost_map_lookup with "Hχgmap Hfor") as %?.
-Qed.
-
 Lemma lloc_own_expose χ γ ℓ :
   lloc_own_auth χ -∗
   γ ~ℓ~/ ==∗
@@ -124,13 +97,9 @@ Proof using.
   iMod (ghost_map_update with "Hχgmap Hγ") as "[$ Hγ]".
   iMod (ghost_map_elem_persist with "Hγ") as "#Hγ".
   iFrame "Hγ". iModIntro. rewrite /named.
-  iSplitL "Hχpubs".
-  { rewrite lloc_map_pubs_insert_pub.
-    iApply big_sepM_insert; eauto.
-    apply lloc_map_pubs_lookup_None; eauto. }
-  { rewrite lloc_map_foreign_insert_pub delete_notin //.
-    destruct (lloc_map_foreign χ !! γ) eqn:Heq; try done.
-    apply lloc_map_foreign_lookup_Some in Heq; congruence. }
+  rewrite lloc_map_pubs_insert_pub.
+  iApply big_sepM_insert; eauto.
+  apply lloc_map_pubs_lookup_None; eauto.
 Qed.
 
 Lemma lloc_own_allocate χ γ:
@@ -143,34 +112,9 @@ Proof using.
   iMod (ghost_map_insert with "Hχgmap") as "[Hχmap Hγ]"; first done.
   iModIntro. iSplitR "Hγ"; last done.
   iSplitL "Hχmap"; first done. unfold named.
-  iSplitL "Hχpubs".
-  { rewrite lloc_map_pubs_insert_priv delete_notin.
-    2: destruct (lloc_map_pubs χ !! γ) eqn:Heq; try done; apply lloc_map_pubs_lookup_Some in Heq; congruence.
-    done. }
-  { rewrite lloc_map_foreign_insert_priv delete_notin //.
-    destruct (lloc_map_foreign χ !! γ) eqn:Heq; try done.
-    apply lloc_map_foreign_lookup_Some in Heq; congruence. }
-Qed.
-
-Lemma lloc_own_allocate_foreign χ γ id:
-  ⌜χ !! γ = None⌝ -∗
-  lloc_own_auth χ ==∗
-  lloc_own_auth (<[γ:=LlocForeign id]> χ) ∗ γ ~foreign~ id.
-Proof using.
-  iIntros (Hne) "Hχ".
-  iNamed "Hχ".
-  iMod (ghost_map_insert _ (LlocForeign id) with "Hχgmap") as "[Hχmap Hγ]"; first done.
-  iMod (ghost_map_elem_persist with "Hγ") as "#Hγ".
-  iModIntro. iSplitR "Hγ"; last by iApply "Hγ".
-  iSplitL "Hχmap"; first done. unfold named.
-  iSplitL "Hχpubs".
-  { rewrite lloc_map_pubs_insert_foreign delete_notin.
-    2: destruct (lloc_map_pubs χ !! γ) eqn:Heq; try done; apply lloc_map_pubs_lookup_Some in Heq; congruence.
-    done. }
-  { rewrite lloc_map_foreign_insert_foreign.
-    iApply big_sepM_insert; eauto.
-    destruct (lloc_map_foreign χ !! γ) eqn:Heq; try done.
-    apply lloc_map_foreign_lookup_Some in Heq; congruence. }
+  rewrite lloc_map_pubs_insert_priv delete_notin.
+  2: destruct (lloc_map_pubs χ !! γ) eqn:Heq; try done; apply lloc_map_pubs_lookup_Some in Heq; congruence.
+  done.
 Qed.
 
 Lemma lloc_own_insert χ γ v:
@@ -179,12 +123,10 @@ Lemma lloc_own_insert χ γ v:
   lloc_own_auth (<[γ:=v]> χ).
 Proof using.
   iIntros (Hne) "Hχ".
-  destruct v as [l| |].
+  destruct v as [l|].
   { iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
     iMod (lloc_own_expose with "Hχ Hγp") as "(H & _)".
     rewrite insert_insert; done. }
-  { iMod (lloc_own_allocate_foreign with "[] Hχ") as "(Hχ & Hγ)"; first done.
-    by iModIntro. }
   { iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
     by iModIntro. }
 Qed.
@@ -467,8 +409,7 @@ Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
 (* Foreign block points-to *)
 
 Definition lstore_own_foreign γ dq (v : option word) : iProp Σ :=
-  lstore_own_mut γ dq (Bforeign v) ∗ ∃ id, γ ~foreign~ id.
-
+  lstore_own_mut γ dq (Bforeign v).
 
 Notation "γ ↦foreignO{ dq } a" := (lstore_own_foreign γ dq a)%I
   (at level 20, format "γ  ↦foreignO{ dq }  a") : bi_scope.
@@ -482,7 +423,7 @@ Fixpoint block_sim (v : val) (l : lval) : iProp Σ := match v with
   | ML_lang.LitV (ML_lang.LitBool b) => ⌜l = (Lint (if b then 1 else 0))⌝
   | ML_lang.LitV ML_lang.LitUnit => ⌜l = (Lint 0)⌝
   | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
-  | ML_lang.LitV (ML_lang.LitForeign id) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ γ ~foreign~ id
+  | ML_lang.LitV (ML_lang.LitForeign γ) => ⌜l = (Lloc γ)⌝
   | ML_lang.PairV v1 v2 => ∃ γ lv1 lv2,
       ⌜l = (Lloc γ)⌝ ∗
       γ ↦imm (TagDefault, [lv1;lv2]) ∗
@@ -526,8 +467,6 @@ Proof using.
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
   3-4: iExists γ, lv; iSplit; first done; iSplit.
   7: iExists γ; iSplit; first done.
-  8: iExists γ; iSplit; first done.
-  8: by iApply (lloc_own_auth_get_foreign with "Hχ").
   1,3,5,7:
     try iApply lstore_own_vblock_I_as_imm;
     iApply (big_sepM_lookup with "Hζimm"); try done.
@@ -580,9 +519,6 @@ Proof using.
   1: {iDestruct "Hsim" as "(%γ & -> & Hsim)".
       iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH".
       iPureIntro. econstructor. done. }
-  1: { iDestruct "Hsim" as "(%γ & -> & Hsim)".
-       iPoseProof (lloc_own_foreign_of with "Hχ Hsim") as "%HH".
-       iPureIntro. econstructor. done. }
   1: iDestruct "Hsim" as "(%γ & -> & Hsim)".
   2: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)";
      iPoseProof ("IH" with "Hχ Hζ Hlv1") as "%Hr1";
@@ -624,8 +560,6 @@ Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
 Notation "γ ~ℓ~/" := (lloc_own_priv γ)
   (at level 20, format "γ  ~ℓ~/").
-Notation "γ ~foreign~ id" := (lloc_own_foreign γ id)
-  (at level 20, format "γ  ~foreign~  id").
 
 Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
 Notation "lvs  ~~∗  vs" := (block_sim_arr vs lvs) (at level 20).

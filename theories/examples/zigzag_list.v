@@ -73,11 +73,11 @@ Section Proofs.
   Context `{!primitive_laws.heapG_ML Σ, !wrapperG Σ, !logrelG Σ}.
 
   Fixpoint is_zigzag (lst : list MLval) (v : MLval) : iProp Σ :=
-    ∃ i γ w, ⌜v = #(LitForeign i)⌝ ∗ γ ~foreign~ i ∗ γ ↦foreign C_intf.LitV w
-             ∗ match lst with
-               | nil => ⌜w = LitNull⌝
-               | (v1::vr) => ∃ (a:addr) lv1 lv2 Vlst, ⌜w = a⌝ ∗ a ↦roots lv1 ∗ lv1 ~~ v1
-                               ∗ (a +ₗ 1) ↦roots lv2 ∗ lv2 ~~ Vlst ∗ is_zigzag vr Vlst end.
+    ∃ γ w, ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign C_intf.LitV w
+           ∗ match lst with
+             | nil => ⌜w = LitNull⌝
+             | (v1::vr) => ∃ (a:addr) lv1 lv2 Vlst, ⌜w = a⌝ ∗ a ↦roots lv1 ∗ lv1 ~~ v1
+                             ∗ (a +ₗ 1) ↦roots lv2 ∗ lv2 ~~ Vlst ∗ is_zigzag vr Vlst end.
 
   Import melocoton.ml_lang.notation.
 
@@ -144,11 +144,10 @@ Section Proofs.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
     iModIntro. iApply "Cont2".
-    iDestruct "Hγfgn" as "((Hγfgn'&_)&%i&#Hi)".
-    iApply ("Cont" with "HGC [Hγfgn' HWP] []"); last done.
-    { iApply "HWP". iExists _, _, _. iFrame "Hi". iSplit; first done.
-      iSplit; last done. iSplitL. 1: iSplit; try done. by iExists _. }
-    iExists _; by iSplit.
+    iApply ("Cont" with "HGC [Hγfgn HWP] []"); last done.
+    { iApply "HWP". iExists _, _. iSplit; first done.
+      iSplit; done. }
+    done.
   Qed.
 
   Lemma zigzag_cons_correct :
@@ -179,12 +178,10 @@ Section Proofs.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
     iModIntro. iApply "Cont2".
-    iDestruct "Hγfgn" as "((Hγfgn'&_)&%i&#Hi)".
     iApply ("Cont" with "HGC [-]"); last done.
-    { iApply "HWP". iExists _, _, _. iFrame "Hi". iSplit; first done. iSplitL "Hγfgn'".
-      - iSplit. 1: by iSplit. by iExists _.
+    { iApply "HWP". iExists _, _. iSplit; first done. iSplitL "Hγfgn"; first done.
       - iExists _,_,_,_. iSplit; first done. rewrite loc_add_0. iFrame. by iSplit. }
-    iExists _. by iSplit.
+    done.
   Qed.
 
   Lemma zigzag_empty_correct :
@@ -200,26 +197,22 @@ Section Proofs.
     wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
     wp_finish. rewrite {1} /is_zigzag.
     destruct lst as [|vhd vtl];
-    iDestruct "Htl" as  "(%i&%γ&%ww&->&#Hi&Hγfgn&HH)".
+    iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&HH)".
     - iDestruct "HH" as "->".
-      iDestruct "Hsimlst" as "(%γ'&->&Hi')".
-      iPoseProof (lloc_own_foreign_inj with "Hi Hi' HGC") as "(HGC&%HH)".
-      destruct HH as [_ Hinj]. rewrite !Hinj; last done.
+      iDestruct "Hsimlst" as "->".
       wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
       wp_pure _.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (w) "(HGC&%Hw)".
       iApply "Cont2". iApply ("Cont" with "HGC [-]"); last done.
-      { iApply "HWP". iExists _, _, _. iFrame "Hγfgn Hi". by iPureIntro. }
+      { iApply "HWP". iExists _, _. iFrame "Hγfgn". by iPureIntro. }
       done.
     - iDestruct "HH" as "(%a&%lv1&%lv2&%Vlst&->&Hrest)".
-      iDestruct "Hsimlst" as "(%γ'&->&Hi')".
-      iPoseProof (lloc_own_foreign_inj with "Hi Hi' HGC") as "(HGC&%HH)".
-      destruct HH as [_ Hinj]. rewrite !Hinj; last done.
+      iDestruct "Hsimlst" as "->".
       wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
       wp_pure _. 1: by destruct a.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (w) "(HGC&%Hw)".
       iApply "Cont2". iApply ("Cont" with "HGC [-]"); last done.
-      { iApply "HWP". iExists _, _, _. iFrame "Hγfgn Hi".
+      { iApply "HWP". iExists _, _. iFrame "Hγfgn".
         iSplit; first done. iExists a,lv1,lv2,Vlst; iFrame. done. }
       done.
   Qed.
@@ -233,10 +226,8 @@ Section Proofs.
     destruct lvs as [|lvhd [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
-    iDestruct "Htl" as  "(%i&%γ&%ww&->&#Hi&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
-    iDestruct "Hsimlst" as "(%γ'&->&Hi')".
-    iPoseProof (lloc_own_foreign_inj with "Hi Hi' HGC") as "(HGC&%HH)".
-    destruct HH as [_ Hinj]. rewrite !Hinj; last done.
+    iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
+    iDestruct "Hsimlst" as "->".
     iIntros (Φ'') "Cont2".
     wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
     wp_finish.
@@ -247,7 +238,7 @@ Section Proofs.
     iIntros (whd) "(Ha0&HGC&%Hrepr)".
     iApply "Cont2".
     iApply ("Cont" with "HGC [-]"); last done.
-    - iApply "HWP". iExists i, γ', _. iSplit; first done. iFrame "Hi Hγfgn".
+    - iApply "HWP". iExists γ, _. iSplit; first done. iFrame "Hγfgn".
       iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done.
     - done.
   Qed.
@@ -261,10 +252,8 @@ Section Proofs.
     destruct lvs as [|lvhd [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
-    iDestruct "Htl" as  "(%i&%γ&%ww&->&#Hi&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
-    iDestruct "Hsimlst" as "(%γ'&->&Hi')".
-    iPoseProof (lloc_own_foreign_inj with "Hi Hi' HGC") as "(HGC&%HH)".
-    destruct HH as [_ Hinj]. rewrite !Hinj; last done.
+    iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
+    iDestruct "Hsimlst" as "->".
     iIntros (Φ'') "Cont2".
     wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
     wp_finish.
@@ -276,7 +265,7 @@ Section Proofs.
     iApply ("Cont" with "HGC [-]"); last done.
     - iApply ("HWP" with "Hrec").
       iIntros (tl') "Hrec".
-      iExists i, γ', _. iSplit; first done. iFrame "Hi Hγfgn".
+      iExists γ, _. iSplit; first done. iFrame "Hγfgn".
       iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done.
     - done.
   Qed.
@@ -290,10 +279,8 @@ Section Proofs.
     destruct lvs as [|lvhd [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
-    iDestruct "Htl" as  "(%i&%γ&%ww&->&#Hi&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
-    iDestruct "Hsimlst" as "(%γ'&->&Hi')".
-    iPoseProof (lloc_own_foreign_inj with "Hi Hi' HGC") as "(HGC&%HH)".
-    destruct HH as [_ Hinj]. rewrite !Hinj; last done.
+    iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
+    iDestruct "Hsimlst" as "->".
     iIntros (Φ'') "Cont2".
     wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
     wp_finish.
@@ -312,7 +299,7 @@ Section Proofs.
     iIntros "_". wp_pures. iModIntro.
     iApply "Cont2".
     iApply ("Cont" with "HGC (HWP Hrec [Hγfgn])"); [|done..].
-    iExists _, _, _; iSplit; first done. iFrame "Hγfgn Hi". done.
+    iExists _, _; iSplit; first done. iFrame "Hγfgn". done.
   Qed.
   End InPsi.
 

@@ -57,38 +57,37 @@ Section Specs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Definition isBufferForeignBlock (γ : lloc) (ℓbuf : loc) (Pb : list (option Z) → iProp Σ) cap fid : iProp Σ := 
+  Definition isBufferForeignBlock (γ : lloc) (ℓbuf : loc) (Pb : list (option Z) → iProp Σ) cap : iProp Σ :=
       ∃ vcontent, 
         "Hγfgnpto" ∷ γ ↦foreign (#ℓbuf)%CV
-      ∗ "#Hγfgnsim" ∷ γ ~foreign~ fid
       ∗ "Hℓbuf" ∷ ℓbuf ↦C∗ (map (option_map (λ (z:Z), #z)) vcontent)
       ∗ "HContent" ∷ Pb vcontent
       ∗ "->" ∷ ⌜cap = length vcontent⌝.
 
-  Lemma isBufferForeignBlock_ext γ ℓbuf Pb1 Pb2 cap fid :
+  Lemma isBufferForeignBlock_ext γ ℓbuf Pb1 Pb2 cap :
      (∀ lst, ⌜length lst = cap⌝ -∗ (Pb1 lst -∗ Pb2 lst))
-  -∗ isBufferForeignBlock γ ℓbuf Pb1 cap fid
-  -∗ isBufferForeignBlock γ ℓbuf Pb2 cap fid.
+  -∗ isBufferForeignBlock γ ℓbuf Pb1 cap
+  -∗ isBufferForeignBlock γ ℓbuf Pb2 cap.
   Proof.
     iIntros "Hiff Hbuf". iNamed "Hbuf".
     iExists vcontent; unfold named; iFrame.
-    iFrame "Hγfgnsim". iSplit; last done.
+    iSplit; last done.
     by iApply "Hiff".
   Qed.
 
   Definition isBufferRecord (lv : lval) (ℓbuf : loc) (Pb : nat → list (option Z) → iProp Σ) (cap:nat) : iProp Σ :=
-    ∃ (γ γref γaux γfgn : lloc) (used : nat) fid,
+    ∃ (γ γref γaux γfgn : lloc) (used : nat),
         "->" ∷ ⌜lv = Lloc γ⌝
       ∗ "#Hγbuf" ∷ γ ↦imm (TagDefault, [Lloc γref; Lloc γaux])
       ∗ "Hγusedref" ∷ γref ↦mut (TagDefault, [Lint used])
       ∗ "#Hγaux" ∷ γaux ↦imm (TagDefault, [Lint cap; Lloc γfgn])
-      ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap fid.
+      ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap.
 
   Definition isBufferRecordML (v : MLval) (ℓbuf : loc)  (Pb : nat → list (option Z) → iProp Σ) (cap:nat) : iProp Σ :=
-    ∃ (ℓML:loc) (used fid:nat) γfgn, 
-      "->" ∷ ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV cap, ML_lang.LitV (LitForeign fid)))%MLV⌝ 
+    ∃ (ℓML:loc) (used:nat) γfgn,
+      "->" ∷ ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV cap, ML_lang.LitV (LitForeign γfgn)))%MLV⌝
     ∗ "HℓbufML" ∷ ℓML ↦M ML_lang.LitV used
-    ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap fid.
+    ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap.
 
 
   Lemma isBufferRecordML_ext v ℓbuf Pb1 Pb2 cap :
@@ -97,7 +96,7 @@ Section Specs.
   -∗ isBufferRecordML v ℓbuf Pb2 cap.
   Proof.
     iIntros "Hiff Hbuf". iNamed "Hbuf".
-    iExists ℓML, used, fid, γfgn; unfold named; iFrame.
+    iExists ℓML, used, γfgn; unfold named; iFrame.
     iSplit; first done.
     iApply (isBufferForeignBlock_ext with "[Hiff] Hbuf").
     iApply "Hiff".
@@ -156,9 +155,9 @@ Section Specs.
       "->" ∷ ⌜s = buf_free_name⌝
     ∗ "->" ∷ ⌜vv = [ v ]⌝
     ∗ "Hbuf" ∷ isBufferRecordML v ℓ Pb cap
-    ∗ "HCont" ∷ ▷   ( ∀ (ℓML:loc) fid γfgn, ⌜v = (# ℓML, (# cap, # (LitForeign fid)))%MLV⌝ -∗
-                                            γfgn ~foreign~ fid -∗ ℓML ↦M #(-1) -∗
-                                            γfgn ↦foreign (C_intf.LitV LitNull) -∗ Φ #()).
+    ∗ "HCont" ∷ ▷   ( ∀ (ℓML:loc) γfgn, ⌜v = (# ℓML, (# cap, # (LitForeign γfgn)))%MLV⌝ -∗
+                                         ℓML ↦M #(-1) -∗
+                                         γfgn ↦foreign (C_intf.LitV LitNull) -∗ Φ #()).
 
   Definition buf_get_spec_ML s vv Φ : iProp Σ :=
     ∃ v ℓ Pb cap (idx:nat) (res:Z),

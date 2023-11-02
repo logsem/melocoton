@@ -72,13 +72,13 @@ Section Proofs.
   Solve Obligations with solve_proper.
 
   Program Definition listener_interp : (protocol ML_lang.val Σ) -n> (listO D -n> D) -d> listO D -n> D := λne Ψ, λ interp, λne Δ, PersPred (
-    λ v, ∃ i γ (a:addr), ⌜v = #(LitForeign i)⌝ ∗ γ ~foreign~ i ∗ γ ↦foreign{DfracDiscarded} C_intf.LitV a ∗
-           na_inv logrel_nais (nroot .@ "listener" .@ i)
+    λ v, ∃ γ (a:addr), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign{DfracDiscarded} C_intf.LitV a ∗
+           na_inv logrel_nais (nroot .@ "listener" .@ γ)
              (listener_invariant a (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)))%I.
   Next Obligation. solve_proper. Qed.
   Next Obligation.
     solve_proper_prepare.
-    do 29 first [intros ? | f_equiv].
+    do 26 first [intros ? | f_equiv].
     by apply wp_ne_proto.
   Qed.
 
@@ -144,18 +144,16 @@ Section Proofs.
     wp_pures.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
-    iDestruct "Hγfgn" as "((Hγfgn'&_)&%i&#Hi)".
+    iDestruct "Hγfgn" as "(Hγfgn'&_)".
     iMod (na_inv_alloc logrel_nais _ _ (listener_invariant a _) with "[Ha]") as "#Hinv".
     { iNext. iRight. iFrame "Ha". }
     iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
-    iModIntro. iApply "Cont2". iApply ("Cont" $! θ1 (#(LitForeign i)) with "HGC [-] [] []").
-    2: iExists _; by iFrame "Hi".
-    2: done.
+    iModIntro. iApply "Cont2". iApply ("Cont" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []").
+    2,3: done.
     iApply ("HWP" with "Hna [-]").
-    iExists i, γ, a.
-    iSplit; first done. iFrame "Hi".
-    iSplitL.
-    { iSplitL. 2: by iExists _. iSplit; last done. iApply "Hγfgn'". }
+    iExists γ, a.
+    iSplit; first done. iSplitL.
+    { iSplitL. 2: done. iApply "Hγfgn'". }
     iFrame "Hinv".
   Qed.
 
@@ -171,10 +169,8 @@ Section Proofs.
     iIntros (Φ'') "Cont2".
     wp_pure _.
     Local Transparent listener_interp.
-    iDestruct "Hbox" as (i γ a) "(->&#Hsimγ&#Hγfgn&#Hinv)".
-    iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iDestruct "Hbox" as (γ a) "(->&#Hγfgn&#Hinv)".
+    iDestruct "Hsimvb" as "->".
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)". wp_pures.
@@ -222,10 +218,8 @@ Section Proofs.
     iIntros (Φ'') "Cont2".
     wp_pure _.
     Local Transparent listener_interp.
-    iDestruct "Hbox" as (i γ a) "(->&#Hsimγ&#Hγfgn&#Hinv)".
-    iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iDestruct "Hbox" as (γ a) "(->&#Hγfgn&#Hinv)".
+    iDestruct "Hsimvb" as "->".
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)".
@@ -271,10 +265,8 @@ Section Proofs.
     iIntros (Φ'') "Cont2".
     wp_pure _.
     Local Transparent listener_interp.
-    iDestruct "Hbox" as (i γ a) "(->&#Hsimγ&#Hγfgn&#Hinv)".
-    iDestruct "Hsimvb" as "(%γ'&->&Hγ')".
-    iPoseProof (lloc_own_foreign_inj with "Hsimγ Hγ' HGC") as "(HGC&%Heq)".
-    destruct Heq as [_ ->]; last done.
+    iDestruct "Hbox" as (γ a) "(->&#Hγfgn&#Hinv)".
+    iDestruct "Hsimvb" as "->".
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)".

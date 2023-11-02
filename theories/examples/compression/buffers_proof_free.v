@@ -70,9 +70,8 @@ Section Proofs.
     iIntros (w) "(HGC&%Hwunit)".
     iMod (mut_to_ml _ [ ML_lang.LitV (-1)%Z ] _ with "[$HGC $Hγusedref]") as "(HGC&%ℓML'&Hγusedref&#Hsim')". 1: cbn; iFrame; done.
 
-    iAssert (⌜ℓML' = ℓML⌝ ∗ ⌜fid0 = fid⌝)%I as "(->&->)".
-    { iDestruct "Hsim" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim2)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
-      simplify_eq.
+    iAssert (⌜ℓML' = ℓML⌝ ∧ ⌜γfgn = γ⌝)%I as "(-> & ->)".
+    { iDestruct "Hsim" as "(%γ2&%&%&%&Hγbuf2&(%&%&Hsim2)&(%&%&%&%&Hγaux2&%&%))". simplify_eq.
       unfold lstore_own_vblock, lstore_own_elem; cbn.
       iDestruct "Hγbuf" as "(Hγbuf&_)".
       iDestruct "Hγbuf2" as "(Hγbuf2&_)".
@@ -80,12 +79,13 @@ Section Proofs.
       iDestruct "Hγaux2" as "(Hγaux2&_)".
       iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
       iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
-      iPoseProof (lloc_own_foreign_inj with "Hγfgnsim Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
       iPoseProof (lloc_own_pub_inj with "Hsim' Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
-      iSplit; iPureIntro; [eapply Heq2|eapply Heq1]; done.
+      iPureIntro; split; [by eapply Heq2 | done].
     }
     iModIntro.
-    iApply "HΦ". iApply ("Cont" $! _  (ML_lang.LitV ())%MLV with "HGC (HCont [//] Hγfgnsim Hγusedref Hγfgnpto) [//] [//]").
+    iApply "HΦ".
+    iApply ("Cont" $! _ (ML_lang.LitV ())%MLV with "HGC [-] [//] [//]").
+    iApply ("HCont" with "[//] Hγusedref [$]").
   Qed.
 
 End Proofs.

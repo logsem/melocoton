@@ -148,7 +148,7 @@ Section MLclient.
     wp_pures.
 
     iNamed "Hinbuf".
-    iDestruct "Houtbuf" as "(%ℓMLout&%used2&%fid2&%γfgn2&->&HℓbufMLout&Hbuf2)".
+    iDestruct "Houtbuf" as "(%ℓMLout & %used2 & %γfgn2 & -> & HℓbufMLout & Hbuf2)".
     unfold named. wp_pures.
     wp_apply (wp_load with "HℓbufML").
     iIntros "HℓbufML". wp_pures.
@@ -163,15 +163,15 @@ Section MLclient.
     iModIntro. iExists _, _, (λ _ _, _)%I, _.
     do 2 (iSplit; first done).
     iSplitL "Hbuf HℓbufML".
-    { do 4 iExists _. iSplit; first done. iFrame. }
-    iIntros "!> % % % _ _ _ _". wp_pures.
+    { do 3 iExists _. iSplit; first done. iFrame. }
+    iIntros "!> % % _ _ _". wp_pures.
 
     wp_extern. do 3 iLeft. iRight.
     iModIntro. iExists _, _, (λ _ _, _)%I, _.
     do 2 (iSplit; first done).
     iSplitL "Hbuf2 HℓbufMLout".
-    { do 4 iExists _. iSplit; first done. iFrame. }
-    iIntros "!> % % % _ _ _ _". wp_pures.
+    { do 3 iExists _. iSplit; first done. iFrame. }
+    iIntros "!> % % _ _ _". wp_pures.
     unfold is_compressible. rewrite bool_decide_decide.
     repeat destruct decide; cbn in *; try lia.
     all: iApply ("Cont" with "Hℓ").

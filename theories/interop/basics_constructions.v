@@ -62,27 +62,6 @@ Proof.
   all: intros _; exfalso; apply Hnot; eexists; eauto.
 Qed.
 
-Lemma ensure_in_χ_foreign χ id :
-  lloc_map_inj χ →
-  ∃ χ' γ,
-    lloc_map_mono χ χ' ∧
-    χ' !! γ = Some (LlocForeign id) ∧
-    (∀ γ' r, γ' ≠ γ → χ' !! γ' = r → χ !! γ' = r).
-Proof.
-  intros Hinj.
-  destruct (find_in_reverse χ (LlocForeign id)) as [[γ Hgam]|Hnot].
-  1: exists χ, γ; done.
-  eexists (<[fresh (dom χ) := LlocForeign id]> χ), _.
-  erewrite lookup_insert; split_and!. 2: done.
-  2: intros γ' r Hne H1; by rewrite lookup_insert_ne in H1.
-  split.
-  1: eapply insert_subseteq, not_elem_of_dom, is_fresh.
-  intros γ1 γ2 ℓ' [[? ?]|[? ?]]%lookup_insert_Some [[? ?]|[? ?]]%lookup_insert_Some; subst.
-  1: done.
-  3: by eapply Hinj.
-  all: intros _; exfalso; apply Hnot; eexists; eauto.
-Qed.
-
 Definition extended_to (χold : lloc_map) (ζ : lstore) (χnew : lloc_map) :=
   lloc_map_mono χold χnew ∧ dom χold ## dom ζ ∧ is_private_blocks χnew ζ.
 
@@ -192,9 +171,7 @@ Proof.
   - destruct (ensure_in_χ_pub χMLold ℓ) as (χ' & γ & Hχ' & Hγ & _); first done.
     exists χ', ∅, (Lloc γ); (split_and!; last by econstructor).
     by eapply extended_to_mono.
-  - destruct (ensure_in_χ_foreign χMLold id) as (χ' & γ & Hχ' & Hid & _); first done.
-    exists χ', ∅, (Lloc γ); split_and!; last by econstructor.
-    by eapply extended_to_mono.
+  - exists χMLold, ∅, (Lloc id). split; first by apply extended_to_refl. constructor.
   - destruct (allocate_in_χ_priv χMLold (Bclosure f x e)) as (χ & γ & Hextend); first done.
     eexists _, _, (Lloc γ). split; eauto. econstructor. by simplify_map_eq.
   - destruct (IHv1 χMLold) as (χ1 & ζ1 & lv1 & Hext1 & Hlv1); first done.

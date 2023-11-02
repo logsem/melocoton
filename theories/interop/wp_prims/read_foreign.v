@@ -28,7 +28,6 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iDestruct "Hpto" as "(Hpto & Hsim)".
   iDestruct (lstore_own_mut_of with "GCζvirt Hpto") as %[Helem _].
   iAssert ⌜ζC ρc !! γ = Some (Bforeign (Some w'))⌝%I as "%Helem2".
   { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
@@ -43,7 +42,7 @@ Proof using.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[-Hpto Hsim] [$Hpto $Hsim]").
+  iApply ("Cont" with "[-Hpto] [$Hpto]").
   rewrite /GC /named.
   iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.
   iFrame. iPureIntro; split_and!; eauto. done.

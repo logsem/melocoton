@@ -106,14 +106,14 @@ Section Proofs.
     iMod (freeze_to_immut with "[$HGC $Hγbf2]") as "(HGC&Hγbf2)".
     iMod (freeze_to_mut with "[$HGC $Hγbfref]") as "(HGC&Hγbfref)".
 
-    iPoseProof "Hγbk" as "((Hγbk&%Hγbk)&%fid&#Hfid)".
+    iPoseProof "Hγbk" as "(Hγbk&%Hγbk)".
 
     iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer n) n) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
-    { iExists γbf, γbfref, γbf2, γbk, 0, fid. unfold named. iFrame.
+    { iExists γbf, γbfref, γbf2, γbk, 0. unfold named. iFrame.
       iSplit; first done.
       iExists (replicate n None). unfold named, lstore_own_foreign.
       rewrite map_replicate; cbn.
-      iFrame. iFrame "Hfid". iSplit; first (iSplit; first done; by iExists fid).
+      iFrame. iSplit; first done.
       rewrite (_: Z.to_nat n = n); last lia. iFrame.
       iPureIntro; split_and!.
       1: done.

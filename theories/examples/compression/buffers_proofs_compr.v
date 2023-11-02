@@ -65,9 +65,9 @@ Section Proofs.
     iMod (bufToC with "HGC HBuf1 Hsim1") as "(HGC&HBuf1&%&%&->)".
     iNamed "HBuf1". iNamed "Hbuf".
     iMod (bufToC with "HGC HBuf2 Hsim2") as "(HGC&HBuf2&%&%&->)".
-    iDestruct "HBuf2" as "(%γ2&%γref2&%γaux2&%γfgn2&%used2&%fid2&->&#Hγbuf2&Hγusedref2&#Hγaux2&Hbuf2)".
+    iDestruct "HBuf2" as "(%γ2&%γref2&%γaux2&%γfgn2&%used2&->&#Hγbuf2&Hγusedref2&#Hγaux2&Hbuf2)".
     unfold named.
-    iDestruct "Hbuf2" as "(%vcontent2&Hγfgnpto2&#Hγfgnsim2&Hℓbuf2&HContent2&->)". unfold named.
+    iDestruct "Hbuf2" as "(%vcontent2&Hγfgnpto2&Hℓbuf2&HContent2&->)". unfold named.
 
     wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [mdone..|].
     iIntros (vγaux1 wγaux1) "(HGC&_&%Heq1&%Hreprγaux1)". cbv in Heq1; simplify_eq.
@@ -136,12 +136,12 @@ Section Proofs.
       1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2") as "(HGC&HBuf2)"; last first.
       1: iApply "HΦ".
       1: iApply ("Cont" $! _ (ML_lang.LitV true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
-      { iExists _, _, _, _, _, _. unfold named.
+      { iExists _, _, _, _, _. unfold named.
         iSplit; first done.
         change (Z.to_nat 0) with 0; cbn.
         iFrame "Hγbuf2 Hγaux2 Hγusedref2".
         iExists _. unfold named.
-        iFrame "Hγfgnpto2 Hγfgnsim2".
+        iFrame "Hγfgnpto2".
         iSplitL "Hℓbuf2"; last first.
         - iSplit.
           1: iExists _, zvrest, _.
@@ -149,11 +149,11 @@ Section Proofs.
           iPureIntro. rewrite !app_length !map_length Hlen //.
         - rewrite !map_app !map_map. cbn. done.
       }
-      { iExists _, _, _, _, _, _. unfold named.
+      { iExists _, _, _, _, _. unfold named.
         iSplit; first done.
         iFrame "Hγbuf Hγaux Hγusedref".
         iExists _. unfold named.
-        iFrame "Hγfgnpto Hγfgnsim". iSplitR "HContent".
+        iFrame "Hγfgnpto". iSplitR "HContent".
         2: { iSplit; [iSplit; [|iSplit]|]. 3: iApply "HContent".
              all: done. }
         rewrite map_app. iApply array_app. rewrite !map_length. rewrite !map_map. iFrame. }

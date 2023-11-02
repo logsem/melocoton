@@ -328,10 +328,9 @@ Inductive c_prim_step :
     repr (θC ρc) roots privmem mem →
     GC_correct (ζC ρc) (θC ρc) →
     roots_are_live (θC ρc) roots →
-    (∀ γ id χC' ζC' θC' a mem',
+    (∀ γ χC' ζC' θC' a mem',
       χC ρc !! γ = None →
-      (∀ γ' id', χC ρc !! γ' = Some (LlocForeign id') → id' ≠ id) →
-      χC' = <[ γ := LlocForeign id ]> (χC ρc) →
+      χC' = <[ γ := LlocPrivate ]> (χC ρc) →
       ζC' = <[ γ := Bforeign None ]> (ζC ρc) →
       GC_correct ζC' θC' →
       repr θC' roots privmem mem' →
@@ -403,19 +402,13 @@ Proof.
     pose (fresh fresh_src) as γ.
     pose (fresh fresh_not_θ_cod) as w.
     pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union.
-    pose (map_to_set (fun a b => b) (lloc_map_foreign (χC ρc)) : gset nat)
-      as χforeignids.
-    pose (fresh χforeignids) as id.
-    specialize (H4 γ id
-                 (<[ γ := LlocForeign id ]> (χC ρc))
+    specialize (H4 γ
+                 (<[ γ := LlocPrivate ]> (χC ρc))
                  (<[ γ := Bforeign None ]> (ζC ρc))
                  (<[ γ := w ]> (θC ρc))
                  w mem).
     do 3 eexists. eapply H4; eauto.
     - by eapply not_elem_of_dom.
-    - intros * ?%lloc_map_foreign_lookup_Some ->.
-      apply (is_fresh χforeignids). rewrite -/id.
-      rewrite elem_of_map_to_set. eauto.
     - split.
       + eapply gmap_inj_extend; try done.
         intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).

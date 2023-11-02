@@ -95,7 +95,6 @@ Section AllocBasics.
       cbn in *. iFrame. repeat iSplitL.
       + unfold lstore_immut_blocks. rewrite map_filter_empty. by iApply big_sepM_empty.
       + unfold lloc_map_pubs. rewrite omap_empty. by iApply big_sepM_empty.
-      + unfold lloc_map_foreign. rewrite omap_empty. by iApply big_sepM_empty.
       + done.
     - eapply gmap_view.gmap_view_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.

@@ -56,18 +56,19 @@ Section Proofs.
     wp_apply (wp_val2int with "HGC"); [done..|].
     iIntros "HGC". wp_pure _.
     wp_apply (wp_Malloc); [done..|].
-    change (Z.to_nat 1) with 1; cbn.
-    iIntros (ℓi) "(Hℓi&_)". rewrite !loc_add_0. wp_pure _.
+    change (Z.to_nat 1) with 1; cbn [replicate].
+    iIntros (ℓi) "Hℓi". wp_pure _.
     wp_apply (wp_val2int with "HGC"); [done..|].
     iIntros "HGC".
-    wp_apply (wp_store with "Hℓi").
+    wp_apply (wp_store with "[Hℓi]").
+    { iNext. cbn. rewrite loc_add_0. iDestruct "Hℓi" as "[$ _]". }
     iIntros "Hℓi". wp_pure _.
 
-    iMod (bufToML_fixed (Lloc γ) ℓbuf (Pb i) (length vcontent)
+    iMod (bufToML_fixed (Lloc γ0) ℓbuf (Pb i) (length vcontent)
          with "HGC [Hγusedref Hℓbuf HContent Hγfgnpto] Hsim") as "(HGC&HBufML)".
-    { iExists _, _, _, _, _, _. unfold named. iSplit; first done.
+    { iExists _, _, _, _, _. unfold named. iSplit; first done.
       iFrame "Hγusedref Hγbuf Hγaux".
-      iExists _. unfold named. by iFrame "Hγfgnpto Hγfgnsim Hℓbuf HContent". }
+      iExists _. unfold named. by iFrame "Hγfgnpto Hℓbuf HContent". }
     iMod ("HMergeInitial" with "[$Hframe $HBufML]") as "HΨ".
     wp_bind (While _ _).
 
@@ -78,7 +79,7 @@ Section Proofs.
     generalize (length vcontent) as vcontent_length. intros vcontent_length Hb3.
     clear vcontent.
 
-    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ ∗ GC θ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
+    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ0 ∗ GC θ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
               with "[HℓF Hℓbf Hℓi HGC HΨ]").
     { iRevert "HMerge HWP Hb1 Hb2". iLöb as "IH" forall (i θ).
       iIntros "#HMerge #HWP %Hb1 %Hb2".
@@ -104,8 +105,8 @@ Section Proofs.
       cbn.
       iIntros (θ' vret lvret wret) "(HGC&(%zret&->&HΦz&HΨframe&HBuffer)&->&%Hzrep)".
       wp_apply (wp_val2int with "HGC"); [done..|].
-      iIntros "HGC". iRename "Hγfgnsim" into "Hγfgnsim2". clear used.
-      iDestruct "HBuffer" as "(%ℓML0&%&%&%&%Heq&HℓbufML&Hbuf)". simplify_eq. unfold named.
+      iIntros "HGC".
+      iDestruct "HBuffer" as "(%ℓML0&%&%&%Heq&HℓbufML&Hbuf)". simplify_eq. unfold named.
       iNamed "Hbuf".
       assert (∃ (ni:nat), Z.of_nat ni = i) as (ni&<-) by (exists (Z.to_nat i); lia).
       wp_apply (wp_store_offset with "Hℓbuf").
@@ -123,8 +124,8 @@ Section Proofs.
       1: cbn; done.
       all: iDestruct "HHsim2" as "(->&HHr)"; try done. iClear "HHr".
 
-      iAssert (⌜fid1 = fid0⌝ ∗ ⌜γfgn0 = γfgn⌝ ∗ ⌜γ0 = γref⌝)%I as "(->&->&->)".
-      { iDestruct "Hsim" as "#(%γ2&%&%&%HHH&Hγbuf2&(%γref2&->&Hsim3)&%γaux2&%&%&->&Hγaux2&->&%γfgn3&->&Hγfgnsim3)".
+      iAssert (⌜γfgn0 = γfgn⌝ ∗ ⌜γ = γref⌝)%I as "(->&->)".
+      { iDestruct "Hsim" as "(%γ2&%&%&%&Hγbuf2&(%γref2&->&Hsim3)&%γaux2&%&%&->&Hγaux2&->&->)".
         simplify_eq.
         unfold lstore_own_vblock, lstore_own_elem; cbn.
         iDestruct "Hγbuf" as "(Hγbuf&_)".
@@ -133,11 +134,9 @@ Section Proofs.
         iDestruct "Hγaux2" as "(Hγaux2&_)".
         iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
         iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
-        iPoseProof (lloc_own_foreign_inj with "Hγfgnsim2 Hγfgnsim3 HGC") as "(HGC&%Heq1)"; simplify_eq.
-        iPoseProof (lloc_own_foreign_inj with "Hγfgnsim Hγfgnsim3 HGC") as "(HGC&%Heq1b)"; simplify_eq.
         iPoseProof (lloc_own_pub_inj with "Hsim3 Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
-        iPureIntro. split_and!. 1: symmetry; by eapply Heq1.
-        1: by eapply Heq1b. 1: symmetry; by eapply Heq2. }
+        iPureIntro. split_and!; first done.
+        symmetry. by eapply Heq2. }
 
       wp_apply (wp_readfield with "[$HGC $HℓbufML]"); [done..|].
       iIntros (vγbuf wγbuf) "(HGC&HℓbufML&%Heq&%Hvwγbuf)". change (Z.to_nat 0) with 0 in Heq. cbn in Heq. simplify_eq.
@@ -146,7 +145,7 @@ Section Proofs.
       wp_apply (wp_load with "Hℓi").
       iIntros "Hℓi". do 2 wp_pure _.
       wp_bind (If _ _ _).
-      iApply (wp_wand _ _ _ (λ _, _ ∗ γref ↦mut (TagDefault, [Lint (max used (Z.to_nat (ni+1)))%Z]))%I with "[HGC Hℓi Hℓbf HℓbufML]").
+      iApply (wp_wand _ _ _ (λ _, _ ∗ γref ↦mut (TagDefault, [Lint (max used0 (Z.to_nat (ni+1)))%Z]))%I with "[HGC Hℓi Hℓbf HℓbufML]").
       { rewrite bool_decide_decide. destruct decide; last first.
         { do 2 wp_pure _. rewrite max_l; last lia.
           iFrame "HℓbufML". iModIntro. iAccu. }
@@ -171,8 +170,8 @@ Section Proofs.
       iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2 HGC") as "(HGC&%Heq3)"; simplify_eq.
       replace ℓML2 with ℓML0 by by eapply Heq3.
       iMod ("HMerge" with "[] [] HΨframe HΦz [Hγfgnpto HContent Hℓbuf HℓbufML]") as "HH". 1-2: iPureIntro; lia.
-      { iExists _, _, _, _. unfold named. iSplit; first done. iFrame "HℓbufML".
-        iExists _. unfold named. iFrame "Hγfgnpto Hγfgnsim Hℓbuf".
+      { iExists _, _, _. unfold named. iSplit; first done. iFrame "HℓbufML".
+        iExists _. unfold named. iFrame "Hγfgnpto Hℓbuf".
         rewrite insert_length. iSplit; last done.
         iExists vcontent, _. iFrame "HContent". iPureIntro. rewrite Nat2Z.id. split; first done.
         reflexivity. }

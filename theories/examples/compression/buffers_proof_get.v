@@ -54,7 +54,7 @@ Section Proofs.
     iMod (bufToML_fixed with "HGC [Hγusedref HContent Hγfgnpto Hℓbuf] Hsimb") as "(HGC&HBuffer)"; last first.
     { iModIntro. iApply "HΦ".
       iApply ("Cont" with "HGC (HCont HBuffer) [//] [//]"). }
-    { do 6 iExists _. iSplit; first done. iFrameNamed.
+    { do 5 iExists _. iSplit; first done. iFrameNamed.
       do 1 iExists _. iFrameNamed. done. }
   Qed.
 

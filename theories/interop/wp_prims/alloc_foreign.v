@@ -41,10 +41,9 @@ Proof using.
   { eapply GC_correct_transport_rev; last done; done. }
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iExists (λ '(e', σ'), ∃ γ id χC' ζC' θC' (aret:loc) mem',
+  iExists (λ '(e', σ'), ∃ γ χC' ζC' θC' (aret:loc) mem',
       χC ρc !! γ = None ∧
-      (∀ γ' id', χC ρc !! γ' = Some (LlocForeign id') → id' ≠ id) ∧
-      χC' = <[ γ := LlocForeign id ]> (χC ρc) ∧
+      χC' = <[ γ := LlocPrivate ]> (χC ρc) ∧
       ζC' = <[ γ := Bforeign None ]> (ζC ρc) ∧
       GC_correct ζC' θC' ∧
       repr θC' roots_m privmem mem' ∧
@@ -53,8 +52,8 @@ Proof using.
       e' = WrSE (ExprV (# aret)) ∧
       σ' = CState (WrapstateC χC' ζC' θC' (rootsC ρc)) mem').
   iSplit. { iPureIntro. econstructor; naive_solver. }
-  iIntros (? ? ? (γ & id & χC' & ζC' & θC' & aret & mem' &
-                  HγNone & Hidfresh & -> & -> & HGCOK' & Hrepr' & Hrootslive' & ?)).
+  iIntros (? ? ? (γ & χC' & ζC' & θC' & aret & mem' &
+                  HγNone & -> & -> & HGCOK' & Hrepr' & Hrootslive' & ?)).
   destruct_and!; simplify_eq.
 
   assert (χvirt !! γ = None) as Hχvirtγ.
@@ -87,7 +86,7 @@ Proof using.
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ&SIθ)".
 
   iMod (lstore_own_insert _ γ (Bforeign None) with "GCζvirt") as "(GCζvirt & Hbp1)". 1: done.
-  iMod (lloc_own_allocate_foreign _ γ id with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
+  iMod (lloc_own_allocate _ γ with "[] GCχvirt") as "(GCχvirt&Hbp2)". 1: done.
 
   do 3 iModIntro. iFrame. cbn -[wrap_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
@@ -97,9 +96,9 @@ Proof using.
   3: iPureIntro; by econstructor.
   2: iFrame; by eauto.
   rewrite /GC /named.
-  iExists _, _, (ζσ), (<[γ:=Bforeign None]> ζvirt), _, (<[γ:=LlocForeign id]> χvirt).
+  iExists _, _, (ζσ), (<[γ:=Bforeign None]> ζvirt), _, (<[γ:=LlocPrivate]> χvirt).
   iExists σMLvirt, _, _.
-  rewrite pub_locs_in_lstore_alloc_foreign //. iFrame.
+  rewrite pub_locs_in_lstore_alloc_priv //. iFrame.
   iPureIntro; split_and!; eauto.
   2: destruct Hstore_blocks as [HsL HsR]; split.
   - eapply map_disjoint_insert_r. split; done.
@@ -120,12 +119,7 @@ Proof using.
     intros vml vl HH4. eapply is_val_mono. 3: apply HH4.
     + eapply insert_subseteq. done.
     + eapply insert_subseteq. eapply lookup_union_None; done.
-  - apply expose_llocs_insert_both; eauto. intros γ' ? _ HH1 ->.
-    destruct Hχvirt as (Hdom & ? & Hexp).
-    assert (is_Some (χC ρc !! γ')) as [? HH2].
-    { rewrite -elem_of_dom Hdom elem_of_dom //. }
-    specialize (Hexp _ _ _ HH2 HH1). inversion Hexp; simplify_eq.
-    naive_solver.
+  - apply expose_llocs_insert_both; eauto.
   - eapply GC_correct_transport; done.
 Qed.
 
