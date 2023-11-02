@@ -126,7 +126,6 @@ Proof using.
     { rewrite -elem_of_dom Hdom elem_of_dom //. }
     specialize (Hexp _ _ _ HH2 HH1). inversion Hexp; simplify_eq.
     naive_solver.
-  - cbn. by apply lloc_map_inj_insert_foreign.
   - eapply GC_correct_transport; done.
 Qed.
 

@@ -77,7 +77,6 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χvirt⌝
   ∗ "%Hstore" ∷ ⌜is_store χvirt ζfreeze σMLvirt⌝
   ∗ "%Hχvirt" ∷ ⌜expose_llocs χ χvirt⌝
-  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝ (* TODO redundant? *)
   ∗ "%HGCOK" ∷ ⌜GC_correct ζfreeze θ⌝.
 
 Definition at_init := ghost_var wrapperG_γat_init (1/2) true.

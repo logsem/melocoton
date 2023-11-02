@@ -120,7 +120,6 @@ Proof using.
     + eapply insert_subseteq. done.
     + eapply insert_subseteq. eapply lookup_union_None; done.
   - apply expose_llocs_insert_both; eauto.
-  - by apply lloc_map_inj_insert_priv.
   - eapply GC_correct_transport; done.
 Qed.
 
