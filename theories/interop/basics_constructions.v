@@ -1,12 +1,11 @@
 From Coq Require Import ssreflect.
-From stdpp Require Import strings gmap list.
-From melocoton Require Import named_props stdpp_extra.
+From stdpp Require Import gmap list.
+From melocoton Require Import stdpp_extra.
 From melocoton.mlanguage Require Import mlanguage.
-From melocoton.language Require Import language weakestpre.
-From melocoton.mlanguage Require Import weakestpre.
-From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
+From melocoton.language Require Import language.
+From melocoton.ml_lang Require Import lang.
 From melocoton.c_interface Require Import defs notation.
-From melocoton.interop Require Import basics prims basics_resources state.
+From melocoton.interop Require Import basics state.
 
 Global Notation MLval := ML_lang.val.
 Global Notation Cval := C_intf.val.
