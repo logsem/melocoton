@@ -9,7 +9,7 @@ From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Export prims weakestpre prims_proto.
+From melocoton.interop Require Export prims weakestpre prims_proto hybrid_ghost_heap.
 From melocoton.interop Require Import wp_ext_call_laws wp_boundary_laws wp_utils.
 From melocoton.interop.wp_prims Require Import common.
 Import Wrap.
@@ -39,9 +39,11 @@ Proof using.
   iSplit; first done.
 
   iAssert (⌜ml_to_c [v] ρml σ (λ ws ρc mem, ml_to_c_core [v] ρml σ ws ρc mem)⌝)%I as "%Hprog".
-  { iNamed "SI". iNamed "SIML".
-    iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as "%H". iPureIntro.
-    split_and!; eauto. }
+  { iNamed "SI". iNamed "SIML". iNamed "SIGCrem".
+    iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %?.
+    iDestruct (hgh_dom_lstore_sub with "GCHGH") as %?.
+    iDestruct (hgh_χ_inj with "GCHGH") as %?.
+    iPureIntro; split_and!; eauto. }
 
   iExists (λ '(e', σ'), ∃ w ρc mem,
     ml_to_c_core [v] ρml σ [w] ρc mem ∧
@@ -70,8 +72,8 @@ Proof.
   rewrite wp_unfold. rewrite /wp_pre.
   iIntros "Hnb HWP %st Hst".
   iDestruct (SI_not_at_boundary_is_in_ML with "Hst Hnb") as %(ρml&σ&->).
-  iNamed "Hst". iNamed "SIML".
-  iDestruct (interp_ML_discarded_locs_pub with "HσML SIAχNone") as %Hpublocs.
+  iNamed "Hst". iNamed "SIML". iNamed "SIGCrem".
+  iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %Hpublocs.
   iMod ("HWP" $! σ with "[$HσML]") as "[HWP|[HWP|HWP]]".
   (* value *)
   + iDestruct "HWP" as "(%x & -> & Hσ & Hret)".
@@ -87,6 +89,8 @@ Proof.
     { destruct (decide (is_prim_name fn_name)) as [His|]; last by eauto.
       cbn -[wrap_prog]. iDestruct (Hnprims with "[HT]") as "%"; last done.
       rewrite /proto_on. iFrame. iPureIntro. by eapply elem_of_prim_names. }
+    iDestruct (hgh_dom_lstore_sub with "GCHGH") as %?.
+    iDestruct (hgh_χ_inj with "GCHGH") as %?.
 
     (* take an administrative step in the wrapper *)
 
@@ -184,10 +188,9 @@ Proof using.
             ζC ρc !! γ = Some (Bclosure f x e)⌝)%I
     as %(-> & Hθinj & Hγ).
   { iNamed "Hst". iNamed "HGC". iNamed "SIC". SI_GC_agree.
-    iDestruct (lstore_own_immut_of with "[$] Hclos") as %(Hγvirt & _).
-    iPureIntro. split; eauto. split; first by apply HGCOK.
-    eapply freeze_lstore_lookup_bclosure; first done.
-    eapply lookup_union_Some_r; eauto. }
+    iDestruct (hgh_lookup_block with "GCHGH [Hclos]") as %(?&Hfrz&?);
+      first by iDestruct "Hclos" as "($&_)".
+    inversion Hfrz; subst; eauto. }
 
   iDestruct "Hclos" as "#Hclos".
   iDestruct (wrap_interp_c_to_ml [w;w'] _ _ _ [RecV f x e; v']
@@ -242,12 +245,16 @@ Proof using.
   iSplit. { iPureIntro. eapply MainS; eauto. }
   iIntros (? ? (-> & ->)).
   do 3 iModIntro.
+
+  rewrite [X in ghost_var wrapperG_γat_init X _](_: 1 = 1/2 + 1/2)%Qp;
+    last by rewrite Qp.half_half.
+  iDestruct (ghost_var_split _ _ (1/2) (1/2) with "SIinit") as "[Hinit1 Hinit2]".
   rewrite /weakestpre.state_interp /= /named.
   rewrite /ML_state_interp /= /named.
   rewrite /public_state_interp.
   rewrite !fmap_empty !right_id_L !dom_empty_L. iFrame.
-  rewrite pub_locs_in_lstore_empty big_sepM_empty dom_empty_L. iFrame.
-  rewrite big_sepS_empty. iSplit; first by iPureIntro.
+  rewrite /named !dom_empty_L big_sepS_empty. iFrame.
+  iSplitL "GCζvirt GCχvirt". { iSplit; eauto. iApply (hgh_empty with "[$] [$]"). }
 
   iApply (weakestpre.wp_wand with "[-Cont Hcont]").
   { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done.

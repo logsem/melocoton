@@ -10,7 +10,7 @@ From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
-From melocoton.interop Require Export basics basics_resources gctoken.
+From melocoton.interop Require Export basics basics_resources gctoken hybrid_ghost_heap.
 Import Wrap.
 
 (** Definition of the wrapper state interpretation and WP instance *)
@@ -63,28 +63,25 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) at_init
   ∗ "Hinit" ∷ if at_init then preGCtok else True.
 
-Definition GC_token_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) : iProp Σ :=
+Definition GC_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) : iProp Σ :=
    "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
  ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
  ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
+ ∗ "GCHGH" ∷ HGH χ None ζ
+ ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots_m)
  ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (roots_m : gmap loc lval)
  ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦C None).
 
-Definition ML_state_interp (ζvirt : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
-    "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζvirt
+Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
+    "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperG_γθ (1/2) (∅ : addr_map)
+  ∗ "SIGCrem" ∷ GC_remnant ζ χ roots
   ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots)
   ∗ "SIbound" ∷ ghost_var wrapperG_γat_boundary (1/2) false
-  ∗ "SIinit" ∷ ghost_var wrapperG_γat_init 1 false
-  ∗ "SIζvirt" ∷ lstore_own_auth ζvirt
+  ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) false
   ∗ "HσCv" ∷ gen_heap_interp (memC ∪ (fmap (fun k => None) roots))
-  ∗ "SIAχ" ∷ lloc_own_auth χ
-  ∗ "SIAχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χ ζvirt, ℓ ↦M/)
-  ∗ "SIGCrem" ∷ GC_token_remnant ζvirt χ roots
-  ∗ "%Hχinj" ∷ ⌜lloc_map_inj χ⌝
-  ∗ "%Hother_blocks" ∷ ⌜dom ζvirt ⊆ dom χ⌝
   ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
 
 Definition private_state_interp : wrapstateC → iProp Σ :=

@@ -45,7 +45,7 @@ Proof using.
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! W with "[-Hpto] Hpto []"). 2: done.
-  do 9 iExists _. iFrame. iPureIntro; split_and!; eauto.
+  repeat iExists _. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
   - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
 Qed.

@@ -111,14 +111,14 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval)
   ∗ "HInit" ∷ ghost_var wrapperG_γat_init 1 true.
 
-  Context `{!ffiGpre Σ}.
-
-  Lemma alloc_wrapperGCtokG : @Alloc _ Σ (wrapperGCtokG Σ) 
+  Lemma alloc_wrapperGCtokG :
+      ffiGpre Σ →
+      @Alloc _ Σ (wrapperGCtokG Σ)
       (λ H, GCtok_gammas 
           ∗ ⌜wrapperG_inG = _⌝
           ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
   Proof using All.
-    intros P _ Halloc.
+    intros ? P _ Halloc.
     eapply alloc_wrapperBasicsG in Halloc as (HwrapperBasicG&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γζ&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γχ&Halloc).
@@ -139,24 +139,25 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
     - cbv; done.
   Qed.
 
-  Lemma alloc_wrapperG : @Alloc _ Σ (prod (wrapperG Σ) (heapG_ML Σ))
+  Lemma alloc_wrapperG :
+      ffiGpre Σ →
+      @Alloc _ Σ (prod (wrapperG Σ) (heapG_ML Σ))
       (λ '(HW,HML), weakestpre.private_state_interp {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} 
                ∗ ghost_var wrapperG_γat_boundary (1 / 2) true ∗ at_init
                ∗ ⌜wrapperG_inG = _⌝)%I True.
   Proof using All.
-    intros P _ Halloc.
+    intros Hffi P _ Halloc.
     eapply alloc_heapG_ML in Halloc as (HheapG_ML&Halloc); last done.
-    eapply alloc_wrapperGCtokG in Halloc as (HwrapperGCtokG&Halloc); last done.
+    eapply alloc_wrapperGCtokG in Halloc as (HwrapperGCtokG&Halloc); [| done..].
     1: eapply alloc_fresh_res in Halloc as (γboundary&Halloc).
-    - pose (WrapperG _ Σ HwrapperGCtokG γboundary) as HwrapperG.
+    - clear Hffi. pose (WrapperG _ Σ HwrapperGCtokG γboundary) as HwrapperG.
       exists (HwrapperG,HheapG_ML). eapply alloc_mono; last exact Halloc. cbn.
       unfold weakestpre.private_state_interp, C_state_interp, at_init.
       iIntros "(((H1&H2)&(H3&(%Heq&%Heq2)))&H4)". iFrame "H1". iNamed "H3". cbn.
       iAssert (ghost_var γboundary (1 / 2) true ∗ ghost_var γboundary (1 / 2) true)%I with "[H4]" as "(H4&H4')".
       { rewrite /ghost_var !ghost_var.ghost_var_aux.(seal_eq) /ghost_var.ghost_var_def; cbn.
         iApply own_op. iApply "H4". }
-      rewrite <- !Heq.
-      iDestruct "HInit" as "(HInit1&HInit2)". iFrame. iSplitL; last done.
+      iDestruct "HInit" as "(HInit1&HInit2)". iFrame. iSplit; last done.
       iExists true. unfold preGCtok, named. cbn.
       iFrame.
       iDestruct "GCζ" as "($&$)".
@@ -166,10 +167,10 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
     - eapply dfrac_agree.frac_agree_op_valid_L; done.
   Qed.
 
-  Lemma alloc_linkG (s:link_state_case) : @Alloc _ Σ (linkG Σ)
+  Lemma alloc_linkG (s:link_state_case) : ffiGpre Σ → @Alloc _ Σ (linkG Σ)
       (λ _, ghost_var linkG_γ 1 s ∗ ⌜linkG_preG = _⌝)%I True.
   Proof using All.
-    intros P _ Halloc.
+    intros ? P _ Halloc.
     1: eapply alloc_fresh_res in Halloc as (γlink&Halloc).
     - pose (LinkG _ Σ _ γlink) as HLinkG.
       exists HLinkG. eapply alloc_mono; last exact Halloc. cbn.
@@ -178,10 +179,10 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
     - cbv. done.
   Qed.
 
-  Lemma alloc_logrelG  `{!logrelGpre Σ} : @Alloc _ Σ (logrel.logrelG Σ)
+  Lemma alloc_logrelG  `{!logrelGpre Σ} : ffiGpre Σ → @Alloc _ Σ (logrel.logrelG Σ)
       (λ _, na_tok_of)%I True.
   Proof using.
-    intros P _ Halloc.
+    intros ? P _ Halloc.
     1: eapply alloc_fresh_res in Halloc as (γnais&Halloc).
     - pose (LogrelG _ Σ logrel_na_invG_pre wrapperG_addrmapG_pre γnais) as HLogrelG.
       exists HLogrelG. eapply alloc_mono; last exact Halloc. cbn.
@@ -216,14 +217,14 @@ Section MainAlloc.
       True.
   Proof using All.
     intros Hspec P _ Halloc.
-    eapply (alloc_linkG Boundary) in Halloc as (HlinkG&Halloc); last done.
-    eapply alloc_wrapperG in Halloc as ((HwrapperG&HheapG_ML)&Halloc); last done.
-    eapply alloc_heapG_C in Halloc as (HheapG_C&Halloc); last done.
-    eapply alloc_logrelG in Halloc as (HlogrelG&Halloc); last done.
+    eapply (alloc_linkG Boundary) in Halloc as (HlinkG&Halloc); [|done..].
+    eapply alloc_wrapperG in Halloc as ((HwrapperG&HheapG_ML)&Halloc); [|done..].
+    eapply alloc_heapG_C in Halloc as (HheapG_C&Halloc); [|done..].
+    eapply alloc_logrelG in Halloc as (HlogrelG&Halloc); [|done..].
     exists (link_mlangG wrap_lang C_mlang _).
     eapply alloc_mono; last exact Halloc.
     iIntros "(((($&(Hb1&Hb2)&%Heq1)&((%b&HσW)&Hbound&Hinit2&%Heq2))&HσC)&Htok)". iNamed "HσW". cbn.
-    rewrite // /weakestpre.private_state_interp // /C_state_interp // -!Heq1 -!Heq2.
+    rewrite // /weakestpre.private_state_interp // /C_state_interp //.
     iPoseProof (ghost_var_agree with "SIinit Hinit2") as "->".
     iFrame. iSplitR.
     2: iSplitL "Hb1 SIinit Hinit".

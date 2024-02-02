@@ -28,23 +28,20 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iPoseProof (lstore_own_elem_of with "GCζvirt Hpto") as "%Helem".
-  iAssert ⌜∃ bl2, ζC ρc !! γ = Some bl2 ∧ block_tag bl2 = block_tag bl⌝%I as "%Helem2".
-  1: { iPureIntro. eapply lookup_union_Some_r in Helem; last apply Hfreezedj.
-       eapply freeze_lstore_lookup_backwards in Helem as (?&Hfrz&?); eauto.
-       inversion Hfrz; simplify_eq; eauto. }
-  edestruct Helem2 as (bl2&Hlu&Heqtag).
+  iAssert ⌜∃ bl2, ζC ρc !! γ = Some bl2 ∧ block_tag bl2 = block_tag bl⌝%I as %(?&?&Heqt).
+  { iDestruct (hgh_lookup_block with "GCHGH Hpto") as %(b&Hb&Hγ).
+    inversion Hb; subst; eauto. }
+
   iApply wp_pre_cases_c_prim; [done..|].
-  iExists (λ '(e', σ'), e' = WrSE (ExprV #(tag_as_int (block_tag bl2))) ∧ σ' = CState ρc mem).
+  iExists (λ '(e', σ'), e' = WrSE (ExprV #(tag_as_int (block_tag _))) ∧ σ' = CState ρc mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done. rewrite -Heqtag.
-  iApply "Hcont". iFrame.
+  iApply wp_value; first done.
+  iApply "Hcont". iFrame. rewrite Heqt.
   iApply ("Cont" with "[-Hpto] [$Hpto]"); try done; [].
-  rewrite /GC /named.
-  iExists _, (ζσ ∪ ζvirt), ζσ, ζvirt, _, χvirt, σMLvirt, _. iExists _.
-  iFrame. iPureIntro; split_and!; eauto.
+  rewrite /GC /named. iExists _, _, _, _, _. iFrame.
+  iPureIntro; split_and!; eauto.
 Qed.
 
 End Laws.

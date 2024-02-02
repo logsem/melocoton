@@ -51,7 +51,7 @@ Proof using.
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[-Hres] Hres").
-  do 9 iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
+  repeat iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.
   - intros ℓ γ [[-> ->]|[Hne HH]]%lookup_insert_Some; last by eapply Hrootslive.
     inv_repr_lval. by eapply elem_of_dom_2.

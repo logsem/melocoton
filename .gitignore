@@ -1,5 +1,6 @@
 _build
 .lia.cache
+.nia.cache
 *.crashcoqide
 *#
 html
