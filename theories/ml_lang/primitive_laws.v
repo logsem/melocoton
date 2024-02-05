@@ -9,7 +9,6 @@ From melocoton.language Require Export weakestpre lifting.
 From melocoton.ml_lang Require Export lang_instantiation class_instances.
 From melocoton.ml_lang Require Import tactics notation.
 From iris.prelude Require Import options.
-From melocoton Require Import monotone.
 
 
 
