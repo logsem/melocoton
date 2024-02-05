@@ -79,7 +79,7 @@ Section Proofs.
       iDestruct "Hγaux2" as "(Hγaux2&_)".
       iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
       iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
-      iPoseProof (lloc_own_pub_inj with "Hsim' Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
+      iPoseProof (lloc_own_pub_inj with "Hsim' Hsim2") as "%Heq2"; simplify_eq.
       iPureIntro; split; [by eapply Heq2 | done].
     }
     iModIntro.

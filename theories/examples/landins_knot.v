@@ -47,7 +47,7 @@ Section C_specs.
     destruct lvs as [|lvf [|??]]; try done.
     all: cbn; iDestruct "Hlvs" as "([%γ'' [-> #Hγ'']]&?)"; try done.
     iAssert (⌜γ = γ'⌝)%I as %<-. {
-      iDestruct (lloc_own_pub_inj with "Hγ Hγ' HGC") as "[? %]".
+      iDestruct (lloc_own_pub_inj with "Hγ Hγ'") as "%".
       iPureIntro. naive_solver.
     }
     wp_apply (wp_readfield with "[$HGC $Hl]"); [done..|].
@@ -55,7 +55,7 @@ Section C_specs.
     iMod (mut_to_ml _ [RecV _ _ _] with "[$HGC $Hl]") as "[HGC (%l'&Hl&#Hγ''')]".
     { cbn. eauto with iFrame. }
     iAssert (⌜l' = l⌝)%I as %<-. {
-      iDestruct (lloc_own_pub_inj with "Hγ' Hγ''' HGC") as "[? %]".
+      iDestruct (lloc_own_pub_inj with "Hγ' Hγ'''") as "%".
       iPureIntro. naive_solver.
     }
     wp_apply (wp_callback with "[$HGC $Hx $Hγ'' HWP Hl]"); [done.. | |].

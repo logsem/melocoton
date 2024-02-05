@@ -99,22 +99,4 @@ Proof using.
   iFrame. eauto.
 Qed.
 
-(* TODO: refine ghost state so that this holds without [GC θ] *)
-Lemma lloc_own_pub_inj θ γ1 γ2 ℓ1 ℓ2 :
-    γ1 ~ℓ~ ℓ1
- -∗ γ2 ~ℓ~ ℓ2
- -∗ GC θ
- -∗ GC θ ∗ ⌜γ1 = γ2 ↔ ℓ1 = ℓ2⌝.
-Proof.
-  iIntros "#Hsim1 #Hsim2 HGC". iNamed "HGC". iNamed "GCHGH".
-  iPoseProof (lloc_own_pub_of with "[$] Hsim1") as "%HH1".
-  iPoseProof (lloc_own_pub_of with "[$] Hsim2") as "%HH2".
-  iSplit.
-  { rewrite /GC /named. repeat iExists _. iFrame. iSplit; eauto.
-    rewrite /HGH /named. repeat iExists _. iFrame; eauto. }
-  iPureIntro; split; intros ->.
-  - by simplify_eq.
-  - destruct Hχinj as [_ [H _]]. by eapply H.
-Qed.
-
 End UpdateLaws.

@@ -12,7 +12,7 @@ From melocoton.c_lang Require Import lang_instantiation mlang_instantiation.
 From melocoton.mlanguage Require Import progenv.
 From melocoton.mlanguage Require Import weakestpre mlanguage adequacy.
 From melocoton.linking Require Import lang weakestpre.
-From transfinite.base_logic.lib Require Import satisfiable invariants ghost_map ghost_var na_invariants.
+From transfinite.base_logic.lib Require Import satisfiable invariants ghost_map ghost_var na_invariants gset_bij.
 From transfinite.stepindex Require Import ordinals.
 From melocoton.combined Require Import rules.
 
@@ -85,18 +85,22 @@ Section AllocBasics.
       (λ _, lstore_own_auth ∅ ∗ lloc_own_auth ∅ ∗ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval) ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
   Proof.
     intros P _ Halloc.
+    (* did not find a better workaround *)
+    set GSET_BIJ_CMRA := view.viewR (@gset_bij.gset_bij_view_rel lloc loc _ _ _ _ _).
     eapply alloc_fresh_res in Halloc as (γζvirt&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γχvirt&Halloc).
+    1: eapply (@alloc_fresh_res _ _ GSET_BIJ_CMRA) in Halloc as (γχbij&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γroots_map&Halloc).
-    - pose (WrapperBasicsG _ Σ _ γζvirt γχvirt γroots_map) as HWrapperBasicsG.
+    - pose (WrapperBasicsG _ Σ _ γζvirt γχvirt γχbij γroots_map) as HWrapperBasicsG.
       exists HWrapperBasicsG. eapply alloc_mono; last exact Halloc.
-      iIntros "((($&H1)&H2)&H3)". unfold lstore_own_auth, lloc_own_auth.
+      iIntros "(((($&H1)&H2)&H3)&H4)". unfold lstore_own_auth, lloc_own_auth.
       rewrite /named /ghost_map_auth !ghost_map.ghost_map_auth_aux.(seal_eq) /ghost_map.ghost_map_auth_def.
-      cbn in *. iFrame. repeat iSplitL.
+      rewrite /gset_bij_own_auth !gset_bij_own_auth_aux.(seal_eq) /gset_bij.gset_bij_own_auth_def.
+      cbn in *. iFrame. iSplitL.
       + unfold lstore_immut_blocks. rewrite map_filter_empty. by iApply big_sepM_empty.
-      + unfold lloc_map_pubs. rewrite omap_empty. by iApply big_sepM_empty.
       + done.
     - eapply gmap_view.gmap_view_auth_valid.
+    - by eapply gset_bij.gset_bij_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.
   Qed.

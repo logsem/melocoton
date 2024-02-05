@@ -1,9 +1,8 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
-From transfinite.base_logic.lib Require Import ghost_map ghost_var gen_heap.
-From iris.algebra Require Import gset.
+From transfinite.base_logic.lib Require Import ghost_map ghost_var gen_heap gset_bij.
 From iris.proofmode Require Import proofmode.
-From melocoton Require Import named_props.
+From melocoton Require Import named_props iris_extra.
 From melocoton.ml_lang Require Import lang.
 From melocoton.interop Require Export basics.
 
@@ -11,18 +10,20 @@ Class wrapperBasicsGpre `{SI: indexT} Σ := WrapperBasicsGpre {
   wrapperG_lstoreG :> ghost_mapG Σ lloc block;
   wrapperG_addr_lvalG :> ghost_mapG Σ addr lval;
   wrapperG_lloc_mapG :> ghost_mapG Σ lloc lloc_visibility;
+  wrapperG_lloc_map_bijG :> gset_bijG Σ lloc loc;
 }.
 
 Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
   wrapperG_inG :> wrapperBasicsGpre Σ;
   wrapperG_γζvirt : gname;
   wrapperG_γχvirt : gname;
+  wrapperG_γχbij : gname;
   wrapperG_γroots_map : gname;
 }.
 
 Definition wrapperBasicsΣ {SI: indexT} : gFunctors :=
   #[ghost_mapΣ lloc block; ghost_mapΣ addr lval;
-    ghost_mapΣ lloc lloc_visibility].
+    ghost_mapΣ lloc lloc_visibility; gset_bijΣ lloc loc].
 
 Global Instance subG_wrapperBasicsGpre `{SI: indexT} Σ :
   subG wrapperBasicsΣ Σ → wrapperBasicsGpre Σ.
@@ -38,25 +39,42 @@ Definition lloc_own_priv (γ : lloc) : iProp Σ :=
   γ ↪[wrapperG_γχvirt] LlocPrivate.
 
 Definition lloc_own_pub (γ : lloc) (ℓ : loc) : iProp Σ :=
-  γ ↪[wrapperG_γχvirt]□ LlocPublic ℓ.
+  gset_bij_own_elem wrapperG_γχbij γ ℓ.
 
 Instance lloc_own_pub_persistent γ ℓ : Persistent (lloc_own_pub γ ℓ).
 Proof using. apply _. Qed.
 
 Definition lloc_own_auth (χ : lloc_map) : iProp Σ :=
   "Hχgmap" ∷ ghost_map_auth wrapperG_γχvirt 1 χ ∗
-  "Hχpubs" ∷ ([∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), lloc_own_pub γ ℓ).
+  "Hχpubs" ∷ gset_bij_own_auth wrapperG_γχbij (DfracOwn 1)
+               (map_to_set pair (lloc_map_pubs χ)).
 
 Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
 Notation "γ ~ℓ~/" := (lloc_own_priv γ)
   (at level 20, format "γ  ~ℓ~/").
 
+Lemma lloc_own_pub_inj γ1 γ2 ℓ1 ℓ2 :
+  γ1 ~ℓ~ ℓ1 -∗ γ2 ~ℓ~ ℓ2 -∗ ⌜γ1 = γ2 ↔ ℓ1 = ℓ2⌝.
+Proof using. iIntros "#Hsim1 #Hsim2". by iApply gset_bij_own_elem_agree. Qed.
+
+Lemma lloc_own_auth_inj_of χ :
+  lloc_own_auth χ -∗ ⌜lloc_map_inj χ⌝.
+Proof using.
+  iNamed 1. iDestruct (gset_bij_own_valid with "Hχpubs") as %(_ & Hbij).
+  iPureIntro. intros γ1 γ2 [ℓ|] Hγ1 Hγ2 ?; try done.
+  specialize (Hbij γ1 ℓ). feed specialize Hbij.
+  { by apply elem_of_map_to_set_pair, lloc_map_pubs_lookup_Some. }
+  destruct Hbij as [_ Hbij]. symmetry. eapply Hbij.
+  by apply elem_of_map_to_set_pair, lloc_map_pubs_lookup_Some.
+Qed.
+
 Lemma lloc_own_auth_get_pub_all χ :
   lloc_own_auth χ -∗
   [∗ map] γ↦ℓ ∈ (lloc_map_pubs χ), γ ~ℓ~ ℓ.
 Proof using.
-  iNamed 1. iApply "Hχpubs".
+  iNamed 1. iDestruct (gset_bij_own_elem_get_big with "Hχpubs") as "H".
+  iApply (big_sepM_of_pairs with "H").
 Qed.
 
 Lemma lloc_own_auth_get_pub χ γ ℓ :
@@ -65,7 +83,9 @@ Lemma lloc_own_auth_get_pub χ γ ℓ :
   γ ~ℓ~ ℓ.
 Proof using.
   intros Hγ. iNamed 1.
-  iDestruct (big_sepM_lookup with "Hχpubs") as "?"; eauto.
+  iDestruct (gset_bij_own_elem_get with "Hχpubs") as "$".
+  apply elem_of_map_to_set_pair.
+  by apply lloc_map_pubs_lookup_Some.
 Qed.
 
 Lemma lloc_own_pub_of χ γ ℓ :
@@ -74,7 +94,8 @@ Lemma lloc_own_pub_of χ γ ℓ :
   ⌜χ !! γ = Some (LlocPublic ℓ)⌝.
 Proof using.
   iIntros "Hχ Hpub". iNamed "Hχ".
-  by iDestruct (ghost_map_lookup with "Hχgmap Hpub") as %?.
+  iDestruct (gset_bij_elem_of with "Hχpubs Hpub") as %Helt.
+  by apply elem_of_map_to_set_pair, lloc_map_pubs_lookup_Some in Helt.
 Qed.
 
 Lemma lloc_own_priv_of χ γ :
@@ -87,28 +108,31 @@ Proof using.
 Qed.
 
 Lemma lloc_own_expose χ γ ℓ :
+  ℓ ∉ lloc_map_pub_locs χ →
   lloc_own_auth χ -∗
   γ ~ℓ~/ ==∗
   lloc_own_auth (<[γ:=LlocPublic ℓ]> χ) ∗ γ ~ℓ~ ℓ.
 Proof using.
-  iIntros "Hχ Hγ".
+  iIntros (Hfresh) "Hχ Hγ".
   iDestruct (lloc_own_priv_of with "Hχ Hγ") as %Hχγ.
   iNamed "Hχ".
   iMod (ghost_map_update with "Hχgmap Hγ") as "[$ Hγ]".
-  iMod (ghost_map_elem_persist with "Hγ") as "#Hγ".
-  iFrame "Hγ". iModIntro. rewrite /named.
-  rewrite lloc_map_pubs_insert_pub.
-  iApply big_sepM_insert; eauto.
+  iMod (gset_bij_own_extend γ ℓ with "Hχpubs") as "(Hχpubs & Helt)".
+  { intros ? HH%elem_of_map_to_set_pair.
+    apply lloc_map_pubs_lookup_Some in HH. congruence. }
+  { intros ? HH%elem_of_map_to_set_pair.
+    eapply Hfresh, elem_of_lloc_map_pub_locs_1. eauto. }
+  iFrame "Helt". iModIntro. rewrite /named.
+  rewrite lloc_map_pubs_insert_pub map_to_set_insert_L//.
   apply lloc_map_pubs_lookup_None; eauto.
 Qed.
 
-Lemma lloc_own_allocate χ γ:
-  ⌜χ !! γ = None⌝ -∗
+Lemma lloc_own_insert_priv χ γ:
+  χ !! γ = None →
   lloc_own_auth χ ==∗
   lloc_own_auth (<[γ:=LlocPrivate]> χ) ∗ γ ~ℓ~/.
 Proof using.
-  iIntros (Hne) "Hχ".
-  iNamed "Hχ".
+  iIntros (Hne) "Hχ". iNamed "Hχ".
   iMod (ghost_map_insert with "Hχgmap") as "[Hχmap Hγ]"; first done.
   iModIntro. iSplitR "Hγ"; last done.
   iSplitL "Hχmap"; first done. unfold named.
@@ -117,18 +141,20 @@ Proof using.
   done.
 Qed.
 
-Lemma lloc_own_insert χ γ v:
-  ⌜χ !! γ = None⌝ -∗
+Lemma lloc_own_insert_pub χ γ ℓ :
+  χ !! γ = None →
+  ℓ ∉ lloc_map_pub_locs χ →
   lloc_own_auth χ ==∗
-  lloc_own_auth (<[γ:=v]> χ).
-Proof using.
-  iIntros (Hne) "Hχ".
-  destruct v as [l|].
-  { iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
-    iMod (lloc_own_expose with "Hχ Hγp") as "(H & _)".
-    rewrite insert_insert; done. }
-  { iMod (lloc_own_allocate with "[] Hχ") as "(Hχ & Hγp)"; first done.
-    by iModIntro. }
+  lloc_own_auth (<[γ:=LlocPublic ℓ]> χ) ∗ γ ~ℓ~ ℓ.
+Proof.
+  iIntros (Hne Hfresh) "Hχ".
+  iMod (lloc_own_insert_priv _ γ with "Hχ") as "(Hχ & Hγ)"; auto.
+  iMod (lloc_own_expose _ γ ℓ with "Hχ Hγ") as "Hχ".
+  { intros HH. apply Hfresh.
+    apply elem_of_lloc_map_pub_locs in HH as (γ'&?).
+    destruct (decide (γ = γ')) as [->|]; simplify_map_eq.
+    eapply elem_of_lloc_map_pub_locs_1; eauto. }
+  iModIntro. rewrite insert_insert//.
 Qed.
 
 Lemma lloc_own_mono χ1 χ2 :
@@ -153,8 +179,19 @@ Proof using.
   1: done.
   1: done.
   rewrite <- insert_union_r; last done.
-  iMod (lloc_own_insert with "[] Hown") as "$"; last done.
-  iPureIntro; apply lookup_union_None; done.
+  destruct v.
+  2: { iMod (lloc_own_insert_priv with "Hown") as "($ & _)"; last done.
+       by apply lookup_union_None. }
+  { iMod (lloc_own_insert_pub with "Hown") as "($ & _)"; last done.
+    1: by apply lookup_union_None.
+    intros (γ' & HH)%elem_of_lloc_map_pub_locs.
+    unfold lloc_map_inj in Hinj.
+    assert (k ≠ γ').
+    { intros ->. apply lookup_union_Some in HH as [?|?]; auto; congruence. }
+    specialize (Hinj k γ' (LlocPublic ℓ)).
+    feed specialize Hinj; auto.
+    - rewrite lookup_insert//.
+    - rewrite lookup_insert_ne//. }
 Qed.
 
 (* Ghost state for [lstore] *)

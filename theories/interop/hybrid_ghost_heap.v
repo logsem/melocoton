@@ -208,14 +208,14 @@ Definition HGH (χ : lloc_map) (σo : option store) (ζ : lstore) : iProp Σ :=
     "%HGHζrepr" ∷ ⌜lstore_hybrid_repr χg ζfreeze σ ζg⌝
   end ∗
   "HGHχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χg ζg, ℓ ↦M/) ∗
-  "%Hχinj" ∷ ⌜expose_llocs χ χg⌝ ∗
+  "%Hχexp" ∷ ⌜expose_llocs χ χg⌝ ∗
   "%Hother_blocks" ∷ ⌜dom ζ ⊆ dom χ⌝.
 
 Lemma hgh_dom_lstore_sub χ σo ζ : HGH χ σo ζ -∗ ⌜dom ζ ⊆ dom χ⌝.
 Proof using. iNamed 1. eauto. Qed.
 
 Lemma hgh_χ_inj χ ζ : HGH χ None ζ -∗ ⌜lloc_map_inj χ⌝.
-Proof using. iNamed 1. iNamed "HGHσo". iPureIntro. apply Hχinj. Qed.
+Proof using. iNamed 1. iNamed "HGHσo". iPureIntro. apply Hχexp. Qed.
 
 Lemma hgh_pointsto_has_lloc χ σ ζ ℓ vs :
   HGH χ (Some σ) ζ -∗
@@ -353,7 +353,7 @@ Proof using.
   iIntros "H Hpriv". iNamed "H". iNamed "HGHσo".
   iDestruct (lloc_own_priv_of with "HGHχ Hpriv") as %Hχγ.
   edestruct lstore_hybrid_repr_expose_lloc as (ℓ & Hℓ & Hℓσ & Hrepr); eauto; [].
-  iMod (lloc_own_expose with "HGHχ Hpriv") as "[HGHχ Hpriv]".
+  iMod (lloc_own_expose with "HGHχ Hpriv") as "[HGHχ Hpriv]"; first done.
   iMod (gen_heap_alloc _ ℓ None with "HGHσ") as "(HGHσ & HℓNone & _)".
   1: by eapply not_elem_of_dom_1.
   iPoseProof (big_sepM_insert _ _ γ ℓ with "[$HGHχNone $HℓNone]") as "HGHχNone".
@@ -397,14 +397,14 @@ Lemma hgh_alloc_block χ σ ζ γ blk :
   lstore_own_elem γ (DfracOwn 1) blk ∗
   γ ~ℓ~/.
 Proof using.
-  intros Hχγ. iNamed 1. iNamed "HGHσo". pose proof Hχinj as [? _].
+  intros Hχγ. iNamed 1. iNamed "HGHσo". pose proof Hχexp as [? _].
   assert (dom ζg ⊆ dom χ).
   { rewrite <-Hother_blocks. destruct HGHζfreeze as [-> _].
     destruct HGHζrepr as (?&->&_&_&_). set_solver. }
   iMod (lstore_own_insert _ γ blk with "HGHζ") as "(HGHζ & Hb)".
   1: by not_elem_of_dom.
   assert (Hχg: χg !! γ = None) by not_elem_of_dom.
-  iMod (lloc_own_allocate _ γ with "[%] HGHχ") as "(HGHχ&Hpriv)"; first auto.
+  iMod (lloc_own_insert_priv _ γ with "HGHχ") as "(HGHχ&Hpriv)"; first done.
   iModIntro. iFrame "Hpriv Hb". rewrite /HGH /named.
   iExists _, _. iFrame. iSplit. 2: iSplit.
   2: rewrite pub_locs_in_lstore_alloc_priv; eauto.
@@ -475,7 +475,7 @@ Proof using.
   iExists ζg, χg, ζfreeze. iFrame. iSplit; last by eauto.
   rewrite /HGH /named. iExists _, _. iFrame. iPureIntro; split_and!; eauto.
   { eapply expose_llocs_refl; eauto. }
-  { destruct Hχinj as [Hdom1 _]. rewrite -Hdom1. transitivity (dom ζ); auto.
+  { destruct Hχexp as [Hdom1 _]. rewrite -Hdom1. transitivity (dom ζ); auto.
     destruct HGHζfreeze as [Hdom2 _]. rewrite Hdom2.
     destruct HGHζrepr as (?&->&_&_&_). set_solver. }
 Qed.

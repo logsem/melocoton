@@ -46,7 +46,7 @@ Section Specs.
     iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
     iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&->)".
     iMod (ml_to_mut with "[$HGC $HℓbufML]") as "(HGC&(%ℓvs&%γref2&Hγusedref&#Hsim2&#Hγrefsim))".
-    iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim [$]") as "(HGC&%Hiff)".
+    iPoseProof (lloc_own_pub_inj with "Hsim2 Hsim") as "%Hiff".
     destruct Hiff as [_ ->]; last done.
     iModIntro. iFrame "HGC". iSplit; last by repeat iExists _. 
     iExists _, _, _, _, _. unfold named.
@@ -90,7 +90,7 @@ Section Specs.
     iDestruct "Hγaux2" as "(Hγaux2&_)".
     iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
     iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
-    iPoseProof (lloc_own_pub_inj with "Hsim Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
+    iPoseProof (lloc_own_pub_inj with "Hsim Hsim2") as "%Heq2"; simplify_eq.
     iPureIntro. f_equal; repeat f_equal.
     - symmetry; by eapply Heq2.
   Qed.

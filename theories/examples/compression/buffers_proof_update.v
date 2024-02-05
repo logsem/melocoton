@@ -134,7 +134,7 @@ Section Proofs.
         iDestruct "Hγaux2" as "(Hγaux2&_)".
         iPoseProof (ghost_map.ghost_map_elem_agree with "Hγbuf Hγbuf2") as "%Heq1"; simplify_eq.
         iPoseProof (ghost_map.ghost_map_elem_agree with "Hγaux Hγaux2") as "%Heq1"; simplify_eq.
-        iPoseProof (lloc_own_pub_inj with "Hsim3 Hsim2 HGC") as "(HGC&%Heq2)"; simplify_eq.
+        iPoseProof (lloc_own_pub_inj with "Hsim3 Hsim2") as "%Heq2"; simplify_eq.
         iPureIntro. split_and!; first done.
         symmetry. by eapply Heq2. }
 
@@ -167,7 +167,7 @@ Section Proofs.
       wp_apply (wp_load with "Hℓi"). iIntros "Hℓi". wp_pure _.
       wp_apply (wp_store with "Hℓi"). iIntros "Hℓi". wp_pure _.
       iMod (mut_to_ml _ [ ML_lang.LitV (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
-      iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2 HGC") as "(HGC&%Heq3)"; simplify_eq.
+      iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2") as "%Heq3"; simplify_eq.
       replace ℓML2 with ℓML0 by by eapply Heq3.
       iMod ("HMerge" with "[] [] HΨframe HΦz [Hγfgnpto HContent Hℓbuf HℓbufML]") as "HH". 1-2: iPureIntro; lia.
       { iExists _, _, _. unfold named. iSplit; first done. iFrame "HℓbufML".
