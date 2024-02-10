@@ -263,7 +263,7 @@ Proof.
     left; eapply vals_compare_loc. }
 Defined.
 
-Local Notation state := (gmap loc (option (list val))).
+Local Notation state := (gmap loc (list val)).
 
 (** Equality and other typeclass stuff *)
 Global Instance of_val_inj : Inj (=) (=) of_val.
@@ -650,7 +650,7 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     | _, _ => None
     end.
 
-Definition state_upd_heap (f: gmap loc (option (list val)) → gmap loc (option (list val))) (σ: state) : state := f σ.
+Definition state_upd_heap (f: gmap loc (list val) → gmap loc (list val)) (σ: state) : state := f σ.
 Global Arguments state_upd_heap _ !_ /.
 
 Inductive ml_function := MlFun (b : list binder) (e : expr).
@@ -700,7 +700,7 @@ Inductive head_step (p : ml_program) : expr → state → expr → state → Pro
      (0 ≤ n)%Z →
      l ∉ dom σ →
      head_step p (AllocN (Val $ LitV $ LitInt n) (Val v)) σ
-                 (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ)
+                 (Val $ LitV $ LitLoc l) (<[l := replicate (Z.to_nat n) v]> σ)
   | LoadNS l i v σ :
      σ !! Locoff l i = Some v →
      head_step p (LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i)) σ
@@ -727,7 +727,7 @@ Inductive head_step (p : ml_program) : expr → state → expr → state → Pro
      head_step p (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
                  (StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w)) σ
   | LengthS l vs σ :
-    σ !! l = Some (Some vs) →
+    σ !! l = Some vs →
     head_step p (Length (Val $ LitV $ LitLoc l)) σ
                 (Val $ LitV $ LitInt (length vs)) σ
   | ExternS s va args res e σ :
@@ -774,7 +774,7 @@ Lemma alloc_fresh p v n σ :
   let l := fresh_locs (dom σ) in
   (0 ≤ n)%Z →
   head_step p (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ
-              (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ).
+              (Val $ LitV $ LitLoc l) (<[l := replicate (Z.to_nat n) v]> σ).
 Proof.
   intros.
   apply AllocNS; first done.

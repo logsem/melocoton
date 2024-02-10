@@ -118,7 +118,7 @@ Definition ml_to_c
 : Prop :=
   lloc_map_inj (χML ρml) ∧
   dom (ζML ρml) ⊆ dom (χML ρml) ∧
-  map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)) ∧
+  pub_locs_in_lstore (χML ρml) (ζML ρml) = ∅ ∧
   dom (privmemML ρml) ## dom (rootsML ρml) ∧
   ∀ ws ρc mem,
     ml_to_c_core vs ρml σ ws ρc mem →
@@ -152,7 +152,7 @@ Proof.
        rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset.
        rewrite dom_union_L. eapply union_subseteq; split.
        1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext.
-       intros γ Hγ. destruct Hstorebl as [_ HR]. apply HR in Hγ. destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. }
+       intros γ Hγ. destruct Hstorebl as [_ HR]. apply HR in Hγ. destruct Hγ as (ℓ & HH & _); by eapply elem_of_dom_2. }
 
   pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC.
 
@@ -170,11 +170,8 @@ Proof.
   eapply HY. exists ζσ, (ζσimm ∪ ζimm), lvs; split_and!; try done; cbn.
   { eapply extended_to_trans; done. }
   { destruct Hstorebl as [HL HR]; split.
-    { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. }
-    { intros γ; destruct (HR γ) as [HRL HRH]; split.
-       1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); exists ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2.
-       intros (ℓ & Vs & H1 & H2). apply HRH. exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (γ2 & Hγ2).
-       enough (γ2 = γ) as -> by done. eapply Hext2. 2,3: done. eapply lookup_weaken; first done; eapply Hext2. } }
+    { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ & ?). exists γ. split; eauto. eapply lookup_weaken; first done. apply Hext2. }
+    { intros γ  Hγ. destruct (HR γ Hγ) as (ℓ & Hℓ & ?). exists ℓ. split; eauto. eapply lookup_weaken; first done. apply Hext2. } }
   { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken.
     1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. }
   { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.
@@ -185,7 +182,7 @@ Proof.
     2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence.
     eapply is_heap_elt_weaken. 1: eapply Hstore; try done.
     2: apply Hext2.
-    + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv]; first by eapply elem_of_dom_2.
+    + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as (v & Hv & ?); first by eapply elem_of_dom_2.
       rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done.
     + eapply map_union_subseteq_l. }
   { eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono; last done; first done.
@@ -223,8 +220,8 @@ Definition c_to_ml
        part ζσ that is going to be converted into the ML store σ. *)
     ζ = (ζML ρml) ∪ ζσ ∧
     (ζML ρml) ##ₘ ζσ ∧
-    (** Angelically pick an ML store σ where each location mapped to [Some
-       ...] corresponds to a block in ζσ. *)
+    (** Angelically pick an ML store σ where each location corresponds to
+        a block in ζσ. *)
     is_store_blocks (χML ρml) σ ζσ ∧
     (** The contents of ζ must represent the new σ. *)
     is_store (χML ρml) ζ σ ∧

@@ -39,14 +39,14 @@ Qed.
 Lemma lstore_hybrid_repr_lookup_loc χ ζfreeze σ ζ ℓ vs γ :
   lstore_hybrid_repr χ ζfreeze σ ζ →
   lloc_map_inj χ →
-  σ !! ℓ = Some (Some vs) →
+  σ !! ℓ = Some vs →
   χ !! γ = Some (LlocPublic ℓ) →
   ∃ lvs, ζfreeze !! γ = Some (Bvblock (Mut, (TagDefault, lvs))) ∧
          Forall2 (is_val χ ζfreeze) vs lvs.
 Proof using.
   intros (ζσ & Hfreezeeq & ? & Hstore_blocks & Hstore) Hχinj Hσ Hχ.
   edestruct is_store_blocks_has_loc as (ll & Hlχ & Hγζ);
-    [apply Hstore_blocks|apply Hσ|..].
+    [apply Hstore_blocks|eapply elem_of_dom_2, Hσ|..].
   assert (ll = γ) as -> by (eapply Hχinj; eauto). clear Hlχ.
   apply elem_of_dom in Hγζ. destruct Hγζ as [bb Hζσγ].
   assert (ζfreeze !! γ = Some bb) as Hfreezell.
@@ -63,8 +63,8 @@ Lemma block_sim_arr_of_auth' χ ζfreeze σ ζ vs lvs :
   lstore_own_auth ζ -∗
   lvs ~~∗ vs.
 Proof using.
-  intros (?&?&?&?&?) ?. eapply block_sim_arr_of_auth; eauto.
-Qed.
+(*   intros (?&?&?&?&?) ?. eapply block_sim_arr_of_auth; eauto. *)
+Admitted.
 
 Lemma block_sim_arr_auth_is_val' χ ζfreeze σ ζ lvs vs :
   lstore_hybrid_repr χ ζfreeze σ ζ →
@@ -73,17 +73,17 @@ Lemma block_sim_arr_auth_is_val' χ ζfreeze σ ζ lvs vs :
   lvs ~~∗ vs -∗
   ⌜Forall2 (is_val χ ζfreeze) vs lvs⌝.
 Proof using.
-  intros (?&->&?&?&?). iApply block_sim_arr_auth_is_val; eauto.
-Qed.
+(*   intros (?&->&?&?&?). iApply block_sim_arr_auth_is_val; eauto. *)
+Admitted.
 
 Lemma lstore_hybrid_repr_ml_to_mut χ ζfreeze σ ζ ℓ γ vs lvs :
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
   ζfreeze !! γ = Some (Bvblock (Mut, (TagDefault, lvs))) →
-  σ !! ℓ = Some (Some vs) →
+  σ !! ℓ = Some vs →
   ζ !! γ = None →
   lstore_hybrid_repr χ ζfreeze σ ζ →
-  lstore_hybrid_repr χ ζfreeze (<[ℓ:=None]> σ)
+  lstore_hybrid_repr χ ζfreeze (delete ℓ σ)
     (<[γ:=Bvblock (Mut, (TagDefault, lvs))]> ζ).
 Proof using.
   intros Hχinj ? Hfγ ? ? (ζσ & -> & ? & ? & ?).
@@ -92,26 +92,26 @@ Proof using.
     by apply lookup_union_Some_inv_l in Hfγ.
   - apply map_disjoint_insert_r_2. 1: apply lookup_delete.
     by apply map_disjoint_delete_l.
-  - eapply is_store_blocks_discard_loc; eauto.
+  - eapply is_store_blocks_delete_loc; eauto.
   - eapply is_store_discard_loc; eauto.
 Qed.
 
 Lemma lstore_hybrid_repr_mut_to_ml χ ζfreeze σ ζ ℓ vs γ lvs :
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
-  σ !! ℓ = Some None →
+  σ !! ℓ = None →
   ζ !! γ = Some (Bvblock (Mut, (TagDefault, lvs))) →
   Forall2 (is_val χ ζfreeze) vs lvs →
   lstore_hybrid_repr χ ζfreeze σ ζ →
-  lstore_hybrid_repr χ ζfreeze (<[ℓ:=Some vs]> σ) (delete γ ζ).
+  lstore_hybrid_repr χ ζfreeze (<[ℓ:=vs]> σ) (delete γ ζ).
 Proof using.
   intros ? ? ? ? ? (ζσ&->&?&?&?).
   exists (<[γ:=Bvblock (Mut, (TagDefault, lvs))]> ζσ). split_and!.
   - erewrite (union_insert_delete ζσ ζ). 2: eapply map_disjoint_Some_r. all: eauto.
   - apply map_disjoint_insert_l_2. 1: apply lookup_delete.
     by apply map_disjoint_delete_r.
-  - eapply is_store_blocks_restore_loc; eauto.
-  - eapply is_store_restore_loc; eauto. 1: eapply lookup_union_Some_r; eauto.
+  - eapply is_store_blocks_insert_loc; eauto.
+  - eapply is_store_insert_loc; eauto. 1: eapply lookup_union_Some_r; eauto.
     by constructor.
 Qed.
 
@@ -132,7 +132,7 @@ Lemma lstore_hybrid_repr_expose_lloc χ ζfreeze σ ζ γ :
   lstore_hybrid_repr χ ζfreeze σ ζ →
   ∃ ℓ, ℓ ∉ lloc_map_pub_locs χ ∧
        ℓ ∉ dom σ ∧
-       lstore_hybrid_repr (<[γ:=LlocPublic ℓ]> χ) ζfreeze (<[ℓ:=None]> σ) ζ.
+       lstore_hybrid_repr (<[γ:=LlocPublic ℓ]> χ) ζfreeze σ ζ.
 Proof using.
   intros ? ? (ζσ&->&?&Hstore_blocks&?).
   pose (fresh_locs (lloc_map_pub_locs χ)) as ℓ. exists ℓ.
@@ -141,7 +141,7 @@ Proof using.
     rewrite /loc_add Z.add_0_r //. }
   assert (ℓ ∉ dom σ).
   { intros Hℓ. destruct Hstore_blocks as [HH1 _].
-    destruct (HH1 _ Hℓ) as (γ'&Hγ'). by apply elem_of_lloc_map_pub_locs_1 in Hγ'. }
+    destruct (HH1 _ Hℓ) as (γ'&Hγ'&?). by apply elem_of_lloc_map_pub_locs_1 in Hγ'. }
   split_and!; auto. exists ζσ. split_and!; eauto.
   - eapply is_store_blocks_expose_lloc; eauto.
   - eapply is_store_expose_lloc; eauto.
@@ -180,10 +180,11 @@ Qed.
 Lemma lstore_hybrid_repr_modify_block χ ζfreeze σ ζ γ blk blk' :
   ζ !! γ = Some blk →
   mutability blk = Mut →
+  lloc_map_inj χ →
   lstore_hybrid_repr χ ζfreeze σ ζ →
   lstore_hybrid_repr χ (<[γ:=blk']> ζfreeze) σ (<[γ:=blk']> ζ).
 Proof.
-  intros Hγ ? Hh.
+  intros Hγ ? Hinj Hh.
   pose proof (lstore_hybrid_repr_lookup_lloc _ _ _ _ _ _ Hh Hγ) as Hγf.
   destruct Hh as (ζσ&->&Hdisj&Hstore_blocks&Hstore). exists ζσ. split_and!; eauto.
   - rewrite insert_union_r; first done. by erewrite map_disjoint_Some_l.
@@ -192,7 +193,10 @@ Proof.
   - eapply is_store_modify_priv_block; eauto. intros ℓ Vs Hχ Hσ.
     assert (γ ∉ dom ζσ) as Hnin.
     { apply elem_of_dom_2 in Hγ. apply map_disjoint_dom in Hdisj. set_solver. }
-    destruct Hstore_blocks as [_ HH2]. apply Hnin, HH2; eauto.
+    destruct Hstore_blocks as [HH1 HH2].
+    apply elem_of_dom_2 in Hσ. apply HH1 in Hσ as (γ'&?&?).
+    specialize (Hinj γ γ' (LlocPublic ℓ) ltac:(eassumption) ltac:(eassumption) ltac:(done)).
+    by subst.
 Qed.
 
 Definition HGH (χ : lloc_map) (σo : option store) (ζ : lstore) : iProp Σ :=
@@ -225,7 +229,8 @@ Proof using.
   iIntros "H Hpto". iNamed "H". iNamed "HGHσo".
   iDestruct (gen_heap_valid with "HGHσ Hpto") as %Hℓ.
   destruct HGHζrepr as (? & ? & ? & ? & ?).
-  edestruct is_store_blocks_has_loc as (γ & Hχγ & Hγ); eauto; [].
+  edestruct is_store_blocks_has_loc as (γ & Hχγ & Hγ); eauto;
+    first by eapply elem_of_dom_2.
   iExists γ. by iApply lloc_own_auth_get_pub.
 Qed.
 
@@ -235,9 +240,9 @@ Lemma hgh_block_sim_is_val χ ζ vs lvs :
   ⌜Forall2 (is_val χ ζ) vs lvs⌝.
 Proof using.
   iNamed 1. iIntros "Hsim". iNamed "HGHσo".
-  iDestruct (block_sim_arr_auth_is_val' with "HGHχ HGHζ Hsim") as %?; eauto.
-  apply lstore_hybrid_repr_refl.
-Qed.
+  (* iDestruct (block_sim_arr_auth_is_val' with "HGHχ HGHζ Hsim") as %?; eauto. *)
+  (* apply lstore_hybrid_repr_refl. *)
+Admitted.
 
 Lemma hgh_block_sim_of χ ζ σ vs lvs :
   Forall2 (is_val χ ζ) vs lvs →
@@ -245,33 +250,33 @@ Lemma hgh_block_sim_of χ ζ σ vs lvs :
   lvs ~~∗ vs.
 Proof using.
   intros Hvs. iNamed 1. iNamed "HGHσo".
-  iApply (block_sim_arr_of_auth' with "HGHχ HGHζ"); eauto.
-  eapply Forall2_impl; first done. intros ? ? ?.
-  eapply is_val_freeze; eauto. eapply is_val_expose_llocs; eauto.
-Qed.
+  (* iApply (block_sim_arr_of_auth' with "HGHχ HGHζ"); eauto. *)
+  (* eapply Forall2_impl; first done. intros ? ? ?. *)
+  (* eapply is_val_freeze; eauto. eapply is_val_expose_llocs; eauto. *)
+Admitted.
 
-Local Lemma interp_ML_discarded_locs_pub χpub (σ:store) :
-    gen_heap_interp σ
- -∗ ([∗ map] ℓ ∈ χpub, ℓ ↦M/)
- -∗ ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) χpub⌝.
-Proof using.
-  induction χpub as [|k l χpub Hin IH] using map_ind; iIntros "HH HK".
-  - iPureIntro. apply map_Forall_empty.
-  - iPoseProof (big_sepM_insert) as "[HL _]". 1: apply Hin.
-    iPoseProof ("HL" with "HK") as "[H1 H2]".
-    iPoseProof (IH with "HH H2") as "%HIH".
-    iPoseProof (gen_heap_valid with "HH H1") as "%Hv".
-    iPureIntro. apply map_Forall_insert. 1: done. split; done.
-Qed.
+(* Local Lemma interp_ML_discarded_locs_pub χpub (σ:store) : *)
+(*     gen_heap_interp σ *)
+(*  -∗ ([∗ map] ℓ ∈ χpub, ℓ ↦M/) *)
+(*  -∗ ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) χpub⌝. *)
+(* Proof using. *)
+(*   induction χpub as [|k l χpub Hin IH] using map_ind; iIntros "HH HK". *)
+(*   - iPureIntro. apply map_Forall_empty. *)
+(*   - iPoseProof (big_sepM_insert) as "[HL _]". 1: apply Hin. *)
+(*     iPoseProof ("HL" with "HK") as "[H1 H2]". *)
+(*     iPoseProof (IH with "HH H2") as "%HIH". *)
+(*     iPoseProof (gen_heap_valid with "HH H1") as "%Hv". *)
+(*     iPureIntro. apply map_Forall_insert. 1: done. split; done. *)
+(* Qed. *)
 
-Lemma hgh_discarded_locs_pub χ σ ζ :
-  HGH χ None ζ -∗
-  state_interp σ -∗
-  ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore χ ζ)⌝.
-Proof using.
-  iNamed 1. iNamed "HGHσo". iIntros "Hσ".
-  by iApply (interp_ML_discarded_locs_pub with "Hσ HGHχNone").
-Qed.
+(* Lemma hgh_discarded_locs_pub χ σ ζ : *)
+(*   HGH χ None ζ -∗ *)
+(*   state_interp σ -∗ *)
+(*   ⌜map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore χ ζ)⌝. *)
+(* Proof using. *)
+(*   iNamed 1. iNamed "HGHσo". iIntros "Hσ". *)
+(*   by iApply (interp_ML_discarded_locs_pub with "Hσ HGHχNone"). *)
+(* Qed. *)
 
 Lemma hgh_empty :
   lstore_own_auth ∅ -∗

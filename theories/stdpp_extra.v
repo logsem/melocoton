@@ -34,6 +34,7 @@ Ltac exploit_gmap_inj :=
     pose proof (Hinj _ _ _ H1 H2); subst; clear H2
   end.
 
+(* [map_ing] in recent stdpp *)
 Definition codom {A B : Type} `{Countable A} `{Countable B}: gmap A B → gset B := map_to_set (fun a b => b).
 
 Lemma codom_spec {A B : Type} `{Countable A} `{Countable B} (m : gmap A B) v : v ∈ codom m <-> exists k, m !! k = Some v.
@@ -46,6 +47,19 @@ Qed.
 Lemma codom_spec_2 {A B : Type} `{Countable A} `{Countable B} (m : gmap A B) k v : m !! k = Some v → v ∈ codom m.
 Proof.
   intros HH. apply codom_spec. by eexists.
+Qed.
+
+Lemma codom_insert_L {A B : Type} `{Countable A} `{Countable B} (m : gmap A B) k v :
+  k ∉ dom m →
+  codom (<[k:=v]> m) = {[v]} ∪ codom m.
+Proof.
+  intros Hnk.
+  apply set_eq. intros v'. rewrite elem_of_union elem_of_singleton !codom_spec. split.
+  - intros (? & HH). apply lookup_insert_Some in HH. naive_solver.
+  - intros [-> | (k' & ?)].
+    + exists k. apply lookup_insert_Some; naive_solver.
+    + exists k'. apply lookup_insert_Some. right. split; eauto.
+      intros ->. apply not_elem_of_dom in Hnk. congruence.
 Qed.
 
 Lemma list_insert_lookup_inv  A (vs:list A) (i:nat) v k : k ∈ <[ i := v ]> vs → k = v ∨ k ∈ vs.

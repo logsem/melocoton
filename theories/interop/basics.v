@@ -11,7 +11,7 @@ Notation addr := iris.heap_lang.locations.loc (only parsing).
 Notation memory := (gmap loc heap_cell).
 Notation word := C_intf.val.
 (** We call "store" an ML memory and "val" an ML value. *)
-Notation store := (gmap loc (option (list val))).
+Notation store := (gmap loc (list val)).
 Notation val := ML_lang.val.
 
 (** Block-level values and store.
@@ -203,8 +203,8 @@ Definition expose_llocs (χ1 χ2 : lloc_map) : Prop :=
   (∀ γ vis1 vis2, χ1 !! γ = Some vis1 → χ2 !! γ = Some vis2 → expose_lloc vis1 vis2).
 
 Definition is_store_blocks (χ : lloc_map) (σ : store) (ζ : lstore) : Prop :=
-  (∀ ℓ, ℓ ∈ dom σ → ∃ γ, χ !! γ = Some (LlocPublic ℓ)) ∧
-  (∀ γ, γ ∈ dom ζ ↔ ∃ ℓ Vs, χ !! γ = Some (LlocPublic ℓ) ∧ σ !! ℓ = Some (Some Vs)).
+  (∀ ℓ, ℓ ∈ dom σ → ∃ γ, χ !! γ = Some (LlocPublic ℓ) ∧ γ ∈ dom ζ) ∧
+  (∀ γ, γ ∈ dom ζ → ∃ ℓ, χ !! γ = Some (LlocPublic ℓ) ∧ ℓ ∈ dom σ).
 
 Definition is_private_blocks (χ : lloc_map) (ζ : lstore) : Prop :=
   ∀ γ, γ ∈ dom ζ → χ !! γ = Some LlocPrivate.
@@ -326,7 +326,7 @@ Inductive is_heap_elt (χ : lloc_map) (ζ : lstore) : list val → block → Pro
 
 Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
   ∀ ℓ vs γ blk,
-    σ !! ℓ = Some (Some vs) → χ !! γ = Some (LlocPublic ℓ) → ζ !! γ = Some blk →
+    σ !! ℓ = Some vs → χ !! γ = Some (LlocPublic ℓ) → ζ !! γ = Some blk →
     is_heap_elt χ ζ vs blk.
 
 
@@ -809,56 +809,58 @@ Lemma is_store_blocks_is_private_blocks_disjoint χ σ ζs ζp :
   ζs ##ₘ ζp.
 Proof.
   intros [Hs1 Hs2] Hp. apply map_disjoint_spec. intros ℓ b1 b2 Hsℓ Hpℓ.
-  apply elem_of_dom_2, Hs2 in Hsℓ as (?&?&?&?).
+  apply elem_of_dom_2, Hs2 in Hsℓ as (?&?&?).
   apply elem_of_dom_2, Hp in Hpℓ. congruence.
 Qed.
 
-Lemma is_store_blocks_has_loc χ σ ζ ℓ Vs :
+Lemma is_store_blocks_has_loc χ σ ζ ℓ :
   is_store_blocks χ σ ζ →
-  σ !! ℓ = Some (Some Vs) →
+  ℓ ∈ dom σ →
   ∃ γ, χ !! γ = Some (LlocPublic ℓ) ∧ γ ∈ dom ζ.
 Proof.
-  intros [H1 H2] Hℓ.
-  destruct (H1 ℓ) as (γ & Hγ); [by eapply elem_of_dom_2|].
-  eexists; split; eauto. apply H2. eauto.
+  intros [H1 H2] Hℓ. apply H1 in Hℓ as (? & ? & ?). eauto.
 Qed.
 
-Lemma is_store_blocks_discarded_loc χ σ ζ ℓ γ :
+Lemma is_store_blocks_has_lloc χ σ ζ γ :
   is_store_blocks χ σ ζ →
-  σ !! ℓ = Some None →
-  χ !! γ = Some (LlocPublic ℓ) →
-  γ ∉ dom ζ.
+  γ ∈ dom ζ →
+  ∃ ℓ, χ !! γ = Some (LlocPublic ℓ) ∧ ℓ ∈ dom σ.
 Proof.
-  intros [Hdom Hstore] Hσ Hχ [ℓ' (Hℓ' & Hχ' & ?)]%Hstore.
-  simplify_map_eq.
+  intros [H1 H2] Hγ. apply H2 in Hγ as (? & ? & ?). eauto.
 Qed.
 
-Lemma is_store_blocks_discard_loc χ σ ζ ℓ γ Vs :
+(* Lemma is_store_blocks_discarded_loc χ σ ζ ℓ γ : *)
+(*   is_store_blocks χ σ ζ → *)
+(*   σ !! ℓ = Some None → *)
+(*   χ !! γ = Some (LlocPublic ℓ) → *)
+(*   γ ∉ dom ζ. *)
+(* Proof. *)
+(*   intros [Hdom Hstore] Hσ Hχ [ℓ' (Hℓ' & Hχ' & ?)]%Hstore. *)
+(*   simplify_map_eq. *)
+(* Qed. *)
+
+Lemma is_store_blocks_delete_loc χ σ ζ ℓ γ Vs :
   is_store_blocks χ σ ζ →
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
-  σ !! ℓ = Some (Some Vs) →
-  is_store_blocks χ (<[ℓ:=None]> σ) (delete γ ζ).
+  σ !! ℓ = Some Vs →
+  is_store_blocks χ (delete ℓ σ) (delete γ ζ).
 Proof.
   intros [Hs1 Hs2] χinj Hχℓ Hσℓ. split.
-  { intros ℓ'. rewrite dom_insert_lookup_L//. eauto. }
-  intros γ'. destruct (decide (γ = γ')) as [<-|].
-  { split. { rewrite dom_delete_L. set_solver. }
-    intros (ℓ' & Vs' & Hχℓ' & Hσℓ'). simplify_map_eq. }
-  { rewrite dom_delete_L elem_of_difference. split.
-    { intros [Hγ' _]. apply Hs2 in Hγ' as (ℓ'' & ? & Hχℓ'' & ?).
-      do 2 eexists. split; eauto. rewrite lookup_insert_ne //.
-      intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ'' ltac:(done)). }
-    { intros (ℓ' & Vs' & Hχℓ' & Hσℓ').
-      rewrite lookup_insert_ne in Hσℓ'.
-      2: { intros ->. by specialize (χinj _ _ _ Hχℓ Hχℓ' ltac:(done)). }
-      split; [| set_solver]. apply Hs2. do 2 eexists. split; eauto. } }
+  { intros ℓ'. rewrite !dom_delete_L elem_of_difference not_elem_of_singleton.
+    intros [Hℓ' ?]. apply Hs1 in Hℓ' as (γ'&?&?). eexists γ'. split; eauto.
+    rewrite elem_of_difference not_elem_of_singleton. split; eauto.
+    intros ->. simplify_map_eq. }
+  { intros γ'. rewrite !dom_delete_L elem_of_difference not_elem_of_singleton.
+    intros [Hγ' ?]. apply Hs2 in Hγ' as (ℓ'&HH'&?). exists ℓ'. split; eauto.
+    rewrite elem_of_difference not_elem_of_singleton. split; eauto.
+    intros ->. eapply χinj in Hχℓ. eapply Hχℓ in HH'; eauto. }
 Qed.
 
 Lemma is_store_blocks_lstore_dom_sub χ σ ζ : is_store_blocks χ σ ζ → dom ζ ⊆ dom χ.
 Proof using.
   intros [_ HH]. apply elem_of_subseteq. intros γ Hγ.
-  by apply HH in Hγ as (?&?&?%elem_of_dom_2&?).
+  by apply HH in Hγ as (?&?%elem_of_dom_2&?).
 Qed.
 
 Lemma is_private_blocks_dom_sub χ ζ : is_private_blocks χ ζ → dom ζ ⊆ dom χ.
@@ -867,48 +869,51 @@ Proof using.
   by apply Hpriv, elem_of_dom_2 in Hγ.
 Qed.
 
-Lemma is_store_blocks_restore_loc χ σ ζ ℓ γ Vs blk:
+Lemma is_store_blocks_insert_loc χ σ ζ ℓ γ Vs blk:
   is_store_blocks χ σ ζ →
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
-  (σ !! ℓ = Some None ∨ σ !! ℓ = None) →
-  is_store_blocks χ (<[ℓ:=Some Vs]> σ) (<[γ:=blk]> ζ).
+  is_store_blocks χ (<[ℓ:=Vs]> σ) (<[γ:=blk]> ζ).
 Proof.
-  intros [Hsl Hsr] Hχinj Hχℓ Hσℓ. split.
+  intros [Hsl Hsr] Hχinj Hχℓ. split.
+  { intros ℓ'. rewrite !dom_insert_L elem_of_union elem_of_singleton. intros [->|Hℓ'].
+    { eexists. split; eauto. rewrite elem_of_union elem_of_singleton. eauto. }
+    { apply Hsl in Hℓ' as (γ'&?&?). exists γ'. split; eauto.
+      rewrite elem_of_union elem_of_singleton. eauto. } }
+  { intros γ'. rewrite !dom_insert_L elem_of_union elem_of_singleton. intros [->|Hγ'].
+    { eexists. split; eauto. rewrite elem_of_union elem_of_singleton. eauto. }
+    { apply Hsr in Hγ' as (ℓ'&?&?). exists ℓ'. split; eauto.
+      rewrite elem_of_union elem_of_singleton. eauto. } }
+Qed.
+
+Lemma is_store_blocks_add_loc χ σ ζ ℓ γ vs blk:
+  is_store_blocks χ σ ζ →
+  χ !! γ = Some (LlocPublic ℓ) →
+  σ !! ℓ = None →
+  is_store_blocks χ (<[ℓ:=vs]> σ) (<[γ:=blk]> ζ).
+Proof.
+  intros [Hsl Hsr] Hχℓ Hσℓ. split.
   { intros ℓ'. rewrite dom_insert_L //. intros [->%elem_of_singleton|H]%elem_of_union.
-    1: by eexists. eauto. }
-  intros γ'. destruct (Hsr γ') as [Hsrl Hsrr]; split.
-  * intros Hin. rewrite dom_insert_L in Hin. apply elem_of_union in Hin.
-    destruct Hin as [->%elem_of_singleton|Hin2].
-    - exists ℓ, Vs. split; try done. by rewrite lookup_insert.
-    - destruct (Hsrl Hin2) as (ℓ2 & Vs2 & H1 & H2); exists ℓ2, Vs2; split; try done.
-      rewrite lookup_insert_ne; first done; destruct Hσℓ; congruence.
-  * intros (ℓ2 & Vs2 & H1 & H2). destruct (decide (ℓ2 = ℓ)) as [->|Hne].
-    - specialize (Hχinj _ _ _ Hχℓ H1). simplify_map_eq. set_solver.
-    - rewrite dom_insert_L. apply elem_of_union; right. apply Hsrr.
-      eexists _, _; split; try done. rewrite lookup_insert_ne in H2; done.
+    { eexists. split; eauto. rewrite dom_insert_L elem_of_union elem_of_singleton. eauto. }
+    { apply Hsl in H as (?&?&?). eexists. split; eauto.
+      rewrite dom_insert_L elem_of_union elem_of_singleton. eauto. } }
+  intros γ'. rewrite dom_insert_L elem_of_union elem_of_singleton. intros [<-|Hγ'].
+  * eexists. split; eauto. rewrite dom_insert_L elem_of_union elem_of_singleton. eauto.
+  * apply Hsr in Hγ' as (?&?&?). eexists. split; eauto.
+    rewrite dom_insert_L elem_of_union elem_of_singleton. eauto.
 Qed.
 
 Lemma is_store_blocks_expose_lloc χ ζ σ ℓ γ :
   is_store_blocks χ σ ζ →
   χ !! γ = Some LlocPrivate →
   ℓ ∉ dom σ →
-  is_store_blocks (<[γ:=LlocPublic ℓ]> χ) (<[ℓ:=None]> σ) ζ.
+  is_store_blocks (<[γ:=LlocPublic ℓ]> χ) σ ζ.
 Proof.
   intros [Hsl Hsr] Hγ Hℓdom. split.
-  - intros ℓ'. rewrite !dom_insert_L elem_of_union elem_of_singleton.
-    intros [<-|Hℓ']. by exists γ; simplify_map_eq.
-    specialize (Hsl _ Hℓ') as (γ'&?). exists γ'.
-    rewrite lookup_insert_ne //. set_solver.
-  - intros γ'; destruct (Hsr γ') as [Hsrl Hsrr]. split.
-    * intros Hin. specialize (Hsrl Hin) as (ℓ' & Vs' & H1 & H2).
-      eexists ℓ', Vs'. rewrite lookup_insert_ne. 2: congruence.
-      split; eauto. rewrite lookup_insert_ne//.
-      eapply not_elem_of_dom in Hℓdom. naive_solver.
-    * intros (ℓ2 & Vs & H1 & H2). destruct (decide (ℓ = ℓ2)) as [<- | Hn].
-      1: rewrite lookup_insert in H2; congruence.
-      apply Hsrr. destruct (decide (γ = γ')) as [<-|]; [by simplify_map_eq|].
-      rewrite !lookup_insert_ne // in H1, H2. exists ℓ2, Vs. eauto.
+  { intros ℓ' Hℓ'. apply Hsl in Hℓ' as (γ'&?&?). exists γ'.
+    rewrite lookup_insert_ne//. congruence. }
+  { intros γ' Hγ'. apply Hsr in Hγ' as (ℓ'&?&?). exists ℓ'.
+    rewrite lookup_insert_ne//. congruence. }
 Qed.
 
 Lemma is_store_blocks_alloc_block χ σ ζσ γ :
@@ -917,31 +922,30 @@ Lemma is_store_blocks_alloc_block χ σ ζσ γ :
   is_store_blocks (<[γ:=LlocPrivate]> χ) σ ζσ.
 Proof using.
   intros ? [HH1 HH2]. split.
-  { intros ℓ1 Hℓ1. destruct (HH1 ℓ1 Hℓ1) as (γ'&?). exists γ'.
+  { intros ℓ1 Hℓ1. destruct (HH1 ℓ1 Hℓ1) as (γ'&?&?). exists γ'.
     rewrite lookup_insert_ne//. congruence. }
-  { intros γ'. rewrite HH2. split; intros (ℓ' & VS & HH0 & ?).
-    { do 2 eexists. split; eauto. rewrite lookup_insert_ne//. congruence. }
-    { do 2 eexists. split; eauto.
-      destruct (decide (γ = γ')) as [<-|]; by simplify_map_eq. } }
+  { intros γ' HH. apply HH2 in HH as (?&?&?).
+    eexists. split; eauto.
+    destruct (decide (γ = γ')) as [<-|]; by simplify_map_eq. }
 Qed.
 
 Lemma is_store_discard_loc χ ζ σ ℓ :
   is_store χ ζ σ →
-  is_store χ ζ (<[ℓ:=None]> σ).
+  is_store χ ζ (delete ℓ σ).
 Proof.
   intros Hstore ℓ' Vs γ blk HH1 HH2 HH3.
   eapply Hstore; try done. destruct (decide (ℓ = ℓ')) as [<-|].
-  { rewrite lookup_insert in HH1; done. }
-  rewrite lookup_insert_ne in HH1; try done.
+  { rewrite lookup_delete in HH1; done. }
+  rewrite lookup_delete_ne in HH1; try done.
 Qed.
 
-Lemma is_store_restore_loc χ ζ σ ℓ γ Vs blk :
+Lemma is_store_insert_loc χ ζ σ ℓ γ Vs blk :
   is_store χ ζ σ →
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
   ζ !! γ = Some blk →
   is_heap_elt χ ζ Vs blk →
-  is_store χ ζ (<[ℓ:=Some Vs]> σ).
+  is_store χ ζ (<[ℓ:=Vs]> σ).
 Proof.
   intros Hstore Hχinj Hχℓ Hζγ Hblk ℓ1 vs1 γ1 bl1 Hs1 Hs2 Hs3.
   destruct (decide (ℓ = ℓ1)) as [<- | Hne].
@@ -955,10 +959,11 @@ Lemma is_store_expose_lloc χ ζ σ ℓ γ :
   ℓ ∉ dom σ →
   ℓ ∉ lloc_map_pub_locs χ →
   lloc_map_inj χ →
-  is_store (<[γ:=LlocPublic ℓ]> χ) ζ (<[ℓ:=None]> σ).
+  is_store (<[γ:=LlocPublic ℓ]> χ) ζ σ.
 Proof.
   intros Hstore Hγ Hℓdom Hℓpubs Hinj ℓ1 vs γ1 blk H1 H2 H3.
-  destruct (decide (ℓ = ℓ1)) as [<- | Hn]; [by simplify_map_eq|].
+  destruct (decide (ℓ = ℓ1)) as [<- | Hn].
+  { by apply elem_of_dom_2 in H1. }
   destruct (decide (γ = γ1)) as [<- |]; [by simplify_map_eq|].
   rewrite !lookup_insert_ne // in H1, H2.
   specialize (Hstore _ _ _ _ H1 H2 H3).
@@ -1005,7 +1010,7 @@ Qed.
 Lemma is_store_modify_priv_block χ ζ σ γ blk blk':
   is_store χ ζ σ →
   ζ !! γ = Some blk →
-  (∀ ℓ Vs, χ !! γ = Some (LlocPublic ℓ) → σ !! ℓ = Some (Some Vs) → False) →
+  (∀ ℓ Vs, χ !! γ = Some (LlocPublic ℓ) → σ !! ℓ = Some Vs → False) →
   mutability blk = Mut →
   is_store χ (<[γ:=blk']> ζ) σ.
 Proof.
