@@ -329,6 +329,12 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
     σ !! ℓ = Some vs → χ !! γ = Some (LlocPublic ℓ) → ζ !! γ = Some blk →
     is_heap_elt χ ζ vs blk.
 
+(** Canonical value representing a logical value *)
+Definition canon_val (lv: lval): val :=
+  match lv with
+  | Lint x => ML_lang.LitV (ML_lang.LitInt x)
+  | Lloc γ => ML_lang.LitV (ML_lang.LitForeign γ)
+  end.
 
 (******************************************************************************)
 (** auxiliary definitions and lemmas *)
@@ -1145,6 +1151,17 @@ Lemma GC_correct_gmap_inj ζ θ :
   gmap_inj θ.
 Proof. intros H; apply H. Qed.
 Global Hint Resolve GC_correct_gmap_inj : core.
+
+Lemma canon_val_is_val χ ζ lv :
+  is_val χ ζ (canon_val lv) lv.
+Proof. destruct lv; constructor. Qed.
+
+Lemma canon_vals_is_val χ ζ lvs :
+  Forall2 (is_val χ ζ) (map (canon_val) lvs) lvs.
+Proof.
+  induction lvs as [| lv lvs]; first constructor.
+  apply Forall2_cons; split; last done. apply canon_val_is_val.
+Qed.
 
 (******************************************************************************)
 (* auxiliary hints & tactics *)
