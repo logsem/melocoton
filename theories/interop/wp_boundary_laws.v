@@ -54,7 +54,7 @@ Proof using.
   destruct Hζ as (ζσ&?&?&?&?).
   iExists (WrapstateML _ _ _ _), _. iSplit.
   { iPureIntro. unfold c_to_ml. cbn.
-    eexists σMLvirt, _, _, ζfreeze, ζσ. split_and!; eauto. by rewrite map_union_comm. }
+    eexists σfull, _, _, ζfreeze, ζσ. split_and!; eauto. by rewrite map_union_comm. }
 
   iMod (ghost_var_update_halves with "Hnb SIbound") as "(Hb & SIbound)".
   iMod (ghost_var_update_halves with "GCζ SIζ") as "(GCζ & SIζ)".

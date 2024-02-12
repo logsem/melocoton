@@ -75,15 +75,14 @@ Proof using.
 (*   intros (?&->&?&?&?). iApply block_sim_arr_auth_is_val; eauto. *)
 Admitted.
 
-Lemma lstore_hybrid_repr_ml_to_mut χ ζfreeze σ ζ ℓ γ vs lvs :
+Lemma lstore_hybrid_repr_ml_to_mut χ ζfreeze σ ζ ℓ γ vs blk :
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
-  ζfreeze !! γ = Some (Bvblock (Mut, (TagDefault, lvs))) →
+  ζfreeze !! γ = Some blk →
   σ !! ℓ = Some vs →
   ζ !! γ = None →
   lstore_hybrid_repr χ ζfreeze σ ζ →
-  lstore_hybrid_repr χ ζfreeze (delete ℓ σ)
-    (<[γ:=Bvblock (Mut, (TagDefault, lvs))]> ζ).
+  lstore_hybrid_repr χ ζfreeze (delete ℓ σ) (<[γ:=blk]> ζ).
 Proof using.
   intros Hχinj ? Hfγ ? ? (ζσ & -> & ? & ? & ?).
   exists (delete γ ζσ). split_and!.
@@ -364,7 +363,8 @@ Definition HGH (χ : lloc_map) (σo : option store) (ζ : lstore) : iProp Σ :=
   | None => ∃ σsafe,
     "[-> ->]" ∷ ⌜ζg = ζ ∧ χg = χ⌝ ∗
     "HGHσsafe" ∷ ([∗ map] ℓ↦vs ∈ σsafe, ℓ ↦∗ vs) ∗
-    "%HGHσsafe" ∷ ⌜codom (pub_locs_in_lstore χg ζg) ⊆ dom σsafe⌝
+     "%HGHpub" ∷ ⌜pub_locs_in_lstore χ ζ = ∅⌝
+    (* "%HGHσsafe" ∷ ⌜codom (pub_locs_in_lstore χg ζg) ⊆ dom σsafe⌝ *)
   | Some σ => ∃ ζfreeze σfull,
     "HGHσ" ∷ state_interp_with_safekeeping σfull σ ∗
     "%HGHζfreeze" ∷ ⌜freeze_lstore ζ ζfreeze⌝ ∗
@@ -379,6 +379,10 @@ Proof using. iNamed 1. eauto. Qed.
 
 Lemma hgh_χ_inj χ ζ : HGH χ None ζ -∗ ⌜lloc_map_inj χ⌝.
 Proof using. iNamed 1. iNamed "HGHσo". iPureIntro. apply Hχexp. Qed.
+
+Lemma hgh_None_pub_locs_in_lstore χ ζ :
+  HGH χ None ζ -∗ ⌜pub_locs_in_lstore χ ζ = ∅⌝.
+Proof using. iNamed 1. by iNamed "HGHσo". Qed.
 
 Lemma hgh_pointsto_has_lloc χ σ ζ ℓ vs :
   HGH χ (Some σ) ζ -∗
@@ -444,8 +448,9 @@ Lemma hgh_empty :
 Proof using.
   iIntros "Hζ Hχ". rewrite /HGH /named. iExists ∅, ∅.
   iFrame. iSplit.
-  { iExists ∅. rewrite pub_locs_in_lstore_empty big_sepM_empty.
-    iPureIntro; split_and!; eauto. set_solver. }
+  { iExists ∅. (* rewrite pub_locs_in_lstore_empty big_sepM_empty. *)
+    rewrite big_sepM_empty.
+    iPureIntro; split_and!; eauto. (* set_solver. *) }
   { iPureIntro; split_and!; eauto.
     - by apply expose_llocs_refl.
     - set_solver. }
@@ -657,27 +662,36 @@ Lemma hgh_export_ml_heap χ σ ζ :
     ⌜σ ⊆ σfull⌝ ∗
     ⌜expose_llocs χ χ'⌝ ∗
     ⌜freeze_lstore ζ ζfreeze⌝ ∗
-    ⌜lstore_hybrid_repr χ' ζfreeze σ ζ'⌝.
+    ⌜lstore_hybrid_repr χ' ζfreeze σfull ζ'⌝.
 Proof using.
-  iNamed 1. iNamed "HGHσo".
-  iExists ζg, χg, ζfreeze, σfull. iNamed "HGHσ". iFrame. iSplit.
-  2: { iPureIntro; split_and!; eauto. eapply map_union_subseteq_l; eauto. }
-  rewrite /HGH /named. iExists _, _. iFrame. iSplit; last (iSplit; iPureIntro).
-  { iExists _. iFrame. iSplit; iPureIntro; eauto. apply elem_of_subseteq.
-    intros ℓ Hℓ.
-    apply codom_spec in Hℓ as (γ&Hγ).
-    apply pub_locs_in_lstore_lookup in Hγ as (Hγ&?).
-    assert (ℓ ∈ lloc_map_pub_locs χg).
-    { apply elem_of_lloc_map_pub_locs; eauto. }
-    assert (σ !! ℓ = None) as ?%not_elem_of_dom.
-    { apply elem_of_dom in Hγ as (?&?).
-      eapply lstore_hybrid_repr_lookup_pub_lloc_notin; eauto. }
-    map_disjoint_dom. set_solver. }
-  { eapply expose_llocs_refl; eauto. }
-  { destruct Hχexp as [Hdom1 _]. rewrite -Hdom1. transitivity (dom ζ); auto.
-    destruct HGHζfreeze as [Hdom2 _]. rewrite Hdom2.
-    destruct HGHζrepr as (?&->&_&_&_). set_solver. }
-Qed.
+  iNamed 1. iNamed "HGHσo". iNamed "HGHσ".
+  Search lstore_hybrid_repr insert.
+
+  (* need: pub_locs_in_lstore χ' ζ' = ∅ *)
+
+  (* iExists ζg, χg, ζfreeze, σfull. iNamed "HGHσ". iFrame. iSplit. *)
+  (* 2: { iPureIntro; split_and!; eauto. eapply map_union_subseteq_l; eauto. } *)
+  (* rewrite /HGH /named. iExists _, _. iFrame. iSplit; last (iSplit; iPureIntro). *)
+  (* { iExists _. iFrame. iSplit; iPureIntro; eauto. *)
+  (*   eapply map_eq. intros γ. rewrite lookup_empty. *)
+  (*   Search pub_locs_in_lstore lookup. eapply pub_locs_in_lstore_ *)
+
+
+ (* apply elem_of_subseteq. *)
+    (* intros ℓ Hℓ. *)
+    (* apply codom_spec in Hℓ as (γ&Hγ). *)
+    (* apply pub_locs_in_lstore_lookup in Hγ as (Hγ&?). *)
+    (* assert (ℓ ∈ lloc_map_pub_locs χg). *)
+    (* { apply elem_of_lloc_map_pub_locs; eauto. } *)
+    (* assert (σ !! ℓ = None) as ?%not_elem_of_dom. *)
+    (* { apply elem_of_dom in Hγ as (?&?). *)
+    (*   eapply lstore_hybrid_repr_lookup_pub_lloc_notin; eauto. } *)
+    (* map_disjoint_dom. set_solver. } *)
+  (* { eapply expose_llocs_refl; eauto. } *)
+  (* { destruct Hχexp as [Hdom1 _]. rewrite -Hdom1. transitivity (dom ζ); auto. *)
+  (*   destruct HGHζfreeze as [Hdom2 _]. rewrite Hdom2. *)
+  (*   destruct HGHζrepr as (?&->&_&_&_). set_solver. } *)
+Admitted.
 
 Lemma lstore_hybrid_repr_loc_in_pub_locs χ ζfreeze σ ζ ℓ :
   lstore_hybrid_repr χ ζfreeze σ ζ →

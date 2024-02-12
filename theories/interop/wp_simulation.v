@@ -40,7 +40,8 @@ Proof using.
 
   iAssert (⌜ml_to_c [v] ρml σ (λ ws ρc mem, ml_to_c_core [v] ρml σ ws ρc mem)⌝)%I as "%Hprog".
   { iNamed "SI". iNamed "SIML". iNamed "SIGCrem".
-    iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %?.
+    (* iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %?. *)
+    iDestruct (hgh_None_pub_locs_in_lstore with "GCHGH") as %?.
     iDestruct (hgh_dom_lstore_sub with "GCHGH") as %?.
     iDestruct (hgh_χ_inj with "GCHGH") as %?.
     iPureIntro; split_and!; eauto. }
@@ -73,7 +74,8 @@ Proof.
   iIntros "Hnb HWP %st Hst".
   iDestruct (SI_not_at_boundary_is_in_ML with "Hst Hnb") as %(ρml&σ&->).
   iNamed "Hst". iNamed "SIML". iNamed "SIGCrem".
-  iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %Hpublocs.
+  iDestruct (hgh_None_pub_locs_in_lstore with "GCHGH") as %?.
+  (* iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %Hpublocs. *)
   iMod ("HWP" $! σ with "[$HσML]") as "[HWP|[HWP|HWP]]".
   (* value *)
   + iDestruct "HWP" as "(%x & -> & Hσ & Hret)".
