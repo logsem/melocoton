@@ -620,6 +620,18 @@ Proof.
   1: by etransitivity. done.
 Qed.
 
+Lemma lloc_map_mono_lookup_inj χ1 χ2 γ γ' ℓ:
+  lloc_map_mono χ1 χ2 →
+  χ1 !! γ = Some (LlocPublic ℓ) →
+  χ2 !! γ' = Some (LlocPublic ℓ) →
+  γ = γ'.
+Proof.
+  intros [Hmon1 Hmon2] HH1 HH2.
+  eapply lookup_weaken in HH1; last eauto.
+  unfold lloc_map_inj in Hmon2.
+  by specialize (Hmon2 _ _ _ HH1 HH2 ltac:(done)).
+Qed.
+
 Lemma lloc_map_inj_insert χ vis γ :
   lloc_map_inj χ →
   (∀ γ' vis', vis ≠ LlocPrivate → χ !! γ' = Some vis' → vis' ≠ vis) →
@@ -1191,4 +1203,18 @@ Ltac repr_lval_inj :=
   | Hr1 : repr_lval _ ?v ?w,
     Hr2 : repr_lval _ ?v ?w' |- _ =>
       pose proof (repr_lval_inj _ _ _ _ Hr1 Hr2); subst w'; clear Hr2
+  end.
+
+Ltac lloc_map_inj :=
+  progress repeat match goal with
+  | Hmon : lloc_map_mono ?χ1 ?χ2,
+    Hl1 : ?χ1 !! ?γ1 = Some (LlocPublic ?ℓ),
+    Hl2 : ?χ2 !! ?γ2 = Some (LlocPublic ?ℓ)
+    |- _ =>
+      pose proof (lloc_map_mono_lookup_inj _ _ _ _ _ Hmon Hl1 Hl2); subst γ2
+  | Hinj : lloc_map_inj ?χ,
+    Hl1 : ?χ !! ?γ1 = Some (LlocPublic ?ℓ),
+    Hl2 : ?χ !! ?γ2 = Some (LlocPublic ?ℓ)
+    |- _ =>
+      pose proof (Hinj _ _ _ Hl1 Hl2 ltac:(done)); subst γ2; clear Hl2
   end.

@@ -47,8 +47,7 @@ Proof using.
   intros (ζσ & Hfreezeeq & ? & Hstore_blocks & Hstore) Hχinj Hσ Hχ.
   edestruct is_store_blocks_has_loc as (ll & Hlχ & Hγζ);
     [apply Hstore_blocks|eapply elem_of_dom_2, Hσ|..].
-  assert (ll = γ) as -> by (eapply Hχinj; eauto). clear Hlχ.
-  apply elem_of_dom in Hγζ. destruct Hγζ as [bb Hζσγ].
+  lloc_map_inj. apply elem_of_dom in Hγζ as [bb Hζσγ].
   assert (ζfreeze !! γ = Some bb) as Hfreezell.
   1: { rewrite Hfreezeeq. by apply lookup_union_Some_l. }
   unfold is_store in Hstore.

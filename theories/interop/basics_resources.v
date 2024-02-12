@@ -185,7 +185,6 @@ Proof using.
   { iMod (lloc_own_insert_pub with "Hown") as "($ & _)"; last done.
     1: by apply lookup_union_None.
     intros (γ' & HH)%elem_of_lloc_map_pub_locs.
-    unfold lloc_map_inj in Hinj.
     assert (k ≠ γ').
     { intros ->. apply lookup_union_Some in HH as [?|?]; auto; congruence. }
     specialize (Hinj k γ' (LlocPublic ℓ)).
