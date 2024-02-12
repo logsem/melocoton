@@ -3,7 +3,7 @@ From stdpp Require Import strings gmap.
 From transfinite.base_logic.lib Require Import ghost_map ghost_var gen_heap.
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import proofmode.
-From melocoton Require Import named_props.
+From melocoton Require Import named_props stdpp_extra.
 From melocoton.ml_lang Require Import lang primitive_laws.
 From melocoton.interop Require Export basics basics_resources.
 
@@ -31,7 +31,7 @@ Lemma lstore_hybrid_repr_refl χ ζ :
 Proof using.
   exists ∅. split_and!.
   - rewrite left_id_L//.
-  - apply map_disjoint_dom. set_solver.
+  - map_disjoint_dom; set_solver.
   - split; set_solver.
   - intros ?. set_solver.
 Qed.
@@ -95,6 +95,42 @@ Proof using.
   - eapply is_store_discard_loc; eauto.
 Qed.
 
+Lemma lstore_hybrid_repr_ml_to_mut_many χ ζfreeze σ ζ σdel :
+  lloc_map_inj χ →
+  σdel ⊆ σ →
+  lstore_hybrid_repr χ ζfreeze σ ζ →
+  ∃ ζadd, lstore_hybrid_repr χ ζfreeze (σ ∖ σdel) (ζ ∪ ζadd) ∧ ζ ##ₘ ζadd.
+Proof.
+  intros Hχinj. induction σdel as [|ℓ vs σ' Hℓσ'] using map_ind.
+  { intros _ HH. exists ∅. rewrite map_difference_empty right_id//.
+    split; auto. eapply map_disjoint_empty_r. }
+  { intros Hσ' HH. feed specialize IHσdel; eauto.
+    { eapply insert_delete_subseteq in Hσ'; eauto. rewrite -> Hσ'.
+      eapply delete_subseteq. }
+    destruct IHσdel as (ζadd & IH & IHdisj). clear HH.
+    destruct IH as (ζσ&->&Hdisj&Hblks&Hstore).
+    assert (Hℓ: ℓ ∈ dom (σ ∖ σ')).
+    { rewrite dom_difference_L elem_of_difference. split.
+      { rewrite map_subseteq_spec in Hσ'. eapply elem_of_dom. exists vs.
+        eapply Hσ'. rewrite lookup_insert//. }
+      { by apply not_elem_of_dom in Hℓσ'. } }
+    pose proof Hℓ as Hℓ'. apply elem_of_dom in Hℓ' as (vs'&Hℓσ).
+    apply Hblks in Hℓ as (γ&Hγχ&Hγζ).
+    eapply elem_of_dom in Hγζ as (blk&Hγζ).
+    assert (Hγn: (ζ ∪ ζadd) !! γ = None) by (eapply map_disjoint_Some_r; eauto).
+    assert (ζ !! γ = None) by (apply lookup_union_None in Hγn; naive_solver).
+    unfold is_store in Hstore.
+    pose proof (Hstore _ _ _ blk Hℓσ Hγχ) as Hstore'. feed specialize Hstore'.
+    { rewrite lookup_union_l; eauto. }
+    exists (<[γ:=blk]> ζadd). split.
+    2: { eapply map_disjoint_insert_r; split; eauto. }
+    exists (delete γ ζσ). split_and!; eauto.
+    { rewrite -insert_union_r// union_delete_insert//. }
+    { map_disjoint_dom. rewrite dom_delete_L dom_union_L dom_insert_L. set_solver. }
+    { rewrite -delete_difference. eapply is_store_blocks_delete_loc; eauto. }
+    { rewrite -delete_difference. eapply is_store_discard_loc; eauto. } }
+Qed.
+
 Lemma lstore_hybrid_repr_mut_to_ml χ ζfreeze σ ζ ℓ vs γ lvs :
   lloc_map_inj χ →
   χ !! γ = Some (LlocPublic ℓ) →
@@ -119,6 +155,18 @@ Lemma lstore_hybrid_repr_lookup_lloc χ ζfreeze σ ζ γ blk :
   ζ !! γ = Some blk →
   ζfreeze !! γ = Some blk.
 Proof using. intros (ζσ&->&?&?&?) ?. by simplify_map_eq. Qed.
+
+Lemma lstore_hybrid_repr_lookup_pub_lloc_notin χ ζfreeze σ ζ γ blk ℓ :
+  lloc_map_inj χ →
+  lstore_hybrid_repr χ ζfreeze σ ζ →
+  ζ !! γ = Some blk →
+  χ !! γ = Some (LlocPublic ℓ) →
+  σ !! ℓ = None.
+Proof using.
+  intros ? (ζσ&->&Hdisj&Hblks&Hstore) Hζ Hχ. apply not_elem_of_dom. intros Hℓ.
+  apply Hblks in Hℓ as (?&?&?). lloc_map_inj. apply elem_of_dom_2 in Hζ.
+  map_disjoint_dom. set_solver.
+Qed.
 
 Lemma lstore_hybrid_repr_lstore_sub χ ζfreeze σ ζ :
   lstore_hybrid_repr χ ζfreeze σ ζ →
@@ -187,30 +235,142 @@ Proof.
   pose proof (lstore_hybrid_repr_lookup_lloc _ _ _ _ _ _ Hh Hγ) as Hγf.
   destruct Hh as (ζσ&->&Hdisj&Hstore_blocks&Hstore). exists ζσ. split_and!; eauto.
   - rewrite insert_union_r; first done. by erewrite map_disjoint_Some_l.
-  - eapply map_disjoint_dom. erewrite dom_insert_lookup; last by eexists.
-    by eapply map_disjoint_dom.
+  - map_disjoint_dom. erewrite dom_insert_lookup; eauto.
   - eapply is_store_modify_priv_block; eauto. intros ℓ Vs Hχ Hσ.
     assert (γ ∉ dom ζσ) as Hnin.
     { apply elem_of_dom_2 in Hγ. apply map_disjoint_dom in Hdisj. set_solver. }
     destruct Hstore_blocks as [HH1 HH2].
-    apply elem_of_dom_2 in Hσ. apply HH1 in Hσ as (γ'&?&?).
-    specialize (Hinj γ γ' (LlocPublic ℓ) ltac:(eassumption) ltac:(eassumption) ltac:(done)).
-    by subst.
+    apply elem_of_dom_2 in Hσ. apply HH1 in Hσ as (γ'&?&?). by lloc_map_inj.
 Qed.
+
+Definition state_interp_with_safekeeping (σfull σ : store) : iProp Σ :=
+  ∃ σsafe,
+    "->" ∷ ⌜σfull = σ ∪ σsafe⌝ ∗
+    "%SIWSdisj" ∷ ⌜σ ##ₘ σsafe⌝ ∗
+    "SIWSfull" ∷ state_interp σfull ∗
+    "SIWSsafe" ∷ ([∗ map] ℓ↦vs ∈ σsafe, ℓ ↦∗ vs).
+
+Lemma siws_lookup (σfull σ : store) ℓ (vs : list val) :
+  σ !! ℓ = Some vs →
+  state_interp_with_safekeeping σfull σ -∗
+  ⌜σfull !! ℓ = Some vs⌝.
+Proof using.
+  intros Hℓ. iNamed 1. iPureIntro.
+  eapply lookup_union_Some; eauto.
+Qed.
+
+Lemma siws_valid σfull σ ℓ vs :
+  state_interp_with_safekeeping σfull σ -∗
+  ℓ ↦∗ vs -∗
+  ⌜σ !! ℓ = Some vs⌝.
+Proof using.
+  iNamed 1. iIntros "Hpto".
+  iDestruct (gen_heap_valid with "SIWSfull Hpto") as %Hℓ.
+  apply lookup_union_Some in Hℓ as [Hℓ|Hℓ]; eauto.
+  iDestruct (big_sepM_lookup with "SIWSsafe") as "Hpto'"; eauto.
+  by iDestruct (gen_heap.mapsto_ne with "Hpto Hpto'") as %?.
+Qed.
+
+Lemma siws_delete σfull σ ℓ vs :
+  state_interp_with_safekeeping σfull σ -∗
+  ℓ ↦∗ vs -∗
+  state_interp_with_safekeeping σfull (delete ℓ σ).
+Proof using.
+  iIntros "HS Hℓ". iDestruct (siws_valid with "HS Hℓ") as %Hℓ. iNamed "HS".
+  iExists (<[ℓ:=vs]> σsafe). rewrite /named. iFrame. repeat iSplit; try iPureIntro.
+  { rewrite union_delete_insert//. }
+  { map_disjoint_dom. rewrite dom_delete_L dom_insert_L. set_solver. }
+  { iApply big_sepM_insert; last by iFrame. apply map_disjoint_dom in SIWSdisj.
+    apply not_elem_of_dom. apply elem_of_dom_2 in Hℓ. set_solver. }
+Qed.
+
+Lemma siws_restore (σfull σ : store) ℓ (vs : list val) :
+  σ !! ℓ = None →
+  σfull !! ℓ = Some vs →
+  state_interp_with_safekeeping σfull σ -∗
+  state_interp_with_safekeeping σfull (<[ℓ:=vs]> σ) ∗ ℓ ↦∗ vs.
+Proof using.
+  intros Hℓ Hfull. iNamed 1.
+  eapply lookup_union_Some in Hfull as [Hfull|Hfull]; eauto; first congruence.
+  iDestruct (big_sepM_delete with "SIWSsafe") as "[$ SIWSsafe]"; first done.
+  iExists (delete ℓ σsafe). rewrite /named.
+  iFrame. repeat iSplit; try iPureIntro; eauto.
+  { rewrite union_insert_delete//. }
+  { map_disjoint_dom. rewrite dom_insert_L dom_delete_L. set_solver. }
+Qed.
+
+Lemma siws_update_safe (σfull σ : store) ℓ (vs : list val) :
+  σ !! ℓ = None →
+  ℓ ∈ dom σfull →
+  state_interp_with_safekeeping σfull σ ==∗
+  state_interp_with_safekeeping (<[ℓ:=vs]> σfull) σ.
+Proof using.
+  intros Hℓ Hfull. iNamed 1.
+  rewrite dom_union_L elem_of_union in Hfull.
+  destruct Hfull as [Hfull|Hfull]; first by eapply not_elem_of_dom in Hℓ.
+  apply elem_of_dom in Hfull as [vs' Hfull].
+  iDestruct (big_sepM_delete with "SIWSsafe") as "[Hℓ SIWSsafe]"; first by eauto.
+  iMod (gen_heap_update with "SIWSfull Hℓ") as "[SIWSfull Hℓ]". iModIntro.
+  iDestruct (big_sepM_insert _ _ _ vs with "[$SIWSsafe $Hℓ]") as "SIWSsafe".
+  1: by rewrite lookup_delete. rewrite insert_delete_insert.
+  iExists (<[ℓ:=vs]> σsafe). rewrite /named. iFrame. iPureIntro; split_and!.
+  { rewrite insert_union_r//. }
+  { map_disjoint_dom. rewrite dom_insert_L. apply elem_of_dom_2 in Hfull.
+    set_solver. }
+Qed.
+
+Lemma siws_alloc_safe (σfull σ : store) ℓ (vs : list val) :
+  σfull !! ℓ = None →
+  state_interp_with_safekeeping σfull σ ==∗
+  state_interp_with_safekeeping (<[ℓ := vs]> σfull) σ.
+Proof using.
+  intros Hℓ. iNamed 1.
+  iMod (gen_heap_alloc with "SIWSfull") as "(SIWSfull & Hℓ & _)"; first done.
+  eapply lookup_union_None in Hℓ as [? ?].
+  iDestruct (big_sepM_insert with "[$SIWSsafe $Hℓ]") as "SIWSsafe"; first done.
+  iModIntro. rewrite /state_interp_with_safekeeping /named.
+  iExists _. iFrame. iPureIntro; split_and!.
+  { rewrite insert_union_r//. }
+  { apply map_disjoint_insert_r_2; eauto. }
+Qed.
+
+Lemma siws_alloc_safe_as_needed (σfull σ : store) (target : gset loc) :
+  dom σfull ⊆ target →
+  state_interp_with_safekeeping σfull σ ==∗
+  ∃ σfull', state_interp_with_safekeeping σfull' σ ∗
+    ⌜dom σfull' = target⌝ ∗ ⌜σfull ⊆ σfull'⌝.
+Proof using.
+  pose (missing := target ∖ dom σfull). intros Htarget.
+  assert (Hdisj: missing ## dom σfull) by set_solver.
+  assert (Htgt: target = dom σfull ∪ missing); first by eapply union_difference_L.
+  clearbody missing. subst target.
+  induction missing as [| ℓ missing Hℓmis IH] using set_ind_L.
+  { iIntros "H !>". iExists σfull; repeat iSplit; eauto. rewrite right_id_L//. }
+  { feed specialize IH; [set_solver..|]. iIntros "H".
+    iMod (IH with "H") as (σfull') "(H & %Hdom & %Hsub)".
+    assert (σfull' !! ℓ = None) by (apply not_elem_of_dom; set_solver).
+    iMod (siws_alloc_safe _ _ ℓ [] with "H") as "H"; first done.
+    iModIntro. iExists _. iFrame. iPureIntro; split_and!; eauto.
+    { rewrite dom_insert_L. set_solver. }
+    { rewrite -> Hsub. eapply insert_subseteq; eauto. } }
+Qed.
+
 
 Definition HGH (χ : lloc_map) (σo : option store) (ζ : lstore) : iProp Σ :=
   ∃ (ζg : lstore) (χg : lloc_map),
   "HGHζ" ∷ lstore_own_auth ζg ∗
   "HGHχ" ∷ lloc_own_auth χg ∗
   "HGHσo" ∷ match σo with
-  | None =>
-    "[-> ->]" ∷ ⌜ζg = ζ ∧ χg = χ⌝
-  | Some σ => ∃ ζfreeze,
-    "HGHσ" ∷ state_interp σ ∗
+  | None => ∃ σsafe,
+    "[-> ->]" ∷ ⌜ζg = ζ ∧ χg = χ⌝ ∗
+    "HGHσsafe" ∷ ([∗ map] ℓ↦vs ∈ σsafe, ℓ ↦∗ vs) ∗
+    "%HGHσsafe" ∷ ⌜codom (pub_locs_in_lstore χg ζg) ⊆ dom σsafe⌝
+  | Some σ => ∃ ζfreeze σfull,
+    "HGHσ" ∷ state_interp_with_safekeeping σfull σ ∗
     "%HGHζfreeze" ∷ ⌜freeze_lstore ζ ζfreeze⌝ ∗
-    "%HGHζrepr" ∷ ⌜lstore_hybrid_repr χg ζfreeze σ ζg⌝
+    "%HGHζrepr" ∷ ⌜lstore_hybrid_repr χg ζfreeze σ ζg⌝ ∗
+    "%HGHσfull" ∷ ⌜dom σfull = lloc_map_pub_locs χg⌝
   end ∗
-  "HGHχNone" ∷ ([∗ map] _↦ℓ ∈ pub_locs_in_lstore χg ζg, ℓ ↦M/) ∗
   "%Hχexp" ∷ ⌜expose_llocs χ χg⌝ ∗
   "%Hother_blocks" ∷ ⌜dom ζ ⊆ dom χ⌝.
 
@@ -226,7 +386,7 @@ Lemma hgh_pointsto_has_lloc χ σ ζ ℓ vs :
   ∃ γ, γ ~ℓ~ ℓ.
 Proof using.
   iIntros "H Hpto". iNamed "H". iNamed "HGHσo".
-  iDestruct (gen_heap_valid with "HGHσ Hpto") as %Hℓ.
+  iDestruct (siws_valid with "HGHσ Hpto") as %Hℓ.
   destruct HGHζrepr as (? & ? & ? & ? & ?).
   edestruct is_store_blocks_has_loc as (γ & Hχγ & Hγ); eauto;
     first by eapply elem_of_dom_2.
@@ -283,10 +443,38 @@ Lemma hgh_empty :
   HGH ∅ None ∅.
 Proof using.
   iIntros "Hζ Hχ". rewrite /HGH /named. iExists ∅, ∅.
-  iFrame. rewrite pub_locs_in_lstore_empty big_sepM_empty.
-  iPureIntro; split_and!; eauto.
-  - by apply expose_llocs_refl.
-  - set_solver.
+  iFrame. iSplit.
+  { iExists ∅. rewrite pub_locs_in_lstore_empty big_sepM_empty.
+    iPureIntro; split_and!; eauto. set_solver. }
+  { iPureIntro; split_and!; eauto.
+    - by apply expose_llocs_refl.
+    - set_solver. }
+Qed.
+
+Lemma lstore_hybrid_repr_lookup_loc_notin χ ζfreeze σ ζ ℓ vs γ :
+  lloc_map_inj χ →
+  lstore_hybrid_repr χ ζfreeze σ ζ →
+  σ !! ℓ = Some vs →
+  χ !! γ = Some (LlocPublic ℓ) →
+  ζ !! γ = None.
+Proof using.
+  intros Hinj (ζσ&->&Hdisj&Hblk&Hstore) Hℓ Hγ.
+  destruct Hblk as [Hsl Hsr]. apply elem_of_dom_2 in Hℓ.
+  apply Hsl in Hℓ as (γ'&?&?). lloc_map_inj.
+  apply not_elem_of_dom. map_disjoint_dom. set_solver.
+Qed.
+
+Lemma lstore_hybrid_repr_lookup_lloc_notin χ ζfreeze σ ζ γ blk ℓ :
+  lloc_map_inj χ →
+  lstore_hybrid_repr χ ζfreeze σ ζ →
+  ζ !! γ = Some blk →
+  χ !! γ = Some (LlocPublic ℓ) →
+  σ !! ℓ = None.
+Proof using.
+  intros Hinj (ζσ&->&Hdisj&Hblk&Hstore) Hζ Hχ.
+  destruct (σ !! ℓ) eqn:Hℓ; eauto. apply elem_of_dom_2 in Hℓ.
+  destruct Hblk as [Hsl Hsr]. apply Hsl in Hℓ as (γ'&?&?). lloc_map_inj.
+  map_disjoint_dom. apply elem_of_dom_2 in Hζ. set_solver.
 Qed.
 
 Lemma hgh_ml_to_mut χ σ ζ ℓ γ vs :
@@ -294,30 +482,26 @@ Lemma hgh_ml_to_mut χ σ ζ ℓ γ vs :
   ℓ ↦∗ vs -∗
   γ ~ℓ~ ℓ ==∗
   ∃ lvs,
-    HGH χ (Some (<[ℓ := None]> σ)) ζ ∗
+    HGH χ (Some (delete ℓ σ)) ζ ∗
     lstore_own_elem γ (DfracOwn 1) (Bvblock (Mut, (TagDefault, lvs))) ∗
     lvs ~~∗ vs.
 Proof using.
   iIntros "H Hℓ #Hsim". iNamed "H". iNamed "HGHσo".
-  iDestruct (gen_heap_valid with "HGHσ Hℓ") as %Hσℓ.
+  iDestruct (siws_valid with "HGHσ Hℓ") as %Hσℓ.
   iDestruct (lloc_own_pub_of with "HGHχ Hsim") as %Hχγ.
-  iAssert (⌜ζg !! γ = None⌝)%I with "[HGHχNone Hℓ]" as %Hζγ.
-  { destruct (ζg !! γ) as [b|] eqn:Hb; [iExFalso|done].
-    iDestruct (big_sepM_lookup with "HGHχNone") as "Hℓ'".
-    { eapply pub_locs_in_lstore_lookup; eauto. eapply elem_of_dom; eauto. }
-    by iDestruct (gen_heap.mapsto_agree with "Hℓ Hℓ'") as %?. }
+  assert (ζg !! γ = None) as Hζγ.
+  { eapply lstore_hybrid_repr_lookup_loc_notin; eauto. }
   edestruct lstore_hybrid_repr_lookup_loc as (lvs & Hζfγ & Hlvs); eauto; [].
   iAssert (lvs ~~∗ vs) as "#Hblock".
   1: by iApply (block_sim_arr_of_auth' with "HGHχ HGHζ").
-  iMod (gen_heap_update _ _ _ None with "HGHσ Hℓ") as "[HGHσ Hℓ]".
+  iDestruct (siws_delete with "HGHσ Hℓ") as "HGHσ".
   iMod (lstore_own_insert _ γ (Bvblock (Mut, _)) with "HGHζ") as "(HGHζ & Hz)";
     first done.
   iModIntro. iExists lvs. iFrame "Hblock Hz".
-  rewrite /HGH /named. iExists _, _. iFrame. iSplit. 2: iSplit.
-  2: { rewrite (pub_locs_in_lstore_insert_lstore_pub _ _ _ ℓ) //.
-       iApply big_sepM_insert; eauto. by iFrame. }
-  all: iPureIntro; eauto.
-  { eexists. split; eauto. eapply lstore_hybrid_repr_ml_to_mut; eauto. }
+  rewrite /HGH /named. iExists _, _. iFrame "HGHχ HGHζ". iSplitL "HGHσ".
+  { iExists _, _. iFrame. iPureIntro. split_and!; eauto.
+    eapply lstore_hybrid_repr_ml_to_mut; eauto. }
+  iSplit; eauto.
 Qed.
 
 Lemma hgh_mut_to_ml χ σ ζ ℓ γ lvs vs :
@@ -326,48 +510,47 @@ Lemma hgh_mut_to_ml χ σ ζ ℓ γ lvs vs :
   γ ~ℓ~ ℓ -∗
   lvs ~~∗ vs
   ==∗
-  HGH χ (Some (<[ℓ:=Some vs]> σ)) ζ ∗
+  HGH χ (Some (<[ℓ:=vs]> σ)) ζ ∗
   ℓ ↦∗ vs.
 Proof using.
   iIntros "H Hγ #Hsim #Hblksim". iNamed "H". iNamed "HGHσo".
   iDestruct (lloc_own_pub_of with "HGHχ Hsim") as %Hγℓ.
   iDestruct (lstore_own_elem_of with "HGHζ Hγ") as %Hζγ.
-  iAssert (⌜σ !! ℓ = Some None⌝)%I with "[Hγ HGHχNone HGHσ]" as %Hσℓ.
-  { iDestruct (big_sepM_lookup with "HGHχNone") as "Hℓ".
-    { eapply pub_locs_in_lstore_lookup; eauto. eapply elem_of_dom; eauto. }
-    by iDestruct (gen_heap_valid with "HGHσ Hℓ") as %?. }
+  assert (σ !! ℓ = None) as Hσℓ.
+  { eapply lstore_hybrid_repr_lookup_lloc_notin; eauto. }
   iDestruct (block_sim_arr_auth_is_val' with "HGHχ HGHζ Hblksim") as %Hsim;
     try done; [].
-  iDestruct (big_sepM_delete _ _ _ ℓ with "HGHχNone") as "[Hℓ HGHχNone]".
-  { eapply pub_locs_in_lstore_lookup; eauto. eapply elem_of_dom; eauto. }
-  iMod (gen_heap_update _ _ _ (Some vs) with "HGHσ Hℓ") as "[HGHσ Hℓ]".
+  iMod (siws_update_safe _ _ ℓ vs with "HGHσ") as "HGHσ"; eauto.
+  { rewrite HGHσfull. eapply elem_of_lloc_map_pub_locs_1; eauto. }
+  iDestruct (siws_restore _ _ ℓ vs with "HGHσ") as "[HGHσ Hℓ]"; auto.
+  { rewrite lookup_insert//. }
   iDestruct (lstore_own_elem_to_mut with "Hγ") as "Hγ"; first done.
   iMod (lstore_own_delete with "HGHζ Hγ") as "HGHζ".
   iModIntro. iFrame "Hℓ". rewrite /HGH /named.
-  iExists _, _. iFrame. iSplit. 2: iSplit.
-  2: by rewrite pub_locs_in_lstore_delete_lstore //.
-  all: iPureIntro; eauto.
-  { exists ζfreeze. split; eauto. eapply lstore_hybrid_repr_mut_to_ml; eauto. }
+  iExists _, _. iFrame. iSplit; last by eauto.
+  iExists _, _. iFrame. iPureIntro; split_and!; eauto.
+  { eapply lstore_hybrid_repr_mut_to_ml; eauto. }
+  { rewrite dom_insert_L HGHσfull. eapply subseteq_union_1_L.
+    rewrite singleton_subseteq_l.
+    eapply elem_of_lloc_map_pub_locs_1; eauto. }
 Qed.
 
 Lemma hgh_expose_lloc χ σ ζ γ :
   HGH χ (Some σ) ζ -∗ γ ~ℓ~/ ==∗
-  ∃ ℓ, ⌜ℓ ∉ dom σ⌝ ∗ HGH χ (Some (<[ℓ:=None]> σ)) ζ ∗ γ ~ℓ~ ℓ.
+  ∃ ℓ, ⌜ℓ ∉ dom σ⌝ ∗ HGH χ (Some σ) ζ ∗ γ ~ℓ~ ℓ.
 Proof using.
   iIntros "H Hpriv". iNamed "H". iNamed "HGHσo".
   iDestruct (lloc_own_priv_of with "HGHχ Hpriv") as %Hχγ.
   edestruct lstore_hybrid_repr_expose_lloc as (ℓ & Hℓ & Hℓσ & Hrepr); eauto; [].
+  assert (Hℓσfull: ℓ ∉ dom σfull) by rewrite HGHσfull//.
+  iMod (siws_alloc_safe _ _ _ [] with "HGHσ") as "HGHσ"; first by eapply not_elem_of_dom.
   iMod (lloc_own_expose with "HGHχ Hpriv") as "[HGHχ Hpriv]"; first done.
-  iMod (gen_heap_alloc _ ℓ None with "HGHσ") as "(HGHσ & HℓNone & _)".
-  1: by eapply not_elem_of_dom_1.
-  iPoseProof (big_sepM_insert _ _ γ ℓ with "[$HGHχNone $HℓNone]") as "HGHχNone".
-  { eapply map_filter_lookup_None. left. eapply lloc_map_pubs_lookup_None; eauto. }
   iModIntro. iExists ℓ. iSplit; first done. iFrame "Hpriv". rewrite /HGH /named.
-  iExists _, _. iFrame. iSplit. 2: iSplit.
-  2: iApply (big_sepM_subseteq with "HGHχNone");
-    eapply pub_locs_in_lstore_insert_pub_sub.
-  all: iPureIntro; split_and?; eauto.
-  { eapply expose_llocs_trans; first done. eapply expose_llocs_insert; eauto. }
+  iExists _, _. iFrame. iSplit.
+  { iExists _, _. iFrame. iPureIntro; split_and!; eauto.
+    rewrite dom_insert_L HGHσfull lloc_map_pub_locs_insert_pub//. naive_solver. }
+  { iPureIntro; split_and!; eauto. eapply expose_llocs_trans; first done.
+    eapply expose_llocs_insert; eauto. }
 Qed.
 
 Lemma hgh_freeze_block χ σ ζ γ bb :
@@ -384,14 +567,13 @@ Proof using.
   iDestruct (lloc_own_priv_of with "HGHχ Hfresh") as %?.
   iDestruct (lstore_own_elem_to_mut with "Hγ") as "Hγ"; first done.
   iMod (lstore_own_update _ _ _ (Bvblock (Immut, bb)) with "HGHζ Hγ") as "(HGHζ & Hγ)".
-  iModIntro. iFrame "Hγ Hfresh". rewrite /HGH /named. iExists _, _. iFrame.
-  iSplit. 2: iSplit.
-  2: { rewrite pub_locs_in_lstore_insert_existing; eauto. by eapply elem_of_dom_2. }
-  all: iPureIntro; eauto.
-  { exists (<[γ:=Bvblock (Immut, bb)]> ζfreeze). split.
+  iModIntro. iFrame "Hγ Hfresh". rewrite /HGH /named. iExists _, _. iFrame. iSplit.
+  { iExists (<[γ:=Bvblock (Immut, bb)]> ζfreeze), _. iFrame.
+    iPureIntro; split_and!; eauto.
     { eapply freeze_lstore_freeze_lloc; eauto.
       by eapply lstore_hybrid_repr_lookup_lloc. }
     { eapply lstore_hybrid_repr_freeze_block; eauto. } }
+  { iPureIntro; split_and!; eauto. }
 Qed.
 
 Lemma hgh_alloc_block χ σ ζ γ blk :
@@ -410,14 +592,15 @@ Proof using.
   assert (Hχg: χg !! γ = None) by not_elem_of_dom.
   iMod (lloc_own_insert_priv _ γ with "HGHχ") as "(HGHχ&Hpriv)"; first done.
   iModIntro. iFrame "Hpriv Hb". rewrite /HGH /named.
-  iExists _, _. iFrame. iSplit. 2: iSplit.
-  2: rewrite pub_locs_in_lstore_alloc_priv; eauto.
-  all: iPureIntro.
-  { exists (<[γ := blk]> ζfreeze). split.
+  iExists _, _. iFrame. iSplit.
+  { iExists (<[γ := blk]> ζfreeze), _. iFrame. iPureIntro; split_and!; eauto.
     { by eapply freeze_lstore_insert. }
     { eapply lstore_hybrid_repr_alloc_block; eauto.
-      destruct HGHζfreeze as [? _]. not_elem_of_dom. } }
-  { split; last set_solver. eapply expose_llocs_insert_both; eauto. }
+      destruct HGHζfreeze as [? _]. not_elem_of_dom. }
+    { rewrite HGHσfull lloc_map_pub_locs_insert_priv//. } }
+  { iPureIntro; split_and!.
+    { eapply expose_llocs_insert_both; eauto. }
+    { rewrite !dom_insert_L. set_solver. } }
 Qed.
 
 Lemma hgh_lookup_block χ σo ζ γ dq b :
@@ -456,32 +639,66 @@ Proof using.
   iDestruct (lstore_own_elem_to_mut with "Hpto") as "Hpto"; auto.
   iMod (lstore_own_update _ _ _ blk' with "HGHζ Hpto") as "[HGHζ Hpto]".
   iModIntro. iFrame "Hpto". rewrite /HGH /named.
-  repeat iExists _. iFrame. iSplit. 2: iSplit.
-  2: { rewrite pub_locs_in_lstore_insert_existing //. by eapply elem_of_dom_2. }
-  all: iPureIntro.
-  { eexists. split; first by apply freeze_lstore_insert.
-    eapply lstore_hybrid_repr_modify_block; eauto. }
-  { split; eauto. rewrite dom_insert_L subseteq_union_1_L// singleton_subseteq_l.
+  repeat iExists _. iFrame. iSplit.
+  { iExists _, _. iFrame. iPureIntro; split_and!; eauto.
+    { by apply freeze_lstore_insert. }
+    { eapply lstore_hybrid_repr_modify_block; eauto. } }
+  { iPureIntro; split_and!; eauto.
+    rewrite dom_insert_L subseteq_union_1_L// singleton_subseteq_l.
     eapply lstore_hybrid_repr_lookup_lloc in HGHζrepr; last apply Hγ.
     destruct HGHζfreeze. apply elem_of_dom_2 in HGHζrepr. set_solver. }
 Qed.
 
 Lemma hgh_export_ml_heap χ σ ζ :
   HGH χ (Some σ) ζ -∗
-  ∃ ζ' χ' ζfreeze,
+  ∃ ζ' χ' ζfreeze σfull,
     HGH χ' None ζ' ∗
-    state_interp σ ∗
+    state_interp σfull ∗
+    ⌜σ ⊆ σfull⌝ ∗
     ⌜expose_llocs χ χ'⌝ ∗
     ⌜freeze_lstore ζ ζfreeze⌝ ∗
     ⌜lstore_hybrid_repr χ' ζfreeze σ ζ'⌝.
 Proof using.
   iNamed 1. iNamed "HGHσo".
-  iExists ζg, χg, ζfreeze. iFrame. iSplit; last by eauto.
-  rewrite /HGH /named. iExists _, _. iFrame. iPureIntro; split_and!; eauto.
+  iExists ζg, χg, ζfreeze, σfull. iNamed "HGHσ". iFrame. iSplit.
+  2: { iPureIntro; split_and!; eauto. eapply map_union_subseteq_l; eauto. }
+  rewrite /HGH /named. iExists _, _. iFrame. iSplit; last (iSplit; iPureIntro).
+  { iExists _. iFrame. iSplit; iPureIntro; eauto. apply elem_of_subseteq.
+    intros ℓ Hℓ.
+    apply codom_spec in Hℓ as (γ&Hγ).
+    apply pub_locs_in_lstore_lookup in Hγ as (Hγ&?).
+    assert (ℓ ∈ lloc_map_pub_locs χg).
+    { apply elem_of_lloc_map_pub_locs; eauto. }
+    assert (σ !! ℓ = None) as ?%not_elem_of_dom.
+    { apply elem_of_dom in Hγ as (?&?).
+      eapply lstore_hybrid_repr_lookup_pub_lloc_notin; eauto. }
+    map_disjoint_dom. set_solver. }
   { eapply expose_llocs_refl; eauto. }
   { destruct Hχexp as [Hdom1 _]. rewrite -Hdom1. transitivity (dom ζ); auto.
     destruct HGHζfreeze as [Hdom2 _]. rewrite Hdom2.
     destruct HGHζrepr as (?&->&_&_&_). set_solver. }
+Qed.
+
+Lemma lstore_hybrid_repr_loc_in_pub_locs χ ζfreeze σ ζ ℓ :
+  lstore_hybrid_repr χ ζfreeze σ ζ →
+  ℓ ∈ dom σ →
+  ℓ ∈ lloc_map_pub_locs χ.
+Proof using.
+  intros (ζσ&->&?&Hblks&Hstore) Hℓ.
+  apply Hblks in Hℓ as (γ&?&?). eapply elem_of_lloc_map_pub_locs; eauto.
+Qed.
+
+Lemma gen_heap_valid_many σ σ' :
+  gen_heap_interp σ -∗
+  ([∗ map] ℓ↦vs ∈ σ', ℓ ↦∗ vs) -∗
+  ⌜σ' ⊆ σ⌝.
+Proof using.
+  induction σ' using map_ind; iIntros "H Hm".
+  { iPureIntro. eapply map_empty_subseteq. }
+  { iDestruct (big_sepM_insert with "Hm") as "[Hℓ Hm]"; auto.
+    iDestruct (IHσ' with "H Hm") as %Hsub.
+    iDestruct (gen_heap_valid with "H Hℓ") as %Hℓ.
+    iPureIntro. eapply insert_subseteq_l; eauto. }
 Qed.
 
 Lemma hgh_import_ml_interp χold σ ζold χ ζ ζnewimm :
@@ -492,19 +709,45 @@ Lemma hgh_import_ml_interp χold σ ζold χ ζ ζnewimm :
   ζold ##ₘ ζnewimm →
   HGH χold None ζold -∗
   state_interp σ ==∗
-  HGH χ (Some σ) ζ.
+  ∃ σ', HGH χ (Some σ') ζ ∗ ⌜σ' ⊆ σ⌝.
 Proof using.
   intros Hχ Hstore Hpriv Hsub Hdisj.
   iNamed 1. iNamed "HGHσo". iIntros "Hσ".
+  iAssert (⌜σsafe ⊆ σ⌝)%I as %Hσsub;
+    first by iApply (gen_heap_valid_many with "Hσ HGHσsafe").
+  (* lstore_hybrid_repr: view the σsafe part of σ as being part of ζ.
+     (effectively this is an iterated "ml to mut" step for all elements of σsafe. *)
+  destruct Hχ as [? Hχinj].
+  pose proof (lstore_hybrid_repr_ml_to_mut_many _ _ _ _ _
+    Hχinj Hσsub Hstore) as (ζadd & HH & HHdisj).
+  (* now update the authoritative ghost state of ζ accordingly *)
   iMod (lstore_own_insert_many _ ζnewimm with "HGHζ") as "(HGHζ & HGHζnewimm)";
     first done.
+  iMod (lstore_own_insert_many _ ζadd with "HGHζ") as "(HGHζ & HGHζadd)";
+    first (map_disjoint_dom; set_solver).
+  (* update the authoritative part of χ *)
   iMod (lloc_own_mono with "HGHχ") as "HGHχ"; first done.
-  iModIntro. rewrite /HGH /named. iExists _, _. iFrame. iSplit. 2: iSplit.
-  2: { rewrite pub_locs_in_lstore_insert_priv_store //.
-       erewrite pub_locs_in_lstore_mono at 1; [| eauto..]; []. iFrame. }
-  all: iPureIntro; split_and?; eauto.
-  { eexists. split; eauto. apply freeze_lstore_refl. }
-  { apply expose_llocs_refl; eauto. }
+  (* we have state_interp_with_safekeeping where σsafe is the safekeeping. easy. *)
+  iAssert (state_interp_with_safekeeping σ (σ ∖ σsafe)) with "[Hσ HGHσsafe]" as "Hσ".
+  { rewrite /state_interp_with_safekeeping /named. iExists σsafe.
+    iFrame. iPureIntro; split_and.
+    { rewrite map_union_comm. 2: by eapply map_disjoint_difference_l.
+      rewrite map_difference_union//. }
+    { by eapply map_disjoint_difference_l. } }
+  (* now extend the safekeeping part with extra points-tos for any new
+     extra ("garbage") loc that appeared in χ, in order to match the
+     requirements of HGH. Such points-tos have dummy values attach to them. *)
+  iMod (siws_alloc_safe_as_needed _ _ (lloc_map_pub_locs χ) with "Hσ")
+    as (σfull) "(Hσ & % & %)".
+  { apply elem_of_subseteq. intros ℓ Hℓ.
+    by eapply lstore_hybrid_repr_loc_in_pub_locs; first eapply Hstore. }
+  (* terminate the proof. *)
+  iModIntro. iExists (σ ∖ σsafe). iSplit.
+  2: { iPureIntro. by eapply map_subseteq_difference_l. }
+  rewrite /HGH /named. iExists _, _. iFrame. iSplit.
+  { iExists _, σfull. iFrame "Hσ". iPureIntro; split_and!; eauto.
+    apply freeze_lstore_refl. }
+  iPureIntro; split_and!; eauto. apply expose_llocs_refl; eauto.
 Qed.
 
 End HGH.

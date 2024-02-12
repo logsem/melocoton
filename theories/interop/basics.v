@@ -411,19 +411,50 @@ Lemma elem_of_lloc_map_pub_locs_1 ℓ γ χ :
 Proof. intros HH. apply elem_of_lloc_map_pub_locs. eauto. Qed.
 Global Hint Resolve elem_of_lloc_map_pub_locs_1 : core.
 
+Lemma lloc_map_pub_locs_insert_pub γ ℓ χ :
+  (χ !! γ = None ∨ χ !! γ = Some LlocPrivate) →
+  lloc_map_pub_locs (<[γ:=LlocPublic ℓ]> χ) = {[ℓ]} ∪ lloc_map_pub_locs χ.
+Proof.
+  intros Hγ. apply set_eq. intros ℓ'.
+  rewrite elem_of_union elem_of_singleton !elem_of_lloc_map_pub_locs. split.
+  { intros (γ'&HH%lookup_insert_Some); naive_solver. }
+  { intros [->|(γ'&?)]; eexists; rewrite lookup_insert_Some; first naive_solver.
+    assert (γ ≠ γ'). { destruct Hγ; naive_solver. } eauto. }
+Qed.
+
+Lemma lloc_map_pub_locs_insert_priv γ χ :
+  χ !! γ = None →
+  lloc_map_pub_locs (<[γ:=LlocPrivate]> χ) = lloc_map_pub_locs χ.
+Proof.
+  intros Hγ. apply set_eq. intros ℓ'.
+  rewrite !elem_of_lloc_map_pub_locs. split.
+  { intros (?&?%lookup_insert_Some). naive_solver. }
+  { intros (γ'&?); eexists; rewrite lookup_insert_Some.
+    assert (γ ≠ γ') by (intros ->; simplify_map_eq). eauto. }
+Qed.
+
 Lemma pub_locs_in_lstore_empty :
   pub_locs_in_lstore ∅ ∅ = ∅.
 Proof. rewrite /pub_locs_in_lstore lloc_map_pubs_empty //. Qed.
 
 Lemma pub_locs_in_lstore_lookup χ ζ γ ℓ :
+  pub_locs_in_lstore χ ζ !! γ = Some ℓ ↔
+  γ ∈ dom ζ ∧ χ !! γ = Some (LlocPublic ℓ).
+Proof.
+  split.
+  { intros HH. unfold pub_locs_in_lstore in HH.
+    apply map_filter_lookup_Some in HH as (HH1 & HH2).
+    split; eauto. }
+  { intros (H1 & H2). unfold pub_locs_in_lstore.
+    erewrite map_filter_lookup_Some_2. 3: done. 1: done.
+    erewrite lloc_map_pubs_lookup_Some_2; done. }
+Qed.
+
+Lemma pub_locs_in_lstore_lookup_1 χ ζ γ ℓ :
   γ ∈ dom ζ
 → χ !! γ = Some (LlocPublic ℓ)
 → pub_locs_in_lstore χ ζ !! γ = Some ℓ.
-Proof.
-  intros H1 H2. unfold pub_locs_in_lstore.
-  erewrite map_filter_lookup_Some_2. 3: done. 1: done.
-  erewrite lloc_map_pubs_lookup_Some_2; done.
-Qed.
+Proof. intros ? ?. apply pub_locs_in_lstore_lookup; eauto. Qed.
 
 Lemma pub_locs_in_lstore_lookup_notin χ ζ γ :
   ζ !! γ = None →
@@ -1217,4 +1248,10 @@ Ltac lloc_map_inj :=
     Hl2 : ?χ !! ?γ2 = Some (LlocPublic ?ℓ)
     |- _ =>
       pose proof (Hinj _ _ _ Hl1 Hl2 ltac:(done)); subst γ2; clear Hl2
+  end.
+
+Ltac map_disjoint_dom :=
+  progress repeat match goal with
+  | H : _ ##ₘ _ |- _ => apply map_disjoint_dom in H
+  | |- _ ##ₘ _ => apply map_disjoint_dom
   end.

@@ -44,7 +44,7 @@ Proof using.
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done; [].
 
   iDestruct (hgh_export_ml_heap with "GCHGH")
-    as (ζ' χ' ζfreeze) "(GCHGH & Hσ & %Hχ & %Hfrz & %Hζ)".
+    as (ζ' χ' ζfreeze σfull) "(GCHGH & Hσ & %Hσfull & %Hχ & %Hfrz & %Hζ)".
   iAssert (⌜Forall2 (is_val χ' ζfreeze) vs lvs⌝)%I as %Hval.
   { iDestruct (hgh_block_sim_is_val with "GCHGH Hblk") as %Hval. iPureIntro.
     eapply Forall2_impl; first done. intros ? ?. eapply is_val_mono; eauto.
@@ -93,7 +93,7 @@ Proof using.
   iMod (ghost_var_update_halves with "SIθ GCθ") as "(SIθ & GCθ)".
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots & GCroots)".
   apply map_disjoint_union_r in Hζdisj as [Hζdisj1 Hζdisj2].
-  iMod (hgh_import_ml_interp _ _ _ _ (ζC ρc) with "GCHGH HσML") as "GCHGH"; eauto.
+  iMod (hgh_import_ml_interp _ _ _ _ (ζC ρc) with "GCHGH HσML") as (σ') "(GCHGH & %)"; eauto.
   (* TODO: use lstore_hybrid_repr in the opsem? *)
   { exists ζσ. split_and!; eauto.
     { rewrite map_union_assoc. rewrite (map_union_comm ζσ); first done. by symmetry. }

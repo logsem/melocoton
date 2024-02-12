@@ -365,7 +365,7 @@ Proof.
   1: { eapply map_disjoint_spec. intros γ b1 b2 HH1 HH2.
        destruct HA2 as [_ HA2R]. eapply elem_of_dom_2 in HH2. apply HA2R in HH2.
        destruct HH2 as (ℓ & HH7 & HH8).
-       unshelve epose proof (pub_locs_in_lstore_lookup _ _ γ ℓ _ _) as HH;
+       unshelve epose proof (pub_locs_in_lstore_lookup_1 _ _ γ ℓ _ _) as HH;
          last (erewrite H3 in HH; by apply lookup_empty_Some in HH).
        1: by eapply elem_of_dom_2.
        eapply elem_of_dom_2 in HH1.
