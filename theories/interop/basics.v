@@ -1038,14 +1038,13 @@ Proof.
     intros x y H5. eapply is_val_insert_immut; eauto.
 Qed.
 
-Lemma is_store_alloc_block χ σ ζσ ζ γ blk :
+Lemma is_store_alloc_block χ σ ζ γ blk :
   χ !! γ = None →
-  ζσ !! γ = None →
   ζ !! γ = None →
-  is_store χ (ζσ ∪ ζ) σ →
-  is_store (<[γ:=LlocPrivate]> χ) (<[γ:=blk]> (ζσ ∪ ζ)) σ.
+  is_store χ ζ σ →
+  is_store (<[γ:=LlocPrivate]> χ) (<[γ:=blk]> ζ) σ.
 Proof using.
-  intros Hχγ ? ? Hstore. unfold is_store.
+  intros Hχγ ? Hstore. unfold is_store.
   intros ℓ vs γ1 blk1 HH1 [[??]|[? HH2]]%lookup_insert_Some HH3; try congruence.
   rewrite lookup_insert_ne in HH3; last done.
   specialize (Hstore ℓ vs γ1 blk1 HH1 HH2 HH3).
@@ -1053,7 +1052,7 @@ Proof using.
   eapply Forall2_impl; first eassumption.
   intros vml vl HH4. eapply is_val_mono. 3: apply HH4.
   + by eapply insert_subseteq.
-  + eapply insert_subseteq. by eapply lookup_union_None.
+  + by eapply insert_subseteq.
 Qed.
 
 Lemma is_store_modify_priv_block χ ζ σ γ blk blk':
@@ -1200,11 +1199,15 @@ Lemma canon_val_is_val χ ζ lv :
 Proof. destruct lv; constructor. Qed.
 
 Lemma canon_vals_is_val χ ζ lvs :
-  Forall2 (is_val χ ζ) (map (canon_val) lvs) lvs.
+  Forall2 (is_val χ ζ) (map canon_val lvs) lvs.
 Proof.
   induction lvs as [| lv lvs]; first constructor.
   apply Forall2_cons; split; last done. apply canon_val_is_val.
 Qed.
+
+Lemma canon_vals_is_heap_elt χ ζ lvs :
+  is_heap_elt χ ζ (map canon_val lvs) (Bvblock (Mut, (TagDefault, lvs))).
+Proof. constructor. apply canon_vals_is_val. Qed.
 
 (******************************************************************************)
 (* auxiliary hints & tactics *)

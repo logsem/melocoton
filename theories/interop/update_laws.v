@@ -39,8 +39,8 @@ Proof using.
 Qed.
 
 Lemma freeze_to_mut γ lvs θ :
-  ⊢ GC θ ∗ γ ↦fresh lvs ==∗
-    GC θ ∗ γ ↦mut lvs.
+  ⊢ GC θ ∗ γ ↦fresh (TagDefault, lvs) ==∗
+    GC θ ∗ γ ↦mut (TagDefault, lvs).
 Proof using.
   iIntros "(HGC & Hγ)". iNamed "HGC".
   iDestruct (lstore_own_vblock_F_as_mut with "Hγ") as "([Hmtζ _] & Hmtfresh)".
