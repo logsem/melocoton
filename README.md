@@ -42,3 +42,4 @@ Alternatively, using an IDE with Coq support is recommended.
 
 - [OVERVIEW.md](OVERVIEW.md) describes the structure of the Coq development
 - [PAPER.md](PAPER.md) is a guide through the development following the paper
+- [NAMING.md](NAMING.md) describes the naming conventions followed through the Coq development
