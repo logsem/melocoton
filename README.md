@@ -38,6 +38,7 @@ rendering of the Coq scripts of the development.
 
 Alternatively, using an IDE with Coq support is recommended.
 
-## Structure of the Coq development
+## Navigating the Coq development
 
-See [OVERVIEW.md](OVERVIEW.md).
+- [OVERVIEW.md](OVERVIEW.md) describes the structure of the Coq development
+- [PAPER.md](PAPER.md) is a guide through the development following the paper
