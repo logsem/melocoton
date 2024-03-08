@@ -131,7 +131,7 @@ Definition expr_ind (P : expr → Prop)
 
 Set Elimination Schemes.
 
-
+(** Boilerplate used to implement the [language] interface *)
 
 Bind Scope ml_expr_scope with expr.
 Bind Scope ml_val_scope with val.
@@ -194,22 +194,39 @@ Qed.
 Local Notation to_val e :=
   (match to_class_ML e with Some (ExprVal v) => Some v | _ => None end).
 
-(** - Int-like values are represented as integers at runtime:
-      integers, booleans, unit.
+(** Helpers to define the semantics of equality on values [EqOp].
 
-    - Other (non int-like) values are represented as pointers to a block
-      at runtime (locations, closures, pairs, variants).
+    We take some extra care when defining the behavior of [EqOp] on ML values.
+    - We wish to ensure that it coincides with equality of block-level values as
+      observed through the FFI;
+    - However ML values and block-level values have different representations:
+      for instance two ML pairs (1, 2), while equal as ML values, could be
+      different when viewed as block-level values because they could be allocated
+      as two blocks with different addresses.
+
+    The solution is to carefully restrict the semantics of [EqOp] so that it
+    only specifies cases where ML-equality and FFI-equality coincide. In other
+    cases [EqOp] will simply get stuck. (Alternatively, we could make it return
+    any boolean non-deterministically, but that would not be much more useful.)
+
+    We thus classify ML values as either:
+    - Int-like values that are represented as integers by the FFI:
+      integers, booleans, unit.
+    - Other (non int-like) values that are represented as pointers to a block
+      by the FFI (locations, closures, pairs, variants).
 
     We only allow comparing values of different shapes when they can be
-    distinguished at runtime according to their representation. For instance,
-    comparing booleans and integers is disallowed since they end up represented
-    the same at runtime.
+    distinguished by the FFI according to their representation. For instance,
+    comparing an integer and a boolean is disallowed since they end up
+    represented the same by the FFI (e.g. in ML we have [LitInt 0 ≠ LitBool
+    false], but they both end up represented as 0 by the FFI).
 
     Furthermore, we restrict ourselves to comparing "immediate" values, i.e.
     we don't allow recursively comparing structured values such as pairs or
     variants.
 *)
 
+(** [val_is_intlike v] holds if [v] is represented as an integer by the FFI *)
 Definition val_is_intlike (v : val) : Prop :=
   match v with
   | LitV (LitInt _) | LitV (LitBool _) | LitV LitUnit => True
@@ -224,11 +241,16 @@ Proof.
   all: by left.
 Defined.
 
+(** [vals_compare_safe v1 v2] holds if testing [EqOp v1 v2] is fine. *)
 Inductive vals_compare_safe : val → val → Prop :=
+(* if one value is "int-like" and not the other, then both equality on ML and
+   FFI values will agree on the fact that they are different... *)
 | vals_compare_intlike_pointerlike v1 v2 :
   (  val_is_intlike v1 ∧ ¬ val_is_intlike v2) ∨
   (¬ val_is_intlike v1 ∧   val_is_intlike v2) →
   vals_compare_safe v1 v2
+(* in all other cases, we only allow testing of int-like values of the same
+   ML syntactic category *)
 | vals_compare_int n1 n2 :
   vals_compare_safe (LitV (LitInt n1)) (LitV (LitInt n2))
 | vals_compare_bool b1 b2 :
@@ -243,6 +265,8 @@ Global Hint Resolve vals_compare_bool : core.
 Global Hint Resolve vals_compare_unit : core.
 Global Hint Resolve vals_compare_loc : core.
 
+(** The semantics for [EqOp] needs to decide whether [vals_compare_safe] holds
+    of two given values, so we prove that it is a decidable property. *)
 Global Instance vals_compare_safe_dec v1 v2 : Decision (vals_compare_safe v1 v2).
 Proof.
   destruct (decide (val_is_intlike v1)) as [Hi1|Hni1];
@@ -265,7 +289,7 @@ Defined.
 
 Local Notation state := (gmap loc (option (list val))).
 
-(** Equality and other typeclass stuff *)
+(** Equality and other typeclass facts (countable,...) *)
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
@@ -527,13 +551,6 @@ Inductive ectx_item :=
   | LengthCtx
   | ExternCtx (s : string) (va : list val) (ve : list expr).
 
-(** Contextual closure will only reduce [e] in [Resolve e (Val _) (Val _)] if
-the local context of [e] is non-empty. As a consequence, the first argument of
-[Resolve] is not completely evaluated (down to a value) by contextual closure:
-no head steps (i.e., surface reductions) are taken. This means that contextual
-closure will reduce [Resolve (CmpXchg #l #n (#n + #1)) #p #v] into [Resolve
-(CmpXchg #l #n #(n+1)) #p #v], but it cannot context-step any further. *)
-
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
   | AppLCtx v2 => App e (of_val v2)
@@ -638,7 +655,6 @@ Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   if decide (op = EqOp) then
-    (* Crucially, this compares the same way as [CmpXchg]! *)
     if decide (vals_compare_safe v1 v2) then
       Some $ LitV $ LitBool $ bool_decide (v1 = v2)
     else
