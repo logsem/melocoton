@@ -59,8 +59,8 @@ Proof.
   iIntros (Hp Hproto Φ) "HGC Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /int2val_proto /named. iExists _, _. iFrame.
-  do 2 (iSplit; first by eauto). iIntros "!>" (?) "HGC %".
+  rewrite /int2val_proto /named. iSplit; first done. iExists _, _.
+  iSplit; first done. iFrame. iIntros "!>" (?) "[HGC %]".
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
@@ -75,8 +75,9 @@ Proof.
   iIntros (Hp Hproto Hrepr Φ) "HGC Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /val2int_proto /named. iExists _, _, _. iFrame.
-  do 3 (iSplit; first by eauto). iIntros "!> HGC".
+  rewrite /val2int_proto /named. iSplit; first done.
+  iExists _, _, _. iFrame.
+  do 2 (iSplit; first by eauto). iIntros "!> HGC".
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.
 
@@ -91,9 +92,9 @@ Proof.
   iIntros (Hp Hproto Hrepr Φ) "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /registerroot_proto /named.
+  rewrite /registerroot_proto /named. iSplit; first done.
   iExists _, _, _, _. iFrame.
-  do 3 (iSplit; first by eauto). iIntros "!> ? ?".
+  do 2 (iSplit; first by eauto). iIntros "!> [? ?]".
   iApply wp_value; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 
@@ -107,9 +108,9 @@ Proof.
   iIntros (Hp Hproto Φ) "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /unregisterroot_proto /named.
+  rewrite /unregisterroot_proto /named. iSplit; first done.
   iExists _, _, _. iFrame.
-  do 2 (iSplit; first by eauto). iIntros "!>" (?) "? ? %".
+  iSplit; first by eauto. iIntros "!>" (?) "(? & ? & %)".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -127,9 +128,9 @@ Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /modify_proto /named.
+  rewrite /modify_proto /named. iSplit; first done.
   do 9 iExists _. iFrame.
-  do 7 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 2 (iSplit; first by eauto with lia). iIntros "!> [? ?]".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -148,10 +149,9 @@ Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /readfield_proto /named.
+  rewrite /readfield_proto /named. iSplit; first done.
   do 8 iExists _. iFrame.
-  do 5 (iSplit; first by eauto with lia). iIntros "!>" (? ?) "? ?".
-  iIntros (? ?).
+  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ?) "[? ?]".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -166,9 +166,9 @@ Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /isblock_proto /named.
+  rewrite /isblock_proto /named. iSplit; first done.
   do 3 iExists _. iFrame "HGC".
-  do 3 (iSplit; first done). iNext.
+  do 2 (iSplit; first done). iNext.
   iIntros "HGC". wp_pures. iApply ("Cont" with "HGC").
 Qed.
 
@@ -209,10 +209,10 @@ Proof.
   intros Hp Hproto **. iIntros "(HGC&Hpto) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /read_tag_proto /named.
+  rewrite /read_tag_proto /named. iSplit; first done.
   do 6 iExists _. iFrame "HGC Hpto".
-  do 4 (iSplit; first done). iNext.
-  iIntros "HGC Hpto". wp_pures. iApply ("Cont" with "[$]").
+  do 2 (iSplit; first done). iNext.
+  iIntros "[HGC Hpto]". wp_pures. iApply ("Cont" with "[$]").
 Qed.
 
 Lemma wp_length p Ψ θ γ w m dq tg vs :
@@ -227,9 +227,9 @@ Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /length_proto /named.
+  rewrite /length_proto /named. iSplit; first done.
   do 6 iExists _. iFrame.
-  do 3 (iSplit; first by eauto with lia). iIntros "!> HGC Hpto".
+  do 2 (iSplit; first by eauto with lia). iIntros "!> [HGC Hpto]".
   cbn.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
@@ -248,9 +248,9 @@ Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /alloc_proto /named.
+  rewrite /alloc_proto /named. iSplit; first done.
   do 3 iExists _. iFrame. subst.
-  do 3 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "? ? %".
+  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "(? & ? & %)".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -266,9 +266,9 @@ Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /alloc_foreign_proto /named.
+  rewrite /alloc_foreign_proto /named. iSplit; first done.
   do 1 iExists _. iFrame.
-  do 2 (iSplit; first by eauto). iIntros "!>" (? ? ?) "? ? %".
+  iSplit; first by eauto. iIntros "!>" (? ? ?) "(? & ? & %)".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -283,9 +283,9 @@ Proof.
   intros Hp Hproto **. iIntros "(HGC & ?) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /write_foreign_proto /named.
+  rewrite /write_foreign_proto /named. iSplit; first done.
   do 5 iExists _. iFrame.
-  do 3 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 2 (iSplit; first by eauto with lia). iIntros "!> [? ?]".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -300,9 +300,9 @@ Proof.
   intros Hp Hproto **. iIntros "(HGC & ?) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /read_foreign_proto /named.
+  rewrite /read_foreign_proto /named. iSplit; first done.
   do 5 iExists _. iFrame.
-  do 3 (iSplit; first by eauto with lia). iIntros "!> ? ?".
+  do 2 (iSplit; first by eauto with lia). iIntros "!> [? ?]".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -326,9 +326,9 @@ Proof.
   intros Hp Hproto **. iIntros "(? & ? & ? & ?) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /callback_proto /named.
+  rewrite /callback_proto /named. iSplit; first done.
   do 10 iExists _. iFrame.
-  do 4 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "? ? ? %".
+  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "(? & ? & ? & %)".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
@@ -342,8 +342,8 @@ Proof.
   intros Hp Hproto **. iIntros "(Hinit&HP) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
-  rewrite /main_proto /named.
-  do 2 (iSplit; first by eauto with lia). iFrame.
+  rewrite /main_proto /named. iSplit; first done.
+  iSplit; first by eauto with lia. iFrame.
   iIntros "!>" (? ?).
   iApply wp_value; eauto. iApply "Cont"; eauto.
 Qed.

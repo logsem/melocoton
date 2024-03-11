@@ -194,7 +194,7 @@ Section Proofs.
     iIntros "HGC"; wp_pure _.
     wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbf]"); [done..|].
     iIntros "HGC"; wp_pure _.
-    iModIntro. iApply "HΦ". iApply ("Cont" with "HGC (HCont HΨ) [//] [//]").
+    iModIntro. iApply "HΦ". iApply ("Return" with "HGC (HCont HΨ) [//] [//]").
   Qed.
 
 End Proofs.

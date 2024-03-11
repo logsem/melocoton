@@ -23,7 +23,7 @@ Import mlanguage.
 
 Lemma modify_correct e : |- wrap_prog e :: modify_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamedProto "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -49,7 +49,7 @@ Proof using.
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[-Hpto Hptoacc] [Hpto Hptoacc]").
+  iApply ("Cont" with "[-]"). iSplitR "Hpto Hptoacc".
   { rewrite /GC /named /=. iExists (<[γ:=blk']> (ζC ρc)), _, _, _, _.
     iFrame. iPureIntro; split_and!; eauto.
     eapply GC_correct_modify_block; eauto. }

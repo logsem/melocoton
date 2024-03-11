@@ -23,7 +23,7 @@ Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
     "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
     "#Hsim" ∷ lvs ~~∗ vs ∗
     "Hproto" ∷ Ψ f vs Φ' ∗
-    "Cont" ∷ (∀ θ' vret lvret wret,
+    "Return" ∷ (∀ θ' vret lvret wret,
       GC θ' -∗
       Φ' vret -∗
       lvret ~~ vret -∗
@@ -38,166 +38,159 @@ Proof using.
   by iApply Hre.
 Qed.
 
-Definition int2val_proto : C_proto := (λ fn vl Φ,
-   ∃ θ z,
-     "->" ∷ ⌜fn = "int2val"⌝ ∗
-     "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜vl = [C_intf.LitV $ C_intf.LitInt $ z]⌝ ∗
-     "Cont" ∷ ▷ (∀ w, GC θ -∗ ⌜repr_lval θ (Lint z) w⌝ -∗ Φ w))%I.
+Definition int2val_proto : C_proto :=
+  !! θ z
+  {{ "HGC" ∷ GC θ }}
+    "int2val" with [C_intf.LitV $ C_intf.LitInt $ z]
+  {{ w, RET w; GC θ ∗ ⌜repr_lval θ (Lint z) w⌝ }}.
 
-Definition val2int_proto : C_proto := (λ fn vl Φ,
-   ∃ θ w z,
-     "->" ∷ ⌜fn = "val2int"⌝ ∗
-     "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜vl = [ w ]⌝ ∗
-     "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ ∗
-     "Cont" ∷ ▷ (GC θ -∗ Φ (C_intf.LitV $ C_intf.LitInt $ z)))%I.
+Definition val2int_proto : C_proto :=
+  !! θ w z
+  {{ "HGC" ∷ GC θ ∗ "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ }}
+    "val2int" with [w]
+  {{ RET (C_intf.LitV $ C_intf.LitInt $ z); GC θ }}.
 
-Definition registerroot_proto : C_proto := (λ fn vl Φ,
-   ∃ θ l v w,
-     "->" ∷ ⌜fn = "registerroot"⌝ ∗
+Definition registerroot_proto : C_proto :=
+  !! θ l v w
+  {{
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitLoc $ l ]⌝ ∗
      "Hpto" ∷ l ↦C w ∗
-     "%Hrepr" ∷ ⌜repr_lval θ v w⌝ ∗
-     "Cont" ∷ ▷ (GC θ -∗ l ↦roots v -∗ Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
+     "%Hrepr" ∷ ⌜repr_lval θ v w⌝
+  }}
+    "registerroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
+  {{ RET (C_intf.LitV $ C_intf.LitInt $ 0); GC θ ∗ l ↦roots v }}.
 
-Definition unregisterroot_proto : C_proto := (λ fn vl Φ,
-   ∃ θ l v,
-     "->" ∷ ⌜fn = "unregisterroot"⌝ ∗
+Definition unregisterroot_proto : C_proto :=
+  !! θ l v
+  {{ "HGC" ∷ GC θ ∗ "Hpto" ∷ l ↦roots v }}
+    "unregisterroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
+  {{ w, RET (C_intf.LitV $ C_intf.LitInt $ 0); GC θ ∗ l ↦C w ∗ ⌜repr_lval θ v w⌝ }}.
+
+Definition modify_proto : C_proto :=
+  !! θ w i v' w' γ mut tg vs
+  {{
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitLoc $ l ]⌝ ∗
-     "Hpto" ∷ l ↦roots v ∗
-     "Cont" ∷ ▷ (∀ w, GC θ -∗ l ↦C w -∗ ⌜repr_lval θ v w⌝ -∗ Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
-
-Definition modify_proto : C_proto := (λ fn vl Φ,
-  ∃ θ w i v' w' γ mut tg vs,
-    "->" ∷ ⌜fn = "modify"⌝ ∗
-    "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ w; C_intf.LitV $ C_intf.LitInt $ i; w' ]⌝ ∗
-    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "%Hptomut" ∷ ⌜vblock_access_le M mut⌝ ∗
-    "Hpto" ∷ γ ↦vblk[mut] (tg, vs) ∗
-    "%Hreprw'" ∷ ⌜repr_lval θ v' w'⌝ ∗
-    "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
-    "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
-    "Cont" ∷ ▷ (GC θ -∗
-                 γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) -∗
-                 Φ (C_intf.LitV $ C_intf.LitInt $ 0)))%I.
-
-Definition readfield_proto : C_proto := (λ fn vl Φ,
-   ∃ θ w i γ dq m tg vs,
-     "->" ∷ ⌜fn = "readfield"⌝ ∗
-     "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜vl = [ w; C_intf.LitV $ C_intf.LitInt $ i ]⌝ ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-     "Hpto" ∷ γ ↦vblk[m]{dq} (tg, vs) ∗
+     "%Hptomut" ∷ ⌜vblock_access_le M mut⌝ ∗
+     "%Hreprw'" ∷ ⌜repr_lval θ v' w'⌝ ∗
      "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
      "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
-     "Cont" ∷ ▷ (∀ v' w', GC θ -∗
-                           γ ↦vblk[m]{dq} (tg, vs) -∗
-                           ⌜vs !! (Z.to_nat i) = Some v'⌝ -∗
-                           ⌜repr_lval θ v' w'⌝ -∗
-                           Φ w'))%I.
+     "Hpto" ∷ γ ↦vblk[mut] (tg, vs)
+  }}
+    "modify" with [ w; C_intf.LitV $ C_intf.LitInt $ i; w' ]
+  {{ RET (C_intf.LitV $ C_intf.LitInt $ 0);
+     GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs)
+  }}.
 
-Definition isblock_proto : C_proto := (λ fn vl Φ,
-   ∃ θ lv w,
-     "->" ∷ ⌜fn = "isblock"⌝ ∗
+Definition readfield_proto : C_proto :=
+  !! θ w i γ dq m tg vs
+  {{
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜vl = [ w ]⌝ ∗
-     "%Hreprw" ∷ ⌜repr_lval θ lv w⌝ ∗
-     "Cont" ∷ ▷ (GC θ -∗ Φ (C_intf.LitV $ C_intf.LitInt 
-                  (match lv with Lloc _ => 1 | _ => 0 end))))%I.
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "%Hi1" ∷ ⌜0 ≤ i⌝%Z ∗
+     "%Hi2" ∷ ⌜i < length vs⌝%Z ∗
+     "Hpto" ∷ γ ↦vblk[m]{dq} (tg, vs)
+  }}
+    "readfield" with [ w; C_intf.LitV $ C_intf.LitInt $ i ]
+  {{ w' v', RET w';
+     GC θ ∗
+     γ ↦vblk[m]{dq} (tg, vs) ∗
+     ⌜vs !! (Z.to_nat i) = Some v'⌝ ∗
+     ⌜repr_lval θ v' w'⌝
+  }}.
 
-Definition read_tag_proto : C_proto := (λ fn vl Φ,
-  ∃ θ γ w dq bl tg,
-    "->" ∷ ⌜fn = "read_tag"⌝ ∗
-    "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ w ]⌝ ∗
-    "->" ∷ ⌜tg = block_tag bl⌝ ∗
-    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ lstore_own_elem γ dq bl ∗
-    "Cont" ∷ ▷ (GC θ -∗
-                 lstore_own_elem γ dq bl -∗
-                 Φ (C_intf.LitV $ C_intf.LitInt $ (tag_as_int tg))))%I.
+Definition isblock_proto : C_proto :=
+  !! θ lv w
+  {{ "HGC" ∷ GC θ ∗ "%Hreprw" ∷ ⌜repr_lval θ lv w⌝ }}
+    "isblock" with [ w ]
+  {{ RET (C_intf.LitV $ C_intf.LitInt
+            (match lv with Lloc _ => 1 | _ => 0 end));
+     GC θ
+  }}.
 
-Definition length_proto : C_proto := (λ fn vl Φ,
-  ∃ θ γ w a dq bl,
-    "->" ∷ ⌜fn = "length"⌝ ∗
-    "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ w ]⌝ ∗
-    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ γ ↦vblk[ a ]{ dq } bl ∗
-    "Cont" ∷ ▷ (GC θ -∗
-                 γ ↦vblk[ a ]{ dq } bl -∗
-                 Φ (C_intf.LitV $ C_intf.LitInt $ length $ snd $ bl)))%I.
-
-Definition alloc_proto : C_proto := (λ fn vl Φ,
-   ∃ θ tg sz,
-     "->" ∷ ⌜fn = "alloc"⌝ ∗
+Definition read_tag_proto : C_proto :=
+  !! θ γ w dq bl tg
+  {{
      "HGC" ∷ GC θ ∗
-     "->" ∷ ⌜vl = [ C_intf.LitV $ C_intf.LitInt $ vblock_tag_as_int $ tg; C_intf.LitV $ C_intf.LitInt $ sz ]⌝ ∗
-     "%Hsz" ∷ ⌜0 ≤ sz⌝%Z ∗
-     "Cont" ∷ ▷ (∀ θ' γ w, GC θ' -∗
-                            γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) -∗
-                            ⌜repr_lval θ' (Lloc γ) w⌝ -∗
-                            Φ w))%I.
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "->" ∷ ⌜tg = block_tag bl⌝ ∗
+     "Hpto" ∷ lstore_own_elem γ dq bl
+  }}
+    "read_tag" with [ w ]
+  {{ RET (C_intf.LitV $ C_intf.LitInt $ (tag_as_int tg));
+     GC θ ∗ lstore_own_elem γ dq bl
+  }}.
 
-Definition alloc_foreign_proto : C_proto := (λ fn vl Φ,
-  ∃ θ,
-    "->" ∷ ⌜fn = "alloc_foreign"⌝ ∗
-    "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ ]⌝ ∗
-    "Cont" ∷ ▷ (∀ θ' γ w, GC θ' -∗
-                          γ ↦foreignO None -∗
-                          ⌜repr_lval θ' (Lloc γ) w⌝ -∗
-                          Φ w))%I.
+Definition length_proto : C_proto :=
+  !! θ γ w a dq bl
+  {{
+     "HGC" ∷ GC θ ∗
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "Hpto" ∷ γ ↦vblk[ a ]{ dq } bl
+  }}
+    "length" with [ w ]
+  {{ RET (C_intf.LitV $ C_intf.LitInt $ length $ snd $ bl);
+     GC θ ∗ γ ↦vblk[ a ]{ dq } bl
+  }}.
 
-Definition write_foreign_proto : C_proto := (λ fn vl Φ,
-  ∃ θ γ w wo w',
-    "->" ∷ ⌜fn = "write_foreign"⌝ ∗
-    "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ w; w' ]⌝ ∗
-    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ γ ↦foreignO wo ∗
-    "Cont" ∷ ▷ (GC θ -∗
-                 γ ↦foreign w' -∗
-                 Φ (C_intf.LitV (C_intf.LitInt 0))))%I.
+Definition alloc_proto : C_proto :=
+  !! θ tg sz
+  {{ "HGC" ∷ GC θ ∗ "%Hsz" ∷ ⌜0 ≤ sz⌝%Z }}
+    "alloc" with
+      [ C_intf.LitV $ C_intf.LitInt $ vblock_tag_as_int $ tg; C_intf.LitV $ C_intf.LitInt $ sz ]
+  {{ θ' γ w, RET w;
+     GC θ' ∗
+     γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) ∗
+     ⌜repr_lval θ' (Lloc γ) w⌝
+  }}.
 
-Definition read_foreign_proto : C_proto := (λ fn vl Φ,
-  ∃ θ γ w w' dq,
-    "->" ∷ ⌜fn = "read_foreign"⌝ ∗
-    "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ w ]⌝ ∗
-    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hpto" ∷ γ ↦foreign{dq} w' ∗
-    "Cont" ∷ ▷ (GC θ -∗
-                 γ ↦foreign{dq} w' -∗
-                 Φ w'))%I.
+Definition alloc_foreign_proto : C_proto :=
+  !! θ
+  {{ GC θ }}
+    "alloc_foreign" with []
+  {{ θ' γ w, RET w; GC θ' ∗ γ ↦foreignO None ∗ ⌜repr_lval θ' (Lloc γ) w⌝ }}.
 
-Definition callback_proto (Ψ : ML_proto) : C_proto := (λ fn vl Φ,
-  ∃ θ w γ w' lv' v' f x e Φ',
-    "->" ∷ ⌜fn = "callback"⌝ ∗
-    "HGC" ∷ GC θ ∗
-    "->" ∷ ⌜vl = [ w; w' ]⌝ ∗
-    "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-    "Hclos" ∷ γ ↦clos (f, x, e) ∗
-    "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
-    "Hsim'" ∷ lv' ~~ v' ∗
-    "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) at ⟨∅, Ψ⟩ {{ Φ' }} ∗
-    "Cont" ∷ ▷ (∀ θ' vret lvret wret,
-                   GC θ' -∗
-                   Φ' vret -∗
-                   lvret ~~ vret -∗
-                   ⌜repr_lval θ' lvret wret⌝ -∗
-                   Φ wret))%I.
+Definition write_foreign_proto : C_proto :=
+  !! θ γ w wo w'
+  {{
+     "HGC" ∷ GC θ ∗
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "Hpto" ∷ γ ↦foreignO wo
+  }}
+    "write_foreign" with [ w; w' ]
+  {{ RET (C_intf.LitV (C_intf.LitInt 0));
+     GC θ ∗ γ ↦foreign w'
+  }}.
 
-Definition main_proto (Φ' : Z → Prop) (Pinit : iProp Σ) : C_proto := (λ fn vl Φ,
-  "->" ∷ ⌜fn = "main"⌝ ∗
-  "->" ∷ ⌜vl = []⌝ ∗
-  "Hat_init" ∷ at_init ∗
-  "Hinitial_resources" ∷ Pinit ∗
-  "Cont" ∷ ▷ (∀ x, ⌜Φ' x⌝ -∗ Φ (code_int x)))%I.
+Definition read_foreign_proto : C_proto :=
+  !! θ γ w w' dq
+  {{
+     "HGC" ∷ GC θ ∗
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "Hpto" ∷ γ ↦foreign{dq} w'
+  }}
+    "read_foreign" with [ w ]
+  {{ RET w'; GC θ ∗ γ ↦foreign{dq} w' }}.
+
+Definition callback_proto (Ψ : ML_proto) : C_proto :=
+  !! θ w γ w' lv' v' f x e Φ'
+  {{
+     "HGC" ∷ GC θ ∗
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "Hclos" ∷ γ ↦clos (f, x, e) ∗
+     "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
+     "Hsim'" ∷ lv' ~~ v' ∗
+     "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) at ⟨∅, Ψ⟩ {{ Φ' }}
+  }}
+    "callback" with [ w; w' ]
+  {{ θ' vret lvret wret, RET wret;
+     GC θ' ∗ Φ' vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝
+  }}.
+
+Definition main_proto (Φ' : Z → Prop) (Pinit : iProp Σ) : C_proto :=
+  !! {{ "Hat_init" ∷ at_init ∗ "Hinitial_resources" ∷ Pinit }}
+    "main" with []
+  {{ x, RET (code_int x); ⌜Φ' x⌝ }}.
 
 Definition prim_proto (p : prim) (Ψ : ML_proto) : C_proto :=
   match p with
@@ -225,11 +218,11 @@ Lemma proto_prim_mono Ψ1 Ψ2 : Ψ1 ⊑ Ψ2 →
   prims_proto Ψ1 ⊑ prims_proto Ψ2.
 Proof using.
   iIntros (HH s vv Φ) "H". iDestruct "H" as (p) "H". iExists p.
-  destruct p; try done. all: cbn; iNamed "H".
-  { do 10 iExists _; unfold named.
-    iFrame. do 4 (iSplit; first done).
-    iNext. iApply (wp_strong_mono with "[-] []"). 1-2: done.
-    1: iFrame. by iIntros (v) "$". }
+  destruct p; try done. iNamedProto "H".
+  iSplit; first done. do 10 iExists _; unfold named.
+  iFrame. do 3 (iSplit; first done).
+  iNext. iApply (wp_strong_mono with "[-] []"). 1-2: done.
+  1: iFrame. by iIntros (v) "$".
 Qed.
 
 Lemma prims_proto_except_prims Ψ :
@@ -237,17 +230,17 @@ Lemma prims_proto_except_prims Ψ :
 Proof using.
   iIntros (? ? ?) "H". rewrite /proto_except.
   iDestruct "H" as (Hnin%not_elem_of_prim_names ?) "H".
-  destruct p; unfold prim_proto; iNamed "H";
-    try by (exfalso; apply Hnin; eexists; constructor).
-  done.
+  destruct p; unfold prim_proto; last done;
+    iDestruct "H" as (->) "?";
+    by (exfalso; apply Hnin; eexists; constructor).
 Qed.
 
 Lemma main_proto_mono (Φ Φ' : Z → Prop) (P P' : iProp Σ) :
   (∀ x, Φ x → Φ' x) → (P' -∗ P) →
   main_proto Φ' P' ⊑ main_proto Φ P.
 Proof.
-  iIntros (Himpl Hwand ? ? ?) "H". iNamed "H".
-  rewrite /main_proto /named. do 2 (iSplit; first done).
+  iIntros (Himpl Hwand ? ? ?) "H". iNamedProto "H".
+  do 2 (iSplit; first done).
   iFrame. iSplitL "Hinitial_resources".
   - iApply (Hwand with "[$]").
   - iIntros "!>" (? ?). iApply "Cont". iPureIntro. eauto.

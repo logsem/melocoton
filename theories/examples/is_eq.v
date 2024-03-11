@@ -66,20 +66,20 @@ Section C_specs.
   Notation na_tok := (na_own logrel.logrel_nais ⊤).
 
   Definition is_eq_spec_ML : protocol ML_lang.val Σ :=
-    λ s vv Φ,
-    (∃ x y τ Δ p,
-      "->" ∷ ⌜s = "is_eq"⌝
-    ∗ "->" ∷ ⌜vv = [ x; y ]⌝
-    ∗ "%Hτ" ∷ ⌜valid_is_eq_type τ⌝
-    ∗ "Hτx" ∷ ⟦ τ ⟧ p Δ x
-    ∗ "Hτy" ∷ ⟦ τ ⟧ p Δ y
-    ∗ "Htok" ∷ na_tok
-    ∗ "Hcont" ∷ (na_tok -∗ Φ (ML_lang.LitV (bool_decide (x = y)))))%I.
+    !! x y τ Δ p
+    {{
+       "%Hτ" ∷ ⌜valid_is_eq_type τ⌝ ∗
+       "Hτx" ∷ ⟦ τ ⟧ p Δ x ∗
+       "Hτy" ∷ ⟦ τ ⟧ p Δ y ∗
+       "Htok" ∷ na_tok
+    }}
+      "is_eq" with [x; y]
+    {{ RET (ML_lang.LitV (bool_decide (x = y))); na_tok }}.
 
   Lemma is_eq_correct Ψ :
     prims_proto Ψ ||- is_eq_prog :: wrap_proto is_eq_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done. iIntros (Φ'') "HΦ".
     unfold progwp.
     destruct lvs as [|lvx [|lvy [|??]]]; try done.
@@ -89,10 +89,10 @@ Section C_specs.
     iDestruct "Hx" as "-#Hx". iDestruct "Hy" as "-#Hy".
     iAssert (▷ ∀ wret, GC θ -∗ na_tok -∗
        ⌜repr_lval θ (Lint (bool_to_Z (bool_decide (x = y)))) wret⌝ -∗
-       Φ'' wret)%I with "[Cont Hcont HΦ]" as "Cont". {
+       Φ'' wret)%I with "[Return Cont HΦ]" as "Return". {
       iIntros "!>" (?) "??". iIntros (?).
-      iApply "HΦ". iApply ("Cont" with "[$] [-] [] [//]").
-      { by iApply "Hcont". } done.
+      iApply "HΦ". iApply ("Return" with "[$] [-] [] [//]").
+      { by iApply "Cont". } done.
     }
     iLöb as "IH" forall (τ x lvx wx y lvy wy Φ'' Hτ H1 H2).
     wp_call_direct.
@@ -110,7 +110,7 @@ Section C_specs.
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w) "[HGC %]".
-      by iApply ("Cont" with "HGC Htok").
+      by iApply ("Return" with "HGC Htok").
     - (* TNat *)
       iDestruct "Hτx" as %[? ->].
       iDestruct "Hτy" as %[? ->].
@@ -123,7 +123,7 @@ Section C_specs.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
       iPureIntro. repeat case_bool_decide; naive_solver.
     - (* TBool *)
       iDestruct "Hτx" as %[? ->].
@@ -137,7 +137,7 @@ Section C_specs.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
       iPureIntro. repeat case_match; naive_solver.
     - (* TProd *)
       destruct Hτ as [??].
@@ -196,7 +196,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
         iPureIntro. repeat case_bool_decide; naive_solver.
       }
       wp_pures.
@@ -232,7 +232,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
         iPureIntro. repeat case_bool_decide; naive_solver.
       }
       wp_pures.
@@ -248,7 +248,7 @@ Section C_specs.
       wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
       wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
       iPureIntro. repeat case_bool_decide; naive_solver.
     - (* TSum *)
       destruct Hτ as [??].
@@ -276,7 +276,7 @@ Section C_specs.
       destruct_decide (bool_decide_reflect (vblock_tag_as_int tgx = vblock_tag_as_int tgy)). 2: {
         wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
         iPureIntro. repeat case_match; case_bool_decide; naive_solver.
       }
       wp_pures.
@@ -331,7 +331,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
         iPureIntro. repeat case_match; case_bool_decide; naive_solver.
       + wp_pures.
         wp_apply (wp_store with "Hℓr").
@@ -345,7 +345,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Cont" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
         iPureIntro. repeat case_match; case_bool_decide; naive_solver.
   Qed.
 

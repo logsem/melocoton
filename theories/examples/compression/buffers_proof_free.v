@@ -84,7 +84,7 @@ Section Proofs.
     }
     iModIntro.
     iApply "HΦ".
-    iApply ("Cont" $! _ (ML_lang.LitV ())%MLV with "HGC [-] [//] [//]").
+    iApply ("Return" $! _ (ML_lang.LitV ())%MLV with "HGC [-] [//] [//]").
     iApply ("HCont" with "[//] Hγusedref [$]").
   Qed.
 

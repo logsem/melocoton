@@ -21,7 +21,7 @@ Import mlanguage.
 
 Lemma val2int_correct e : |- wrap_prog e :: val2int_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamedProto "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.

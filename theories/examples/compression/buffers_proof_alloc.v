@@ -139,7 +139,7 @@ Section Proofs.
     iMod (bufToML with "HGC Hbuf") as "(HGC&%vv&Hbuffer&#Hsim)".
     iModIntro. iApply "HΦ".
      rewrite -(_: z = Z.to_nat z); last lia.
-    iApply ("Cont" with "HGC (HCont Hbuffer) Hsim [//]").
+    iApply ("Return" with "HGC (HCont Hbuffer) Hsim [//]").
   Qed.
 
 End Proofs.

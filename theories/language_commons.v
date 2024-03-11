@@ -5,6 +5,7 @@ From iris.algebra Require Import auth excl excl_auth gmap.
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
 From iris.bi Require Import weakestpre.
+From melocoton Require Export named_props.
 
 (** Classifying expressions into values and calls. *)
 
@@ -188,3 +189,31 @@ End Protocols.
 (* Reexport notations *)
 Notation "Ψ 'except' fns" := (proto_except Ψ fns) (at level 10).
 Notation "Ψ 'on' fns" := (proto_on Ψ fns) (at level 10).
+
+(* Notations for protocols *)
+
+Notation "'!!' x .. y '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)) ..))%I
+  (at level 20, x closed binder, y closed binder, u closed binder, v closed binder,
+   format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
+
+Notation "'!!' '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)))%I
+  (at level 20, u closed binder, v closed binder,
+   format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
+
+Notation "'!!' x .. y '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (Q -∗ Φ pat)) ..))%I
+  (at level 20, x closed binder, y closed binder,
+   format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
+
+Notation "'!!' '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (Q -∗ Φ pat)))%I
+  (at level 20,
+   format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
+
+Ltac iNamedProto H := repeat (iNamed H); iNamed "ProtoPre".

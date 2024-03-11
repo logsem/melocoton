@@ -176,7 +176,7 @@ Lemma callback_correct emain Ψ :
   Ψ on prim_names ⊑ ⊥ →
   wrap_proto Ψ |- wrap_prog emain :: callback_proto Ψ.
 Proof using.
-  iIntros (Hnprim ? ? ?) "Hproto". iNamed "Hproto".
+  iIntros (Hnprim ? ? ?) "Hproto". iNamedProto "Hproto".
   iSplit; first done. iIntros (Φ'') "Hb Hcont".
   iApply wp_wrap_call; first done. cbn [snd].
 
@@ -212,7 +212,7 @@ Proof using.
   { by iApply (wp_simulates with "Hnb [WPcallback]"). }
   cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & ?)".
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[$] [$] [$]"); eauto.
+  iApply "Cont". iFrame; eauto.
 Qed.
 
 Lemma main_correct emain Ψ P (Φ : Z → Prop) :
@@ -220,7 +220,7 @@ Lemma main_correct emain Ψ P (Φ : Z → Prop) :
   (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = (LitV (LitInt x)) ∧ Φ x⌝ }}) →
   wrap_proto Ψ |- wrap_prog emain :: main_proto Φ P.
 Proof using.
-  iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamed "Hproto".
+  iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamedProto "Hproto".
   iSplit; first done. iIntros (Φ') "Hb Hcont".
   iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.

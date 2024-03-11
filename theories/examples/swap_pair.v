@@ -41,15 +41,13 @@ Definition swap_pair_code (x : expr) : expr :=
 Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 Definition swap_pair_prog : lang_prog C_lang := {[ "swap_pair" := swap_pair_func ]}.
 
-Definition swap_pair_ml_spec : protocol ML_lang.val Σ := (
-  λ s l wp, ∃ v1 v2, ⌜s = "swap_pair"⌝ ∗ ⌜l = [ (v1,v2)%MLV ]⌝ ∗ wp ((v2,v1)%MLV)
-)%I.
+Definition swap_pair_ml_spec : protocol ML_lang.val Σ :=
+  !! v1 v2 {{ True }} "swap_pair" with [ (v1, v2)%MLV ] {{ RET (v2, v1)%MLV; True }}.
 
 Lemma swap_pair_correct :
   prims_proto swap_pair_ml_spec ||- swap_pair_prog :: wrap_proto swap_pair_ml_spec.
 Proof.
-  iIntros (fn ws Φ) "H". iNamed "H".
-  iDestruct "Hproto" as (v1 v2) "(->&->&Hψ)".
+  iIntros (fn ws Φ) "H". iNamed "H". iNamedProto "Hproto".
   iSplit; first done. iIntros (Φ'') "HΦ".
   iAssert (⌜length lvs = 1⌝)%I as %Hlen.
   { by iDestruct (big_sepL2_length with "Hsim") as %?. }
@@ -128,7 +126,8 @@ Proof.
   (* Finish, convert the new points-to to an immutable pointsto *)
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
 
-  iModIntro. iApply "HΦ". iApply ("Cont" with "HGC Hψ [] []").
+  iModIntro. iApply "HΦ". iApply ("Return" with "HGC [Cont] [] []").
+  - by iApply "Cont".
   - cbn. do 3 iExists _. iFrame "Hnew Hlv1 Hlv2". done.
   - done.
 Qed.
@@ -159,7 +158,7 @@ Import melocoton.ml_lang.proofmode.
     iPoseProof (big_sepL2_length with "Hargs") as "%Heq".
     destruct vv as [|v [|??]]; cbn in Heq; try lia.
     cbn. iDestruct "Hargs" as "((%w1&%w2&->&Hw1&Hw2)&_)".
-    iExists _, _. iSplit; first done. iSplit; first done.
+    iSplit; first done. iExists _, _. do 2 (iSplit; first done). iIntros "!> _".
     wp_pures. iModIntro. iApply ("HCont" with "[-Htok] Htok").
     iExists _, _. iSplit; first done. iFrame.
   Qed.
@@ -170,8 +169,8 @@ Lemma ML_prog_correct_axiomatic :
 Proof.
   unfold swap_pair_client. wp_pures.
   wp_extern.
-  iModIntro. cbn. do 2 iExists _.
-  do 2 (iSplitR; first done).
+  iModIntro. cbn. iSplit; first done. do 2 iExists _.
+  do 2 (iSplitR; first done). iIntros "!> _".
   wp_pures. iModIntro. iPureIntro. by eexists.
 Qed.
 
@@ -190,7 +189,7 @@ Proof.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
     3: {iIntros "_". iApply ML_prog_correct_axiomatic. }
     3: apply swap_pair_correct.
-    { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
+    { iIntros (? Hn ?) "(% & H)". iNamedProto "H".
       exfalso. set_solver. }
     { set_solver. } }
   { by intros [? ?] (? & ? & ->). }

@@ -46,7 +46,7 @@ Section Proofs.
     iSplit; first done. iNext. wp_finish.
     wp_apply (wp_int2val with "HGC"); [mdone..|].
     iIntros (w) "(HGC&%Hrepr)".
-    iApply "HΦ". iApply ("Cont" with "HGC HCont [//] [//]").
+    iApply "HΦ". iApply ("Return" with "HGC HCont [//] [//]").
   Qed.
 
   Lemma wrap_compress_correct Ψ :
@@ -135,7 +135,7 @@ Section Proofs.
       iMod (bufToML_fixed with "HGC [Hγusedref Hγfgnpto Hℓbuf Hℓbufuninit HContent] Hsim1") as "(HGC&HBuf1)"; last first.
       1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2") as "(HGC&HBuf2)"; last first.
       1: iApply "HΦ".
-      1: iApply ("Cont" $! _ (ML_lang.LitV true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
+      1: iApply ("Return" $! _ (ML_lang.LitV true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
       { iExists _, _, _, _, _. unfold named.
         iSplit; first done.
         change (Z.to_nat 0) with 0; cbn.

@@ -26,13 +26,17 @@ Section specs.
 Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 
-Definition is_odd_proto : protocol val Σ := (λ fn (vs: list val) Φ,
-  ⌜fn = "is_odd"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
-  Φ (# (Z.odd x)))%I.
+Definition is_odd_proto : protocol val Σ :=
+  !! (x:Z)
+  {{ "%" ∷ ⌜(0 ≤ x)%Z⌝ }}
+    "is_odd" with [ #x ]
+  {{ RET #(Z.odd x); True }}.
 
-Definition is_even_proto : protocol val Σ := (λ fn vs Φ,
-  ⌜fn = "is_even"⌝ ∗ ∃ (x:Z), ⌜vs = [ #x ] ∧ (0 ≤ x)%Z⌝ ∗
-  Φ (# (Z.even x)))%I.
+Definition is_even_proto : protocol val Σ :=
+  !! (x:Z)
+  {{ "%" ∷ ⌜(0 ≤ x)%Z⌝ }}
+    "is_even" with [ #x ]
+  {{ RET #(Z.even x); True }}.
 
 Lemma wp_is_even (x:Z) :
   (0 ≤ x)%Z →
@@ -47,19 +51,18 @@ Proof.
   { by inversion Hx'. }
   wp_pures. wp_extern. iModIntro. cbn.
   rewrite /is_odd_proto /=. iSplitR; first done.
-  iExists _. iSplitR.
-  { iPureIntro. split; first done.
-    assert (x ≠ 0). { intro. apply Hx. by f_equal. }
-    lia. }
-  wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.odd_pred //.
+  iExists _. iSplit; first done. iSplitR.
+  { iPureIntro. lia. }
+  iIntros "!> _". wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.odd_pred //.
 Qed.
 
 Lemma is_even_correct : is_odd_proto ||- is_even_prog :: is_even_proto.
 Proof.
   unfold progwp, is_even_proto.
-  iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
-  iSplit; first done. iIntros (?) "Hcont". wp_call_direct.
-  iApply wp_wand; first by iApply wp_is_even. iIntros (? ->). by iApply "Hcont".
+  iIntros (? ? ?) "H". iNamedProto "H". iSplit; first done.
+  iIntros (?) "Hcont". wp_call_direct.
+  iApply wp_wand; first by iApply wp_is_even. iIntros (? ->).
+  iApply "Hcont". by iApply "Cont".
 Qed.
 
 Lemma wp_is_odd (x:Z) :
@@ -75,19 +78,19 @@ Proof.
   { by inversion Hx'. }
   wp_pures. wp_extern. iModIntro. cbn.
   rewrite /is_odd_proto /=. iSplitR; first done.
-  iExists _. iSplitR.
-  { iPureIntro. split; first done.
-    assert (x ≠ 0). { intro. apply Hx. by f_equal. }
-    lia. }
-  wp_pures. iPureIntro. f_equal. rewrite Z.sub_1_r Z.even_pred //.
+  iExists _. iSplit; first done. iSplitR.
+  { iPureIntro. lia. }
+  iIntros "!> _". wp_pures. iPureIntro. f_equal.
+  rewrite Z.sub_1_r Z.even_pred //.
 Qed.
 
 Lemma is_odd_correct : is_even_proto ||- is_odd_prog :: is_odd_proto.
 Proof.
   unfold progwp, is_odd_proto.
-  iIntros (? ? ?) "[-> H]". iDestruct "H" as (? [-> ?]) "H".
-  iSplit; first done. iIntros (?) "Hcont". wp_call_direct.
-  iApply wp_wand; first by iApply wp_is_odd. iIntros (? ->). by iApply "Hcont".
+  iIntros (? ? ?) "H". iNamedProto "H". iSplit; first done.
+  iIntros (?) "Hcont". wp_call_direct.
+  iApply wp_wand; first by iApply wp_is_odd. iIntros (? ->). 
+  iApply "Hcont". by iApply "Cont".
 Qed.
 
 End specs.

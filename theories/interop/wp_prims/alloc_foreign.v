@@ -23,12 +23,12 @@ Import mlanguage.
 
 Lemma alloc_foreign_correct e : |- wrap_prog e :: alloc_foreign_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamedProto "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
-  SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  SI_at_boundary. SI_GC_agree.
   iAssert (⌜∀ k lv, roots_m !! k = Some lv →
             ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
   1: { iIntros (kk vv Hroots).
@@ -66,9 +66,8 @@ Proof using.
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" $! θC' γ with "[-Hpto Hfresh] [Hpto Hfresh] []"); try done.
-  3: iPureIntro; by econstructor.
-  2: iFrame; by eauto.
+  iApply ("Cont" $! θC' γ with "[-]"); try done.
+  iFrame "Hpto". iSplit; last by eauto.
   rewrite /GC /named.
   iExists _, _, σMLvirt, _, _. iFrame; eauto.
 Qed.

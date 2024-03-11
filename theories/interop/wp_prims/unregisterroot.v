@@ -22,7 +22,7 @@ Import mlanguage.
 
 Lemma unregisterroot_correct e : |- wrap_prog e :: unregisterroot_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamedProto "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -44,7 +44,7 @@ Proof using.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" $! W with "[-Hpto] Hpto []"). 2: done.
+  iApply ("Cont" $! W with "[- $Hpto]"). iSplit; last done.
   repeat iExists _. iFrame. iPureIntro; split_and!; eauto.
   - rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
   - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.

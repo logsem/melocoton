@@ -22,7 +22,7 @@ Import mlanguage.
 
 Lemma length_correct e : |- wrap_prog e :: length_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamedProto "H".
   destruct bl as [tg vs0].
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
@@ -41,7 +41,7 @@ Proof using.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[-Hpto] [$Hpto]"); try done; [].
+  iApply ("Cont" with "[- $Hpto]"); try done; [].
   rewrite /GC /named.
   iExists _, _, σMLvirt, _. iExists _.
   iFrame. iPureIntro; split_and!; eauto.

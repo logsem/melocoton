@@ -22,7 +22,7 @@ Import mlanguage.
 
 Lemma read_tag_correct e : |- wrap_prog e :: read_tag_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamedProto "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -39,7 +39,7 @@ Proof using.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame. rewrite Heqt.
-  iApply ("Cont" with "[-Hpto] [$Hpto]"); try done; [].
+  iApply ("Cont" with "[- $Hpto]").
   rewrite /GC /named. iExists _, _, _, _, _. iFrame.
   iPureIntro; split_and!; eauto.
 Qed.

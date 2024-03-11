@@ -20,7 +20,7 @@ Import mlanguage.
 
 Lemma int2val_correct e : |- wrap_prog e :: int2val_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". rewrite /mprogwp. iNamedProto "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -34,7 +34,7 @@ Proof using.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[-]"); last done.
+  iApply "Cont". iSplit; last done.
   repeat iExists _; rewrite /named; iFrame. eauto.
 Qed.
 

@@ -87,35 +87,37 @@ Section Proofs.
 
   Import melocoton.ml_lang.notation.
 
-  Definition listener_create_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    (∃ interp Δ,
-      "->" ∷ ⌜s = "listener_create"⌝
-    ∗ "->" ∷ ⌜vv = [ #() ]⌝
-    ∗ "Hna" ∷ na_tok
-    ∗ "HWP" ∷ ▷ (∀ vr, na_tok -∗ listener_interp Ψ interp Δ vr -∗ Φ vr))%I.
-  Definition listener_notify_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    (∃ interp Δ vn vb,
-      "->" ∷ ⌜s = "listener_notify"⌝
-    ∗ "->" ∷ ⌜vv = [ vn; vb ]⌝
-    ∗ "#Hvn" ∷ interp Δ vn
-    ∗ "Hna" ∷ na_tok
-    ∗ "#Hbox" ∷ ▷ listener_interp Ψ interp Δ vb
-    ∗ "HWP" ∷ ▷ (na_tok -∗ Φ #()))%I.
-  Definition listener_listen_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    (∃ interp Δ vl vb,
-      "->" ∷ ⌜s = "listener_listen"⌝
-    ∗ "->" ∷ ⌜vv = [ vl; vb ]⌝
-    ∗ "#Hvl" ∷ ▷ interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ vl
-    ∗ "#Hbox" ∷ ▷ listener_interp Ψ interp Δ vb
-    ∗ "Hna" ∷ na_tok
-    ∗ "HWP" ∷ ▷ (na_tok -∗ Φ #()))%I.
-  Definition listener_unlisten_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    (∃ interp Δ vb,
-      "->" ∷ ⌜s = "listener_unlisten"⌝
-    ∗ "->" ∷ ⌜vv = [ vb ]⌝
-    ∗ "#Hbox" ∷ ▷ listener_interp Ψ interp Δ vb
-    ∗ "Hna" ∷ na_tok
-    ∗ "HWP" ∷ ▷ (na_tok -∗ Φ #()))%I.
+  Definition listener_create_spec_ML : protocol ML_lang.val Σ :=
+    !! interp Δ
+    {{ "Hna" ∷ na_tok }}
+      "listener_create" with [ #() ]
+    {{ vr, RET vr; na_tok ∗ listener_interp Ψ interp Δ vr }}.
+  Definition listener_notify_spec_ML : protocol ML_lang.val Σ :=
+    !! interp Δ vn vb
+    {{
+       "#Hvn" ∷ interp Δ vn ∗
+       "Hna" ∷ na_tok ∗
+       "#Hbox" ∷ ▷ listener_interp Ψ interp Δ vb
+    }}
+      "listener_notify" with [ vn; vb ]
+    {{ RET #(); na_tok }}.
+  Definition listener_listen_spec_ML : protocol ML_lang.val Σ :=
+    !! interp Δ vl vb
+    {{
+       "#Hvl" ∷ ▷ interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ vl ∗
+       "#Hbox" ∷ ▷ listener_interp Ψ interp Δ vb ∗
+       "Hna" ∷ na_tok
+    }}
+      "listener_listen" with [ vl; vb ]
+    {{ RET #(); na_tok }}.
+  Definition listener_unlisten_spec_ML : protocol ML_lang.val Σ :=
+    !! interp Δ vb
+    {{
+       "#Hbox" ∷ ▷ listener_interp Ψ interp Δ vb ∗
+       "Hna" ∷ na_tok
+    }}
+      "listener_unlisten" with [ vb ]
+    {{ RET #(); na_tok }}.
 
   Import melocoton.c_lang.primitive_laws melocoton.c_lang.proofmode.
 
@@ -124,11 +126,10 @@ Section Proofs.
   Lemma listener_create_correct :
     prims_proto Ψ ||- listener_prog :: wrap_proto listener_create_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    unfold progwp, listener_prog.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvl [|??]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimv&Hsim)"; try done.
+    all: cbn; iDestruct "Hsim" as "(->&Hsim)"; try done.
     destruct ws as [|wv [|??]]; decompose_Forall.
     iIntros (Φ'') "Cont2".
     wp_pure _.
@@ -148,10 +149,9 @@ Section Proofs.
     iMod (na_inv_alloc logrel_nais _ _ (listener_invariant a _) with "[Ha]") as "#Hinv".
     { iNext. iRight. iFrame "Ha". }
     iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
-    iModIntro. iApply "Cont2". iApply ("Cont" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []").
+    iModIntro. iApply "Cont2". iApply ("Return" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []").
     2,3: done.
-    iApply ("HWP" with "Hna [-]").
-    iExists γ, a.
+    iApply "Cont". iFrame "Hna". iExists γ, a.
     iSplit; first done. iSplitL.
     { iSplitL. 2: done. iApply "Hγfgn'". }
     iFrame "Hinv".
@@ -160,8 +160,8 @@ Section Proofs.
   Lemma listener_notify_correct :
     prims_proto Ψ ||- listener_prog :: wrap_proto listener_notify_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    cbn. unfold progwp, listener_prog. iSplit; first done.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
+    iSplit; first done.
     destruct lvs as [|lvn [|lvb [|??]]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimvn&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
@@ -192,16 +192,16 @@ Section Proofs.
       iIntros (θ' vret lvret wret) "(HGC & [_ Hna] & Hsimret & %)".
       wp_pures. wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (?) "[HGC %HH]". inversion HH; simplify_eq.
-      iApply "Cont2". iApply ("Cont" with "HGC [HWP Hna] [] []").
-      1: by iApply "HWP". 1,2: by iPureIntro.
+      iApply "Cont2". iApply ("Return" with "HGC [Cont Hna] [] []").
+      1: by iApply "Cont". 1,2: by iPureIntro.
     - wp_apply (wp_load with "[$Hnull]"). iIntros "Hnull".
       wp_pures. 
       iMod ("Hclose" with "[$Hna Hnull]") as "Hna".
       { iNext. iRight. iFrame. }
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (?) "[HGC %HH]". inversion HH; simplify_eq.
-      iApply "Cont2". iApply ("Cont" with "HGC [HWP Hna] [] []").
-      1: by iApply "HWP". 1,2: by iPureIntro.
+      iApply "Cont2". iApply ("Return" with "HGC [Cont Hna] [] []").
+      1: by iApply "Cont". 1,2: by iPureIntro.
   Qed.
 
   Local Opaque listener_interp.
@@ -209,8 +209,8 @@ Section Proofs.
   Lemma listener_listen_correct :
     prims_proto Ψ ||- listener_prog :: wrap_proto listener_listen_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    cbn. unfold progwp, listener_prog. iSplit; first done.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
+    iSplit; first done.
     destruct lvs as [|lv [|lvb [|??]]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimvl&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
@@ -237,8 +237,8 @@ Section Proofs.
       iMod ("Hclose" with "[$Hna Ha]") as "Hna".
       { iNext. iLeft. iExists _, _. iFrame "Ha Hvl Hsimvl". }
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
-      iApply "Cont2". iApply ("Cont" with "HGC [HWP Hna]").
-      1: by iApply "HWP". 1,2: by iPureIntro.
+      iApply "Cont2". iApply ("Return" with "HGC [Cont Hna]").
+      1: by iApply "Cont". 1,2: by iPureIntro.
     - wp_pures.
       wp_apply (wp_load with "Hnull"); iIntros "Hnull".
       wp_pures.
@@ -250,15 +250,15 @@ Section Proofs.
       iMod ("Hclose" with "[$Hna Hroot]") as "Hna".
       { iNext. iLeft. iExists _, _. iFrame "Hroot Hvl Hsimvl". }
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
-      iApply "Cont2". iApply ("Cont" with "HGC [HWP Hna]").
-      1: by iApply "HWP". 1,2: by iPureIntro.
+      iApply "Cont2". iApply ("Return" with "HGC [Cont Hna]").
+      1: by iApply "Cont". 1,2: by iPureIntro.
   Qed.
 
   Lemma listener_unlisten_correct :
     prims_proto Ψ ||- listener_prog :: wrap_proto listener_unlisten_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    cbn. unfold progwp, listener_prog. iSplit; first done.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
+    iSplit; first done.
     destruct lvs as [|lv [|lvb [|??]]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
     destruct ws as [|wl [|wb [|??]]]; decompose_Forall.
@@ -285,8 +285,8 @@ Section Proofs.
       iMod ("Hclose" with "[$Hna Ha]") as "Hna".
       { iNext. iRight. iFrame. } wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
-      iApply "Cont2". iApply ("Cont" with "HGC [HWP Hna]").
-      1: by iApply "HWP". 1,2: by iPureIntro.
+      iApply "Cont2". iApply ("Return" with "HGC [Cont Hna]").
+      1: by iApply "Cont". 1,2: by iPureIntro.
     - wp_pures.
       wp_apply (wp_load with "Hnull"); iIntros "Hnull".
       wp_pures.
@@ -295,8 +295,8 @@ Section Proofs.
       iMod ("Hclose" with "[$Hna Hnull]") as "Hna".
       { iNext. iRight. iFrame. }
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
-      iApply "Cont2". iApply ("Cont" with "HGC [HWP Hna]").
-      1: by iApply "HWP". 1,2: by iPureIntro.
+      iApply "Cont2". iApply ("Return" with "HGC [Cont Hna]").
+      1: by iApply "Cont". 1,2: by iPureIntro.
   Qed.
   End InPsi.
 
@@ -313,11 +313,11 @@ Section Proofs.
       repeat first [apply listener_interp | f_equiv | intros ?]. }
     { do 16 first [f_equiv|intros ?]. f_contractive.
       repeat first [apply listener_interp | f_equiv | intros ?]. }
-    { do 14 first [f_equiv|intros ?]. 2: f_equiv.
+    { do 15 first [f_equiv|intros ?]. 2: f_equiv.
       all: f_contractive.
       2: by apply listener_interp. unfold interp_arrow; cbn.
       do 12 first [f_equiv | intros ?]. by apply wp_ne_proto. }
-    { do 12 first [f_equiv|intros ?]. f_contractive.
+    { do 13 first [f_equiv|intros ?]. f_contractive.
       repeat first [apply listener_interp | f_equiv | intros ?]. }
   Qed.
 
@@ -385,37 +385,34 @@ Section Proofs.
     all: wp_pures.
     - wp_extern. 1: rewrite H1; done. cbn. unfold env_lookup.
       iDestruct "Hv" as %->.
-      iModIntro. iApply H0. iLeft. iLeft. iLeft.
+      iModIntro. iApply H0. iLeft. iLeft. iLeft. iSplit; first done.
       iExists (λne _ : listO D, τ), Δ.
-      do 2 (iSplit; first done). iFrame "Htok".
-      iIntros "!> %vr Htok #Hbox".
+      iSplit; first done. iFrame "Htok".
+      iIntros "!> %vr (Htok & #Hbox)".
       wp_pures. iModIntro. iFrame "Htok Hbox".
     - iModIntro; iFrame; iExists _, _, _; iSplit; first done.
       iIntros (v2) "!> #Hv2 Htok". wp_pures.
       wp_extern. 1: rewrite H1; done.
       iModIntro. iApply H0. iLeft. iLeft. iRight.
+      iSplit; first done.
       iExists (λne _ : listO D, τ), Δ, _, _.
-      do 2 (iSplit; first done).
-      iSplit; first iApply "Hv". iFrame.
-      iSplit; first iApply "Hv2".
+      iSplit; first done. iFrame "Htok Hv Hv2".
       iIntros "!> Htok".
       wp_pures. iModIntro. iFrame "Htok". done.
     - iModIntro; iFrame; iExists _, _, _; iSplit; first done.
       iIntros (v2) "!> #Hv2 Htok". wp_pures.
       wp_extern. 1: rewrite H1; done.
-      iModIntro. iApply H0. iLeft. iRight.
+      iModIntro. iApply H0. iLeft. iRight. iSplit; first done.
       iExists (λne _ : listO D, τ), Δ, _, _.
-      do 2 (iSplit; first done).
-      iSplit. 
-      { iNext. destruct p as [p1 p2]. cbn in H1. subst p1. iApply "Hv". }
-      iFrame.
-      iSplit; first iApply "Hv2".
+      iSplit; first done.
+      iSplitL.
+      { destruct p as [p1 p2]; cbn in H1; subst p1. iFrame "Hv Hv2 Htok". }
       iIntros "!> Htok".
       wp_pures. iModIntro. iFrame "Htok". done.
     - wp_extern. 1: rewrite H1; done. cbn. unfold env_lookup.
-      iModIntro. iApply H0. iRight.
+      iModIntro. iApply H0. iRight. iSplit; first done.
       iExists (λne _ : listO D, τ), Δ. iExists _.
-      do 2 (iSplit; first done). iFrame "Htok Hv". unfold named.
+      iSplit; first done. iFrame "Htok Hv".
       iIntros "!> Htok". wp_pures. iModIntro. iFrame. done.
   Qed.
 
@@ -462,7 +459,7 @@ Proof.
   { iIntros (? Hn ?) "(% & H)". unfold prim_names in H.
     rewrite !dom_insert dom_empty /= in H.
     iDestruct (listener_spec_ML_unfold with "H") as "[[[H|H]|H]|H]".
-    all: iNamed "H"; exfalso; cbn in H; set_solver. }
+    all: iDestruct "H" as (?) "_"; exfalso; cbn in H; set_solver. }
   { iIntros (s vv Φ) "(%tl&%tr&%Heq&H1&H2&H3)".
     by rewrite lookup_empty in Heq. }
 Qed.

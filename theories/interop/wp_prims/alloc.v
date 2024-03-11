@@ -23,7 +23,7 @@ Import mlanguage.
 
 Lemma alloc_correct e : |- wrap_prog e :: alloc_proto.
 Proof using.
-  iIntros (? ? ? ?) "H". unfold mprogwp. iNamed "H".
+  iIntros (? ? ? ?) "H". unfold mprogwp. iNamedProto "H".
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
@@ -67,9 +67,8 @@ Proof using.
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" $! θC' γ with "[-Hpto Hfresh] [Hpto Hfresh] []"); try done.
-  3: iPureIntro; by econstructor.
-  2: iFrame; done.
+  iApply ("Cont" $! θC' γ with "[-]"); try done.
+  iFrame. iSplit; last by eauto.
   rewrite /GC /named.
   iExists _, _, σMLvirt, _, _. iFrame. iPureIntro; split_and!; eauto.
 Qed.

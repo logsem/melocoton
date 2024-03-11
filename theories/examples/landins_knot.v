@@ -61,7 +61,7 @@ Section C_specs.
     wp_apply (wp_callback with "[$HGC $Hx $Hγ'' HWP Hl]"); [done.. | |].
     { by iApply "HWP". }
     iIntros (θ' vret lvret wret) "(HGC&HΦ'&Hvret&%)". (* wp_pures. *)
-    iApply "HΦ". iApply ("Cont" with "HGC HΦ' Hvret [//]").
+    iApply "HΦ". iApply ("Return" with "HGC HΦ' Hvret [//]").
   Qed.
 
   Global Instance tie_knot_spec_ML_contractive :

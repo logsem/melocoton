@@ -81,47 +81,40 @@ Section Proofs.
 
   Import melocoton.ml_lang.notation.
 
-  Definition zigzag_nil_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    ( "->" ∷ ⌜s = "zigzag_nil"⌝
-    ∗ "->" ∷ ⌜vv = [ ]⌝
-    ∗ "HWP" ∷ ▷ (∀ vr, is_zigzag nil vr -∗ Φ vr))%I.
+  Definition zigzag_nil_spec_ML : protocol ML_lang.val Σ :=
+    !! {{ True }} "zigzag_nil" with [] {{ vr, RET vr; is_zigzag nil vr }}.
 
-  Definition zigzag_cons_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    ( ∃ hd tl tlV,
-      "->" ∷ ⌜s = "zigzag_cons"⌝
-    ∗ "->" ∷ ⌜vv = [ hd; tlV ]⌝
-    ∗ "Htl" ∷ is_zigzag tl tlV
-    ∗ "HWP" ∷ ▷ (∀ vr, is_zigzag (hd::tl) vr -∗ Φ vr))%I.
+  Definition zigzag_cons_spec_ML : protocol ML_lang.val Σ :=
+    !! hd tl tlV
+    {{ "Htl" ∷ is_zigzag tl tlV }}
+      "zigzag_cons" with [ hd; tlV ]
+    {{ vr, RET vr; is_zigzag (hd::tl) vr }}.
 
-  Definition zigzag_empty_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    ( ∃ lst lstV,
-      "->" ∷ ⌜s = "zigzag_empty"⌝
-    ∗ "->" ∷ ⌜vv = [ lstV ]⌝
-    ∗ "Htl" ∷ is_zigzag lst lstV
-    ∗ "HWP" ∷ ▷ (is_zigzag lst lstV -∗ Φ (#(is_empty lst))))%I.
+  Definition zigzag_empty_spec_ML : protocol ML_lang.val Σ :=
+    !! lst lstV
+    {{ "Htl" ∷ is_zigzag lst lstV }}
+      "zigzag_empty" with [lstV]
+    {{ RET #(is_empty lst); is_zigzag lst lstV }}.
 
-  Definition zigzag_head_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    ( ∃ hd tl lstV,
-      "->" ∷ ⌜s = "zigzag_head"⌝
-    ∗ "->" ∷ ⌜vv = [ lstV ]⌝
-    ∗ "Htl" ∷ is_zigzag (hd::tl) lstV
-    ∗ "HWP" ∷ ▷ (is_zigzag (hd::tl) lstV -∗ Φ hd))%I.
+  Definition zigzag_head_spec_ML : protocol ML_lang.val Σ :=
+    !! hd tl lstV
+    {{ "Htl" ∷ is_zigzag (hd::tl) lstV }}
+      "zigzag_head" with [lstV]
+    {{ RET hd; is_zigzag (hd::tl) lstV }}.
 
-  Definition zigzag_tail_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    ( ∃ hd tl lstV,
-      "->" ∷ ⌜s = "zigzag_tail"⌝
-    ∗ "->" ∷ ⌜vv = [ lstV ]⌝
-    ∗ "Htl" ∷ is_zigzag (hd::tl) lstV
-    ∗ "HWP" ∷ ▷ (∀ tlV,  is_zigzag tl tlV
-                      -∗ (∀ tl', is_zigzag tl' tlV -∗ is_zigzag (hd::tl') lstV)
-                      -∗ Φ tlV))%I.
+  Definition zigzag_tail_spec_ML : protocol ML_lang.val Σ :=
+    !! hd tl lstV
+    {{ "Htl" ∷ is_zigzag (hd::tl) lstV }}
+      "zigzag_tail" with [lstV]
+    {{ tlV, RET tlV;
+         is_zigzag tl tlV ∗
+         (∀ tl', is_zigzag tl' tlV -∗ is_zigzag (hd::tl') lstV) }}.
 
-  Definition zigzag_pop_spec_ML : protocol ML_lang.val Σ := λ s vv Φ,
-    ( ∃ hd tl lstV,
-      "->" ∷ ⌜s = "zigzag_pop"⌝
-    ∗ "->" ∷ ⌜vv = [ lstV ]⌝
-    ∗ "Htl" ∷ is_zigzag (hd::tl) lstV
-    ∗ "HWP" ∷ ▷ (∀ tlV, is_zigzag tl tlV -∗ is_zigzag nil lstV -∗ Φ tlV))%I.
+  Definition zigzag_pop_spec_ML : protocol ML_lang.val Σ :=
+    !! hd tl lstV
+    {{ "Htl" ∷ is_zigzag (hd::tl) lstV }}
+      "zigzag_pop" with [lstV]
+    {{ tlV, RET tlV; is_zigzag tl tlV ∗ is_zigzag nil lstV }}.
 
   Import melocoton.c_lang.primitive_laws melocoton.c_lang.proofmode.
 
@@ -131,21 +124,21 @@ Section Proofs.
   Lemma zigzag_nil_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_nil_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    unfold progwp, zigzag_prog.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|??]; try done.
     destruct ws as [|??]; decompose_Forall.
     iIntros (Φ'') "Cont2".
-    wp_apply (wp_call _ _ _ _ nil); [cbn; by solve_lookup_fixed|done|].
+    wp_apply (wp_call _ _ _ _ nil);
+      [by unfold zigzag_prog; solve_lookup_fixed|done|].
     wp_finish.
     wp_apply (wp_alloc_foreign with "HGC"); [done..|].
     iIntros (θ1 γ w) "(HGC&Hγfgn&%Hrepr)". wp_pure _.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
     iModIntro. iApply "Cont2".
-    iApply ("Cont" with "HGC [Hγfgn HWP] []"); last done.
-    { iApply "HWP". iExists _, _. iSplit; first done.
+    iApply ("Return" with "HGC [Hγfgn Cont] []"); last done.
+    { iApply "Cont". iExists _, _. iSplit; first done.
       iSplit; done. }
     done.
   Qed.
@@ -153,15 +146,15 @@ Section Proofs.
   Lemma zigzag_cons_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_cons_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    unfold progwp, zigzag_prog.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|lvtl [|??]]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimhd&Hsim)"; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimtl&Hsim)"; try done.
     destruct ws as [|whd [|wtl [|??]]]; decompose_Forall.
     iIntros (Φ'') "Cont2".
-    wp_apply (wp_call _ _ _ _ [_; _]); [cbn; by solve_lookup_fixed|done|].
+    wp_apply (wp_call _ _ _ _ [_; _]);
+      [by unfold zigzag_prog; solve_lookup_fixed|done|].
     wp_finish.
     wp_apply (wp_Malloc); [done..|]. iIntros (a) "Ha".
     change (Z.to_nat 2) with 2. cbn.
@@ -178,8 +171,8 @@ Section Proofs.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
     iModIntro. iApply "Cont2".
-    iApply ("Cont" with "HGC [-]"); last done.
-    { iApply "HWP". iExists _, _. iSplit; first done. iSplitL "Hγfgn"; first done.
+    iApply ("Return" with "HGC [-]"); last done.
+    { iApply "Cont". iExists _, _. iSplit; first done. iSplitL "Hγfgn"; first done.
       - iExists _,_,_,_. iSplit; first done. rewrite loc_add_0. iFrame. by iSplit. }
     done.
   Qed.
@@ -187,14 +180,14 @@ Section Proofs.
   Lemma zigzag_empty_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_empty_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    unfold progwp, zigzag_prog.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
     iIntros (Φ'') "Cont2".
-    wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
+    wp_apply (wp_call _ _ _ _ [_]);
+      [by unfold zigzag_prog; solve_lookup_fixed|done|].
     wp_finish. rewrite {1} /is_zigzag.
     destruct lst as [|vhd vtl];
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&HH)".
@@ -203,16 +196,16 @@ Section Proofs.
       wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
       wp_pure _.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (w) "(HGC&%Hw)".
-      iApply "Cont2". iApply ("Cont" with "HGC [-]"); last done.
-      { iApply "HWP". iExists _, _. iFrame "Hγfgn". by iPureIntro. }
+      iApply "Cont2". iApply ("Return" with "HGC [-]"); last done.
+      { iApply "Cont". iExists _, _. iFrame "Hγfgn". by iPureIntro. }
       done.
     - iDestruct "HH" as "(%a&%lv1&%lv2&%Vlst&->&Hrest)".
       iDestruct "Hsimlst" as "->".
       wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
       wp_pure _. 1: by destruct a.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (w) "(HGC&%Hw)".
-      iApply "Cont2". iApply ("Cont" with "HGC [-]"); last done.
-      { iApply "HWP". iExists _, _. iFrame "Hγfgn".
+      iApply "Cont2". iApply ("Return" with "HGC [-]"); last done.
+      { iApply "Cont". iExists _, _. iFrame "Hγfgn".
         iSplit; first done. iExists a,lv1,lv2,Vlst; iFrame. done. }
       done.
   Qed.
@@ -220,8 +213,7 @@ Section Proofs.
   Lemma zigzag_head_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_head_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    unfold progwp, zigzag_prog.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
@@ -229,7 +221,8 @@ Section Proofs.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
     iIntros (Φ'') "Cont2".
-    wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
+    wp_apply (wp_call _ _ _ _ [_]);
+      [by unfold zigzag_prog; solve_lookup_fixed|done|].
     wp_finish.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
     wp_pure _.
@@ -237,8 +230,8 @@ Section Proofs.
     wp_apply (load_from_root with "[$HGC $Ha0]").
     iIntros (whd) "(Ha0&HGC&%Hrepr)".
     iApply "Cont2".
-    iApply ("Cont" with "HGC [-]"); last done.
-    - iApply "HWP". iExists γ, _. iSplit; first done. iFrame "Hγfgn".
+    iApply ("Return" with "HGC [-]"); last done.
+    - iApply "Cont". iExists γ, _. iSplit; first done. iFrame "Hγfgn".
       iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done.
     - done.
   Qed.
@@ -246,8 +239,7 @@ Section Proofs.
   Lemma zigzag_tail_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_tail_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    unfold progwp, zigzag_prog.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
@@ -255,15 +247,15 @@ Section Proofs.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
     iIntros (Φ'') "Cont2".
-    wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
+    wp_apply (wp_call _ _ _ _ [_]); [by unfold zigzag_prog; solve_lookup_fixed|done|].
     wp_finish.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Ha1]").
     iIntros (whd) "(Ha1&HGC&%Hrepr)".
     iApply "Cont2".
-    iApply ("Cont" with "HGC [-]"); last done.
-    - iApply ("HWP" with "Hrec").
+    iApply ("Return" with "HGC [-]"); last done.
+    - iApply "Cont". iFrame "Hrec".
       iIntros (tl') "Hrec".
       iExists γ, _. iSplit; first done. iFrame "Hγfgn".
       iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done.
@@ -273,8 +265,7 @@ Section Proofs.
   Lemma zigzag_pop_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_pop_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamed "Hproto".
-    unfold progwp, zigzag_prog.
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
     all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
@@ -282,7 +273,7 @@ Section Proofs.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
     iIntros (Φ'') "Cont2".
-    wp_apply (wp_call _ _ _ _ [_]); [cbn; by solve_lookup_fixed|done|].
+    wp_apply (wp_call _ _ _ _ [_]); [by unfold zigzag_prog; solve_lookup_fixed|done|].
     wp_finish.
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
     wp_pure _.
@@ -298,7 +289,7 @@ Section Proofs.
     { iNext. cbn. rewrite !loc_add_0. iFrame. }
     iIntros "_". wp_pures. iModIntro.
     iApply "Cont2".
-    iApply ("Cont" with "HGC (HWP Hrec [Hγfgn])"); [|done..].
+    iApply ("Return" with "HGC (Cont [$Hrec Hγfgn])"); [|done..].
     iExists _, _; iSplit; first done. iFrame "Hγfgn". done.
   Qed.
   End InPsi.
