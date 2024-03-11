@@ -68,7 +68,7 @@ Section Proofs.
     iApply (wp_post_mono with "[HGC]").
     1: wp_apply (wp_int2val with "HGC"); [done..|iIntros (w) "?"; iAccu].
     iIntros (w) "(HGC&%Hwunit)".
-    iMod (mut_to_ml _ [ ML_lang.LitV (-1)%Z ] _ with "[$HGC $Hγusedref]") as "(HGC&%ℓML'&Hγusedref&#Hsim')". 1: cbn; iFrame; done.
+    iMod (mut_to_ml _ [ #ML (-1)%Z ] _ with "[$HGC $Hγusedref]") as "(HGC&%ℓML'&Hγusedref&#Hsim')". 1: cbn; iFrame; done.
 
     iAssert (⌜ℓML' = ℓML⌝ ∧ ⌜γfgn = γ⌝)%I as "(-> & ->)".
     { iDestruct "Hsim" as "(%γ2&%&%&%&Hγbuf2&(%&%&Hsim2)&(%&%&%&%&Hγaux2&%&%))". simplify_eq.
@@ -84,7 +84,7 @@ Section Proofs.
     }
     iModIntro.
     iApply "HΦ".
-    iApply ("Return" $! _ (ML_lang.LitV ())%MLV with "HGC [-] [//] [//]").
+    iApply ("Return" $! _ (#ML ())%MLV with "HGC [-] [//] [//]").
     iApply ("HCont" with "[//] Hγusedref [$]").
   Qed.
 

@@ -99,7 +99,7 @@ Section Proofs.
       iIntros "Hℓi".
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (wi) "(HGC&%Hwi)".
-      wp_apply (wp_callback _ _ _ _ _ _ _ _ _ _ _ (ML_lang.LitV i) with "[$HGC $HγF HΨ]"); [done..| |].
+      wp_apply (wp_callback _ _ _ _ _ _ _ _ _ _ _ (#ML i) with "[$HGC $HγF HΨ]"); [done..| |].
       { cbn. iSplit; first done.
         iNext. by iApply ("HWP" with "[] [] HΨ"). } cbn.
       cbn.
@@ -166,7 +166,7 @@ Section Proofs.
       iIntros (vv) "((HGC&Hℓi&Hℓbf)&HℓbufML)". wp_pure _.
       wp_apply (wp_load with "Hℓi"). iIntros "Hℓi". wp_pure _.
       wp_apply (wp_store with "Hℓi"). iIntros "Hℓi". wp_pure _.
-      iMod (mut_to_ml _ [ ML_lang.LitV (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
+      iMod (mut_to_ml _ [ #ML (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
       iPoseProof (lloc_own_pub_inj with "Hsim2 Hsimℓ2") as "%Heq3"; simplify_eq.
       replace ℓML2 with ℓML0 by by eapply Heq3.
       iMod ("HMerge" with "[] [] HΨframe HΦz [Hγfgnpto HContent Hℓbuf HℓbufML]") as "HH". 1-2: iPureIntro; lia.

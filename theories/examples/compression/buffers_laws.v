@@ -22,7 +22,7 @@ Section Specs.
   ==∗ GC θ ∗ ∃ v, isBufferRecordML v ℓbuf Pb c ∗ lv ~~ v.
   Proof.
     iIntros "HGC H". iNamed "H". iNamed "Hbuf".
-    iMod (mut_to_ml _ ([ML_lang.LitV used]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
+    iMod (mut_to_ml _ ([ #ML used ]) with "[$HGC $Hγusedref]") as "(HGC&(%ℓML&HℓbufML&#HγML))".
     1: by cbn.
     iModIntro. iFrame "HGC".
     iExists _. iSplitL.
@@ -41,7 +41,7 @@ Section Specs.
       GC θ
    -∗ isBufferRecordML v ℓbuf Pb c
    -∗ lv ~~ v
-  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c ∗ ∃ (ℓML:loc) γ, ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign γ)))%MLV⌝.
+  ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c ∗ ∃ (ℓML:loc) γ, ⌜v = (#ML ℓML, (#ML c, #ML (LitForeign γ)))%MLV⌝.
   Proof.
     iIntros "HGC H Hsim". iNamed "H". iNamed "Hbuf".
     iDestruct "Hsim" as "#(%γ&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&->)".
@@ -61,8 +61,8 @@ Section Specs.
 
   Lemma bufToC_fixed ℓbuf Pb (c:nat) ℓML γ lv θ:
       GC θ
-   -∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign γ))) ℓbuf Pb c
-   -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign γ)))
+   -∗ isBufferRecordML (#ML ℓML, (#ML c, #ML (LitForeign γ))) ℓbuf Pb c
+   -∗ lv ~~ (#ML ℓML, (#ML c, #ML (LitForeign γ)))
   ==∗ GC θ ∗ isBufferRecord lv ℓbuf Pb c.
   Proof.
     iIntros "HGC H #Hsim".
@@ -72,12 +72,12 @@ Section Specs.
   Lemma bufToML_fixed lv ℓbuf Pb c (ℓML:loc) γ θ:
       GC θ
    -∗ isBufferRecord lv ℓbuf Pb c
-   -∗ lv ~~ (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign γ)))
-  ==∗ GC θ ∗ isBufferRecordML (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign γ))) ℓbuf Pb c.
+   -∗ lv ~~ (#ML ℓML, (#ML c, #ML (LitForeign γ)))
+  ==∗ GC θ ∗ isBufferRecordML (#ML ℓML, (#ML c, #ML (LitForeign γ))) ℓbuf Pb c.
   Proof.
     iIntros "HGC H #Hsim".
     iMod (bufToML with "HGC H") as "(HGC&%&HML&#Hsim2)".
-    iAssert (⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV c, ML_lang.LitV (LitForeign γ)))%MLV⌝)%I as "->"; last by iFrame.
+    iAssert (⌜v = (#ML ℓML, (#ML c, #ML (LitForeign γ)))%MLV⌝)%I as "->"; last by iFrame.
     iNamed "HML".
     cbn.
     iDestruct "Hsim" as "#(%γ1&%&%&->&Hγbuf&(%γref&->&Hsim)&%γaux&%&%&->&Hγaux&->&->)".

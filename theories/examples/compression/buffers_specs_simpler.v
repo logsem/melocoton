@@ -229,7 +229,7 @@ Section Specs.
 
   Definition bytes (V : MLval) (cap : Z) (arr : list Z) : iProp Σ :=
     ∃ γ ℓbuf (ncap:nat),
-      ⌜V = ML_lang.LitV (ML_lang.LitForeign γ)⌝ ∗ ⌜cap = ncap⌝
+      ⌜V = #ML (ML_lang.LitForeign γ)⌝ ∗ ⌜cap = ncap⌝
     ∗ isBufferForeignBlock γ ℓbuf (Pb ncap arr) ncap.
 
   Definition buf_RT γ (cap : Z) (arr : list Z) : iProp Σ :=

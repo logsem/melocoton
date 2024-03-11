@@ -66,11 +66,11 @@ Section Proofs.
   Program Definition box_invariant_1 ℓ : D -n> iProp Σ := (λne (interp:D), ∃ lv v, ℓ ↦roots lv ∗ lv ~~ v ∗ interp v)%I.
   Solve Obligations with solve_proper.
   Program Definition box_invariant_2 ℓ : D -n> iProp Σ := λne (interp:D), ((∃ lv v, ℓ ↦roots lv ∗ lv ~~ v ∗ interp v) ∨
-                                                                           (ℓ ↦C C_intf.LitV LitNull))%I.
+                                                                           (ℓ ↦C (#C LitNull)))%I.
   Solve Obligations with solve_proper.
 
   Program Definition box_interp : (protocol ML_lang.val Σ) -n> (listO D -n> D) -d> listO D -n> D := λne Ψ, λ interp, λne Δ, PersPred (
-    λ v, ∃ (γ:nat) (ℓ:loc), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign{DfracDiscarded} C_intf.LitV ℓ ∗
+    λ v, ∃ (γ:nat) (ℓ:loc), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign{DfracDiscarded} (#C ℓ) ∗
            na_inv logrel_nais (nroot .@ "value"   .@ γ) (box_invariant_1 (ℓ +ₗ 1) (interp Δ)) ∗
            na_inv logrel_nais (nroot .@ "callback".@ γ) (box_invariant_2 ℓ (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)))%I.
   Next Obligation. solve_proper. Qed.

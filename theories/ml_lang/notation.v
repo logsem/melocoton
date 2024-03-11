@@ -28,9 +28,13 @@ Notation Store e e' := (StoreN e (Val $ LitV $ LitInt 0) e') (only parsing).
    it. Hence, we need to explicitly use LamV instead of e.g., Seq. *)
 Notation Skip := (App (Val $ LamV BAnon (Val $ LitV LitUnit)) (Val $ LitV LitUnit)).
 
-(* No scope for the values, does not conflict and scope is often not inferred
-properly. *)
+(* # has no scope for historical reasons, but does conflict with the same
+   notation on the C side. Unfortunately, guessing the scope using type
+   information is often insufficient because type inference does not flow in the
+   direction we would want. So we keep this global for now, and use #ML whenever
+   we need to be explicit. *)
 Notation "# l" := (LitV l%Z%MLV%stdpp) (at level 8, format "# l").
+Notation "#ML l" := (LitV l%Z%MLV%stdpp) (at level 8, format "#ML l").
 
 (** Syntax inspired by Coq/Ocaml. Constructions with higher precedence come
     first. *)

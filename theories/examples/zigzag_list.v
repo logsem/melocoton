@@ -73,7 +73,7 @@ Section Proofs.
   Context `{!primitive_laws.heapG_ML Σ, !wrapperG Σ, !logrelG Σ}.
 
   Fixpoint is_zigzag (lst : list MLval) (v : MLval) : iProp Σ :=
-    ∃ γ w, ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign C_intf.LitV w
+    ∃ γ w, ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign (#C w)
            ∗ match lst with
              | nil => ⌜w = LitNull⌝
              | (v1::vr) => ∃ (a:addr) lv1 lv2 Vlst, ⌜w = a⌝ ∗ a ↦roots lv1 ∗ lv1 ~~ v1

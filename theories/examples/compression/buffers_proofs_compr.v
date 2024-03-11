@@ -135,7 +135,7 @@ Section Proofs.
       iMod (bufToML_fixed with "HGC [Hγusedref Hγfgnpto Hℓbuf Hℓbufuninit HContent] Hsim1") as "(HGC&HBuf1)"; last first.
       1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2") as "(HGC&HBuf2)"; last first.
       1: iApply "HΦ".
-      1: iApply ("Return" $! _ (ML_lang.LitV true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
+      1: iApply ("Return" $! _ (#ML true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
       { iExists _, _, _, _, _. unfold named.
         iSplit; first done.
         change (Z.to_nat 0) with 0; cbn.

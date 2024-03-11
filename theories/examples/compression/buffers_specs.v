@@ -85,8 +85,8 @@ Section Specs.
 
   Definition isBufferRecordML (v : MLval) (ℓbuf : loc)  (Pb : nat → list (option Z) → iProp Σ) (cap:nat) : iProp Σ :=
     ∃ (ℓML:loc) (used:nat) γfgn,
-      "->" ∷ ⌜v = (ML_lang.LitV ℓML, (ML_lang.LitV cap, ML_lang.LitV (LitForeign γfgn)))%MLV⌝
-    ∗ "HℓbufML" ∷ ℓML ↦M ML_lang.LitV used
+      "->" ∷ ⌜v = (#ML ℓML, (#ML cap, #ML (LitForeign γfgn)))%MLV⌝
+    ∗ "HℓbufML" ∷ ℓML ↦M (#ML used)
     ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap.
 
 
@@ -157,7 +157,7 @@ Section Specs.
     ∗ "Hbuf" ∷ isBufferRecordML v ℓ Pb cap
     ∗ "HCont" ∷ ▷   ( ∀ (ℓML:loc) γfgn, ⌜v = (# ℓML, (# cap, # (LitForeign γfgn)))%MLV⌝ -∗
                                          ℓML ↦M #(-1) -∗
-                                         γfgn ↦foreign (C_intf.LitV LitNull) -∗ Φ #()).
+                                         γfgn ↦foreign (#C LitNull) -∗ Φ #()).
 
   Definition buf_get_spec_ML s vv Φ : iProp Σ :=
     ∃ v ℓ Pb cap (idx:nat) (res:Z),
