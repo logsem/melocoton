@@ -45,18 +45,35 @@ Definition swap_sum v :=
   | _       => None
   end.
 
-Definition swap_variant_ml_spec : protocol ML_lang.val Σ := (
-  λ s l Φ, ∃ v r, ⌜s = "swap_variant"⌝ ∗
-                  ⌜l = [ v%MLV ]⌝ ∗
-                  ⌜swap_sum v = Some r⌝∗
-                  Φ r%MLV
-)%I.
+Definition swap_tag v :=
+  match v with
+  | TagDefault => TagInjRV
+  | TagInjRV => TagDefault
+  end.
+
+Definition get_tag v :=
+  match v with
+  | InjLV _ => Some TagDefault
+  | InjRV _ => Some TagInjRV
+  | _       => None
+  end.
+
+Definition get_value v :=
+  match v with
+  | InjLV v | InjRV v => Some v
+  | _ => None
+  end.
+
+Definition swap_variant_ml_spec : protocol ML_lang.val Σ :=
+  !! (v: MLval) r
+      {{ ⌜swap_sum v = Some r⌝ }}
+        "swap_variant" with [ v ]
+      {{ RET (r); True }}.
 
 Lemma swap_pair_correct :
   prims_proto swap_variant_ml_spec ||- swap_variant_prog :: wrap_proto swap_variant_ml_spec.
 Proof.
-  iIntros (fn ws Φ) "H". iNamed "H".
-  iDestruct "Hproto" as (v r) "(->&->&Hs&Hψ)".
+  iIntros (fn ws Φ) "H". iNamed "H". iNamedProto "Hproto".
   iSplit; first done. iIntros (Φ'') "HΦ".
   iAssert (⌜length lvs = 1⌝)%I as %Hlen.
   { by iDestruct (big_sepL2_length with "Hsim") as %?. }
@@ -70,13 +87,20 @@ Proof.
   change (Z.to_nat 1) with 1. cbn. iDestruct "H" as "(H&_)". destruct rr as [rr].
   wp_pures.
 
-  unfold swap_sum. destruct v; iDestruct "Hs" as "%Hptpair";
-    try done; simplify_eq.
-  - iDestruct "Hsim" as (γ lv0 ->) "H'".
-  iUnfold swap_sum in "Hs".
+  iAssert (∃ γ lvs vs tag, γ ↦imm (tag, [lvs]) ∗
+                          lvs ~~ vs ∗
+                          ⌜get_value v = Some vs⌝ ∗
+                          ⌜get_tag v = Some tag⌝ ∗
+                          ⌜repr_lval θ (Lloc γ) w⌝)%I as "#Hsim'".
+  { destruct v; iDestruct "ProtoPre" as "%Hptpair"; try done; simplify_eq;
+    iDestruct "Hsim" as (γ lvs ->) "[Hptpair Hrepr]"; fold block_sim.
+    - iExists γ, lvs, v, TagDefault. repeat (iSplit; try done).
+    - iExists γ, lvs, v, TagInjRV. repeat (iSplit; try done). }
+  clear. iClear "Hsim".
+  iDestruct "Hsim'" as (γ lvs vs tag) "(Hptpair&Hrepr&%Hvalue&%Htag&%Hrepr')".
 
   (* readfield 1 *)
-  wp_apply (wp_readfield with "[$HGC $Hptpair]"); [done..|].
+  wp_apply (wp_readfield with "[$HGC $Hptpair]"); try done.
   iIntros (v' wlv) "(HGC & _ & %Heq & %Hrepr1)".
   change (Z.to_nat 0) with 0 in Heq. cbn in *. symmetry in Heq. simplify_eq.
   wp_apply (wp_store with "H"). iIntros "H". wp_pures.
@@ -90,14 +114,19 @@ Proof.
   { by iDestruct "Hptpair" as "[??]". }
   iIntros "[HGC _]". wp_pures.
 
+  wp_bind (!_)%CE.
+  (* iApply (wp_wand _ _ _ _ _). *)
+  iApply (wp_wand _ _ _ (λ v, ⌜v = #C(vblock_tag_as_int (swap_tag tag))⌝)%I _).
+  { by destruct tag; wp_pures; done. }
+  iIntros (v1 ->).
+
   (* alloc(!"t", #1) *)
-  wp_apply (wp_alloc TagInjRV with "HGC"); try done.
+  wp_apply (wp_alloc (swap_tag tag) with "HGC"); try done.
   iIntros (θ' γnew wnew) "(HGC & Hnew & %Hreprnew)". wp_pures.
-  change (Z.to_nat 1) with 1. cbn [repeat].
 
   (* load from root *)
   wp_apply (load_from_root with "[HGC H1r]"); first iFrame.
-  iIntros (wlv') "(Hr&HGC&%Hrepr')".
+  iIntros (wlv') "(Hr&HGC&%Hreprwlv)".
 
   (* modify *)
   wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
@@ -117,9 +146,13 @@ Proof.
 
   (* Finish, convert the new points-to to an immutable pointsto *)
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
+  change (Z.to_nat 1) with 1; cbn.
 
-  iModIntro. iApply "HΦ". iApply ("Cont" with "HGC Hψ [] []").
-  - cbn. do 2 iExists _. iFrame "Hnew Hlv0". done.
+  iModIntro. iApply "HΦ". iApply ("Return" with "HGC [Cont] [ProtoPre]").
+  - by iApply "Cont".
+  - destruct v; iDestruct "ProtoPre" as "%Hptpair"; try done;
+    cbn in *; simplify_eq;
+    cbn; iExists γnew, lvs; repeat (iSplit; try done).
   - done.
 Qed.
 

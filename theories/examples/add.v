@@ -25,8 +25,8 @@ Section Ml_spec.
   Definition add_one_ml_spec : protocol ML_lang.val Σ :=
     !! (x:Z)
       {{ True }}
-        "add_one" with [ (#x)%MLV ]
-      {{ RET (#(x + 1))%MLV; True }}.
+        "add_one" with [ (#ML x) ]
+      {{ RET (#ML(x + 1)); True }}.
 
 End Ml_spec.
 
