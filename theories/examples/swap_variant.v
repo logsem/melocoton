@@ -70,7 +70,7 @@ Definition swap_variant_ml_spec : protocol ML_lang.val Σ :=
         "swap_variant" with [ v ]
       {{ RET (r); True }}.
 
-Lemma swap_pair_correct :
+Lemma swap_variant_correct :
   prims_proto swap_variant_ml_spec ||- swap_variant_prog :: wrap_proto swap_variant_ml_spec.
 Proof.
   iIntros (fn ws Φ) "H". iNamed "H". iNamedProto "Hproto".
@@ -92,30 +92,29 @@ Proof.
                           ⌜get_value v = Some vs⌝ ∗
                           ⌜get_tag v = Some tag⌝ ∗
                           ⌜repr_lval θ (Lloc γ) w⌝)%I as "#Hsim'".
-  { destruct v; iDestruct "ProtoPre" as "%Hptpair"; try done; simplify_eq;
-    iDestruct "Hsim" as (γ lvs ->) "[Hptpair Hrepr]"; fold block_sim.
+  { destruct v; iDestruct "ProtoPre" as "%Hptsum"; try done; simplify_eq;
+    iDestruct "Hsim" as (γ lvs ->) "[Hptsum Hrepr]"; fold block_sim.
     - iExists γ, lvs, v, TagDefault. repeat (iSplit; try done).
     - iExists γ, lvs, v, TagInjRV. repeat (iSplit; try done). }
   clear. iClear "Hsim".
-  iDestruct "Hsim'" as (γ lvs vs tag) "(Hptpair&Hrepr&%Hvalue&%Htag&%Hrepr')".
+  iDestruct "Hsim'" as (γ lvs vs tag) "(Hptsum&Hrepr&%Hvalue&%Htag&%Hrepr')".
 
   (* readfield 1 *)
-  wp_apply (wp_readfield with "[$HGC $Hptpair]"); try done.
-  iIntros (v' wlv) "(HGC & _ & %Heq & %Hrepr1)".
+  wp_apply (wp_readfield with "[$HGC $Hptsum]"); try done.
+  iIntros (v' wlv) "(HGC & _ & %Heq & %Hreprwlv)".
   change (Z.to_nat 0) with 0 in Heq. cbn in *. symmetry in Heq. simplify_eq.
   wp_apply (wp_store with "H"). iIntros "H". wp_pures.
 
   (* registerroot 1 *)
   wp_apply (wp_registerroot with "[$HGC $H]"); [done..|].
-  iIntros "(HGC & H1r)". wp_pures.
+  iIntros "(HGC & Hrr)". wp_pures.
 
   (* read_tag(w) *)
   wp_apply (wp_read_tag with "[$HGC ]"); [done..| |].
-  { by iDestruct "Hptpair" as "[??]". }
+  { by iDestruct "Hptsum" as "[??]". }
   iIntros "[HGC _]". wp_pures.
 
   wp_bind (!_)%CE.
-  (* iApply (wp_wand _ _ _ _ _). *)
   iApply (wp_wand _ _ _ (λ v, ⌜v = #C(vblock_tag_as_int (swap_tag tag))⌝)%I _).
   { by destruct tag; wp_pures; done. }
   iIntros (v1 ->).
@@ -125,8 +124,8 @@ Proof.
   iIntros (θ' γnew wnew) "(HGC & Hnew & %Hreprnew)". wp_pures.
 
   (* load from root *)
-  wp_apply (load_from_root with "[HGC H1r]"); first iFrame.
-  iIntros (wlv') "(Hr&HGC&%Hreprwlv)".
+  wp_apply (load_from_root with "[HGC Hrr]"); first iFrame.
+  iIntros (wlv') "(Hr&HGC&%Hreprwlv')".
 
   (* modify *)
   wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
@@ -171,54 +170,38 @@ Import melocoton.ml_lang.proofmode.
   Definition program_type_ctx : program_env := 
     {[ "swap_variant" := FunType [ TSum A B ] (TSum B A) ]}.
 
-  Lemma swap_pair_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, swap_variant_ml_spec⟩ Δ.
+  Lemma swap_variant_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, swap_variant_ml_spec⟩ Δ.
   Proof.
     iIntros (s vv Φ) "!> (%ats&%rt&%Heq&Hargs&Htok&HCont)".
     wp_extern. iModIntro. unfold program_type_ctx in Heq.
     apply lookup_singleton_Some in Heq as (<-&Heq). simplify_eq.
     iPoseProof (big_sepL2_length with "Hargs") as "%Heq".
     destruct vv as [|v [|??]]; cbn in Heq; try lia.
-    cbn. iDestruct "Hargs" as "((%w&&->&Hw1)&_)".
-    iExists _. iSplit; first done. iSplit; first done.
-    wp_pures. iModIntro. iApply ("HCont" with "[-Htok] Htok").
-    iExists _, _. iSplit; first done. iFrame.
+    cbn. iDestruct "Hargs" as "([(%w&%Hv&Hargs)|(%w&%Hv&Hargs)]&_)".
+    - rewrite Hv. iSplit; first done. iExists _, _.
+      do 2 (iSplit; first done). iIntros "!> _".
+      wp_pures. iModIntro. iApply ("HCont" with "[-Htok] Htok").
+      iRight. iExists _. iSplit; first done. iFrame.
+    - rewrite Hv. iSplit; first done. iExists _, _.
+      do 2 (iSplit; first done). iIntros "!> _".
+      wp_pures. iModIntro. iApply ("HCont" with "[-Htok] Htok").
+      iLeft. iExists _. iSplit; first done. iFrame.
   Qed.
+
   End LogRel.
 
-Definition swap_pair_client : mlanguage.expr (lang_to_mlang ML_lang) :=
+Definition swap_variant_client : mlanguage.expr (lang_to_mlang ML_lang) :=
   (Extern "swap_variant" [ (InjL #1)%MLE ]).
 
 Lemma ML_prog_correct_axiomatic :
-  ⊢ WP swap_pair_client at ⟨∅, swap_pair_ml_spec⟩ {{ v, ⌜∃ x : Z, v = #x ∧ x = 1⌝}}.
+  ⊢ WP swap_variant_client at ⟨∅, swap_variant_ml_spec⟩ {{ v, ⌜v = (InjRV #1)⌝ }}.
 Proof.
-  unfold swap_pair_client. wp_pures.
+  unfold swap_variant_client. wp_pures.
   wp_extern.
-  iModIntro. cbn. do 2 iExists _.
-  do 2 (iSplitR; first done).
-  wp_pures. iModIntro. iPureIntro. by eexists.
+  iModIntro. cbn. iSplit; first done. do 2 iExists _.
+  do 2 (iSplitR; first done). iIntros "!> _".
+  wp_pures. iModIntro. iPureIntro; done.
 Qed.
 
 End JustML.
 
-Local Existing Instance ordinals.ordI.
-
-Definition fullprog : mlang_prog combined_lang :=
-  combined_prog swap_pair_client swap_pair_prog.
-
-Lemma swap_pair_adequate :
-  umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-    (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
-Proof.
-  eapply umrel_upclosed.
-  { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
-    3: {iIntros "_". iApply ML_prog_correct_axiomatic. }
-    3: apply swap_pair_correct.
-    { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
-      exfalso. set_solver. }
-    { set_solver. } }
-  { by intros [? ?] (? & ? & ->). }
-Qed.
-(*
-Check @swap_pair_adequate.
-Print Assumptions swap_pair_adequate.
-*

@@ -16,25 +16,17 @@ From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.combined Require Import adequacy rules.
 
-Section Ml_spec.
-  Import melocoton.ml_lang.notation.
-
-  Context `{SI:indexT}.
-  Context `{!ffiG Σ}.
-
-  Definition add_one_ml_spec : protocol ML_lang.val Σ :=
-    !! (x:Z)
-      {{ True }}
-        "add_one" with [ (#ML x) ]
-      {{ RET (#ML(x + 1)); True }}.
-
-End Ml_spec.
-
 Section C_prog.
 Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
 
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
+
+Definition add_one_ml_spec : protocol ML_lang.val Σ :=
+  !! (x:Z)
+    {{ True }}
+      "add_one" with [ (#ML x) ]
+    {{ RET (#ML(x + 1)); True }}.
 
 Definition add_one_code (x : expr) : expr :=
   let: "r" := (call: &"val2int" with (x)) in
