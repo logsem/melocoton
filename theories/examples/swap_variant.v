@@ -26,12 +26,12 @@ Context `{!ffiG Σ}.
 
 Definition swap_variant_code (x : expr) : expr :=
   let: "v" := malloc (#1) in
-  ("v" +ₗ #0 <- (call: &"readfield" with ("x", Val #0))) ;;
-  (call: &"registerroot" with (Var "v" +ₗ #0)) ;;
+  ("v" <- (call: &"readfield" with ("x", Val #0))) ;;
+  (call: &"registerroot" with (Var "v")) ;;
   let: "t" := (call: &"read_tag" with (x)) in
   let: "r" := (call: &"alloc" with (!"t", #1)) in
   (call: &"modify" with (Var "r", Val #0, * (Var "v" +ₗ #0))) ;;
-  (call: &"unregisterroot" with (Var "v" +ₗ #0)) ;;
+  (call: &"unregisterroot" with (Var "v")) ;;
   (free ("v", #1)) ;;
   "r".
 
@@ -68,7 +68,7 @@ Definition swap_variant_ml_spec : protocol ML_lang.val Σ :=
   !! (v: MLval) r
       {{ ⌜swap_sum v = Some r⌝ }}
         "swap_variant" with [ v ]
-      {{ RET (r); True }}.
+      {{ RET r; True }}.
 
 Lemma swap_variant_correct :
   prims_proto swap_variant_ml_spec ||- swap_variant_prog :: wrap_proto swap_variant_ml_spec.
@@ -84,7 +84,8 @@ Proof.
   wp_call_direct.
 
   wp_alloc rr as "H"; first done.
-  change (Z.to_nat 1) with 1. cbn. iDestruct "H" as "(H&_)". destruct rr as [rr].
+  change (Z.to_nat 1) with 1. cbn. iDestruct "H" as "(H&_)". rewrite loc_add_0.
+  (* destruct rr as [rr]. *)
   wp_pures.
 
   iAssert (∃ γ lvs vs tag, γ ↦imm (tag, [lvs]) ∗
@@ -99,13 +100,13 @@ Proof.
   clear. iClear "Hsim".
   iDestruct "Hsim'" as (γ lvs vs tag) "(Hptsum&Hrepr&%Hvalue&%Htag&%Hrepr')".
 
-  (* readfield 1 *)
+  (* readfield *)
   wp_apply (wp_readfield with "[$HGC $Hptsum]"); try done.
   iIntros (v' wlv) "(HGC & _ & %Heq & %Hreprwlv)".
   change (Z.to_nat 0) with 0 in Heq. cbn in *. symmetry in Heq. simplify_eq.
   wp_apply (wp_store with "H"). iIntros "H". wp_pures.
 
-  (* registerroot 1 *)
+  (* registerroot *)
   wp_apply (wp_registerroot with "[$HGC $H]"); [done..|].
   iIntros "(HGC & Hrr)". wp_pures.
 
@@ -115,7 +116,7 @@ Proof.
   iIntros "[HGC _]". wp_pures.
 
   wp_bind (!_)%CE.
-  iApply (wp_wand _ _ _ (λ v, ⌜v = #C(vblock_tag_as_int (swap_tag tag))⌝)%I _).
+  iApply (wp_wand _ _ _ (λ v, ⌜v = #C(vblock_tag_as_int (swap_tag tag))⌝)%I).
   { by destruct tag; wp_pures; done. }
   iIntros (v1 ->).
 
@@ -124,7 +125,7 @@ Proof.
   iIntros (θ' γnew wnew) "(HGC & Hnew & %Hreprnew)". wp_pures.
 
   (* load from root *)
-  wp_apply (load_from_root with "[HGC Hrr]"); first iFrame.
+  wp_apply (load_from_root with "[HGC Hrr]"); rewrite loc_add_0; first iFrame.
   iIntros (wlv') "(Hr&HGC&%Hreprwlv')".
 
   (* modify *)
@@ -132,14 +133,14 @@ Proof.
   iIntros "(HGC & Hnew)". change (Z.to_nat 0) with 0. cbn.
   wp_pures.
 
-  (* unregisterroot 1 *)
+  (* unregisterroot *)
   wp_apply (wp_unregisterroot with "[$HGC $Hr]"); [done..|].
   iIntros (wlv'') "(HGC & H & %Hrepr'')".
   repr_lval_inj. wp_pures.
 
   (* free *)
-  iAssert ((Loc rr) ↦C∗ [Some wlv'])%I with "[H]" as "Hrr".
-  1: cbn; iFrame.
+  iAssert (rr ↦C∗ [Some wlv'])%I with "[H]" as "Hrr".
+  1: cbn; rewrite loc_add_0; iFrame.
   wp_apply (wp_free_array' with "Hrr"); first done. iIntros "_".
   wp_pures.
 
@@ -172,9 +173,9 @@ Import melocoton.ml_lang.proofmode.
 
   Lemma swap_variant_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, swap_variant_ml_spec⟩ Δ.
   Proof.
+    (* simplify_map_eq. *)
     iIntros (s vv Φ) "!> (%ats&%rt&%Heq&Hargs&Htok&HCont)".
-    wp_extern. iModIntro. unfold program_type_ctx in Heq.
-    apply lookup_singleton_Some in Heq as (<-&Heq). simplify_eq.
+    wp_extern. iModIntro. unfold program_type_ctx in Heq. simplify_map_eq.
     iPoseProof (big_sepL2_length with "Hargs") as "%Heq".
     destruct vv as [|v [|??]]; cbn in Heq; try lia.
     cbn. iDestruct "Hargs" as "([(%w&%Hv&Hargs)|(%w&%Hv&Hargs)]&_)".
