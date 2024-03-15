@@ -93,13 +93,12 @@ Definition add_one_client : mlanguage.expr (lang_to_mlang ML_lang) :=
   (Extern "add_one" [ Val (#1)%MLE ]).
 
 Lemma ML_prog_correct_axiomatic :
-  ⊢ WP add_one_client at ⟨∅, add_one_ml_spec⟩ {{ v, ⌜v = #2%Z⌝}}.
+  ⊢ WP add_one_client at ⟨∅, add_one_ml_spec⟩ {{ v, ⌜∃x : Z, v = #x ∧ x = 2⌝}}.
 Proof.
-  unfold add_one_client. wp_pures.
-  wp_extern.
+  unfold add_one_client. wp_pures. wp_extern.
   iModIntro. cbn. iSplit; first done. iExists _.
   do 2 (iSplitR; first done). iIntros "!> _".
-  wp_pures. iModIntro. iPureIntro. done.
+  wp_pures. iModIntro. iPureIntro. by eexists.
 Qed.
 
 End JustML.
@@ -115,12 +114,11 @@ Lemma add_one_adequate :
 Proof.
   eapply umrel_upclosed.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
-    3: {iIntros "_". admit. (* iApply ML_prog_correct_axiomatic. *) }
+    3: {iIntros "_". iApply ML_prog_correct_axiomatic. }
     3: apply add_one_correct.
     { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
       exfalso. set_solver. }
     { set_solver. } }
-  { intros [?] (? & -> & ?). do 2 f_equal. admit. }
-Admitted.
-(* Qed. *)
+  { intros [?] (? & -> & ?). do 2 f_equal; done. }
+Qed.
 
