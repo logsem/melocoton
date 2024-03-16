@@ -191,18 +191,40 @@ Import melocoton.ml_lang.proofmode.
 
   End LogRel.
 
+Definition crash := #() #().
+
 Definition swap_variant_client : mlanguage.expr (lang_to_mlang ML_lang) :=
-  (Extern "swap_variant" [ (InjL #1)%MLE ]).
+  (Match (Extern "swap_variant" [ (InjL #1)%MLE ]) "_" (crash) "x" (Var "x")).
 
 Lemma ML_prog_correct_axiomatic :
-  ⊢ WP swap_variant_client at ⟨∅, swap_variant_ml_spec⟩ {{ v, ⌜v = (InjRV #1)⌝ }}.
+  ⊢ WP swap_variant_client at ⟨∅, swap_variant_ml_spec⟩
+    {{ v, ⌜∃x : Z, v = #x ∧ x = 1⌝ }}.
 Proof.
   unfold swap_variant_client. wp_pures.
   wp_extern.
   iModIntro. cbn. iSplit; first done. do 2 iExists _.
   do 2 (iSplitR; first done). iIntros "!> _".
-  wp_pures. iModIntro. iPureIntro; done.
+  wp_pures. iModIntro. iPureIntro. by eexists.
 Qed.
 
 End JustML.
+
+Local Existing Instance ordinals.ordI.
+
+Definition fullprog : mlang_prog combined_lang :=
+  combined_prog swap_variant_client swap_variant_prog.
+
+Lemma swap_variant_adequate :
+  umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
+    (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
+Proof.
+  eapply umrel_upclosed.
+  { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
+    3: {iIntros "_". iApply ML_prog_correct_axiomatic. }
+    3: apply swap_variant_correct.
+    { iIntros (? Hn ?) "(% & H)". iNamedProto "H".
+      exfalso. set_solver. }
+    { set_solver. } }
+  { intros [?] (? & -> & ?). do 2 f_equal; done. }
+Qed.
 
