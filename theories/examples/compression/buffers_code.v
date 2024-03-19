@@ -18,19 +18,19 @@ Section C_code.
 (** See [buffers_specs] for more information about the in-memory layout of buffers. *)
 
 Definition buf_alloc_code (cap : expr) : expr :=
-  CAMLlocal: "bk" in 
-  CAMLlocal: "bf" in 
-  CAMLlocal: "bf2" in 
+  CAMLlocal: "bk" in
+  CAMLlocal: "bf" in
+  CAMLlocal: "bf2" in
   "bk" <- caml_alloc_custom ( ) ;;
   (Custom_contents ( *"bk" ) :=  malloc(Int_val (cap))) ;;
   "bf"    <- caml_alloc (#2, #0) ;;
   "bf2"   <- caml_alloc (#2, #0) ;;
   let: "bfref" := caml_alloc (#1, #0) in
-  Store_field ( &Field(  "bfref", #0), Val_int (#0)) ;;
-  Store_field ( &Field( *"bf", #0), "bfref") ;;
-  Store_field ( &Field( *"bf", #1), *"bf2") ;;
-  Store_field ( &Field( *"bf2", #0), cap) ;;
-  Store_field ( &Field( *"bf2", #1), *"bk") ;;
+  Store_field (  "bfref", #0, Val_int (#0)) ;;
+  Store_field ( *"bf", #0, "bfref") ;;
+  Store_field ( *"bf", #1, *"bf2") ;;
+  Store_field ( *"bf2", #0, cap) ;;
+  Store_field ( *"bf2", #1, *"bk") ;;
   CAMLreturn: * "bf" unregistering ["bk", "bf", "bf2"].
 Definition buf_alloc_fun := Fun [BNamed "cap"] (buf_alloc_code "cap") .
 Definition buf_alloc_name := "buf_alloc".
@@ -46,7 +46,7 @@ Definition buf_upd_code (iv jv f_arg bf_arg : expr) : expr :=
  (while: * "i" ≤ "j" do
     ( "bts" +ₗ ( *"i") <- Int_val (call: &"callback" with ( *"f", Val_int ( *"i"))) ;;
      (if: Int_val(Field(Field( *"bf", #0), #0)) < *"i" + #1
-      then Store_field (&Field(Field( *"bf", #0), #0), Val_int ( *"i" + #1))
+      then Store_field (Field( *"bf", #0), #0, Val_int ( *"i" + #1))
       else Skip) ;;
       "i" <- *"i" + #1 )) ;;
   free ("i", #1);;
@@ -61,7 +61,7 @@ Definition buf_free_code (bf : expr) : expr :=
   (if: "bts" ≠ #LitNull
       then free("bts", "cap") else Skip );;
   (Custom_contents(Field(Field( bf, #1), #1)) := #LitNull) ;;
-  Store_field (&Field(Field( bf, #0), #0), Val_int (#-1) ) ;;
+  Store_field (Field( bf, #0), #0, Val_int (#-1) ) ;;
   Val_int (#0).
 Definition buf_free_fun := Fun [BNamed "bf"] (buf_free_code "bf").
 Definition buf_free_name := "buf_free".
@@ -84,7 +84,7 @@ Definition wrap_compress_code (bf1 bf2 : expr) : expr :=
   let: "cap2p" := malloc(#1) in
  ("cap2p" <- Int_val(Field(Field(bf2, #1), #0))) ;;
   let: "res" := call: &buffy_compress_name with ("bts1", "used1", "bts2", "cap2p") in
-  Store_field(&Field(Field(bf2, #0), #0), Val_int( *"cap2p")) ;;
+  Store_field(Field(bf2, #0), #0, Val_int( *"cap2p")) ;;
   free ("cap2p", #1) ;;
   if: "res" = #0 then Val_int(#1) else Val_int(#0).
 Definition wrap_compress_fun := Fun [BNamed "bf1"; BNamed "bf2"] (wrap_compress_code "bf1" "bf2").
