@@ -176,5 +176,27 @@ Section ML_spec.
     iSplit; iExists _; done.
   Qed.
 
+
 End ML_spec.
+
+Section ML_Example.
+
+  Import melocoton.ml_lang.proofmode.
+
+  Context `{SI:indexT}.
+  Context `{!ffiG Σ}.
+
+  Definition gmtime_client : mlanguage.expr (lang_to_mlang ML_lang) :=
+    (Fst (Extern "caml_gmtime" [ (Val #0)%MLE ])).
+
+  Lemma ML_prog_correct_axiomatic :
+    ⊢ WP gmtime_client at ⟨∅, caml_gmtime_spec⟩ {{ v, ⌜∃x : Z, v = #x⌝}}.
+  Proof.
+    unfold gmtime_client. wp_pures. wp_extern.
+    iModIntro. cbn. iSplit; first done. iExists _.
+    do 2 (iSplitR; first done). iIntros "!>" (tm_sec tm_min) "_".
+    wp_pures. iModIntro. iPureIntro. by eexists.
+  Qed.
+
+End ML_Example.
 
