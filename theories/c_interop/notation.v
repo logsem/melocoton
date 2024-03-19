@@ -14,9 +14,9 @@ Notation "'CAMLlocal:' x 'in' e2" := (CAMLlocal x%string e2%CE)
 Notation "'Field' '(' x ',' y ')'" := (call: &"readfield" with (x%CE, y%CE))%CE
   (at level 70, x, y at level 69,
   format "'Field' '(' x ','  '/' y ')'") : c_expr_scope.
-Notation "'Store_field' '(' '&' 'Field' '(' x ',' y ')' ',' z ')'" := (call: &"modify" with (x%CE, y%CE, z%CE))%CE
+Notation "'Store_field' '(' x ',' y ',' z ')'" := (call: &"modify" with (x%CE, y%CE, z%CE))%CE
   (at level 70, x, y, z at level 69,
-  format "'Store_field' '(' '&' 'Field' '(' x ','  y ')' ','  '/' z ')'") : c_expr_scope.
+  format "'Store_field' '(' x ','  y ','  z ')'") : c_expr_scope.
 
 Notation "'Int_val' '(' x ')'" := (call: &"val2int" with (x%CE))%CE
   (at level 70, x at level 69,
@@ -36,7 +36,7 @@ Notation "'caml_alloc' '(' len ',' tag ')'" := (call: &"alloc" with (tag%CE, len
   (at level 70, len, tag at level 69,
   format "'caml_alloc' '(' len ','  tag ')'") : c_expr_scope.
 Notation "'caml_alloc_custom' '(' ')'" := (call: &"alloc_foreign" with ( ))%CE
-  (at level 70, 
+  (at level 70,
   format "'caml_alloc_custom' '(' ')'") : c_expr_scope.
 (* XXX maybe make this list-based? *)
 Definition CAMLunregister1 ek := (call: &"unregisterroot" with ( ek ) ;; free (ek%CE, #1))%CE.
