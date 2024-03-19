@@ -60,7 +60,7 @@ Section Specs.
   Definition isBufferForeignBlock (γ : lloc) (ℓbuf : loc) (Pb : list (option Z) → iProp Σ) cap : iProp Σ :=
       ∃ vcontent, 
         "Hγfgnpto" ∷ γ ↦foreign (#ℓbuf)%CV
-      ∗ "Hℓbuf" ∷ ℓbuf ↦C∗ (map (option_map (λ (z:Z), #z)) vcontent)
+      ∗ "Hℓbuf" ∷ ℓbuf I↦C∗ (map (option_map (λ (z:Z), #z)) vcontent)
       ∗ "HContent" ∷ Pb vcontent
       ∗ "->" ∷ ⌜cap = length vcontent⌝.
 

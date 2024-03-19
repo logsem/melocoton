@@ -23,7 +23,7 @@ Definition buffy_compress_code (inbuf inlen outbuf outlenp:expr) := (
   if: *outlenp < call: &buffy_max_len_name with (inlen) then #1 else
     (outlenp <- call: &buffy_compress_rec_name with (inbuf, inlen, outbuf)) ;; #0 )%CE.
 
-Definition buffy_env : gmap string function := 
+Definition buffy_env : gmap string function :=
   <[buffy_max_len_name      := Fun [BNamed "len"] (buffy_max_len_code "len")]> (
   <[buffy_compress_rec_name := Fun [BNamed "inbuf"; BNamed "inlen"; BNamed "outbuf"] (buffy_compress_rec_code "inbuf" "inlen" "outbuf")]> (
   <[buffy_compress_name     := Fun [BNamed "inbuf"; BNamed "inlen"; BNamed "outbuf"; BNamed "outlenp"]
@@ -50,16 +50,16 @@ Definition buffy_compress_spec_ok : protocol val Σ := (λ s vv Φ,
   ∗ "->" ∷ ⌜vv = [ #ℓin; #(length bin); #ℓout; #ℓlen ]⌝
   ∗ "%Hlength" ∷ ⌜length vspace ≥ buffer_max_len (length bin)⌝
   ∗ "%HBuffer" ∷ ⌜isBuffer vin bin⌝
-  ∗ "Hℓin" ∷ ℓin  ↦C∗ vin
-  ∗ "Hℓout" ∷ ℓout ↦C∗ vspace
+  ∗ "Hℓin" ∷ ℓin  I↦C∗ vin
+  ∗ "Hℓout" ∷ ℓout I↦C∗ vspace
   ∗ "Hℓlen" ∷ ℓlen ↦C  #(length vspace)
   ∗ "HCont" ∷ ▷ (∀ bout vout vrest voverwritten,
          ⌜isBuffer vout bout⌝
       -∗ ⌜bout = compress_buffer bin⌝
       -∗ ⌜vspace = voverwritten ++ vrest⌝
       -∗ ⌜length voverwritten = length vout⌝
-      -∗ ℓout ↦C∗ (vout ++ vrest)
-      -∗ ℓin  ↦C∗ vin 
+      -∗ ℓout I↦C∗ (vout ++ vrest)
+      -∗ ℓin  I↦C∗ vin
       -∗ ℓlen ↦C  #(length vout)
       -∗ Φ #0))%I.
 
