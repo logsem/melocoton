@@ -178,6 +178,20 @@ Proof.
   { iApply bi.or_intro_r. by iApply Hre2. }
 Qed.
 
+Lemma proto_join_l val Σ (ψ ψ1 ψ2 : protocol val Σ) :
+  ψ ⊑ ψ1 → ψ ⊑ ψ1 ⊔ ψ2.
+Proof.
+  iIntros (H ? ? ?) "H".
+  iApply bi.or_intro_l. by iApply H.
+Qed.
+
+Lemma proto_join_r val Σ (ψ ψ1 ψ2 : protocol val Σ) :
+  ψ ⊑ ψ2 → ψ ⊑ ψ1 ⊔ ψ2.
+Proof.
+  iIntros (H ? ? ?) "H".
+  iApply bi.or_intro_r. by iApply H.
+Qed.
+
 Global Instance proto_join_ne val Σ : NonExpansive2 (@proto_join val Σ).
 Proof.
   rewrite /proto_join /= => n pp1 pp2 Hpp qq1 qq2 Hqq.
@@ -185,6 +199,9 @@ Proof.
 Qed.
 
 End Protocols.
+
+Global Hint Resolve proto_join_r : core.
+Global Hint Resolve proto_join_l : core.
 
 (* Reexport notations *)
 Notation "Ψ 'except' fns" := (proto_except Ψ fns) (at level 10).
