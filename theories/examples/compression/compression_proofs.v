@@ -55,8 +55,8 @@ Qed.
 Lemma buffy_compress_rec_spec ℓin ℓout vin bin vspace :
    isBuffer vin bin →
    length vspace ≥ buffer_max_len (length bin) →
-(⊢  ℓin  ↦C∗ vin
- -∗ ℓout ↦C∗ vspace -∗
+(⊢  ℓin  I↦C∗ vin
+ -∗ ℓout I↦C∗ vspace -∗
     WP (call: &buffy_compress_rec_name with (Val #ℓin, Val #(length bin), Val #ℓout))%CE at ⟨ p , Ψ ⟩
     {{ v', ∃ bout vout vrest voverwritten,
              ⌜isBuffer vout bout⌝
@@ -64,8 +64,8 @@ Lemma buffy_compress_rec_spec ℓin ℓout vin bin vspace :
            ∗ ⌜v' = #(length vout)⌝
            ∗ ⌜vspace = voverwritten ++ vrest⌝
            ∗ ⌜length voverwritten = length vout⌝
-           ∗ ℓout ↦C∗ (vout ++ vrest)
-           ∗ ℓin  ↦C∗ vin }})%I.
+           ∗ ℓout I↦C∗ (vout ++ vrest)
+           ∗ ℓin  I↦C∗ vin }})%I.
 Proof using Hp.
   iIntros (HBuffer Hlength) "Hℓin Hℓout".
   iLöb as "IH" forall (ℓin ℓout vin bin vspace HBuffer Hlength).

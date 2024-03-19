@@ -139,9 +139,8 @@ Proof.
   repr_lval_inj. wp_pures.
 
   (* free *)
-  iAssert (rr ↦C∗ [Some wlv'])%I with "[H]" as "Hrr".
-  1: cbn; rewrite loc_add_0; iFrame.
-  wp_apply (wp_free_array' with "Hrr"); first done. iIntros "_".
+  iAssert (rr ↦C wlv')%I with "[H]" as "Hrr"; first done.
+  wp_apply (wp_free with "Hrr"). iIntros "_".
   wp_pures.
 
   (* Finish, convert the new points-to to an immutable pointsto *)

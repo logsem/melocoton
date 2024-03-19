@@ -222,7 +222,7 @@ Section Specs.
   ∗ ⌜vcontent = fmap (option_map (λ (z:Z), #z)) zcontent⌝
   ∗ ⌜length vcontent = cap⌝
   ∗ ⌜a = #ℓ⌝
-  ∗ ℓ ↦C∗ vcontent.
+  ∗ ℓ I↦C∗ vcontent.
 
   Definition Pb (cap : nat) (arr : list Z) : list (option Z) → iProp Σ := (λ k, ∃ (zrest : list (option Z)), ⌜k = fmap Some arr ++ zrest⌝ ∗ ⌜cap = length k⌝)%I.
   Definition Pbu (arr : list Z) : nat → list (option Z) → iProp Σ := (λ used k, ∃ (zrest : list (option Z)), ⌜k = fmap Some arr ++ zrest⌝ ∗ ⌜used  = length arr⌝)%I.

@@ -30,7 +30,7 @@ Implicit Types sz off : nat.
 Lemma wp_Malloc s E n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ s; E
-  {{{ l, RET LitV (LitLoc l); l ↦C∗ replicate (Z.to_nat n) None }}}.
+  {{{ l, RET LitV (LitLoc l); l I↦C∗ replicate (Z.to_nat n) None }}}.
 Proof.
   iIntros (Hzs Φ) "_ HΦ". iApply wp_Malloc_seq; [done..|]. iModIntro.
   iIntros (l) "Hlm". iApply "HΦ".
@@ -41,7 +41,7 @@ Lemma wp_Malloc_vec s E n :
   (0 < n)%Z →
   {{{ True }}}
     Malloc #n @ s ; E
-  {{{ l, RET #l; l ↦C∗ vreplicate (Z.to_nat n) None }}}.
+  {{{ l, RET #l; l I↦C∗ vreplicate (Z.to_nat n) None }}}.
 Proof.
   iIntros (Hzs Φ) "_ HΦ". iApply wp_Malloc; [ lia | done | .. ]. iModIntro.
   iIntros (l) "Hl". iApply "HΦ". rewrite vec_to_list_replicate. iFrame.
@@ -50,7 +50,7 @@ Qed.
 (** Accessing array elements *)
 Lemma wp_load_offset s E l dq off vs (v:val) :
   vs !! off = Some (Some v) →
-  {{{ ▷ l ↦C∗{dq} vs }}} * #(l +ₗ off) @ s; E {{{ RET v; l ↦C∗{dq} vs }}}%CE.
+  {{{ ▷ l I↦C∗{dq} vs }}} * #(l +ₗ off) @ s; E {{{ RET v; l I↦C∗{dq} vs }}}%CE.
 Proof.
   iIntros (Hlookup Φ) ">Hl HΦ".
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
@@ -61,7 +61,7 @@ Qed.
 
 Lemma wp_store_offset s E l off vs (v:val) :
   off < length vs →
-  {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ <[off:=Some v]> vs }}}%CE.
+  {{{ ▷ l I↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l I↦C∗ <[off:=Some v]> vs }}}%CE.
 Proof.
   iIntros (Hlength Φ) ">Hl HΦ".
   destruct (lookup_lt_is_Some_2 _ _ Hlength) as [vv Hlookup].
@@ -71,7 +71,7 @@ Proof.
 Qed.
 
 Lemma wp_store_offset_vec s E l sz (off : fin sz) (vs : vec (option val) sz) (v:val) :
-  {{{ ▷ l ↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l ↦C∗ vinsert off (Some v) vs }}}%CE.
+  {{{ ▷ l I↦C∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #0; l I↦C∗ vinsert off (Some v) vs }}}%CE.
 Proof.
   setoid_rewrite vec_to_list_insert. apply wp_store_offset.
   rewrite vec_to_list_length. apply fin_to_nat_lt.
@@ -79,7 +79,7 @@ Qed.
 
 (** Freeing a region *)
 Lemma wp_free_array s E l vs :
-  {{{ ▷ l ↦C∗ vs }}} free (#l, #(Z.of_nat (length vs))) @ s; E {{{ RET LitV LitUnit; True }}}%CE.
+  {{{ ▷ l I↦C∗ vs }}} free (#l, #(Z.of_nat (length vs))) @ s; E {{{ RET LitV LitUnit; True }}}%CE.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
@@ -115,7 +115,7 @@ Qed.
 
 Lemma wp_free_array' s E l z vs :
   z = Z.of_nat (length vs) →
-  {{{ ▷ l ↦C∗ vs }}} free (#l, #z) @ s; E {{{ RET LitV LitUnit; True }}}%CE.
+  {{{ ▷ l I↦C∗ vs }}} free (#l, #z) @ s; E {{{ RET LitV LitUnit; True }}}%CE.
 Proof. iIntros (-> Φ) "H HΦ". by iApply (wp_free_array with "H"). Qed.
 
 End lifting.

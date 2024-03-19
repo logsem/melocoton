@@ -31,9 +31,7 @@ Section C_spec.
       "gmtime" with ([ #C w ])
     {{
       (a : loc) (tm_sec : Z) (tm_min : Z), RET(#C a);
-      (* a ↦C∗ [tm_sec; tm_min] *)
-      ( a +ₗ 0 ) ↦C (#C tm_sec) ∗
-      ( a +ₗ 1 ) ↦C (#C tm_min)
+      a ↦C∗ [ #C tm_sec; #C tm_min ]
     }}.
 
 End C_spec.
@@ -94,7 +92,8 @@ Section FFI_spec.
     iSplit; first done.
     iExists t; do 2 (iSplit; first done).
     iIntros (a tm_sec tm_min). iNext.
-    iIntros "(Ha0&Ha1)". simpl. wp_pures.
+    cbn.
+    iIntros "(Ha0&Ha1&_)". wp_pures.
 
     (* Allocate result variable *)
     wp_apply (wp_alloc (TagDefault) with "HGC"); try done; auto.

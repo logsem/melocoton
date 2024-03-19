@@ -91,15 +91,28 @@ Definition array {SI:indexT} `{!heapG_C Σ} (l : loc) (dq : dfrac) (vs : list (o
 
 (** FIXME: Refactor these notations using custom entries once Coq bug #13654
 has been fixed. *)
-Notation "l ↦C∗{ dq } vs" := (array l dq vs)
-  (at level 20, format "l  ↦C∗{ dq }  vs") : bi_scope.
-Notation "l ↦C∗□ vs" := (array l DfracDiscarded vs)
-  (at level 20, format "l  ↦C∗□  vs") : bi_scope.
-Notation "l ↦C∗{# q } vs" := (array l (DfracOwn q) vs)
-  (at level 20, format "l  ↦C∗{# q }  vs") : bi_scope.
-Notation "l ↦C∗ vs" := (array l (DfracOwn 1) vs)
-  (at level 20, format "l  ↦C∗  vs") : bi_scope.
+Notation "l I↦C∗{ dq } vs" := (array l dq vs)
+  (at level 20, format "l  I↦C∗{ dq }  vs") : bi_scope.
+Notation "l I↦C∗□ vs" := (array l DfracDiscarded vs)
+  (at level 20, format "l  I↦C∗□  vs") : bi_scope.
+Notation "l I↦C∗{# q } vs" := (array l (DfracOwn q) vs)
+  (at level 20, format "l  I↦C∗{# q }  vs") : bi_scope.
+Notation "l I↦C∗ vs" := (array l (DfracOwn 1) vs)
+  (at level 20, format "l  I↦C∗  vs") : bi_scope.
 
+Definition initialized_array {SI:indexT} `{!heapG_C Σ} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
+  array l dq (map Some vs).
+
+(** FIXME: Refactor these notations using custom entries once Coq bug #13654
+has been fixed. *)
+Notation "l ↦C∗{ dq } vs" := (initialized_array l dq vs)
+  (at level 20, format "l  ↦C∗{ dq }  vs") : bi_scope.
+Notation "l ↦C∗□ vs" := (initialized_array l DfracDiscarded vs)
+  (at level 20, format "l  ↦C∗□  vs") : bi_scope.
+Notation "l ↦C∗{# q } vs" := (initialized_array l (DfracOwn q) vs)
+  (at level 20, format "l  ↦C∗{# q }  vs") : bi_scope.
+Notation "l ↦C∗ vs" := (initialized_array l (DfracOwn 1) vs)
+  (at level 20, format "l  ↦C∗  vs") : bi_scope.
 
 (** Points-to laws *)
 
@@ -172,26 +185,26 @@ Qed.
 
 Global Instance array_timeless l q vs : Timeless (array l q vs) := _.
 
-Global Instance array_fractional l vs : Fractional (λ q, l ↦C∗{#q} vs)%I := _.
+Global Instance array_fractional l vs : Fractional (λ q, l I↦C∗{#q} vs)%I := _.
 Global Instance array_as_fractional l q vs :
-  AsFractional (l ↦C∗{#q} vs) (λ q, l ↦C∗{#q} vs)%I q.
+  AsFractional (l I↦C∗{#q} vs) (λ q, l I↦C∗{#q} vs)%I q.
 Proof. split; done || apply _. Qed.
 
-Lemma array_nil l dq : l ↦C∗{dq} [] ⊣⊢ emp.
+Lemma array_nil l dq : l I↦C∗{dq} [] ⊣⊢ emp.
 Proof. by rewrite /array. Qed.
 
-Lemma array_singleton l dq v : l ↦C∗{dq} [v] ⊣⊢ l I↦C{dq} v.
+Lemma array_singleton l dq v : l I↦C∗{dq} [v] ⊣⊢ l I↦C{dq} v.
 Proof. by rewrite /array /= right_id loc_add_0. Qed.
 
 Lemma array_app l dq vs ws :
-  l ↦C∗{dq} (vs ++ ws) ⊣⊢ l ↦C∗{dq} vs ∗ (l +ₗ length vs) ↦C∗{dq} ws.
+  l I↦C∗{dq} (vs ++ ws) ⊣⊢ l I↦C∗{dq} vs ∗ (l +ₗ length vs) I↦C∗{dq} ws.
 Proof.
   rewrite /array big_sepL_app.
   setoid_rewrite Nat2Z.inj_add.
   by setoid_rewrite loc_add_assoc.
 Qed.
 
-Lemma array_cons l dq v vs : l ↦C∗{dq} (v :: vs) ⊣⊢ l I↦C{dq} v ∗ (l +ₗ 1) ↦C∗{dq} vs.
+Lemma array_cons l dq v vs : l I↦C∗{dq} (v :: vs) ⊣⊢ l I↦C{dq} v ∗ (l +ₗ 1) I↦C∗{dq} vs.
 Proof.
   rewrite /array big_sepL_cons loc_add_0.
   setoid_rewrite loc_add_assoc.
@@ -200,16 +213,16 @@ Proof.
 Qed.
 
 Global Instance array_cons_frame l dq v vs R Q :
-  Frame false R (l I↦C{dq} v ∗ (l +ₗ 1) ↦C∗{dq} vs) Q →
-  Frame false R (l ↦C∗{dq} (v :: vs)) Q | 2.
+  Frame false R (l I↦C{dq} v ∗ (l +ₗ 1) I↦C∗{dq} vs) Q →
+  Frame false R (l I↦C∗{dq} (v :: vs)) Q | 2.
 Proof. by rewrite /Frame array_cons. Qed.
 
 Lemma update_array l dq vs (off : nat) v :
   vs !! off = Some v →
-  ⊢ l ↦C∗{dq} vs -∗ ((l +ₗ off) I↦C{dq} v ∗ ∀ v', (l +ₗ off) I↦C{dq} v' -∗ l ↦C∗{dq} <[off:=v']>vs).
+  ⊢ l I↦C∗{dq} vs -∗ ((l +ₗ off) I↦C{dq} v ∗ ∀ v', (l +ₗ off) I↦C{dq} v' -∗ l I↦C∗{dq} <[off:=v']>vs).
 Proof.
   iIntros (Hlookup) "Hl".
-  rewrite -[X in (l ↦C∗{_} X)%I](take_drop_middle _ off v); last done.
+  rewrite -[X in (l I↦C∗{_} X)%I](take_drop_middle _ off v); last done.
   iDestruct (array_app with "Hl") as "[Hl1 Hl]".
   iDestruct (array_cons with "Hl") as "[Hl2 Hl3]".
   assert (off < length vs) as H by (apply lookup_lt_is_Some; by eexists).
@@ -217,7 +230,7 @@ Proof.
   iIntros (w) "Hl2".
   clear Hlookup. assert (<[off:=w]> vs !! off = Some w) as Hlookup.
   { apply list_lookup_insert. lia. }
-  rewrite -[in (l ↦C∗{_} <[off:=w]> vs)%I](take_drop_middle (<[off:=w]> vs) off w Hlookup).
+  rewrite -[in (l I↦C∗{_} <[off:=w]> vs)%I](take_drop_middle (<[off:=w]> vs) off w Hlookup).
   iApply array_app. rewrite take_insert; last by lia. iFrame.
   iApply array_cons. rewrite take_length min_l; last by lia. iFrame.
   rewrite drop_insert_gt; last by lia. done.
@@ -225,7 +238,7 @@ Qed.
 
 Lemma mapsto_seq_array l dq v n :
   ([∗ list] i ∈ seq 0 n, (l +ₗ (i : nat)) I↦C{dq} v) -∗
-  l ↦C∗{dq} replicate n v.
+  l I↦C∗{dq} replicate n v.
 Proof.
   rewrite /array. iInduction n as [|n'] "IH" forall (l); simpl.
   { done. }
