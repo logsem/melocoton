@@ -12,6 +12,6 @@ Coercion LitLoc : loc >-> base_lit.
    direction we would want. So we keep this global for now, and use #C whenever
    we need to be explicit. *)
 Notation "# l" := (LitV l%Z%CV%stdpp) (at level 8, format "# l").
-Notation "#C l" := (LitV l%Z%CV%stdpp) (at level 8, format "#C l").
+Notation "#C l" := (LitV l%Z%CV%stdpp) (at level 8, format "#C  l").
 
 Notation "& f" := (LitV (LitFunPtr f)) (at level 8, format "& f").

@@ -34,7 +34,7 @@ Notation Skip := (App (Val $ LamV BAnon (Val $ LitV LitUnit)) (Val $ LitV LitUni
    direction we would want. So we keep this global for now, and use #ML whenever
    we need to be explicit. *)
 Notation "# l" := (LitV l%Z%MLV%stdpp) (at level 8, format "# l").
-Notation "#ML l" := (LitV l%Z%MLV%stdpp) (at level 8, format "#ML l").
+Notation "#ML l" := (LitV l%Z%MLV%stdpp) (at level 8, format "#ML  l").
 
 (** Syntax inspired by Coq/Ocaml. Constructions with higher precedence come
     first. *)
