@@ -118,7 +118,7 @@ Proof.
   repr_lval_inj. wp_pures.
 
   (* free *)
-  iAssert ((Loc rr) ↦C∗ [Some wlv1'; Some wlv2'])%I with "[H1 H2]" as "Hrr".
+  iAssert ((Loc rr) ↦C∗ [wlv1'; wlv2'])%I with "[H1 H2]" as "Hrr".
   1: cbn; iFrame.
   wp_apply (wp_free_array' with "Hrr"); first done. iIntros "_".
   wp_pures.
