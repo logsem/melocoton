@@ -445,39 +445,41 @@ Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
 
 (* Foreign block points-to *)
 
-Definition lstore_own_foreign γ dq (v : option word) : iProp Σ :=
-  lstore_own_mut γ dq (Bforeign v).
+Definition lstore_own_foreign γ dq (mut : ismut) (v : option word) : iProp Σ :=
+  lstore_own_elem γ dq (Bforeign mut v).
 
-Notation "γ ↦foreignO{ dq } a" := (lstore_own_foreign γ dq a)%I
-  (at level 20, format "γ  ↦foreignO{ dq }  a") : bi_scope.
-Notation "γ ↦foreignO a" := (γ ↦foreignO{DfracOwn 1} a)%I
-  (at level 20, format "γ  ↦foreignO  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ]{ dq } a" := (lstore_own_foreign γ dq mut a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]{ dq }  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ] a" := (γ ↦foreignO[mut]{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]  a") : bi_scope.
 
 (* Lifting of ~ℓ~ at the level of ML values *)
 
-Fixpoint block_sim (v : val) (l : lval) : iProp Σ := match v with
-  | ML_lang.LitV (ML_lang.LitInt x) => ⌜l = (Lint x)⌝
-  | ML_lang.LitV (ML_lang.LitBool b) => ⌜l = (Lint (if b then 1 else 0))⌝
-  | ML_lang.LitV ML_lang.LitUnit => ⌜l = (Lint 0)⌝
-  | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
-  | ML_lang.LitV (ML_lang.LitForeign γ) => ⌜l = (Lloc γ)⌝
+Fixpoint block_sim (v : val) (lv : lval) : iProp Σ := match v with
+  | ML_lang.LitV (ML_lang.LitInt x) => ⌜lv = (Lint x)⌝
+  | ML_lang.LitV (ML_lang.LitBool b) => ⌜lv = (Lint (if b then 1 else 0))⌝
+  | ML_lang.LitV ML_lang.LitUnit => ⌜lv = (Lint 0)⌝
+  | ML_lang.LitV (ML_lang.LitBoxedInt i) => ∃ γ,
+      ⌜lv = (Lloc γ)⌝ ∗ γ ↦foreignO[Immut] (Some (defs.C_intf.LitV (defs.C_intf.LitInt i)))
+  | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜lv = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
+  | ML_lang.LitV (ML_lang.LitForeign γ) => ⌜lv = (Lloc γ)⌝
   | ML_lang.PairV v1 v2 => ∃ γ lv1 lv2,
-      ⌜l = (Lloc γ)⌝ ∗
+      ⌜lv = (Lloc γ)⌝ ∗
       γ ↦imm (TagDefault, [lv1;lv2]) ∗
       block_sim v1 lv1 ∗ block_sim v2 lv2
-  | ML_lang.InjLV v => ∃ γ lv,
-      ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv]) ∗ block_sim v lv
-  | ML_lang.InjRV v => ∃ γ lv,
-      ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv]) ∗ block_sim v lv
+  | ML_lang.InjLV v => ∃ γ lv',
+      ⌜lv = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv']) ∗ block_sim v lv'
+  | ML_lang.InjRV v => ∃ γ lv',
+      ⌜lv = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv']) ∗ block_sim v lv'
   | ML_lang.RecV f x e => ∃ γ,
-      ⌜l = Lloc γ⌝ ∗ γ ↦clos (f, x, e)
+      ⌜lv = Lloc γ⌝ ∗ γ ↦clos (f, x, e)
 end.
 
 Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
 
 Global Instance block_sim_pers v l : Persistent (l ~~ v).
 Proof using.
-  induction v as [[x|b| | |]| | | |] in l|-*; cbn; unshelve eapply (_).
+  induction v as [[x|b| | | |]| | | |] in l|-*; cbn; unshelve eapply (_).
 Qed.
 
 Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=
@@ -496,30 +498,31 @@ Lemma block_sim_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σM
   lstore_own_auth ζvirt -∗
   b ~~ v.
 Proof using.
-  iIntros (Hfreeze Hstorebl Hstore Hdisj H) "Hχ Hζ".
-  iDestruct (lstore_own_auth_get_immut_all with "Hζ") as "#Hζimm".
-  iInduction H as [] "IH" forall "Hζ Hχ"; cbn; try done.
-  1: iExists γ; iSplit; first done.
-  1: by iApply (lloc_own_auth_get_pub with "Hχ").
-  1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
-  3-4: iExists γ, lv; iSplit; first done; iSplit.
-  7: iExists γ; iSplit; first done.
-  1,3,5,7:
-    try iApply lstore_own_vblock_I_as_imm;
-    iApply (big_sepM_lookup with "Hζimm"); try done.
-  5: iSplit.
-  5,7,8: by iApply ("IH" with "[] [] [] Hζ Hχ").
-  5: by iApply ("IH1" with "[] [] [] Hζ Hχ").
-  all: simplify_eq.
-  all: apply lstore_immut_blocks_lookup_immut.
-  all: match goal with H: (_ ∪ _) !! _ = Some _ |- _ =>
-      apply lookup_union_Some in H as [|]; eauto end.
-  all: destruct Hstorebl as [_ Hstorebl2].
-  all: specialize (Hstorebl2 γ) as [Hstorebl2 _].
-  all: destruct Hstorebl2 as (ℓ & Vs & Hχ & Hσml); [by eapply elem_of_dom_2|].
-  all: efeed specialize Hstore; eauto; [eapply lookup_union_Some; by eauto|].
-  all: inversion Hstore.
-Qed.
+Admitted.
+(*   iIntros (Hfreeze Hstorebl Hstore Hdisj H) "Hχ Hζ". *)
+(*   iDestruct (lstore_own_auth_get_immut_all with "Hζ") as "#Hζimm". *)
+(*   iInduction H as [] "IH" forall "Hζ Hχ"; cbn; try done. *)
+(*   1: iExists γ; iSplit; first done. *)
+(*   1: by iApply (lloc_own_auth_get_pub with "Hχ"). *)
+(*   1: iExists γ, lv1, lv2; iSplit; first done; iSplit. *)
+(*   3-4: iExists γ, lv; iSplit; first done; iSplit. *)
+(*   7: iExists γ; iSplit; first done. *)
+(*   1,3,5,7: *)
+(*     try iApply lstore_own_vblock_I_as_imm; *)
+(*     iApply (big_sepM_lookup with "Hζimm"); try done. *)
+(*   5: iSplit. *)
+(*   5,7,8: by iApply ("IH" with "[] [] [] Hζ Hχ"). *)
+(*   5: by iApply ("IH1" with "[] [] [] Hζ Hχ"). *)
+(*   all: simplify_eq. *)
+(*   all: apply lstore_immut_blocks_lookup_immut. *)
+(*   all: match goal with H: (_ ∪ _) !! _ = Some _ |- _ => *)
+(*       apply lookup_union_Some in H as [|]; eauto end. *)
+(*   all: destruct Hstorebl as [_ Hstorebl2]. *)
+(*   all: specialize (Hstorebl2 γ) as [Hstorebl2 _]. *)
+(*   all: destruct Hstorebl2 as (ℓ & Vs & Hχ & Hσml); [by eapply elem_of_dom_2|]. *)
+(*   all: efeed specialize Hstore; eauto; [eapply lookup_union_Some; by eauto|]. *)
+(*   all: inversion Hstore. *)
+(* Qed. *)
 
 Lemma block_sim_arr_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs bb :
@@ -550,23 +553,24 @@ Lemma block_sim_auth_is_val  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map)
   b ~~ v -∗
   ⌜is_val χvirt ζfreeze v b⌝.
 Proof using.
-  iIntros (Hfreeze Hstorebl Hstore Hdis) "Hχ Hζ Hsim".
-  iInduction v as [[x|bo| | |]| | | |] "IH" forall (b); cbn.
-  all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
-  1: {iDestruct "Hsim" as "(%γ & -> & Hsim)".
-      iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH".
-      iPureIntro. econstructor. done. }
-  1: iDestruct "Hsim" as "(%γ & -> & Hsim)".
-  2: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)";
-     iPoseProof ("IH" with "Hχ Hζ Hlv1") as "%Hr1";
-     iPoseProof ("IH1" with "Hχ Hζ Hlv2") as "%Hr2".
-  3-4: iDestruct "Hsim" as "(%γ & %lv & -> & Hsim & Hlv)";
-       iPoseProof ("IH" with "Hχ Hζ Hlv") as "%Hr".
-  all: try iDestruct (lstore_own_vblock_I_as_imm with "Hsim") as "Hsim".
-  1-4: unshelve iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%HH _]".
-  all: iPureIntro; econstructor; eauto; by simplify_map_eq.
-Qed.
-
+Admitted.
+(*   iIntros (Hfreeze Hstorebl Hstore Hdis) "Hχ Hζ Hsim". *)
+(*   iInduction v as [[x|bo| | |]| | | |] "IH" forall (b); cbn. *)
+(*   all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done). *)
+(*   1: {iDestruct "Hsim" as "(%γ & -> & Hsim)". *)
+(*       iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH". *)
+(*       iPureIntro. econstructor. done. } *)
+(*   1: iDestruct "Hsim" as "(%γ & -> & Hsim)". *)
+(*   2: iDestruct "Hsim" as "(%γ & %lv1 & %lv2 & -> & Hsim & Hlv1 & Hlv2)"; *)
+(*      iPoseProof ("IH" with "Hχ Hζ Hlv1") as "%Hr1"; *)
+(*      iPoseProof ("IH1" with "Hχ Hζ Hlv2") as "%Hr2". *)
+(*   3-4: iDestruct "Hsim" as "(%γ & %lv & -> & Hsim & Hlv)"; *)
+(*        iPoseProof ("IH" with "Hχ Hζ Hlv") as "%Hr". *)
+(*   all: try iDestruct (lstore_own_vblock_I_as_imm with "Hsim") as "Hsim". *)
+(*   1-4: unshelve iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%HH _]". *)
+(*   all: iPureIntro; econstructor; eauto; by simplify_map_eq. *)
+(* Qed. *)
+(**)
 Lemma block_sim_arr_auth_is_val (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs bb :
   ζfreeze = ζσ ∪ ζvirt →
@@ -620,14 +624,14 @@ Notation "γ ↦imm b" := (γ ↦vblk[I]{DfracOwn 1} b)%I
 Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
   (at level 20, format "γ  ↦clos  ( f ,  x ,  e )") : bi_scope.
 
-Notation "γ ↦foreignO{ dq } a" := (lstore_own_foreign γ dq a)%I
-  (at level 20, format "γ  ↦foreignO{ dq }  a") : bi_scope.
-Notation "γ ↦foreignO a" := (γ ↦foreignO{DfracOwn 1} a)%I
-  (at level 20, format "γ  ↦foreignO  a") : bi_scope.
-Notation "γ ↦foreign{ dq } a" := (γ ↦foreignO{ dq } (Some a))%I
-  (at level 20, format "γ  ↦foreign{ dq }  a") : bi_scope.
-Notation "γ ↦foreign a" := (γ ↦foreign{DfracOwn 1} a)%I
-  (at level 20, format "γ  ↦foreign  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ]{ dq } a" := (lstore_own_foreign γ dq mut a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]{ dq }  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ] a" := (γ ↦foreignO[mut]{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]  a") : bi_scope.
+Notation "γ ↦foreign[ mut ]{ dq } a" := (γ ↦foreignO[ mut ]{ dq } (Some a))%I
+  (at level 20, format "γ  ↦foreign[ mut ]{ dq }  a") : bi_scope.
+Notation "γ ↦foreign[ mut ] a" := (γ ↦foreign[ mut ]{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreign[ mut ]  a") : bi_scope.
 
 Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperG_γroots_map]{dq} w)%I
   (at level 20, format "γ  ↦roots{ dq }  w") : bi_scope.

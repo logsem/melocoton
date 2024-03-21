@@ -70,7 +70,7 @@ Section Proofs.
   Solve Obligations with solve_proper.
 
   Program Definition box_interp : (protocol ML_lang.val Σ) -n> (listO D -n> D) -d> listO D -n> D := λne Ψ, λ interp, λne Δ, PersPred (
-    λ v, ∃ (γ:nat) (ℓ:loc), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign{DfracDiscarded} (#C ℓ) ∗
+    λ v, ∃ (γ:nat) (ℓ:loc), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign[Mut]{DfracDiscarded} (#C ℓ) ∗
            na_inv logrel_nais (nroot .@ "value"   .@ γ) (box_invariant_1 (ℓ +ₗ 1) (interp Δ)) ∗
            na_inv logrel_nais (nroot .@ "callback".@ γ) (box_invariant_2 ℓ (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)))%I.
   Next Obligation. solve_proper. Qed.

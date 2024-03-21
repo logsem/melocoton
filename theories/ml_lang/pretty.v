@@ -12,6 +12,7 @@ Global Instance pretty_loc : Pretty loc :=
 Global Instance pretty_base_lit : Pretty base_lit :=
   λ l, match l with
        | LitInt z => pretty z
+       | LitBoxedInt z => pretty z +:+ "l"
        | LitBool b => if b then "true" else "false"
        | LitUnit => "()"
        | LitLoc l => "(loc " +:+ pretty l +:+ ")"

@@ -59,7 +59,7 @@ Section Specs.
 
   Definition isBufferForeignBlock (γ : lloc) (ℓbuf : loc) (Pb : list (option Z) → iProp Σ) cap : iProp Σ :=
       ∃ vcontent, 
-        "Hγfgnpto" ∷ γ ↦foreign (#ℓbuf)%CV
+        "Hγfgnpto" ∷ γ ↦foreign[Mut] (#ℓbuf)%CV
       ∗ "Hℓbuf" ∷ ℓbuf I↦C∗ (map (option_map (λ (z:Z), #z)) vcontent)
       ∗ "HContent" ∷ Pb vcontent
       ∗ "->" ∷ ⌜cap = length vcontent⌝.
@@ -157,7 +157,7 @@ Section Specs.
     ∗ "Hbuf" ∷ isBufferRecordML v ℓ Pb cap
     ∗ "HCont" ∷ ▷   ( ∀ (ℓML:loc) γfgn, ⌜v = (# ℓML, (# cap, # (LitForeign γfgn)))%MLV⌝ -∗
                                          ℓML ↦M #(-1) -∗
-                                         γfgn ↦foreign (#C LitNull) -∗ Φ #()).
+                                         γfgn ↦foreign[Mut] (#C LitNull) -∗ Φ #()).
 
   Definition buf_get_spec_ML s vv Φ : iProp Σ :=
     ∃ v ℓ Pb cap (idx:nat) (res:Z),

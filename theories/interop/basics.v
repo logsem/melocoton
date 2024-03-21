@@ -104,7 +104,7 @@ Inductive block :=
   | Bvblock (vblk : vblock)
   | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr)
   (** A limited form of OCaml's "custom blocks", storing a C value *)
-  | Bforeign (ptr : option C_intf.val).
+  | Bforeign (mut : ismut) (ptr : option C_intf.val).
 
 Definition vblock_mutability (vb: vblock) : ismut :=
   let '(i,_) := vb in i.
@@ -113,7 +113,7 @@ Definition mutability (b: block) : ismut :=
   match b with
   | Bvblock vblk => vblock_mutability vblk
   | Bclosure _ _ _ => Immut
-  | Bforeign _ => Mut
+  | Bforeign m _ => m
   end.
 
 Definition vblock_get_tag (vb: vblock) : vblock_tag :=
@@ -123,7 +123,7 @@ Definition block_tag (b: block) : tag :=
   match b with
   | Bvblock vblk => TagVblock (vblock_get_tag vblk)
   | Bclosure _ _ _ => TagClosure
-  | Bforeign _ => TagForeign
+  | Bforeign _ _ => TagForeign
   end.
 
 Inductive lval_in_block : block → lval → Prop :=
@@ -291,6 +291,9 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
   | is_val_unit χ ζ :
     is_val χ ζ (ML_lang.LitV ML_lang.LitUnit) (Lint 0)
   (** locations *)
+  | is_val_boxedint χ ζ γ x :
+    ζ !! γ = Some (Bforeign Immut (Some (C_intf.LitV (C_intf.LitInt x)))) →
+    is_val χ ζ (ML_lang.LitV (ML_lang.LitBoxedInt x)) (Lloc γ)
   | is_val_loc χ ζ ℓ γ :
     χ !! γ = Some (LlocPublic ℓ) →
     is_val χ ζ (ML_lang.LitV (ML_lang.LitLoc ℓ)) (Lloc γ)
@@ -553,7 +556,9 @@ Proof.
     { rewrite option_guard_True //. naive_solver. }
     { rewrite option_guard_False //. naive_solver. } }
   { rewrite option_guard_True //. naive_solver. }
-  { rewrite option_guard_False //. naive_solver. }
+  { destruct (decide (mut = Immut)); subst.
+    { rewrite option_guard_True //. naive_solver. }
+    { rewrite option_guard_False //. naive_solver. } }
 Qed.
 
 Lemma lstore_immut_blocks_lookup_notin ζ γ :
@@ -1126,9 +1131,9 @@ Proof using.
 Qed.
 
 Lemma GC_correct_modify_foreign ζ θ γ w w' :
-  ζ !! γ = Some (Bforeign w) →
+  ζ !! γ = Some (Bforeign Mut w) →
   GC_correct ζ θ →
-  GC_correct (<[γ := Bforeign w']> ζ) θ.
+  GC_correct (<[γ := Bforeign Mut w']> ζ) θ.
 Proof using.
   intros Hγ [GC1 GC2]. split; first done.
   intros γ0 blk1 γ1 Hγ0 [[??]|[Hne1 Hlu]]%lookup_insert_Some Hlloc; subst; eauto.

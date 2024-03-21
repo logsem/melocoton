@@ -72,7 +72,7 @@ Section Proofs.
   Solve Obligations with solve_proper.
 
   Program Definition listener_interp : (protocol ML_lang.val Σ) -n> (listO D -n> D) -d> listO D -n> D := λne Ψ, λ interp, λne Δ, PersPred (
-    λ v, ∃ γ (a:addr), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign{DfracDiscarded} (#C a) ∗
+    λ v, ∃ γ (a:addr), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign[Mut]{DfracDiscarded} (#C a) ∗
            na_inv logrel_nais (nroot .@ "listener" .@ γ)
              (listener_invariant a (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)))%I.
   Next Obligation. solve_proper. Qed.
