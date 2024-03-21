@@ -165,8 +165,9 @@ Lemma deserialize_ML_value χMLold v :
     extended_to χMLold ζimm χC
   ∧ is_val χC ζimm v lv.
 Proof.
-  induction v as [[x|bo| |ℓ|]| |v1 IHv1 v2 IHv2|v IHv|v IHv] in χMLold|-*; intros Hinj.
+  induction v as [[x|bo| |n|ℓ|]| |v1 IHv1 v2 IHv2|v IHv|v IHv] in χMLold|-*; intros Hinj.
   1-3: eexists χMLold, ∅, _; split_and!; [by eapply extended_to_refl | econstructor ].
+  - admit.
   - destruct (ensure_in_χ_pub χMLold ℓ) as (χ' & γ & Hχ' & Hγ & _); first done.
     exists χ', ∅, (Lloc γ); (split_and!; last by econstructor).
     by eapply extended_to_mono.
@@ -211,7 +212,7 @@ Proof.
       eapply map_disjoint_Some_r. 1: eapply extended_to_trans_2; done.
       apply lookup_singleton.
     + eapply is_val_extended_to_weaken; done.
-Qed.
+Admitted.
 
 Lemma deserialize_ML_values χMLold vs :  
   lloc_map_inj χMLold

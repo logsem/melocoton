@@ -40,6 +40,7 @@ Module ML_lang.
 
 Inductive base_lit : Set :=
   | LitInt (n : Z) | LitBool (b : bool) | LitUnit
+  | LitBoxedInt (n : Z) (* Similar to OCaml Int64.t *)
   | LitLoc (l : loc)
   | LitForeign (id : nat).
 Inductive un_op : Set :=
@@ -234,7 +235,7 @@ Proof.
   destruct (decide (val_is_intlike v2)) as [Hi2|Hni2];
     try (left; eapply vals_compare_intlike_pointerlike; by eauto).
   { destruct v1 as [l1| | | | ]; try by inversion Hi1.
-    destruct v2 as [l2| | | |]; try by inversion Hi2.
+    destruct v2 as [l2| | | | ]; try by inversion Hi2.
     destruct l1; try (by inversion Hi1);
     destruct l2; try (by inversion Hi2).
     all: try (left; by constructor).
@@ -242,9 +243,9 @@ Proof.
   { destruct v1 as [l1| | | | ]; destruct v2 as [l2| | | |];
        try (right; intros HH; inversion HH; naive_solver).
     destruct l1; try (exfalso; apply Hni1; by constructor).
-    2: right; intros HH; inversion HH; naive_solver.
+    1, 3: right; intros HH; inversion HH; naive_solver.
     destruct l2; try (exfalso; apply Hni2; by constructor).
-    2: right; intros HH; inversion HH; naive_solver.
+    1, 3: right; intros HH; inversion HH; naive_solver.
     left; eapply vals_compare_loc. }
 Defined.
 
@@ -370,17 +371,19 @@ Defined.
 Global Instance base_lit_countable : Countable base_lit.
 Proof.
  refine (inj_countable' (λ l, match l with
+  | LitBoxedInt n => inr (inr n)
   | LitInt n => inl (inl (inl n))
   | LitBool b => inl (inl (inr b))
   | LitUnit => inl (inr (inl ()))
   | LitLoc l => inl (inr (inr l))
-  | LitForeign n => inr n
+  | LitForeign n => inr (inl n)
   end) (λ l, match l with
   | inl (inl (inl n)) => LitInt n
   | inl (inl (inr b)) => LitBool b
   | inl (inr (inl ())) => LitUnit
   | inl (inr (inr l)) => LitLoc l
-  | inr n => LitForeign n
+  | inr (inl n) => LitForeign n
+  | inr (inr n) => LitBoxedInt n
   end) _); by intros [].
 Qed.
 Global Instance un_op_finite : Countable un_op.
