@@ -17,7 +17,11 @@ From melocoton.linking Require Import lang weakestpre.
 From melocoton.combined Require Import adequacy rules.
 
 Section C_prog.
-Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
+
+Import
+  melocoton.c_lang.notation
+  melocoton.c_lang.proofmode
+  melocoton.c_interop.notation.
 
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
@@ -29,8 +33,8 @@ Definition add_one_ml_spec : protocol ML_lang.val Σ :=
     {{ RET (#ML(x + 1)); True }}.
 
 Definition add_one_code (x : expr) : expr :=
-  let: "r" := (call: &"val2int" with (x)) in
-  (call: &"int2val" with ("r" + #1)).
+  let: "r" := Int_val(x) in
+  Val_int("r" + #1).
 
 Definition add_one_func : function := Fun [BNamed "x"] (add_one_code "x").
 Definition add_one_prog : lang_prog C_lang := {[ "add_one" := add_one_func]}.
@@ -75,7 +79,7 @@ Import melocoton.ml_lang.proofmode.
   Definition program_type_ctx : program_env := 
     {[ "add_one" := FunType [ TNat ] TNat ]}.
 
-  Lemma swap_pair_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, add_one_ml_spec⟩ Δ.
+  Lemma add_one_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, add_one_ml_spec⟩ Δ.
   Proof.
     iIntros (s vv Φ) "!> (%ats&%rt&%Heq&Hargs&Htok&HCont)".
     wp_extern. iModIntro. unfold program_type_ctx in Heq.

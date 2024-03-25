@@ -18,22 +18,23 @@ From melocoton.combined Require Import adequacy rules.
 
 
 Section C_prog.
-Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
+
+Import
+  melocoton.c_lang.notation
+  melocoton.c_lang.proofmode
+  melocoton.c_interop.notation.
 
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
 
-
 Definition swap_variant_code (x : expr) : expr :=
   let: "v" := malloc (#1) in
-  ("v" <- (call: &"readfield" with ("x", Val #0))) ;;
-  (call: &"registerroot" with (Var "v")) ;;
+  "v" <- Field("x", #0) ;;
+  (call: &"registerroot" with ("v")) ;;
   let: "t" := (call: &"read_tag" with (x)) in
-  let: "r" := (call: &"alloc" with (!"t", #1)) in
-  (call: &"modify" with (Var "r", Val #0, * (Var "v" +ₗ #0))) ;;
-  (call: &"unregisterroot" with (Var "v")) ;;
-  (free ("v", #1)) ;;
-  "r".
+  let: "r" := caml_alloc(#1, !"t") in                          (* !t := not t *)
+  Store_field("r", #0, *("v" +ₗ #0)) ;;
+  CAMLreturn: "r" unregistering ["v"].
 
 Definition swap_variant_func : function := Fun [BNamed "x"] (swap_variant_code "x").
 Definition swap_variant_prog : lang_prog C_lang := {[ "swap_variant" := swap_variant_func ]}.
@@ -85,7 +86,6 @@ Proof.
 
   wp_alloc rr as "H"; first done.
   change (Z.to_nat 1) with 1. cbn. iDestruct "H" as "(H&_)". rewrite loc_add_0.
-  (* destruct rr as [rr]. *)
   wp_pures.
 
   iAssert (∃ γ lvs vs tag, γ ↦imm (tag, [lvs]) ∗
