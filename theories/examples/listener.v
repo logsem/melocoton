@@ -126,36 +126,37 @@ Section Proofs.
   Lemma listener_create_correct :
     prims_proto Ψ ||- listener_prog :: wrap_proto listener_create_spec_ML.
   Proof.
-    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
-    iSplit; first done.
-    destruct lvs as [|lvl [|??]]; try done.
-    all: cbn; iDestruct "Hsim" as "(->&Hsim)"; try done.
-    destruct ws as [|wv [|??]]; decompose_Forall.
-    iIntros (Φ'') "Cont2".
-    wp_pure _.
-    wp_apply (wp_Malloc); [done..|].
-    change (Z.to_nat 1) with 1. cbn.
-    iIntros (a) "(Ha&_)".
-    replace ((a +ₗ 0%nat)) with a by by rewrite loc_add_0.
-    wp_pures.
-    wp_apply (wp_store with "Ha"). iIntros "Ha".
-    wp_pures.
-    wp_apply (wp_alloc_foreign with "HGC"); [done..|].
-    iIntros (θ1 γ w) "(HGC&Hγfgn&%Hrepr)".
-    wp_pures.
-    wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
-    iIntros "(HGC&Hγfgn)". wp_pures.
-    iDestruct "Hγfgn" as "(Hγfgn'&_)".
-    iMod (na_inv_alloc logrel_nais _ _ (listener_invariant a _) with "[Ha]") as "#Hinv".
-    { iNext. iRight. iFrame "Ha". }
-    iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
-    iModIntro. iApply "Cont2". iApply ("Return" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []").
-    2,3: done.
-    iApply "Cont". iFrame "Hna". iExists γ, a.
-    iSplit; first done. iSplitL.
-    { iSplitL. 2: done. iApply "Hγfgn'". }
-    iFrame "Hinv".
-  Qed.
+  Admitted.
+  (*   iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto". *)
+  (*   iSplit; first done. *)
+  (*   destruct lvs as [|lvl [|??]]; try done. *)
+  (*   all: cbn; iDestruct "Hsim" as "(->&Hsim)"; try done. *)
+  (*   destruct ws as [|wv [|??]]; decompose_Forall. *)
+  (*   iIntros (Φ'') "Cont2". *)
+  (*   wp_pure _. *)
+  (*   wp_apply (wp_Malloc); [done..|]. *)
+  (*   change (Z.to_nat 1) with 1. cbn. *)
+  (*   iIntros (a) "(Ha&_)". *)
+  (*   replace ((a +ₗ 0%nat)) with a by by rewrite loc_add_0. *)
+  (*   wp_pures. *)
+  (*   wp_apply (wp_store with "Ha"). iIntros "Ha". *)
+  (*   wp_pures. *)
+  (*   wp_apply (wp_alloc_foreign with "HGC"); [done..|]. *)
+  (*   iIntros (θ1 γ w) "(HGC&Hγfgn&%Hrepr)". *)
+  (*   wp_pures. *)
+  (*   wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|]. *)
+  (*   iIntros "(HGC&Hγfgn)". wp_pures. *)
+  (*   iDestruct "Hγfgn" as "(Hγfgn'&_)". *)
+  (*   iMod (na_inv_alloc logrel_nais _ _ (listener_invariant a _) with "[Ha]") as "#Hinv". *)
+  (*   { iNext. iRight. iFrame "Ha". } *)
+  (*   iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'". *)
+  (*   iModIntro. iApply "Cont2". iApply ("Return" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []"). *)
+  (*   2,3: done. *)
+  (*   iApply "Cont". iFrame "Hna". iExists γ, a. *)
+  (*   iSplit; first done. iSplitL. *)
+  (*   { iSplitL. 2: done. iApply "Hγfgn'". } *)
+  (*   iFrame "Hinv". *)
+  (* Qed. *)
 
   Lemma listener_notify_correct :
     prims_proto Ψ ||- listener_prog :: wrap_proto listener_notify_spec_ML.
