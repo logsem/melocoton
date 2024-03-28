@@ -213,30 +213,28 @@ Section Proofs.
   Lemma zigzag_head_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_head_spec_ML.
   Proof.
-  Admitted.
-  (*   iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto". *)
-  (*   iSplit; first done. *)
-  (*   destruct lvs as [|lvhd [|??]]; try done. *)
-  (*   all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done. *)
-  (*   destruct ws as [|wlst [|??]]; decompose_Forall. *)
-  (*   iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)". *)
-  (*   iDestruct "Hsimlst" as "->". *)
-  (*   iIntros (Φ'') "Cont2". *)
-  (*   wp_apply (wp_call _ _ _ _ [_]); *)
-  (*     [by unfold zigzag_prog; solve_lookup_fixed|done|]. *)
-  (*   wp_finish. *)
-  (*   wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)". *)
-  (*   wp_pure _. *)
-  (*   rewrite loc_add_0. *)
-  (*   wp_apply (load_from_root with "[$HGC $Ha0]"). *)
-  (*   iIntros (whd) "(Ha0&HGC&%Hrepr)". *)
-  (*   iApply "Cont2". *)
-  (*   iApply ("Return" with "HGC [-]"); last done. *)
-  (*   - iApply "Cont". iExists γ, _. iSplit; first done. iFrame "Hγfgn". *)
-  (*     iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done. *)
-  (*   - done. *)
-  (* Qed. *)
-  (**)
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
+    iSplit; first done.
+    destruct lvs as [|lvhd [|??]]; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
+    destruct ws as [|wlst [|??]]; decompose_Forall.
+    iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
+    iDestruct "Hsimlst" as "->".
+    iIntros (Φ'') "Cont2".
+    wp_apply (wp_call _ _ _ _ [_]);
+      [by unfold zigzag_prog; solve_lookup_fixed|done|].
+    wp_finish.
+    wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
+    wp_pure _.
+    rewrite loc_add_0.
+    wp_apply (load_from_root with "[$HGC $Ha0]").
+    iIntros (whd) "(Ha0&HGC&%Hrepr)".
+    iApply "Cont2".
+    iApply ("Return" with "HGC [-]"); last done.
+    - iApply "Cont". iExists γ, _. iSplit; first done. iFrame "Hγfgn".
+      iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done.
+    - done.
+  Qed.
 
   Lemma zigzag_tail_correct :
     prims_proto Ψ ||- zigzag_prog :: wrap_proto zigzag_tail_spec_ML.
@@ -244,7 +242,7 @@ Section Proofs.
     iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
@@ -270,7 +268,7 @@ Section Proofs.
     iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
@@ -294,6 +292,7 @@ Section Proofs.
     iApply ("Return" with "HGC (Cont [$Hrec Hγfgn])"); [|done..].
     iExists _, _; iSplit; first done. iFrame "Hγfgn". done.
   Qed.
+
   End InPsi.
 
   Definition zigzag_spec_ML : protocol ML_lang.val Σ :=

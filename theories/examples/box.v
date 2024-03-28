@@ -116,43 +116,41 @@ Section Proofs.
   Lemma box_create_correct :
     prims_proto Ψ ||- box_prog :: wrap_proto box_create_spec_ML.
   Proof.
-  Admitted.
-  (*   iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto". *)
-  (*   iSplit; first done. *)
-  (*   destruct lvs as [|lvl [|??]]; try done. *)
-  (*   all: cbn; iDestruct "Hsim" as "(Hsimv&Hsim)"; try done. *)
-  (*   destruct ws as [|wv [|??]]; decompose_Forall. *)
-  (*   iIntros (Φ'') "Cont2". *)
-  (*   wp_pure _. *)
-  (*   wp_apply (wp_Malloc); [done..|]. *)
-  (*   change (Z.to_nat 2) with 2. cbn. *)
-  (*   iIntros (ℓ) "(Hℓ0&Hℓ1&_)". *)
-  (*   replace ((ℓ +ₗ 0%nat)) with ℓ by by rewrite loc_add_0. *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_store with "Hℓ0"). iIntros "Hℓ0". *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_store with "Hℓ1"). iIntros "Hℓ1". *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_registerroot with "[$HGC $Hℓ1]"); [done..|]. *)
-  (*   iIntros "(HGC&Hℓ1)". wp_pures. *)
-  (*   wp_apply (wp_alloc_foreign with "HGC"); [done..|]. *)
-  (*   iIntros (θ1 γ w) "(HGC&Hγfgn&%Hrepr)". *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|]. *)
-  (*   iIntros "(HGC&Hγfgn)". wp_pures. *)
-  (*   iDestruct "Hγfgn" as "(Hγfgn'&_)". *)
-  (*   iMod (na_inv_alloc logrel_nais _ _ (box_invariant_1 (ℓ +ₗ 1) (interp Δ)) with "[Hℓ1]") as "#Hinv1". *)
-  (*   { iNext. iExists _, _. iFrame "Hℓ1 Hsimv Hv". } *)
-  (*   iMod (na_inv_alloc logrel_nais _ _ (box_invariant_2 ℓ (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)) with "[Hℓ0]") as "#Hinv2". *)
-  (*   { iNext. iRight. iFrame. } *)
-  (*   iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'". *)
-  (*   iModIntro. iApply "Cont2". iApply ("Return" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []"). *)
-  (*   2,3: done. *)
-  (*   iApply "Cont". iFrame "Hna". iExists γ, ℓ. *)
-  (*   iSplit; first done. iSplitL. *)
-  (*   { iSplitL. 2: done. iApply "Hγfgn'". } *)
-  (*   iFrame "Hinv1 Hinv2". *)
-  (* Qed. *)
+    iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
+    iSplit; first done.
+    destruct lvs as [|lvl [|??]]; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimv&Hsim)"; try done.
+    destruct ws as [|wv [|??]]; decompose_Forall.
+    iIntros (Φ'') "Cont2".
+    wp_pure _.
+    wp_apply (wp_Malloc); [done..|].
+    change (Z.to_nat 2) with 2. cbn.
+    iIntros (ℓ) "(Hℓ0&Hℓ1&_)".
+    replace ((ℓ +ₗ 0%nat)) with ℓ by by rewrite loc_add_0.
+    wp_pures.
+    wp_apply (wp_store with "Hℓ0"). iIntros "Hℓ0".
+    wp_pures.
+    wp_apply (wp_store with "Hℓ1"). iIntros "Hℓ1".
+    wp_pures.
+    wp_apply (wp_registerroot with "[$HGC $Hℓ1]"); [done..|].
+    iIntros "(HGC&Hℓ1)". wp_pures.
+    wp_apply (wp_alloc_foreign with "HGC"); [done..|].
+    iIntros (θ1 γ w) "(HGC&Hγfgn&%Hrepr)".
+    wp_pures.
+    wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
+    iIntros "(HGC&Hγfgn)". wp_pures.
+    iDestruct "Hγfgn" as "(Hγfgn'&_)".
+    iMod (na_inv_alloc logrel_nais _ _ (box_invariant_1 (ℓ +ₗ 1) (interp Δ)) with "[Hℓ1]") as "#Hinv1".
+    { iNext. iExists _, _. iFrame "Hℓ1 Hsimv Hv". }
+    iMod (na_inv_alloc logrel_nais _ _ (box_invariant_2 ℓ (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)) with "[Hℓ0]") as "#Hinv2".
+    { iNext. iRight. iFrame. }
+    iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
+    iModIntro. iApply "Cont2". iApply ("Return" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []").
+    2,3: done.
+    iApply "Cont". iFrame "Hna". iExists γ, ℓ.
+    iSplit; first done. iSplitL; first done.
+    iFrame "Hinv1 Hinv2".
+  Qed.
 
   Lemma box_update_correct :
     prims_proto Ψ ||- box_prog :: wrap_proto box_update_spec_ML.
@@ -160,8 +158,8 @@ Section Proofs.
     iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvn [|lvb [|??]]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimvn&Hsim)"; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimvn&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
     destruct ws as [|wn [|wb [|??]]]; decompose_Forall.
     iIntros (Φ'') "Cont2".
     wp_pure _.
@@ -210,15 +208,14 @@ Section Proofs.
       iApply ("Return" with "HGC (Cont Hna) [//] [//]").
   Qed.
 
-
   Lemma box_listen_correct :
     prims_proto Ψ ||- box_prog :: wrap_proto box_listen_spec_ML.
   Proof.
     iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lv [|lvb [|??]]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimvl&Hsim)"; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimvl&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimvb&Hsim)"; try done.
     destruct ws as [|wl [|wb [|??]]]; decompose_Forall.
     iIntros (Φ'') "Cont2".
     wp_pure _.
@@ -254,6 +251,7 @@ Section Proofs.
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
       iApply ("Return" with "HGC (Cont Hna) [//] [//]").
   Qed.
+
   End InPsi.
 
   Definition box_prog_spec_ML (Ψ : protocol ML_lang.val Σ) : protocol ML_lang.val Σ :=
@@ -281,6 +279,7 @@ Section Proofs.
   Proof.
     exact (fixpoint_unfold (box_prog_spec_ML) s vv Φ).
   Qed.
+
   Lemma buf_library_spec_ML_sim:
    (box_prog_spec_ML (box_spec_ML) ⊑ box_spec_ML)%I.
   Proof.

@@ -338,9 +338,9 @@ Inductive c_prim_step :
       θC' !! γ = Some a →
       Y (CLocV a) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     c_prim_step Pallocforeign [] ρc mem Y
-  | PrimReadForeignS w γ aforeign ρc mem Y :
+  | PrimReadForeignS w γ m aforeign ρc mem Y :
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (Bforeign Mut (Some aforeign)) →
+    (ζC ρc) !! γ = Some (Bforeign m (Some aforeign)) →
     Y aforeign ρc mem →
     c_prim_step Preadforeign [w] ρc mem Y
   | PrimWriteForeignS w γ aforeigno aforeign' ζC' ρc mem Y :
