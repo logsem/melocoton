@@ -25,11 +25,11 @@ Section ToMlang.
       intros ? ? HH; specialize (H4 _ _ HH); eauto.
   Qed.
 
-  Notation cont := Λ.(ectx).
+  Notation ectx := Λ.(ectx).
 
   Lemma language_mlanguage_mixin :
     MlanguageMixin (val:=val) (of_val Λ) to_val Λ.(of_call) Λ.(is_call) empty_ectx
-      Λ.(fill) Λ.(comp_ectx) Λ.(apply_func) prim_step.
+      Λ.(comp_ectx) Λ.(fill) Λ.(apply_func) prim_step.
   Proof using.
     constructor.
     - apply to_of_val.
@@ -53,7 +53,7 @@ Section ToMlang.
           intros Hstep. rewrite call_prim_step in Hstep; eauto.
           destruct Hstep as (?&?&?&?&?&?); simplify_eq. congruence.
     - eapply is_val_not_call.
-    - eapply is_call_in_cont.
+    - eapply is_call_in_ctx.
     - eapply of_call_is_call.
     - eapply is_call_of_call.
     - eapply is_call_of_call_inv.

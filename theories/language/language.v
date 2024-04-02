@@ -45,7 +45,7 @@ Section language_mixin.
       prim_step p2 e σ e' σ';
 
     mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs K, ¬ is_call e f vs K);
-    mixin_is_call_in_cont e K1 K2 fn vs :
+    mixin_is_call_in_ctx e K1 K2 fn vs :
       is_call e fn vs K2 → is_call (fill K1 e) fn vs (comp_ectx K1 K2);
     mixin_of_call_is_call fn vs : is_call (of_call fn vs) fn vs empty_ectx;
     mixin_is_call_of_call e fn vs K : is_call e fn vs K → e = fill K (of_call fn vs);
@@ -159,7 +159,7 @@ Section language.
     eapply is_val_not_call in Heq. done.
   Qed.
 
-  Lemma is_call_in_cont e K1 K2 fn vs :
+  Lemma is_call_in_ctx e K1 K2 fn vs :
     is_call e fn vs K2 → is_call (fill K1 e) fn vs (comp_ectx K1 K2).
   Proof. apply language_mixin. Qed.
 

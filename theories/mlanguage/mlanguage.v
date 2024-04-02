@@ -4,18 +4,17 @@ From iris.prelude Require Import options.
 From melocoton Require Export multirelations language_commons.
 
 Section mlanguage_mixin.
-  Context {expr val func state cont : Type}.
+  Context {expr val func state ectx : Type}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
   Context (to_call : string → list val → expr).
-  Context (is_call : expr → string → list val → cont → Prop).
+  Context (is_call : expr → string → list val → ectx → Prop).
 
-  Context (empty_cont : cont).
-
-  Context (resume_with : cont → expr → expr).
-  Context (compose_cont : cont → cont → cont).
+  Context (empty_ectx : ectx).
+  Context (comp_ectx : ectx → ectx → ectx).
+  Context (fill : ectx → expr → expr).
 
   (** A program is a map from function names to function bodies. *)
   Local Notation mixin_prog := (gmap string func).
@@ -32,32 +31,32 @@ Section mlanguage_mixin.
     (** mixin_val_prim_step is not an iff because the backward direction is trivial *)
     mixin_val_prim_step p v σ :
       prim_step p (of_val v, σ) (λ _, False);
-    mixin_call_prim_step p e f vs C σ X :
-      is_call e f vs C →
+    mixin_call_prim_step p e f vs K σ X :
+      is_call e f vs K →
         prim_step p (e, σ) X ↔
         (∃ (fn : func) (e2 : expr),
-          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (resume_with C e2, σ));
+          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (fill K e2, σ));
 
-    mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C);
-    mixin_is_call_in_cont e C1 C2 s vv :
-      is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2);
-    mixin_to_call_is_call fn vs : is_call (to_call fn vs) fn vs empty_cont;
-    mixin_is_call_to_call e fn vs C : is_call e fn vs C → e = resume_with C (to_call fn vs);
-    mixin_is_call_to_call_inv fn vs fn' vs' C :
-      is_call (to_call fn vs) fn' vs' C →
-      fn' = fn ∧ vs' = vs ∧ C = empty_cont;
+    mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs K, ¬ is_call e f vs K);
+    mixin_is_call_in_ctx e K1 K2 s vv :
+      is_call e s vv K2 → is_call (fill K1 e) s vv (comp_ectx K1 K2);
+    mixin_to_call_is_call fn vs : is_call (to_call fn vs) fn vs empty_ectx;
+    mixin_is_call_to_call e fn vs K : is_call e fn vs K → e = fill K (to_call fn vs);
+    mixin_is_call_to_call_inv fn vs fn' vs' K :
+      is_call (to_call fn vs) fn' vs' K →
+      fn' = fn ∧ vs' = vs ∧ K = empty_ectx;
 
-    mixin_resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e);
-    mixin_resume_compose e C1 C2 :
-      resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e;
+    mixin_resume_val e K : is_Some (to_val (fill K e)) → is_Some (to_val e);
+    mixin_resume_compose e K1 K2 :
+      fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_resume_empty e :
-      resume_with empty_cont e = e;
+      fill empty_ectx e = e;
 
-    mixin_prim_step_resume p C e σ X :
+    mixin_prim_step_resume p K e σ X :
       to_val e = None →
       prim_step p (e, σ) X →
-      prim_step p (resume_with C e, σ) (λ '(e2, σ2),
-        ∃ e', e2 = resume_with C e' ∧ X (e', σ2));
+      prim_step p (fill K e, σ) (λ '(e2, σ2),
+        ∃ e', e2 = fill K e' ∧ X (e', σ2));
 
     (* Just a meta-theorem to ensure that there are no cases left to cover.
        Not used in proofs. *)
@@ -75,38 +74,38 @@ Structure mlanguage {val : Type} := Mlanguage {
   expr : Type;
   func : Type;
   state : Type;
-  cont : Type;
+  ectx : Type;
 
   of_val : val → expr;
   to_val : expr → option val;
 
   to_call : string → list val → expr;
-  is_call : expr → string → list val → cont → Prop;
-  empty_cont : cont;
-  resume_with : cont → expr → expr;
-  compose_cont : cont → cont → cont;
+  is_call : expr → string → list val → ectx → Prop;
+  empty_ectx : ectx;
+  comp_ectx : ectx → ectx → ectx;
+  fill : ectx → expr → expr;
 
   apply_func : func → list val → option expr;
   prim_step : (gmap string func) → umrel (expr * state);
 
 
   mlanguage_mixin :
-    MlanguageMixin (val:=val) of_val to_val to_call is_call empty_cont
-      resume_with compose_cont apply_func prim_step
+    MlanguageMixin (val:=val) of_val to_val to_call is_call empty_ectx
+      comp_ectx fill apply_func prim_step
 }.
 
 Declare Scope expr_scope.
 Bind Scope expr_scope with expr.
 
 Arguments mlanguage : clear implicits.
-Arguments Mlanguage {_ expr _ _ _ _ _ _ _ _ resume_with _ apply_func prim_step}.
+Arguments Mlanguage {_ expr _ _ _ _ _ _ _ _ _ fill apply_func prim_step}.
 Arguments of_val {_} _ _.
 Arguments to_val {_ _} _.
 Arguments to_call {_} _ _.
 Arguments is_call {_ _}.
-Arguments empty_cont {_ _}.
-Arguments resume_with {_ _}.
-Arguments compose_cont {_ _}.
+Arguments empty_ectx {_ _}.
+Arguments comp_ectx {_ _}.
+Arguments fill {_ _}.
 Arguments apply_func {_ _}.
 Arguments prim_step {_ _}.
 Notation prog Λ := (mixin_prog Λ.(func)).
@@ -118,7 +117,7 @@ Section mlanguage.
   Implicit Types v : val.
   Implicit Types vs : list val.
   Implicit Types e : expr Λ.
-  Implicit Types K : cont Λ.
+  Implicit Types K : ectx Λ.
   Implicit Types p : prog Λ.
   Implicit Types X : expr Λ * state Λ → Prop.
 
@@ -135,61 +134,60 @@ Section mlanguage.
   Lemma val_prim_step p v σ :
     prim_step p (of_val Λ v, σ) (λ _, False).
   Proof. apply mlanguage_mixin. Qed.
-  Lemma call_prim_step p e f vs C σ X :
-      is_call e f vs C →
+  Lemma call_prim_step p e f vs K σ X :
+      is_call e f vs K →
         prim_step p (e, σ) X ↔
         (∃ (fn : func Λ) e2,
-          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (resume_with C e2, σ)).
+          p !! f = Some fn ∧ Some e2 = apply_func fn vs ∧ X (fill K e2, σ)).
   Proof. apply mlanguage_mixin. Qed.
 
   Definition not_is_call e : Prop := ¬ ∃ f vs K, is_call e f vs K.
   Definition not_is_ext_call (p : prog Λ) e : Prop := ¬ ∃ f vs K, is_call e f vs K ∧ p !! f = None.
 
-  Lemma is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C).
+  Lemma is_val_not_call e : is_Some (to_val e) → (∀ f vs K, ¬ is_call e f vs K).
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma is_val_not_call_2 e f vs C : is_call e f vs C → to_val e = None.
+  Lemma is_val_not_call_2 e f vs K : is_call e f vs K → to_val e = None.
   Proof.
     intros H; destruct (to_val e) eqn:Heq; try done.
     exfalso; apply mk_is_Some in Heq.
     eapply is_val_not_call in Heq. done.
   Qed.
 
-  Lemma is_call_in_cont e C1 C2 s vv :
-      is_call e s vv C2 → is_call (resume_with C1 e) s vv (compose_cont C1 C2).
+  Lemma is_call_in_ctx e K1 K2 s vv :
+      is_call e s vv K2 → is_call (fill K1 e) s vv (comp_ectx K1 K2).
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma to_call_is_call fn vs : is_call (to_call Λ fn vs) fn vs empty_cont.
+  Lemma to_call_is_call fn vs : is_call (to_call Λ fn vs) fn vs empty_ectx.
   Proof. apply mlanguage_mixin. Qed.
-  Lemma is_call_to_call e fn vs C : is_call e fn vs C → e = resume_with C (to_call Λ fn vs).
+  Lemma is_call_to_call e fn vs K : is_call e fn vs K → e = fill K (to_call Λ fn vs).
   Proof. apply mlanguage_mixin. Qed.
-  Lemma is_call_to_call_inv fn vs fn' vs' C :
-    is_call (to_call Λ fn vs) fn' vs' C →
-    fn' = fn ∧ vs' = vs ∧ C = empty_cont.
-  Proof. apply mlanguage_mixin. Qed.
-
-  Lemma resume_val e C : is_Some (to_val (resume_with C e)) → is_Some (to_val e).
+  Lemma is_call_to_call_inv fn vs fn' vs' K :
+    is_call (to_call Λ fn vs) fn' vs' K →
+    fn' = fn ∧ vs' = vs ∧ K = empty_ectx.
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma resume_not_val e C : to_val e = None → to_val (resume_with C e) = None.
+  Lemma resume_val e K : is_Some (to_val (fill K e)) → is_Some (to_val e).
+  Proof. apply mlanguage_mixin. Qed.
+
+  Lemma resume_not_val e K : to_val e = None → to_val (fill K e) = None.
   Proof.
-    intros Heq; destruct (to_val (resume_with C e)) as [v|] eqn:Heq2; last done.
+    intros Heq; destruct (to_val (fill K e)) as [v|] eqn:Heq2; last done.
     eapply mk_is_Some in Heq2. apply resume_val in Heq2. rewrite Heq in Heq2.
     by destruct Heq2.
   Qed.
 
-  Lemma resume_compose e C1 C2 :
-      resume_with C1 (resume_with C2 e) = resume_with (compose_cont C1 C2) e.
+  Lemma resume_compose e K1 K2 :
+    fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e.
   Proof. apply mlanguage_mixin. Qed.
   Lemma resume_empty e :
-      resume_with empty_cont e = e.
+      fill empty_ectx e = e.
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma prim_step_resume p C e σ X :
+  Lemma prim_step_resume p K e σ X :
     to_val e = None →
     prim_step p (e, σ) X →
-    prim_step p (resume_with C e, σ) (λ '(e2, σ2),
-      ∃ e', e2 = resume_with C e' ∧ X (e', σ2)).
+    prim_step p (fill K e, σ) (λ '(e2, σ2), ∃ e', e2 = fill K e' ∧ X (e', σ2)).
   Proof. apply mlanguage_mixin. Qed.
 
   (* There is no NB *)

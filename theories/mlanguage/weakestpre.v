@@ -30,9 +30,9 @@ Definition wp_pre_cases `{SI:indexT, !invG Σ, !mlangG val Λ Σ}
     state Λ -d> coPset -d> expr Λ -d> (val -d> iPropO Σ) -d> iPropO Σ := λ σ E e Φ,
   (
       (∃ v, ⌜e = of_val Λ v⌝ ∗ state_interp σ ∗ Φ v)
-    ∨ (∃ f vs C, ⌜is_call e f vs C⌝ ∗ ⌜p !! f = None⌝ ∗
+    ∨ (∃ f vs K, ⌜is_call e f vs K⌝ ∗ ⌜p !! f = None⌝ ∗
        at_boundary Λ ∗ state_interp σ ∗
-       ∃ Φ', Ψ f vs Φ' ∗ ▷ ∀ r, Φ' r ∗ at_boundary Λ -∗ wp E (resume_with C (of_val Λ r)) Φ)
+       ∃ Φ', Ψ f vs Φ' ∗ ▷ ∀ r, Φ' r ∗ at_boundary Λ -∗ wp E (fill K (of_val Λ r)) Φ)
     ∨ (⌜to_val e = None⌝ ∗
        ∃ X, ⌜prim_step p (e, σ) X⌝ ∗
        ∀ e' σ', ⌜X (e', σ')⌝ ={E}▷=∗ state_interp σ' ∗ wp E e' Φ)
@@ -138,7 +138,7 @@ Proof.
     iModIntro.
     iDestruct "H3" as "(%Ξ & HT & Hr)".
     iFrame. iExists Ξ. iSplitL "HT"; first iApply (HΨ s vv with "HT").
-    iNext. iIntros "%r HΞ". iApply ("IH" $! (resume_with K (of_val Λ r)) E1 E2 HE Φ Φ' with "[Hr HΞ] HΦ").
+    iNext. iIntros "%r HΞ". iApply ("IH" $! (fill K (of_val Λ r)) E1 E2 HE Φ Φ' with "[Hr HΞ] HΦ").
     iApply ("Hr" with "HΞ").
   - do 2 iRight.
     iDestruct "H3" as "(HH & H3)".
@@ -237,15 +237,15 @@ Qed.
 
 
 Lemma wp_bind K pe E e Φ :
-  WP e @ pe; E {{ v, WP resume_with K (of_val Λ v) @ pe; E {{ Φ }} }} ⊢ WP resume_with K e @ pe; E {{ Φ }}.
+  WP e @ pe; E {{ v, WP fill K (of_val Λ v) @ pe; E {{ Φ }} }} ⊢ WP fill K e @ pe; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre.
   iIntros "%σ Hσ".
   iMod ("H" $! σ with "Hσ") as "[(%x & -> & Hσ & H)|[(%s & %vv & %K' & %HH & %H2 & Hb & Hσ & %Ξ & HT & Hr)|(%Hnv&%X&%Hstep&H3)]]".
   - rewrite {1} wp_unfold /wp_pre.
     iMod ("H" $! σ with "Hσ") as "H". iModIntro. iApply "H".
-  - iModIntro. iRight. iLeft. iExists s, vv, (compose_cont K K').
-    iSplit. 1: (iPureIntro; by eapply is_call_in_cont).
+  - iModIntro. iRight. iLeft. iExists s, vv, (comp_ectx K K').
+    iSplit. 1: (iPureIntro; by eapply is_call_in_ctx).
     iSplitR; first done. iFrame.
     iExists Ξ. iFrame. iNext.
     iIntros "%r HΞ". rewrite -resume_compose.
@@ -314,7 +314,7 @@ Proof.
   rewrite !wp_unfold /wp_pre /=.
   iDestruct ("HWP" with "Hσ") as ">[HWP|[HWP|HWP]]".
   { iExFalso. iDestruct "HWP" as (? HH) "?".
-    assert (is_call (of_val Λ v) fn vs empty_cont) as Hv%is_val_not_call_2.
+    assert (is_call (of_val Λ v) fn vs empty_ectx) as Hv%is_val_not_call_2.
     { rewrite -HH. apply to_call_is_call. }
     rewrite to_of_val // in Hv. }
   { iExFalso. iDestruct "HWP" as (? ? ? HH Hdom) "_".
@@ -323,33 +323,33 @@ Proof.
   iDestruct "HWP" as "[_ HWP]". done.
 Qed.
 
-Lemma wp_extern pe e fn vs C E Φ Φ' :
-  is_call e fn vs C →
+Lemma wp_extern pe e fn vs K E Φ Φ' :
+  is_call e fn vs K →
   penv_prog pe !! fn = None →
   penv_proto pe fn vs Φ -∗
   at_boundary Λ -∗
-  (▷ ∀ v, Φ v -∗ at_boundary Λ -∗ WP resume_with C (of_val Λ v) @ pe; E {{ Φ' }}) -∗
+  (▷ ∀ v, Φ v -∗ at_boundary Λ -∗ WP fill K (of_val Λ v) @ pe; E {{ Φ' }}) -∗
   WP e @ pe; E {{ Φ' }}.
 Proof.
   iIntros (Hiscall Hfnext) "H Hb Hcont". rewrite wp_unfold /wp_pre /=.
   iIntros (σ) "Hσ". iModIntro. iRight. iLeft.
-  iExists _, _, C. iSplitR; first done.
+  iExists _, _, K. iSplitR; first done.
   iSplitR; first done. iFrame "Hb Hσ". iExists Φ. iFrame "H".
   iIntros "!>" (?) "[? ?]". iApply ("Hcont" with "[$] [$]").
 Qed.
 
-Lemma wp_internal_call pe e fn vs C func body E Φ' :
-  is_call e fn vs C →
+Lemma wp_internal_call pe e fn vs K func body E Φ' :
+  is_call e fn vs K →
   penv_prog pe !! fn = Some func →
   apply_func func vs = Some body →
-  (▷ WP resume_with C body @ pe; E {{ Φ' }}) -∗
+  (▷ WP fill K body @ pe; E {{ Φ' }}) -∗
   WP e @ pe; E {{ Φ' }}.
 Proof.
   iIntros (Hcall Hfn Hfunc) "H". iApply wp_unfold. rewrite /wp_pre /=.
   iIntros (σ) "Hσ !>". iRight. iRight.
   iSplitR.
   1: by erewrite is_val_not_call_2.
-  iExists (λ '(e2, σ2), e2 = resume_with C body ∧ σ2 = σ). iSplit.
+  iExists (λ '(e2, σ2), e2 = fill K body ∧ σ2 = σ). iSplit.
   { iPureIntro. eapply call_prim_step; eauto.
     eexists _, _. repeat split; eauto. }
   iIntros (? ? (-> & ->)). by iFrame.

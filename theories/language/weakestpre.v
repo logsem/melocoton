@@ -290,7 +290,7 @@ Proof.
   - iMod "H3" as "(%Ξ & Hσ & HT & Hr)".
     iModIntro. iRight. iLeft. iExists fn, vs, (comp_ectx K K').
     iFrame. iSplitR.
-    { iPureIntro. by eapply is_call_in_cont. }
+    { iPureIntro. by eapply is_call_in_ctx. }
     iModIntro. iExists Ξ. iFrame. iNext.
     iIntros "%r HΞ".
     rewrite <- fill_comp.

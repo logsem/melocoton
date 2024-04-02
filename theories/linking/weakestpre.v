@@ -356,7 +356,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_retval_1 (pe : prog_environ (link_lang Λ1 Λ2) Σ) k1 v Φ :
-  (link_state_frag In1 -∗ WP LkSE (Link.Expr1 (resume_with k1 (of_val Λ1 v))) at pe {{ Φ }}) -∗
+  (link_state_frag In1 -∗ WP LkSE (Link.Expr1 (fill k1 (of_val Λ1 v))) at pe {{ Φ }}) -∗
   (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inl k1] at pe {{ Φ }}).
 Proof using.
   iIntros "Hwp Hb".
@@ -366,7 +366,7 @@ Proof using.
   iMod (state_interp_join with "Hpub Hpriv1") as (σ1) "[Hσ1 %Hsplit]".
   iModIntro. iRight. iRight.
   iSplitR; first done.
-  iExists (λ '(e', σ'), e' = LkSE (Link.Expr1 (resume_with k1 (of_val Λ1 v))) ∧
+  iExists (λ '(e', σ'), e' = LkSE (Link.Expr1 (fill k1 (of_val Λ1 v))) ∧
                         σ' = Link.St1 σ1 privσ2).
   iSplit. { iPureIntro. econstructor; eauto. }
   iIntros (? ? (-> & ->)). iModIntro. iNext.
@@ -377,7 +377,7 @@ Proof using.
 Qed.
 
 Lemma wp_link_retval_2 (pe : prog_environ (link_lang Λ1 Λ2) Σ) k2 v Φ :
-  (link_state_frag In2 -∗ WP LkSE (Link.Expr2 (resume_with k2 (of_val Λ2 v))) at pe {{ Φ }}) -∗
+  (link_state_frag In2 -∗ WP LkSE (Link.Expr2 (fill k2 (of_val Λ2 v))) at pe {{ Φ }}) -∗
   (link_state_frag Boundary -∗ WP Link.LkE (Link.ExprV v) [inr k2] at pe {{ Φ }}).
 Proof using.
   iIntros "Hwp Hb".
@@ -387,7 +387,7 @@ Proof using.
   iMod (state_interp_join with "Hpub Hpriv2") as (σ2) "[Hσ2 %Hsplit]".
   iModIntro. iRight. iRight.
   iSplitR; first done.
-  iExists (λ '(e', σ'), e' = LkSE (Link.Expr2 (resume_with k2 (of_val Λ2 v))) ∧
+  iExists (λ '(e', σ'), e' = LkSE (Link.Expr2 (fill k2 (of_val Λ2 v))) ∧
                         σ' = Link.St2 privσ1 σ2).
   iSplit. { iPureIntro. econstructor; eauto. }
   iIntros (? ? (-> & ->)). iModIntro. iNext.
@@ -403,8 +403,8 @@ Lemma wp_link_extcall_1 p1 p2 Ψ1 Ψ2 Ψ k1 fn_name arg Φ Ξ :
   p2 !! fn_name = None →
   Ψ1 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ1 -∗
-        WP resume_with k1 (of_val Λ1 r) at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }}) -∗
-  (▷ ∀ r, WP resume_with k1 (of_val Λ1 r) at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
+        WP fill k1 (of_val Λ1 r) at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }}) -∗
+  (▷ ∀ r, WP fill k1 (of_val Λ1 r) at ⟪p1, Ψ1⟫ {{ λ v, Φ v ∗ at_boundary Λ1 }} -∗
         link_state_frag Boundary -∗
         at_boundary Λ2 -∗
         WP Link.LkE (Link.ExprV r) [inl k1] at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
@@ -432,8 +432,8 @@ Lemma wp_link_extcall_2 p1 p2 Ψ1 Ψ2 Ψ k2 fn_name arg Φ Ξ :
   p2 !! fn_name = None →
   Ψ2 fn_name arg Ξ -∗
   (▷ ∀ r : val, Ξ r ∗ at_boundary Λ2 -∗
-        WP resume_with k2 (of_val Λ2 r) at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }}) -∗
-  (▷ ∀ r, WP resume_with k2 (of_val Λ2 r) at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
+        WP fill k2 (of_val Λ2 r) at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }}) -∗
+  (▷ ∀ r, WP fill k2 (of_val Λ2 r) at ⟪p2, Ψ2⟫ {{ λ v, Φ v ∗ at_boundary Λ2 }} -∗
         link_state_frag Boundary -∗
         at_boundary Λ1 -∗
         WP Link.LkE (Link.ExprV r) [inr k2] at ⟪link_prog p1 p2, Ψ⟫ {{ λ v, Φ v ∗ at_boundary (link_lang Λ1 Λ2) }}) -∗
@@ -514,7 +514,7 @@ Proof using.
         { rewrite lookup_union_r lookup_fmap. 1: by rewrite Hf2. by rewrite Hf. }
         cbn.
         progress change (Link.LkE (Link.ExprCall f vs) [inl C]) with
-          (resume_with ([inl C]:cont (link_lang Λ1 Λ2)) (LkSE (Link.ExprCall f vs))).
+          (fill ([inl C]:ectx (link_lang Λ1 Λ2)) (LkSE (Link.ExprCall f vs))).
         iApply wp_bind.
 
         (* Execute the call *)
@@ -602,7 +602,7 @@ Proof using.
         { rewrite lookup_union_l lookup_fmap. 1: by rewrite Hf1. by rewrite Hf. }
         cbn.
         progress change (Link.LkE (Link.ExprCall f vs) [inr C]) with
-          (resume_with ([inr C]:cont (link_lang Λ1 Λ2)) (LkSE (Link.ExprCall f vs))).
+          (fill ([inr C]:ectx (link_lang Λ1 Λ2)) (LkSE (Link.ExprCall f vs))).
         iApply wp_bind.
 
         (* Execute the call *)

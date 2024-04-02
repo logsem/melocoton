@@ -27,13 +27,13 @@ Section Linking.
   (** Execution of code belonging to the second underlying module. *)
   | Expr2 (e : Λ2.(mlanguage.expr)).
 
-  Definition cont : Type :=
-    list (Λ1.(cont) + Λ2.(cont)).
+  Definition ectx : Type :=
+    list (Λ1.(ectx) + Λ2.(ectx)).
 
   (* expr need to be wrapped in a fresh inductive for the language canonical
      structure to work when using WP *)
   Inductive expr : Type :=
-    LkE (se: simple_expr) (k: cont).
+    LkE (se: simple_expr) (k: ectx).
 
   Definition private_state : Type :=
     (lk1.(private_state) * lk2.(private_state)).
@@ -54,10 +54,10 @@ Section Linking.
     LkE (ExprV v) [] => Some v
   | _ => None end.
 
-  Definition comp_cont (K1 K2 : cont) : cont :=
+  Definition comp_ectx (K1 K2 : ectx) : ectx :=
     K2 ++ K1.
 
-  Definition resume_with (K : cont) (e : expr) : expr :=
+  Definition fill (K : ectx) (e : expr) : expr :=
     let 'LkE se k := e in
     LkE se (k ++ K).
 
@@ -146,17 +146,17 @@ Section Linking.
   (** Continuing execution by returning a value to its caller. *)
   | Ret1S v k1 C σ1 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ1 pubσ privσ1 →
-    X (LkE (Expr1 (mlanguage.resume_with k1 (mlanguage.of_val Λ1 v))) C, St1 σ1 privσ2) →
+    X (LkE (Expr1 (mlanguage.fill k1 (mlanguage.of_val Λ1 v))) C, St1 σ1 privσ2) →
     prim_step_mrel p (LkE (ExprV v) (inl k1 :: C), St pubσ privσ1 privσ2) X
   | Ret2S v k2 C σ2 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ2 pubσ privσ2 →
-    X (LkE (Expr2 (mlanguage.resume_with k2 (mlanguage.of_val Λ2 v))) C, St2 privσ1 σ2) →
+    X (LkE (Expr2 (mlanguage.fill k2 (mlanguage.of_val Λ2 v))) C, St2 privσ1 σ2) →
     prim_step_mrel p (LkE (ExprV v) (inr k2 :: C), St pubσ privσ1 privσ2) X
   (** Resolve an internal call to a module function *)
   | CallS fn_name fn arg e σ C X :
     p !! fn_name = Some fn →
     apply_func fn arg = Some e →
-    X (resume_with C e, σ) →
+    X (fill C e, σ) →
     prim_step_mrel p (LkE (ExprCall fn_name arg) C, σ) X
   (** Terminate execution with NB on values *)
   | ValStopS v σ X :
@@ -173,41 +173,41 @@ Section Linking.
   Qed.
 
   Lemma mlanguage_mixin :
-    MlanguageMixin (val:=val) of_val to_val to_call is_call [] resume_with comp_cont
+    MlanguageMixin (val:=val) of_val to_val to_call is_call [] comp_ectx fill
       apply_func prim_step.
   Proof using.
     constructor.
     - intros v. done.
     - intros e c. destruct e as [e [|]]; destruct e; cbn; intros; by simplify_eq.
     - intros *. eapply ValStopS.
-    - intros p e fn_name arg C σ X ->. split.
+    - intros p e fn_name arg K σ X ->. split.
       + inversion 1; simplify_eq. do 2 eexists. repeat split; eauto.
       + intros (?&[]&?&?&?). unfold apply_func in *. simplify_eq.
         econstructor; eauto.
-    - intros e [v Hv] f vs C ->. done.
-    - intros ? C1 C2 s vv ->. cbn. done.
+    - intros e [v Hv] f vs K ->. done.
+    - intros ? K1 K2 s vv ->. cbn. done.
     - intros. reflexivity.
     - by intros ? ? ? ? ->.
     - intros *. unfold is_call, to_call. inversion 1; eauto.
-    - intros [] C [v Hv]; cbn in Hv. repeat case_match; simplify_eq.
+    - intros [] K [v Hv]; cbn in Hv. repeat case_match; simplify_eq.
       apply app_eq_nil in H0 as [-> ->]. done.
-    - intros [] C1 C2. rewrite /= app_assoc //.
+    - intros [] K1 K2. rewrite /= app_assoc //.
     - intros [? ?]. rewrite /= app_nil_r //.
-    - intros p C [es eC] σ X Hnv. inversion 1; simplify_eq.
+    - intros p C [es eK] σ X Hnv. inversion 1; simplify_eq.
       1,2: econstructor; eauto; intros; eexists (LkE _ _); by eauto. (* StepS *)
       { eapply MakeCall1S; eauto; eexists (LkE _ _); split; eauto;
-          unfold resume_with; by eauto. }
+          unfold fill; by eauto. }
       { eapply MakeCall2S; eauto; eexists (LkE _ _); split; eauto;
-          unfold resume_with; by eauto. }
+          unfold fill; by eauto. }
       { eapply Val1S; eauto. eexists (LkE _ _). split; eauto. }
       { eapply Val2S; eauto. eexists (LkE _ _). split; eauto. }
       1,2: econstructor; eauto; eexists (LkE _ _); split; eauto. (* RunBodyS *)
       1,2: econstructor; eauto; eexists (LkE _ _); split; eauto. (* RetS *)
-      eapply CallS; eauto. exists (resume_with eC e). split; auto.
-      destruct e. rewrite /resume_with app_assoc //.
-    - intros p [[] eC] σ Hnv; simplify_eq;
+      eapply CallS; eauto. exists (fill eK e). split; auto.
+      destruct e. rewrite /fill app_assoc //.
+    - intros p [[] eK] σ Hnv; simplify_eq;
         try by (intros _; inversion 1; simplify_eq; eauto).
-      + destruct eC as [|[] eC']; first done; intros _;
+      + destruct eK as [|[] eK']; first done; intros _;
           inversion 1; simplify_eq; eauto.
       + intros _. inversion 1; simplify_eq; eauto.
         eapply prim_step_no_NB in H5 as (e1 & σ1' & ?); eauto.

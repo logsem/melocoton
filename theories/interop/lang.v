@@ -26,10 +26,10 @@ Inductive simple_expr : Type :=
   (** Execution of wrapped ML code *)
   | ExprML (eml : ML_lang.expr).
 
-Definition cont := list (language.ectx ML_lang).
+Definition ectx := list (language.ectx ML_lang).
 
 Inductive expr : Type :=
-  WrE (se: simple_expr) (k: cont).
+  WrE (se: simple_expr) (k: ectx).
 
 Definition apply_func (prm : prim) (args : list word) : option expr :=
   Some (WrE (RunPrimitive prm args) []).
@@ -45,10 +45,10 @@ Definition to_val (e : expr) : option word :=
 Definition is_call e f vs C := e = WrE (ExprCall f vs) C.
 Definition to_call f vs := WrE (ExprCall f vs) [].
 
-Definition comp_cont (K1 K2 : cont) : cont :=
+Definition comp_ectx (K1 K2 : ectx) : ectx :=
   K2 ++ K1.
 
-Definition resume_with (K : cont) (e : expr) : expr :=
+Definition fill (K : ectx) (e : expr) : expr :=
   let 'WrE se k := e in
   WrE se (k ++ K).
 
@@ -508,29 +508,29 @@ Next Obligation.
 Qed.
 
 Lemma mlanguage_mixin :
-  MlanguageMixin (val:=word) of_val to_val to_call is_call [] resume_with
-    comp_cont apply_func prim_step.
+  MlanguageMixin (val:=word) of_val to_val to_call is_call [] comp_ectx fill
+    apply_func prim_step.
 Proof using.
   constructor.
   - intros c. destruct c; reflexivity.
   - intros e c. destruct e as [e k]. destruct e; cbn.
     1,2: destruct k. all: inversion 1; cbn; auto.
   - intros p v σ. eapply ValStopS.
-  - intros p e fname vs C σ X ->. rewrite /apply_func; split.
+  - intros p e fname vs K σ X ->. rewrite /apply_func; split.
     + inversion 1; simplify_map_eq. naive_solver.
     + intros (?&?&?&?&?); eapply ExprCallS; simplify_eq; eauto.
-  - by intros e [v Hv] f vs C ->.
-  - by intros e C1 C2 s vv ->.
+  - by intros e [v Hv] f vs K ->.
+  - by intros e K1 K2 s vv ->.
   - intros. reflexivity.
   - by intros * ->.
   - intros *. inversion 1; eauto.
-  - intros [] C [v Hv]. rewrite /to_val /resume_with in Hv.
+  - intros [] K [v Hv]. rewrite /to_val /fill in Hv.
     repeat case_match; try congruence.
     apply app_eq_nil in H0 as (->&->); done.
-  - intros [] C1 C2.
-    rewrite /resume_with /comp_cont app_assoc //.
+  - intros [] K1 K2.
+    rewrite /fill /comp_ectx app_assoc //.
   - intros [? ?]. rewrite /= app_nil_r //.
-  - intros p C [es eC] σ X Hnv. inversion 1; simplify_eq.
+  - intros p C [es eK] σ X Hnv. inversion 1; simplify_eq.
     all: try (econstructor; eauto; naive_solver).
     + econstructor; eauto. rewrite -/app. eexists (WrE _ _); eauto.
     + econstructor; eauto. eexists (WrE _ _); eauto.
