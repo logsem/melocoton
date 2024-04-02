@@ -426,7 +426,7 @@ Proof.
 Qed.
 
 Local Definition is_ML_call (e : ML_lang.expr) fn_name vs K :=
-  e = language.fill K (of_class _ (language_commons.ExprCall fn_name vs)).
+  e = language.fill K (of_call _ fn_name vs).
 
 Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (** Step in the underlying wrapped ML program. *)

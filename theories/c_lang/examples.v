@@ -207,7 +207,6 @@ Proof.
   eapply wp_link_progs, can_link_can_link_all, example_can_link.
 Qed.
 
-
 End linking.
 
 End examples.

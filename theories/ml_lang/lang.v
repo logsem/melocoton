@@ -23,6 +23,12 @@ Noteworthy design choices:
   deallocate a hole out of it in the middle.
 *)
 
+(* Engineering note: definitions and lemmas defined as [Local] correspond to
+   fields of [LanguageMixin] that thus get re-exported as generic functions on a
+   [language]. We define them as local to avoid the ml_lang-specific name
+   clashing with the generic name, and always pick the generic name.
+*)
+
 Declare Scope ml_expr_scope.
 Declare Scope ml_val_scope.
 Delimit Scope ml_expr_scope with MLE.
@@ -138,61 +144,16 @@ Bind Scope ml_val_scope with val.
 
 Notation of_val := Val (only parsing).
 
-Definition of_class_ML (e : mixin_expr_class) : expr :=
+Local Definition to_val (e : expr) : option val :=
   match e with
-  | ExprVal v => Val v
-  | ExprCall vf vl => Extern vf (map Val vl)
-  end.
-
-#[local] Notation omap f x := (match x with Some v => f v | None => None end).
-
-Fixpoint unmap_val el :=
-  match el with
-  | Val v :: er => omap (fun vr => Some (v::vr)) (unmap_val er)
-  | [] => Some nil
+  | Val v => Some v
   | _ => None
   end.
 
-Definition to_class_ML (e : expr) : option mixin_expr_class :=
-  match e with
-  | Val v => Some (ExprVal v)
-  | Extern vf el => omap (fun l => Some (ExprCall vf l)) (unmap_val el)
-  | _ => None
-  end.
-
-Lemma map_unmap_val l : unmap_val (map Val l) = Some l.
-Proof.
-  induction l.
-  - easy.
-  - cbn. rewrite IHl. easy.
-Qed.
-
-Lemma to_of_class_ML e : to_class_ML (of_class_ML e) = Some e.
-Proof.
-  destruct e.
-  - easy.
-  - cbn. rewrite map_unmap_val. easy.
-Qed.
-
-Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
-Proof.
-  induction le in lv|-*.
-  - intros H. injection H. intros <-. easy.
-  - cbn. destruct a. 2-18:congruence.
-    destruct (unmap_val le) eqn:Heq. 2:congruence.
-    intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
-Qed.
-
-Lemma of_to_class_ML e c : to_class_ML e = Some c → of_class_ML c = e.
-Proof.
-  destruct e; cbn; try congruence.
-  - intros H. injection H. intros <-. easy.
-  - destruct unmap_val eqn:Heq. 2:congruence.
-    intros H. injection H. intros <-. cbn. f_equal. now apply unmap_val_map.
-Qed.
-
-Local Notation to_val e :=
-  (match to_class_ML e with Some (ExprVal v) => Some v | _ => None end).
+Local Lemma to_of_val v : to_val (of_val v) = Some v.
+Proof. done. Qed.
+Local Lemma of_to_val e v : to_val e = Some v → of_val v = e.
+Proof. destruct e; inversion 1; done. Qed.
 
 (** Helpers to define the semantics of equality on values [EqOp].
 
@@ -514,7 +475,7 @@ Proof.
  - destruct v; by f_equal.
 Qed.
 Global Instance val_countable : Countable val.
-Proof. refine (inj_countable of_val (λ e, to_val e) _); auto using to_of_class_ML. Qed.
+Proof. refine (inj_countable of_val (λ e, to_val e) _); auto using to_of_val. Qed.
 
 Global Instance state_inhabited : Inhabited state :=
   populate inhabitant.
@@ -670,7 +631,6 @@ Definition state_upd_heap (f: gmap loc (option (list val)) → gmap loc (option 
 Global Arguments state_upd_heap _ !_ /.
 
 Inductive ml_function := MlFun (b : list binder) (e : expr).
-Class ml_program := prog : gmap string ml_function.
 
 (* Note that this way, a function where all arguments have the same name (say x), that returns x, returns the first argument *)
 Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) := match an, av with
@@ -682,7 +642,7 @@ Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) 
 Definition apply_function (f:ml_function) (av : list val) := match f with MlFun an e =>
     match (zip_args an av) with Some σ => Some (subst_all σ e) | _ => None end end.
 
-Inductive head_step (p : ml_program) : expr → state → expr → state → Prop :=
+Inductive head_step (p : gmap string ml_function) : expr → state → expr → state → Prop :=
   | RecS f x e σ :
      head_step p (Rec f x e) σ (Val $ RecV f x e) σ
   | PairS v1 v2 σ :
@@ -747,23 +707,61 @@ Inductive head_step (p : ml_program) : expr → state → expr → state → Pro
     head_step p (Length (Val $ LitV $ LitLoc l)) σ
                 (Val $ LitV $ LitInt (length vs)) σ
   | ExternS s va args res e σ :
-     (p : gmap string ml_function) !! s = Some (MlFun args e) →
+     p !! s = Some (MlFun args e) →
      apply_function (MlFun args e) va = Some res →
      head_step p (Extern s (map Val va)) σ res σ.
 
+Definition head_reducible (p : gmap _ _) (e : expr) (σ : state) :=
+  ∃ e' σ', head_step p e σ e' σ'.
+
+Inductive prim_step p : expr → state → expr → state → Prop :=
+  Prim_step K e1 e2 σ1 σ2 e1' e2' :
+    e1 = fill K e1' → e2 = fill K e2' →
+    head_step p e1' σ1 e2' σ2 → prim_step p e1 σ1 e2 σ2.
+
+(** External calls *)
+
+Local Definition of_call fn (vs: list val) : expr :=
+   Extern fn (map Val vs).
+
+Local Definition is_call e fn vs K :=
+  e = fill K (of_call fn vs).
 
 (** Basic properties about the language *)
+
+Lemma alloc_fresh p v n σ :
+  let l := fresh_locs (dom σ) in
+  (0 ≤ n)%Z →
+  head_step p (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ
+              (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ).
+Proof.
+  intros.
+  apply AllocNS; first done.
+  intros.
+  pose proof (fresh_locs_fresh (dom σ) 0 ltac:(reflexivity)) as Hfresh.
+  by rewrite loc_add_0 in Hfresh.
+Qed.
+
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
+
+Lemma fill_comp_item k K e : fill (k :: K) e = fill K (fill_item k e).
+Proof. reflexivity. Qed.
+
+Global Instance fill_inj K : Inj (=) (=) (fill K).
+Proof.
+  intros e1 e2.
+  induction K as [|Ki K IH] in e1, e2 |- *; rewrite /Inj; first done.
+  rewrite !fill_comp_item. by intros ?%IH%fill_item_inj.
+Qed.
 
 Lemma val_head_stuck p e1 σ1 e2 σ2 :
   head_step p e1 σ1 e2 σ2 → to_val e1 = None.
 Proof.
   inversion 1; simplify_eq; try done.
-  cbn. repeat (case_match; simplify_eq); done.
 Qed.
 
-Lemma head_ctx_step_val p Ki e σ1 e2 σ2 :
+Lemma head_ctx_item_step_val p Ki e σ1 e2 σ2 :
   head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_val e).
 Proof.
   revert e2. induction Ki; try by (inversion_clear 1; simplify_option_eq; eauto).
@@ -785,18 +783,266 @@ Proof.
     + f_equal. apply (map_inj Val). 2:easy. congruence.
 Qed.
 
+Lemma prim_step_inv p e1 e2 σ1 σ2 :
+  prim_step p e1 σ1 e2 σ2 →
+  ∃ K e1' e2', e1 = fill K e1' ∧ e2 = fill K e2' ∧ head_step p e1' σ1 e2' σ2.
+Proof. inversion 1; subst; do 3 eexists; eauto. Qed.
 
-Lemma alloc_fresh p v n σ :
-  let l := fresh_locs (dom σ) in
-  (0 ≤ n)%Z →
-  head_step p (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ
-              (Val $ LitV $ LitLoc l) (<[l := Some (replicate (Z.to_nat n) v)]> σ).
+Lemma head_prim_step p e1 σ1 e2 σ2 :
+  head_step p e1 σ1 e2 σ2 → prim_step p e1 σ1 e2 σ2.
+Proof. apply Prim_step with []; by rewrite ?fill_empty. Qed.
+
+Local Lemma fill_val (K : list ectx_item) (e: expr) :
+  is_Some (to_val (fill K e)) → is_Some (to_val e).
+Proof.
+  intros [v Hv]. revert v Hv. induction K as [|k1 K] using rev_ind; intros v Hv.
+  1: done.
+  rewrite fill_app in Hv.
+  destruct k1; cbn in Hv; try congruence.
+Qed.
+
+Local Lemma fill_val_2 (K : list ectx_item) (e: expr) v :
+  fill K e = Val v → is_Some (to_val e).
+Proof. intros HH. eapply (fill_val K). rewrite HH//. Qed.
+
+Lemma to_val_of_call fn vs : to_val (of_call fn vs) = None.
+Proof. rewrite /to_val /of_call //. Qed.
+
+Local Lemma fill_call e K fn vs : fill K e = of_call fn vs → K = [] ∨ is_Some (to_val e).
+Proof.
+  revert e. destruct K as [|k1 K] using rev_ind; intros *; cbn; first by left.
+  rewrite fill_app/=.
+  destruct k1; (try by inversion 1); [].
+  rewrite /of_call /=. inversion 1; subst.
+  assert (In (fill K e) (map Val vs)) as [vv [Hvv' Hvv]]%in_map_iff.
+  { rewrite -H2; apply in_app_iff; right; now left. }
+  symmetry in Hvv'. apply fill_val_2 in Hvv' as [? ?]. eauto.
+Qed.
+
+Local Lemma fill_comp e K1 K2 :
+  fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e.
+Proof. rewrite /fill /comp_ectx foldl_app//. Qed.
+
+Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
+Proof.
+  intros HH. destruct (to_val (fill K e)) eqn:Heq; try done.
+  destruct (fill_val K e); try done. congruence.
+Qed.
+
+Local Lemma val_prim_step p v σ1 e2 σ2:
+  prim_step p (of_val v) σ1 e2 σ2 → False.
+Proof.
+  inversion 1; subst. symmetry in H0. eapply fill_val_2 in H0 as [? ?].
+  eapply val_head_stuck in H2. congruence.
+Qed.
+
+Lemma head_ctx_step_val' p K e σ1 e2 σ2 :
+  head_step p (fill K e) σ1 e2 σ2 → K = [] ∨ is_Some (to_val e).
+Proof.
+  destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
+  rewrite fill_app /=.
+  intros [v' ?]%head_ctx_item_step_val%fill_val. right. exists v'.
+  by repeat (case_match; simplify_eq).
+Qed.
+
+Lemma head_ctx_step_val p K e σ1 e2 σ2 :
+  head_step p (fill K e) σ1 e2 σ2 → K = [] ∨ is_Some (to_val e).
+Proof.
+  intros [?|[v Hv]]%head_ctx_step_val'; first by left. right.
+  rewrite Hv. eauto.
+Qed.
+
+Lemma step_by_val : ∀ p K' K_redex e1' e1_redex σ1 e2 σ2,
+  fill K' e1' = fill K_redex e1_redex →
+  to_val e1' = None →
+  head_step p e1_redex σ1 e2 σ2 →
+  ∃ K'', K_redex = comp_ectx K' K''.
+Proof.
+  intros p.
+    intros K K' e1 e1' σ1 e2 σ2 Hfill Hred Hstep; revert K' Hfill.
+    induction K as [|Ki K IH] using rev_ind=> /= K' Hfill; eauto using app_nil_r.
+    destruct K' as [|Ki' K' _] using @rev_ind; simplify_eq/=.
+    { rewrite fill_app in Hstep. apply head_ctx_item_step_val in Hstep.
+      apply fill_val in Hstep. destruct Hstep as [? Hstep]. congruence. }
+    rewrite !fill_app /= in Hfill.
+    assert (Ki = Ki') as ->.
+    { eapply fill_item_no_val_inj, Hfill.
+      2: by eapply fill_not_val, val_head_stuck.
+      eapply fill_not_val. by destruct e1. }
+    simplify_eq. destruct (IH K') as [K'' ->]; auto.
+    exists K''. rewrite /comp_ectx assoc //.
+Qed.
+
+Lemma call_head_step (p: gmap string ml_function) f vs σ1 e2 σ2 :
+  head_step p (of_call f vs) σ1 e2 σ2 ↔
+  ∃ (fn : ml_function),
+    p !! f = Some fn ∧ Some e2 = apply_function fn vs ∧ σ2 = σ1.
+Proof.
+  split.
+  - intros H. inversion H; subst. inversion H; subst.
+    repeat econstructor; [apply H2|]. simplify_eq. congruence.
+  - intros ([args ee] & H1 & H2 & ->). econstructor; eauto.
+Qed.
+
+Lemma prim_step_call_inv (p: gmap _ _) K f vs e' σ σ' :
+  prim_step p (fill K (of_call f vs)) σ e' σ' →
+  ∃ er fn, Some er = apply_function fn vs ∧ p !! f = Some fn ∧ e' = fill K er ∧ σ' = σ.
+Proof.
+  intros (K' & e1 & e2 & Hctx & -> & Hstep)%prim_step_inv.
+  eapply step_by_val in Hstep as H'; eauto.
+  destruct H' as [K'' Hctx']; subst K'.
+  rewrite -fill_comp in Hctx. eapply fill_inj in Hctx.
+  destruct (fill_call e1 K'' f vs) as [->|Hval]; auto.
+  - cbn in *; subst. apply call_head_step in Hstep as (?&?&?&?); simplify_eq.
+    do 2 eexists. split_and!; eauto.
+  - eapply val_head_stuck in Hstep. destruct Hval; congruence.
+Qed.
+
+Local Lemma call_prim_step (p: gmap _ _) f vs K e σ1 e' σ2 :
+  is_call e f vs K →
+  prim_step p e σ1 e' σ2 ↔
+  ∃ (fn : ml_function) (e2 : expr),
+    p !! f = Some fn ∧ Some e2 = apply_function fn vs ∧ e' = fill K e2 ∧ σ2 = σ1.
+Proof.
+  unfold is_call. intros Hcall. split.
+  { subst. intros HH%prim_step_call_inv. naive_solver. }
+  { intros (fn & e2 & ? & ? & ? & ?); simplify_eq. econstructor; [done..|].
+    apply call_head_step. eauto. }
+Qed.
+
+Local Lemma is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C).
+Proof.
+  destruct e; try by inversion 1. cbn. intros _ *.
+  intros [? ?]%eq_sym%fill_val_2. done.
+Qed.
+
+Local Lemma is_call_in_cont e K1 K2 fn vs :
+  is_call e fn vs K2 →
+  is_call (fill K1 e) fn vs (comp_ectx K1 K2).
+Proof. unfold is_call. rewrite -fill_comp. naive_solver. Qed.
+
+Local Lemma is_call_of_call_inv fn vs fn' vs' K :
+  is_call (of_call fn vs) fn' vs' K →
+  fn' = fn ∧ vs' = vs ∧ K = [].
+Proof.
+  intros *. unfold is_call. intros HH.
+  pose proof (fill_call _ _ _ _ (eq_sym HH)) as [?|?]; subst; cbn in *.
+  * inversion HH; subst. apply stdpp_extra.map_inj in H1; eauto.
+    intros *; by inversion 1.
+  * by inversion H.
+Qed.
+
+Local Lemma prim_step_fill p K e σ e' σ' :
+  prim_step p e σ e' σ' →
+  prim_step p (fill K e) σ (fill K e') σ'.
+Proof.
+  intros (K' & e1' & e2' & -> & -> & ?) % prim_step_inv.
+  rewrite !fill_comp. by econstructor.
+Qed.
+
+Local Lemma fill_step_inv K p e1' σ1 e2 σ2 :
+  to_val e1' = None → prim_step p (fill K e1') σ1 e2 σ2 →
+  ∃ e2', e2 = fill K e2' ∧ prim_step p e1' σ1 e2' σ2.
+Proof.
+  intros H1. inversion 1; simplify_eq.
+  destruct (step_by_val _ _ _ _ _ _ _ _ H0 H1 H3) as (K'' & ->).
+  rewrite <- fill_comp in *.
+  apply fill_inj in H0; simplify_eq. eexists. split; eauto.
+  by econstructor.
+Qed.
+
+Local Lemma head_reducible_prim_step_ctx p K e1 σ1 e2 σ2 :
+  head_reducible p e1 σ1 →
+  prim_step p (fill K e1) σ1 e2 σ2 →
+  ∃ e2', e2 = fill K e2' ∧ head_step p e1 σ1 e2' σ2.
+Proof.
+  intros (e2''&σ2''&HhstepK) (K' & e1' & e2' & HKe1 & -> & Hstep) % prim_step_inv.
+  edestruct (step_by_val p K) as [K'' ?];
+    eauto using val_head_stuck; simplify_eq/=.
+  rewrite -fill_comp in HKe1; simplify_eq.
+  exists (fill K'' e2'). rewrite fill_comp; split; first done.
+  apply head_ctx_step_val in HhstepK as [?|[v ?]]; simplify_eq.
+  - by rewrite //=.
+  - apply val_head_stuck in Hstep; simplify_eq.
+Qed.
+
+Lemma head_reducible_prim_step p e1 σ1 e2 σ2 :
+  head_reducible p e1 σ1 →
+  prim_step p e1 σ1 e2 σ2 →
+  head_step p e1 σ1 e2 σ2.
 Proof.
   intros.
-  apply AllocNS; first done.
-  intros.
-  pose proof (fresh_locs_fresh (dom σ) 0 ltac:(reflexivity)) as Hfresh.
-  by rewrite loc_add_0 in Hfresh.
+  edestruct (head_reducible_prim_step_ctx p []) as (?&?&?);
+    rewrite ?fill_empty; eauto.
+  by simplify_eq.
+Qed.
+
+#[local] Notation omap f x := (match x with Some v => f v | None => None end).
+
+Fixpoint unmap_val el :=
+  match el with
+  | Val v :: er => omap (fun vr => Some (v::vr)) (unmap_val er)
+  | [] => Some nil
+  | _ => None
+  end.
+
+Local Definition to_call_head (e : expr) :=
+  match e with
+  | Extern fn el => omap (λ vs, Some (fn, vs)) (unmap_val el)
+  | _ => None
+  end.
+
+Lemma map_unmap_val l : unmap_val (map Val l) = Some l.
+Proof.
+  induction l.
+  - easy.
+  - cbn. rewrite IHl. easy.
+Qed.
+
+Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
+Proof.
+  induction le in lv|-*.
+  - intros H. injection H. intros <-. easy.
+  - cbn. destruct a. 2-18:congruence.
+    destruct (unmap_val le) eqn:Heq. 2:congruence.
+    intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
+Qed.
+
+Local Lemma prim_step_call_dec p e σ e' σ' :
+  prim_step p e σ e' σ' →
+  (∃ fn vs K, is_call e fn vs K) ∨ (∀ fn vs K, ¬ is_call e fn vs K).
+Proof.
+  intros (K & e1' & e2' & ? & ? & Hstep)%prim_step_inv; subst.
+  destruct (to_val e1') eqn:Hval.
+  { exfalso. apply val_head_stuck in Hstep. congruence. }
+
+  destruct (to_call_head e1') as [[fn vs]|] eqn:Hcall.
+  { assert (∃ fn vs, e1' = of_call fn vs) as (fn' & vs' & ?).
+    { unfold to_call_head in Hcall. repeat case_match; simplify_eq.
+      eapply unmap_val_map in H0. subst; eauto. } subst.
+    apply call_head_step in Hstep as (?&?&?&?); simplify_eq.
+    unfold is_call. eauto. }
+
+  right. unfold is_call, of_call.
+  intros fn vs K' Hcall'%eq_sym.
+  pose proof Hcall' as Hcall''.
+  eapply step_by_val in Hcall'' as (?&?); eauto; subst.
+  rewrite -fill_comp in Hcall'. apply fill_inj in Hcall'.
+  symmetry in Hcall'. pose proof Hcall' as Hcall''.
+  apply fill_call in Hcall'' as [|]; cbn in *; subst.
+  - cbn in Hcall'; subst. rewrite /= map_unmap_val // in Hcall.
+  - destruct H; congruence.
+Qed.
+
+Local Lemma prim_step_no_call p1 p2 e σ e' σ' :
+  (∀ f vs K, ¬ is_call e f vs K) →
+  prim_step p1 e σ e' σ' →
+  prim_step p2 e σ e' σ'.
+Proof.
+  intros Hncall (K & e1' & e2' & ? & ? & Hstep)%prim_step_inv; subst.
+  inversion Hstep; subst.
+  all: try repeat (econstructor; eauto).
+  exfalso. eapply Hncall. done.
 Qed.
 
 End ML_lang.

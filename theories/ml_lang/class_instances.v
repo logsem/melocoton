@@ -35,7 +35,6 @@ Section pure_exec.
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
       constructor; [solve_exec_safe | solve_exec_puredet].
 
-
   Global Instance pure_recc f x (erec : expr) :
     PureExec True 1 p (Rec f x erec) (Val $ RecV f x erec).
   Proof. solve_pure_exec. Qed.

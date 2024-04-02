@@ -46,6 +46,26 @@ Proof.
   iApply ("IH" with "HΨ"). iPureIntro. apply Hres'.
 Qed.
 
+Lemma wp_lift_atomic_head_step {s E Φ} e1 :
+  to_val e1 = None →
+  (∀ σ1, state_interp σ1 ={E}=∗
+    ⌜head_reducible (penv_prog s) e1 σ1⌝ ∗
+    ▷ ∀ e2 σ2, ⌜head_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
+      state_interp σ2 ∗
+      from_option Φ False (to_val e2))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (?) "H".
+  iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1".
+  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. iSplitR; first (iPureIntro; by eapply head_prim_reducible).
+  iIntros (e' σ' Hstep%head_reducible_prim_step). 2: {  destruct HH as (?&?&HH). do 2 eexists. done. }
+  do 2 iModIntro.
+  iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
+  iFrame.
+  destruct (to_val e') eqn:?; last by iExFalso.
+  iApply wp_value; first done. iApply "H2".
+Qed.
+
 Lemma wp_Malloc_seq E n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ p; E
@@ -107,8 +127,7 @@ Lemma wp_call' (s:prog_environ C_lang Σ) n args body body' vv E Φ :
   -∗ (|={E}=> ▷ |={E}=> WP body' @ s ; E {{v, Φ v}})
   -∗ WP (FunCall ((&n)) (map Val vv)) @ s ; E {{v, Φ v}}.
 Proof.
-  iIntros (Hlookup Happly) "Hcont". iApply wp_lift_step_fupd.
-  { cbv -[map unmap_val]. now rewrite map_unmap_val. }
+  iIntros (Hlookup Happly) "Hcont". iApply wp_lift_step_fupd; first done.
   iIntros (σ1) "Hσ !>".
   iSplit.
   { iPureIntro. eexists _,_. apply head_prim_step. econstructor; done. }

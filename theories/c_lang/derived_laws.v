@@ -17,7 +17,7 @@ lead to overlapping instances. *)
 Section lifting.
 Context {SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
-Context {p:program}.
+Context {p:gmap string function}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types σ : gmap loc heap_cell.

@@ -176,8 +176,8 @@ Fixpoint zip_types (an : list binder) (av : list type) : option (gmap string typ
 Definition fun_typed (P : program_env) (Pt : program_type) (m : ml_function) : Prop := match m, Pt with
   MlFun bs e, FunType ats rt => ∃ Γ', zip_types bs ats = Some Γ' ∧ typed P Γ' e rt end. 
 
-Definition program_typed (P : program_env) (p : ml_program) : Prop := 
-  map_Forall (λ s Pt, ∃ m, (p:gmap string _) !! s = Some m ∧ fun_typed P Pt m) (P : gmap string _).
+Definition program_typed (P : program_env) (p : gmap string ml_function) : Prop :=
+  map_Forall (λ s Pt, ∃ m, p !! s = Some m ∧ fun_typed P Pt m) P.
 
 
 Notation "P ;; Γ ⊢ₜ e : τ" := (typed P Γ e τ) (at level 74, e, τ at next level).

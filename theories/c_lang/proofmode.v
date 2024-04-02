@@ -158,6 +158,7 @@ Tactic Notation "wp_extern" :=
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let e := eval simpl in e in
+    let e := eval unfold lang.C_lang.of_call in e in
     reshape_expr e ltac:(fun K e' => match e' with FunCall (Val (& ?s)) (map Val ?vv) =>
       iApply (@wp_extern _ _ C_lang _ _ _ K _ s vv); [iPureIntro; try by (vm_compute; reflexivity) | ] end)
     || fail "wp_extern: expression not a call"
@@ -169,6 +170,7 @@ Tactic Notation "wp_progwp" :=
   lazymatch goal with
   | |- envs_entails _ (wp ?pe ?E ?e ?Q) =>
     let e := eval simpl in e in
+    let e := eval unfold lang.C_lang.of_call in e in
     reshape_expr e ltac:(fun K e' => match e' with FunCall (Val (& ?s)) (map Val ?vv) =>
       iApply (@wp_progwp _ _ C_lang _ _ _ pe s vv E _ Q K); [ | ] end)
     || fail "wp_progwp: expression not a call"

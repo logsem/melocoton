@@ -154,7 +154,7 @@ Section logrel.
      functions to be well-typed.*)
 
   Definition interp_prog_env (p_types : gmap string program_type) (Δ : listO D) : iProp Σ :=
-    (□ ∀ s vv Φ, prog_env_proto p_types Δ s vv Φ -∗ WP (of_class _ (ExprCall s vv)) {{v, Φ v}}).
+    (□ ∀ s vv Φ, prog_env_proto p_types Δ s vv Φ -∗ WP (of_call _ s vv) {{v, Φ v}}).
 
   Definition interp_expr (τ : type) (Δ : listO D) (e : expr ML_lang) : iProp Σ :=
     na_tok -∗ WP e {{ λ v, ⟦ τ ⟧ Δ v ∗ na_tok }}%I.

@@ -71,9 +71,7 @@ Proof using.
   iMod ("H" $! σ with "[Hσ]") as "[(%x & -> & Hσ & H)|[(%s' & %vv & %K' & %Hcall & %H2 & _ & Hσ & H3)|(%Hval & %Hext & %Hstep & H3)]]"; cbn.
   - done.
   - iLeft. iModIntro. iExists x. iFrame. done.
-  - iRight. iLeft. cbn in Hcall. unfold is_call in Hcall. subst e.
-    iModIntro. do 3 iExists _; iSplit; first done.
-    iSplit; first done.
+  - iRight. iLeft. iModIntro. do 3 iExists _; iSplit; first done. iSplit; first done.
     iPoseProof "H3" as "(%Ξ & HT & Hr)". iModIntro. iExists Ξ. iFrame.
     iNext. iIntros (v) "Hv". iApply "IH". iApply "Hr". iFrame.
   - iRight. iRight. iModIntro.

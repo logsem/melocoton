@@ -135,4 +135,5 @@ Section adequacy.
     - iIntros "!> %σ %v (Hσ&->) //".
     - iIntros "!> %F %s %vv []".
   Qed.
+
 End adequacy.

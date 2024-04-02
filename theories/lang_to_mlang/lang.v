@@ -11,13 +11,11 @@ Section ToMlang.
   Local Notation prog := (gmap string Λ.(func)).
   Local Notation expr_state := ((Λ.(expr) * Λ.(state)))%type.
 
-  Inductive prim_step_mrel : prog -> expr_state -> (expr_state->Prop) -> Prop :=
+  Inductive prim_step_mrel : prog → expr_state → (expr_state → Prop) → Prop :=
   | LiftStep p e1 σ1 (X : _ → Prop) :
       (to_val e1 = None → reducible p e1 σ1) →
-      (∀ e2 σ2,
-         prim_step p e1 σ1 e2 σ2 →
-         X (e2, σ2)) →
-      prim_step_mrel p (e1,σ1) X.
+      (∀ e2 σ2, prim_step p e1 σ1 e2 σ2 → X (e2, σ2)) →
+      prim_step_mrel p (e1, σ1) X.
 
   Program Definition prim_step (p : prog) : umrel (expr_state) :=
     {| mrel := prim_step_mrel p |}.
@@ -29,15 +27,9 @@ Section ToMlang.
 
   Notation cont := Λ.(ectx).
 
-  Definition is_call (e : Λ.(expr)) (s : string) (vs : list val) (C : cont) : Prop := 
-    e = fill C (of_class Λ (ExprCall s vs)).
-
-  Definition to_call (s : string) (vs : list val) : Λ.(expr) :=
-    of_class Λ (ExprCall s vs).
-
   Lemma language_mlanguage_mixin :
-    MlanguageMixin (val:=val) (of_val Λ) to_val to_call is_call empty_ectx
-      (fill) (Λ.(comp_ectx)) (Λ.(apply_func)) prim_step.
+    MlanguageMixin (val:=val) (of_val Λ) to_val Λ.(of_call) Λ.(is_call) empty_ectx
+      Λ.(fill) Λ.(comp_ectx) Λ.(apply_func) prim_step.
   Proof using.
     constructor.
     - apply to_of_val.
@@ -45,27 +37,29 @@ Section ToMlang.
     - intros p v σ. constructor.
       + rewrite to_of_val. inversion 1.
       + apply val_prim_step.
-    - intros p e f vs C σ X ->. split; intros H.
+    - intros p e f vs C σ X Hcall. split; intros H.
       + inversion H; simplify_eq.
-        destruct H3 as (?&?&Hstep); first by apply to_val_fill_call.
+        destruct H3 as (?&?&Hstep).
+        { destruct (to_val e) eqn:HH; auto.
+          eapply is_val_not_call in Hcall; by eauto. }
         pose proof Hstep as Hstep2.
-        apply prim_step_call_inv in Hstep as (?&?&?&?&?&?); simplify_eq.
+        eapply call_prim_step in Hstep as (?&?&?&?&?&?); eauto; simplify_eq.
         do 2 eexists. repeat split; eauto.
       + destruct H as (fn&?&?&?&?). constructor.
-        * intros _. eapply reducible_fill, head_prim_reducible. do 2 eexists.
-          eapply call_head_step. eauto.
-        * intros * (?&?&?&?&?&?)%prim_step_call_inv; simplify_eq.
-          congruence.
-    - intros e [v Hv] f vs C ->. rewrite to_val_fill_call in Hv; done.
-    - intros e C1 C2 s vv Heq. rewrite /is_call -fill_comp. by f_equal.
-    - intros. unfold is_call, to_call. rewrite fill_empty //.
-    - by intros * ->.
-    - intros *. unfold is_call, to_call. intros HH.
-      rewrite -(fill_empty (of_class _ _)) in HH.
-      apply call_call_in_ctx in HH. destruct_and!; eauto.
-    - intros e C. apply fill_val.
-    - intros e C1 C2. apply fill_comp.
-    - intros ?. apply fill_empty.
+        * intros _. rewrite (is_call_of_call e f vs C) //.
+          eapply reducible_fill. do 2 eexists. eapply call_prim_step.
+          1: eapply of_call_is_call. do 2 eexists; eauto.
+        * intros *. pose proof (is_call_of_call e f vs C Hcall).
+          intros Hstep. rewrite call_prim_step in Hstep; eauto.
+          destruct Hstep as (?&?&?&?&?&?); simplify_eq. congruence.
+    - eapply is_val_not_call.
+    - eapply is_call_in_cont.
+    - eapply of_call_is_call.
+    - eapply is_call_of_call.
+    - eapply is_call_of_call_inv.
+    - eapply fill_val.
+    - eapply fill_comp.
+    - eapply fill_empty.
     - intros p C e σ X Hnv. inversion 1; simplify_eq. econstructor.
       { intros ?. eapply reducible_fill; eauto. }
       intros e2 σ2 Hstep. eapply fill_step_inv in Hstep as (?&?&?); eauto.
