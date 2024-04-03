@@ -352,6 +352,18 @@ Proof.
     apply elem_of_dom_2 in Hσ. apply HH1 in Hσ as (γ'&?&?). by lloc_map_inj.
 Qed.
 
+Definition hybrid_interp (χ : lloc_map)
+  (σphys : store) (ζphys : lstore)
+  (σactive : store) (ζactive : lstore) : iProp Σ
+:=
+  ∃ σmid ζmid,
+    "->" ∷ ⌜σphys = σactive ∪ σmid⌝ ∗
+    "->" ∷ ⌜ζactive = ζphys ∪ ζmid⌝ ∗
+    "HIσ" ∷ state_interp σphys ∗
+    "HIζ" ∷ lstore_own_auth ζactive ∗
+    "HIσmid" ∷ ([∗ map] ℓ↦vs ∈ σmid, ℓ ↦∗ vs) ∗
+    "%HImid" ∷ ⌜is_store_blocks χ σmid ζmid⌝.
+
 Definition state_interp_with_safekeeping (σfull σ : store) : iProp Σ :=
   ∃ σsafe,
     "->" ∷ ⌜σfull = σ ∪ σsafe⌝ ∗
@@ -464,18 +476,22 @@ Proof using.
     { rewrite -> Hsub. eapply insert_subseteq; eauto. } }
 Qed.
 
-Definition HGH (χ : lloc_map) (σo : option store) (ζ : lstore) : iProp Σ :=
-  ∃ (ζg : lstore) (χg : lloc_map),
-  "HGHζ" ∷ lstore_own_auth ζg ∗
+Inductive hgh_detached_state := Detached | Attached.
+
+Definition HGH (χ : lloc_map) (dtch : hgh_detached_state) (ζ : lstore) : iProp Σ :=
+  ∃ (χg : lloc_map),
   "HGHχ" ∷ lloc_own_auth χg ∗
-  "HGHσo" ∷ match σo with
-  | None => ∃ σsafe,
-    "[-> ->]" ∷ ⌜ζg = ζ ∧ χg = χ⌝ ∗
-    "HGHσsafe" ∷ ([∗ map] ℓ↦vs ∈ σsafe, ℓ ↦∗ vs) ∗
+  "HGHσo" ∷ match dtch with
+  | Detached => ∃ σmid,
+    "->" ∷ ⌜χg = χ⌝ ∗
+    "HGHζ" ∷ lstore_own_auth ζ ∗
+    "HGHσsafe" ∷ ([∗ map] ℓ↦vs ∈ σmid, ℓ ↦∗ vs) ∗
      "%HGHpub" ∷ ⌜pub_locs_in_lstore χ ζ = ∅⌝
     (* "%HGHσsafe" ∷ ⌜codom (pub_locs_in_lstore χg ζg) ⊆ dom σsafe⌝ *)
-  | Some σ => ∃ ζfreeze σfull,
-    "HGHσ" ∷ state_interp_with_safekeeping σfull σ ∗
+  | Attached => ∃ ζg ζfreeze σg,
+    "HGHI" ∷ hybrid_interp χg σ ζfreeze σg ζg ∗
+
+
     "%HGHζfreeze" ∷ ⌜freeze_lstore ζ ζfreeze⌝ ∗
     "%HGHζrepr" ∷ ⌜lstore_hybrid_repr χg ζfreeze σ ζg⌝ ∗
     "%HGHσfull" ∷ ⌜dom σfull = lloc_map_pub_locs χg⌝
