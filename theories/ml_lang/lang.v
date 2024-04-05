@@ -40,7 +40,7 @@ Module ML_lang.
 
 Inductive base_lit : Set :=
   | LitInt (n : Z) | LitBool (b : bool) | LitUnit
-  | LitBoxedInt (n : Z) (* Similar to OCaml Int64.t *)
+  | LitBoxedInt (n : Z) (* Int32.t, Int64.t and Nativeint.t *)
   | LitLoc (l : loc)
   | LitForeign (id : nat).
 Inductive un_op : Set :=
@@ -93,21 +93,21 @@ with val :=
 Scheme val_ind := Induction for val Sort Prop.
 Scheme val_rec := Induction for val Sort Type.
 
-Definition expr_ind (P : expr → Prop) 
+Definition expr_ind (P : expr → Prop)
   (f : ∀ v : val, P (Val v))
-  (f0 : ∀ x : string, P (Var x)) 
-  (f1 : ∀ (f1 x : binder) (e : expr), P e → P (Rec f1 x e)) 
-  (f2 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (App e1 e2)) 
-  (f3 : ∀ (op : un_op) (e : expr), P e → P (UnOp op e)) 
+  (f0 : ∀ x : string, P (Var x))
+  (f1 : ∀ (f1 x : binder) (e : expr), P e → P (Rec f1 x e))
+  (f2 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (App e1 e2))
+  (f3 : ∀ (op : un_op) (e : expr), P e → P (UnOp op e))
   (f4 : ∀ (op : bin_op) (e1 : expr),
-          P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2)) 
+          P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
   (f5 : ∀ e0 : expr,
-          P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2)) 
-  (f6 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (Pair e1 e2)) 
-  (f7 : ∀ e : expr, P e → P (Fst e)) (f8 : ∀ e : expr, P e → P (Snd e)) 
-  (f9 : ∀ e : expr, P e → P (InjL e)) (f10 : ∀ e : expr, P e → P (InjR e)) 
+          P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
+  (f6 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (Pair e1 e2))
+  (f7 : ∀ e : expr, P e → P (Fst e)) (f8 : ∀ e : expr, P e → P (Snd e))
+  (f9 : ∀ e : expr, P e → P (InjL e)) (f10 : ∀ e : expr, P e → P (InjR e))
   (f11 : ∀ e0 : expr,
-           P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (Case e0 e1 e2)) 
+           P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (Case e0 e1 e2))
   (f12 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (AllocN e1 e2))
   (f14 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (LoadN e1 e2))
   (f15 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → ∀ e3 : expr, P e3 → P (StoreN e1 e2 e3))
@@ -213,6 +213,8 @@ Inductive vals_compare_safe : val → val → Prop :=
   vals_compare_safe v1 v2
 (* in all other cases, we only allow testing of int-like values of the same
    ML syntactic category *)
+| vals_compare_boxedint n1 n2 :
+  vals_compare_safe (LitV (LitBoxedInt n1)) (LitV (LitBoxedInt n2))
 | vals_compare_int n1 n2 :
   vals_compare_safe (LitV (LitInt n1)) (LitV (LitInt n2))
 | vals_compare_bool b1 b2 :
@@ -223,6 +225,7 @@ Inductive vals_compare_safe : val → val → Prop :=
   vals_compare_safe (LitV (LitLoc l1)) (LitV (LitLoc l2)).
 
 Global Hint Resolve vals_compare_int : core.
+Global Hint Resolve vals_compare_boxedint : core.
 Global Hint Resolve vals_compare_bool : core.
 Global Hint Resolve vals_compare_unit : core.
 Global Hint Resolve vals_compare_loc : core.
@@ -243,7 +246,10 @@ Proof.
   { destruct v1 as [l1| | | | ]; destruct v2 as [l2| | | |];
        try (right; intros HH; inversion HH; naive_solver).
     destruct l1; try (exfalso; apply Hni1; by constructor).
-    1, 3: right; intros HH; inversion HH; naive_solver.
+    3: right; intros HH; inversion HH; naive_solver.
+    1: { destruct l2; try (exfalso; apply Hni2; by constructor).
+    2, 3: right; intros HH; inversion HH; naive_solver.
+    left; naive_solver. }
     destruct l2; try (exfalso; apply Hni2; by constructor).
     1, 3: right; intros HH; inversion HH; naive_solver.
     left; eapply vals_compare_loc. }
@@ -291,7 +297,7 @@ Proof.
         cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
      | Length e, Length e' =>
         cast_if (decide (e = e'))
-     | Extern x e, Extern x' e' => 
+     | Extern x e, Extern x' e' =>
         let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
                        match l1, l2 with
                        | nil, nil => left eq_refl
@@ -344,7 +350,7 @@ Proof.
         cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
      | Length e, Length e' =>
         cast_if (decide (e = e'))
-     | Extern x e, Extern x' e' => 
+     | Extern x e, Extern x' e' =>
         let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
                        match l1, l2 with
                        | nil, nil => left eq_refl
@@ -589,18 +595,18 @@ Definition un_op_eval (op : un_op) (v : val) : option val :=
   | _, _ => None
   end.
 
-Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : option base_lit :=
+Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) (lit : Z → base_lit) : option base_lit :=
   match op with
-  | PlusOp => Some $ LitInt (n1 + n2)
-  | MinusOp => Some $ LitInt (n1 - n2)
-  | MultOp => Some $ LitInt (n1 * n2)
-  | QuotOp => Some $ LitInt (n1 `quot` n2)
-  | RemOp => Some $ LitInt (n1 `rem` n2)
-  | AndOp => Some $ LitInt (Z.land n1 n2)
-  | OrOp => Some $ LitInt (Z.lor n1 n2)
-  | XorOp => Some $ LitInt (Z.lxor n1 n2)
-  | ShiftLOp => Some $ LitInt (n1 ≪ n2)
-  | ShiftROp => Some $ LitInt (n1 ≫ n2)
+  | PlusOp => Some $ lit (n1 + n2)
+  | MinusOp => Some $ lit (n1 - n2)
+  | MultOp => Some $ lit (n1 * n2)
+  | QuotOp => Some $ lit (n1 `quot` n2)
+  | RemOp => Some $ lit (n1 `rem` n2)
+  | AndOp => Some $ lit (Z.land n1 n2)
+  | OrOp => Some $ lit (Z.lor n1 n2)
+  | XorOp => Some $ lit (Z.lxor n1 n2)
+  | ShiftLOp => Some $ lit (n1 ≪ n2)
+  | ShiftROp => Some $ lit (n1 ≫ n2)
   | LeOp => Some $ LitBool (bool_decide (n1 ≤ n2))
   | LtOp => Some $ LitBool (bool_decide (n1 < n2))
   | EqOp => Some $ LitBool (bool_decide (n1 = n2))
@@ -625,7 +631,8 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
       None
   else
     match v1, v2 with
-    | LitV (LitInt n1), LitV (LitInt n2) => LitV <$> bin_op_eval_int op n1 n2
+    | LitV (LitInt n1), LitV (LitInt n2) => LitV <$> bin_op_eval_int op n1 n2 LitInt
+    | LitV (LitBoxedInt n1), LitV (LitBoxedInt n2) => LitV <$> bin_op_eval_int op n1 n2 LitBoxedInt
     | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
     | _, _ => None
     end.

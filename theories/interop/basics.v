@@ -184,8 +184,10 @@ Definition lloc_map_inj χ :=
    only legal as long as the mutable block has not been "observable" by other
    code than the wrapper..) *)
 Inductive freeze_block : block → block → Prop :=
-  | freeze_block_mut tgvs m' :
-    freeze_block (Bvblock (Mut, tgvs)) (Bvblock (m', tgvs))
+  | freeze_block_mut tgvs :
+    freeze_block (Bvblock (Mut, tgvs)) (Bvblock (Immut, tgvs))
+  | freeze_block_foreign w :
+    freeze_block (Bforeign Mut w) (Bforeign Immut w)
   | freeze_block_refl b :
     freeze_block b b.
 
@@ -707,18 +709,19 @@ Proof.
   apply freeze_block_refl.
 Qed.
 
-Lemma freeze_lstore_freeze_lloc ζ ζ' γ b :
+Lemma freeze_lstore_freeze_lloc ζ ζ' γ b1 b2 :
+  freeze_block b1 b2 →
   freeze_lstore ζ ζ' →
-  ζ' !! γ = Some (Bvblock (Mut, b)) →
-  freeze_lstore ζ (<[γ:=Bvblock (Immut, b)]> ζ').
+  ζ' !! γ = Some b1 →
+  freeze_lstore ζ (<[γ:=b2]> ζ').
 Proof.
-  intros [HL HR] Hζ'γ. split.
+  intros HB [HL HR] Hζ'γ. split.
   - rewrite HL. rewrite dom_insert_L. rewrite subseteq_union_1_L. 1:done.
     intros ? ->%elem_of_singleton. by eapply elem_of_dom.
-  - intros γ1 b1 b2 H1 H2. destruct (decide (γ = γ1)) as [<- |H3].
+  - intros γ1 b1' b2' H1 H2. destruct (decide (γ = γ1)) as [<- |H3].
     * rewrite lookup_insert in H2. injection H2; intros <-.
-      specialize (HR γ b1 (Bvblock (Mut, b)) H1 Hζ'γ).
-      inversion HR; subst; econstructor.
+      specialize (HR γ b1' b1 H1 Hζ'γ).
+      inversion HR; subst; destruct HB; try econstructor; try inversion HR; try econstructor.
     * rewrite lookup_insert_ne in H2; last done. by eapply HR.
 Qed.
 
@@ -973,20 +976,24 @@ Proof.
   eapply expose_llocs_insert; eauto.
 Qed.
 
-Lemma is_store_freeze_lloc χ ζ σ γ b:
+Lemma is_store_freeze_lloc χ ζ σ γ b1 b2:
   is_store χ ζ σ →
+  freeze_block b1 b2 →
   χ !! γ = Some LlocPrivate →
-  ζ !! γ = Some (Bvblock (Mut, b)) →
-  is_store χ (<[γ:=Bvblock (Immut, b)]> ζ) σ.
+  ζ !! γ = Some b1 →
+  is_store χ (<[γ:=b2]> ζ) σ.
 Proof.
-  intros Hstore Hpriv Hζγ l vs' γ1 bb H1 H2 H3.
+  intros Hstore Hfreeze Hpriv Hζγ l vs' γ1 bb H1 H2 H3.
   destruct (decide (γ = γ1)) as [<- | H4].
   * simplify_map_eq.
   * rewrite lookup_insert_ne in H3; last done.
     specialize (Hstore _ _ _ _ H1 H2 H3).
     inversion Hstore. subst vs bb.
     econstructor. eapply Forall2_impl; first done.
-    intros x y H5. eapply is_val_insert_immut; eauto.
+    intros x y H5. destruct Hfreeze.
+    1, 2: eapply is_val_insert_immut; eauto.
+    assert ((<[γ:=b]> ζ) = ζ) as Hζ. { by apply insert_id. }
+    by rewrite Hζ.
 Qed.
 
 Lemma is_store_alloc_block χ σ ζσ ζ γ blk :
@@ -1088,7 +1095,6 @@ Lemma lval_in_vblock v m tg vs :
   lval_in_block (Bvblock (m, (tg, vs))) v ↔ v ∈ vs.
 Proof. split. by inversion 1. intros; by constructor. Qed.
 
-
 Lemma GC_correct_transport ζ1 ζ2 θ : freeze_lstore ζ1 ζ2 → GC_correct ζ1 θ → GC_correct ζ2 θ.
 Proof.
   intros (H1L&H1R) (H2&H3). split; first done.
@@ -1096,9 +1102,10 @@ Proof.
   destruct (ζ1 !! γ) as [b|] eqn:Heq.
   2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite H1L in Heq; tauto. }
   specialize (H1R _ _ _ Heq HH2). inversion H1R; subst.
-  2: { eapply H3; done. }
+  3: { eapply H3; done. }
   destruct tgvs. eapply lval_in_vblock in HH3.
   eapply H3. 1: exact HH1. 1: done. eapply lval_in_vblock. done.
+  inversion HH3.
 Qed.
 
 Lemma GC_correct_transport_rev ζ1 ζ2 θ : freeze_lstore ζ2 ζ1 → GC_correct ζ1 θ → GC_correct ζ2 θ.
@@ -1108,9 +1115,10 @@ Proof.
   destruct (ζ1 !! γ) as [b|] eqn:Heq.
   2: { eapply elem_of_dom_2 in HH2. eapply not_elem_of_dom in Heq. rewrite -H1L in Heq; tauto. }
   specialize (H1R _ _ _ HH2 Heq). inversion H1R; subst.
-  2: { eapply H3; done. }
+  3: { eapply H3; done. }
   destruct tgvs. eapply lval_in_vblock in HH3.
   eapply H3. 1: exact HH1. 1: done. eapply lval_in_vblock. done.
+  inversion HH3.
 Qed.
 
 Lemma GC_correct_modify_block ζ θ γ blk blk' i v w :
@@ -1130,10 +1138,10 @@ Proof using.
   { eapply GC2; eauto. by constructor. }
 Qed.
 
-Lemma GC_correct_modify_foreign ζ θ γ w w' :
-  ζ !! γ = Some (Bforeign Mut w) →
+Lemma GC_correct_modify_foreign ζ θ γ m w m' w' :
+  ζ !! γ = Some (Bforeign m w) →
   GC_correct ζ θ →
-  GC_correct (<[γ := Bforeign Mut w']> ζ) θ.
+  GC_correct (<[γ := Bforeign m' w']> ζ) θ.
 Proof using.
   intros Hγ [GC1 GC2]. split; first done.
   intros γ0 blk1 γ1 Hγ0 [[??]|[Hne1 Hlu]]%lookup_insert_Some Hlloc; subst; eauto.

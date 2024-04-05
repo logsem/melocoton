@@ -46,41 +46,56 @@ Section typed_interp.
   Lemma sem_typed_nat P Γ (n:Z) : ⊢ P ;; Γ ⊨ # n : TNat.
   Proof. iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_value; eauto. Qed.
 
+  Lemma sem_typed_boxednat P Γ (n:Z) : ⊢ P ;; Γ ⊨ #(LitBoxedInt n) : TBoxedNat.
+  Proof. iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_value; eauto. Qed.
+
   Lemma sem_typed_bool P Γ (b:bool) : ⊢ P ;; Γ ⊨ # b : TBool.
   Proof. iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_value; eauto. Qed.
 
-  Lemma sem_typed_nat_binop P Γ op e1 e2 :
+  Lemma sem_typed_natish_binop P Γ op e1 e2 t :
     binop_arithmetic op = true →
-    P ;; Γ ⊨ e1 : TNat -∗ P ;; Γ ⊨ e2 : TNat -∗ P ;; Γ ⊨ BinOp op e1 e2 : TNat.
+    is_natlike t →
+    P ;; Γ ⊨ e1 : t -∗ P ;; Γ ⊨ e2 : t -∗ P ;; Γ ⊨ BinOp op e1 e2 : t.
   Proof.
-    iIntros (Hop) "#IH1 #IH2". iIntros (Δ vs) "!# #HΓ #HP /=".
+    iIntros (Hop Ht) "#IH1 #IH2". iIntros (Δ vs) "!# #HΓ #HP /=".
     iApply (interp_expr_bind [BinOpRCtx _ _]); first (by iApply "IH2"; last done).
     iIntros (v) "#Hv /=".
     iApply (interp_expr_bind [BinOpLCtx _ _]); first (by iApply "IH1"; last done).
     iIntros (w) "#Hw/= Htok".
-    iDestruct "Hv" as (n) "%"; iDestruct "Hw" as (n') "%"; simplify_eq/=.
-    assert (exists (nr:Z), bin_op_eval op (#n') (#n) = Some (#nr)) as [nr Hnr].
-    1: { destruct op. 1-10: by eexists. all: cbn in Hop; done. }
-    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
-    iFrame. by iExists _.
+    destruct Ht; iDestruct "Hv" as (n) "%"; iDestruct "Hw" as (n') "%"; simplify_eq/=.
+    - assert (exists (nr:Z), bin_op_eval op (# (LitInt n')) (# (LitInt n)) = Some (# (LitInt nr))) as [nr Hnr].
+      1: { destruct op. 1-10: by eexists. all: cbn in Hop; done. }
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
+      iFrame. by iExists _.
+    - assert (exists (nr:Z), bin_op_eval op (# (LitBoxedInt n')) (# (LitBoxedInt n)) = Some (# (LitBoxedInt nr))) as [nr Hnr].
+      1: { destruct op. 1-10: by eexists. all: cbn in Hop; done. }
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
+      iFrame. by iExists _.
   Qed.
 
-  Lemma sem_typed_nat_binop_bool P Γ op e1 e2 :
+  Lemma sem_typed_natish_binop_bool P Γ op e1 e2 t :
     binop_arithmetic_to_bool op = true →
-    P ;; Γ ⊨ e1 : TNat -∗ P ;; Γ ⊨ e2 : TNat -∗ P ;; Γ ⊨ BinOp op e1 e2 : TBool.
+    is_natlike t →
+    P ;; Γ ⊨ e1 : t -∗ P ;; Γ ⊨ e2 : t -∗ P ;; Γ ⊨ BinOp op e1 e2 : TBool.
   Proof.
-    iIntros (Hop) "#IH1 #IH2". iIntros (Δ vs) "!# #HΓ #HP /=".
+    iIntros (Hop Ht) "#IH1 #IH2". iIntros (Δ vs) "!# #HΓ #HP /=".
     iApply (interp_expr_bind [BinOpRCtx _ _]); first (by iApply "IH2"; last done).
     iIntros (v) "#Hv /=".
     iApply (interp_expr_bind [BinOpLCtx _ _]); first (by iApply "IH1"; last done).
     iIntros (w) "#Hw/= Htok".
-    iDestruct "Hv" as (n) "%"; iDestruct "Hw" as (n') "%"; simplify_eq/=.
-    assert (exists (r:bool), bin_op_eval op (#n') (#n) = Some (#r)) as [b Hb].
-    1: { destruct op. 1-10,13: cbn in Hop; done.
-         all: unfold bin_op_eval; destruct decide; simplify_eq.
-         all: cbn; destruct bool_decide; by eexists. }
-    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
-    iFrame. by iExists _.
+    destruct Ht; iDestruct "Hv" as (n) "%"; iDestruct "Hw" as (n') "%"; simplify_eq/=.
+    - assert (exists (r:bool), bin_op_eval op (#n') (#n) = Some (#r)) as [b Hb].
+      1: { destruct op. 1-10,13: cbn in Hop; done.
+           all: unfold bin_op_eval; destruct decide; simplify_eq.
+           all: cbn; destruct bool_decide; by eexists. }
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
+      iFrame. by iExists _.
+    - assert (exists (r:bool), bin_op_eval op (# (LitBoxedInt n')) (# (LitBoxedInt n)) = Some (#r)) as [b Hb].
+      1: { destruct op. 1-10,13: cbn in Hop; done.
+           all: unfold bin_op_eval; destruct decide; simplify_eq.
+           all: cbn; destruct bool_decide; by eexists. }
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
+      iFrame. by iExists _.
   Qed.
 
   Lemma sem_typed_bool_binop P Γ op e1 e2 :
@@ -202,7 +217,7 @@ Section typed_interp.
   Qed.
 
   (* TODO should go to stdpp *)
-  Lemma binder_delete_binder_delete {A} (b1:binder) (b2:binder) (m:gmap string A) : 
+  Lemma binder_delete_binder_delete {A} (b1:binder) (b2:binder) (m:gmap string A) :
     binder_delete b1 (binder_delete b2 m) = binder_delete b2 (binder_delete b1 m).
   Proof.
     destruct b1; cbn; try done.
@@ -439,9 +454,12 @@ Section typed_interp.
     - iApply sem_typed_var; done.
     - iApply sem_typed_unit; done.
     - iApply sem_typed_nat; done.
+    - iApply sem_typed_boxednat; done.
     - iApply sem_typed_bool; done.
-    - iApply sem_typed_nat_binop; done.
-    - iApply sem_typed_nat_binop_bool; done.
+    - iApply sem_typed_natish_binop; try done. econstructor.
+    - iApply sem_typed_natish_binop_bool; try done. econstructor.
+    - iApply sem_typed_natish_binop; try done. econstructor.
+    - iApply sem_typed_natish_binop_bool; try done. econstructor.
     - iApply sem_typed_bool_binop; done.
     - iApply sem_typed_eq; done.
     - iApply sem_typed_pair; done.

@@ -25,13 +25,13 @@ Section C_spec.
   Context `{!heapG_C Σ}.
   Context `{!invG Σ}.
 
-  Definition gmtime_spec_C : protocol C_intf.val Σ:=
-    !! (w : Z)
+  Definition new_boxedint_spec_C : protocol C_intf.val Σ:=
+    !!
     {{ True }}
-      "gmtime" with ([ #C w ])
+      "new_boxedint" with []
     {{
-      (a : loc) (tm_sec : Z) (tm_min : Z), RET(#C a);
-      a ↦C∗ [ #C tm_sec; #C tm_min ]
+      (a : loc), RET(#C a);
+      a ↦C ( #C 0 )
     }}.
 
 End C_spec.
@@ -43,109 +43,52 @@ Section FFI_spec.
   Context `{SI:indexT}.
   Context `{!ffiG Σ}.
 
-  Definition caml_gmtime_code (t : expr) : expr :=
-    CAMLlocal: "res" in
-    let: "timer" := BoxedInt_val (t) in
-    let: "tm"    := (call: &"gmtime" with ("timer")) in
-    "res" <- caml_alloc (#2, #0);;
+  Definition caml_new_boxedint_code (t : expr) : expr :=
+    let: "res" := caml_alloc_custom ( ) in
+    (Custom_contents ( "res" ) := #(LitInt 0));;
+    "res".
 
-    let: "tm_sec" := Val_int ( *( "tm" +ₗ #0 ) )  in
-    let: "tm_min" := Val_int ( *( "tm" +ₗ #1 ) )  in
+  Definition caml_new_boxedint_prog : lang_prog C_lang :=
+    {[ "caml_new_boxedint" := Fun [] (caml_new_boxedint_code "t") ]}.
 
-    Store_field( *"res", #0, "tm_sec" );;
-    Store_field( *"res", #1, "tm_min" );;
-
-    CAMLreturn: *"res" unregistering [ "res" ].
-
-  Definition caml_gmtime_prog : lang_prog C_lang :=
-    {[ "caml_gmtime" := Fun [BNamed "t"] (caml_gmtime_code "t") ]}.
-
-  Definition caml_gmtime_spec : protocol ML_lang.val Σ :=
-    !! (t : Z)
+  Definition caml_new_boxedint_spec : protocol ML_lang.val Σ :=
+    !!
       {{ True }}
-        "caml_gmtime" with [(#ML (ML_lang.LitBoxedInt t))]
+        "caml_new_boxedint" with []
       {{
-        (tm_sec : Z) (tm_min : Z), RET((#ML tm_sec, #ML tm_min)%MLV);
+        RET((#ML (LitBoxedInt 0))%MLV);
         True
       }}.
 
-  Lemma gmtime_correct :
-    (prims_proto caml_gmtime_spec) ⊔ gmtime_spec_C
-    ||- caml_gmtime_prog :: wrap_proto caml_gmtime_spec.
+  Lemma new_boxedint__correct :
+    (prims_proto caml_new_boxedint_spec) ⊔ new_boxedint_spec_C
+    ||- caml_new_boxedint_prog :: wrap_proto caml_new_boxedint_spec.
   Proof.
     iIntros (fn ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done. iIntros (Φ'') "HΦ".
-    iAssert (⌜length lvs = 1⌝)%I as %Hlen.
+    iAssert (⌜length lvs = 0⌝)%I as %Hlen.
     { by iDestruct (big_sepL2_length with "Hsim") as %?. }
     destruct lvs as [|lv []]; try by (exfalso; eauto with lia); []. clear Hlen.
     destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
-    apply Forall2_cons_1 in Hrepr as [Hrepr _].
-    cbn -[lstore_own_elem].
-    iDestruct "Hsim" as "[Hγ Hemp]".
-    iDestruct "Hγ" as (γ) "[-> Hγ]".
+    (* apply Forall2_cons_1 in Hrepr as [Hrepr _]. *)
+    cbn.
     wp_call_direct.
 
-    (* Declare result variable *)
-    wp_apply (wp_CAMLlocal with "HGC"); eauto. iIntros (ℓ) "(HGC&Hℓ)". wp_pures.
-
-    (* Call stdlib gmtime *)
-    wp_apply (wp_read_foreign with "[$HGC $Hγ]"); try eauto.
-    iIntros "(HGC&_)".
-    wp_pures.
-    wp_extern. iModIntro. iRight.
-    iSplit; first done.
-    iExists t; do 2 (iSplit; first done).
-    iIntros (a tm_sec tm_min). iNext.
-    cbn.
-    iIntros "(Ha0&Ha1&_)". wp_pures.
-
     (* Allocate result variable *)
-    wp_apply (wp_alloc (TagDefault) with "HGC"); try done; auto.
-    iIntros (θ' γ' w0') "(HGC&Hγ'&%H2)".
-    wp_apply (store_to_root with "[$HGC $Hℓ]"); try done.
-    iIntros "(HGC&Hℓ)". wp_pures.
+    wp_apply (wp_alloc_foreign with "[$HGC]"); try eauto.
+    iIntros (θ' γ w) "(HGC&Hγ&%Hγw)". wp_pures.
 
-    (* Convert tm_sec to ml int *)
-    wp_apply (wp_load with "[Ha0]"); try auto.
-    iIntros "Ha0".
-    wp_apply (wp_int2val with "HGC"); try auto.
-    iIntros (w0) "(HGC&%Htms)". wp_pures.
+    (* Populate result variable *)
+    wp_apply (wp_write_foreign with "[$HGC $Hγ]"); try eauto.
+    iIntros "(HGC&Hγ)". wp_pures.
 
-    (* Convert tm_min to ml int *)
-    wp_apply (wp_load with "[Ha1]"); try auto.
-    iIntros "Ha1".
-    wp_apply (wp_int2val with "HGC"); try auto.
-    iIntros (w1) "(HGC&%Htmm)". wp_pures.
-
-    (* Load tm_sec *)
-    wp_apply (load_from_root with "[$HGC $Hℓ]").
-    iIntros (w2) "(Hℓ&HGC&%Hγ2)".
-    wp_apply (wp_modify with "[$HGC $Hγ']"); try eauto.
-    1: simpl; done.
-    iIntros "(HGC&Hγ')". wp_pures.
-
-    (* Load tm_min *)
-    wp_apply (load_from_root with "[$HGC $Hℓ]").
-    iIntros (w3) "(Hℓ&HGC&%Hγ3)".
-    wp_apply (wp_modify with "[$HGC $Hγ']"); try eauto.
-    1: simpl; done.
-    iIntros "(HGC&Hγ')". wp_pures.
-
-    (* Return *)
-    wp_apply (load_from_root with "[$HGC $Hℓ]").
-    iIntros (w4) "(Hℓ&HGC&Hγ4)". wp_pures.
-
-    wp_apply (wp_unregisterroot with "[$HGC $Hℓ]"); try eauto.
-    iIntros (w5) "(HGC&hℓ&%Hγ5)". wp_pures.
-    wp_free. wp_pures.
-
-    iMod (freeze_to_immut γ' _ θ' with "[$]") as "(HGC&#Hγ')".
+    iMod (freeze_to_immut).
 
     iModIntro.
     iApply "HΦ".
     iApply ("Return" with "[$HGC] [Cont] []").
     - by iApply "Cont".
-    - cbn. iExists γ'. iExists _, _. iSplit; try eauto.
+    - cbn. iExists γ. iSplit; try eauto.
     - eauto.
 Qed.
 
