@@ -60,7 +60,7 @@ Section FFI_spec.
         True
       }}.
 
-  Lemma new_boxedint__correct :
+  Lemma new_boxedint_correct :
     (prims_proto caml_new_boxedint_spec) ⊔ new_boxedint_spec_C
     ||- caml_new_boxedint_prog :: wrap_proto caml_new_boxedint_spec.
   Proof.
@@ -82,7 +82,7 @@ Section FFI_spec.
     wp_apply (wp_write_foreign with "[$HGC $Hγ]"); try eauto.
     iIntros "(HGC&Hγ)". wp_pures.
 
-    iMod (freeze_to_immut).
+    iMod (freeze_foreign_to_immut γ θ' _ with "[$]") as "(HGC&#Hγ)".
 
     iModIntro.
     iApply "HΦ".
@@ -103,24 +103,20 @@ Section ML_spec.
   Context `{!logrelG Σ}.
 
   Definition program_type_ctx : program_env :=
-    {[ "caml_gmtime" := FunType [ TBoxedNat ] (TProd TNat TNat) ]}.
+    {[ "caml_new_boxedint" := FunType [] (TBoxedNat) ]}.
 
-  Lemma gmtime_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, caml_gmtime_spec⟩ Δ.
+  Lemma new_boxedint_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, caml_new_boxedint_spec⟩ Δ.
   Proof.
     iIntros (s vv Φ) "!> (%ats&%rt&%Heq&Hargs&Htok&HCont)".
     wp_extern. iModIntro. unfold program_type_ctx in Heq.
     apply lookup_singleton_Some in Heq as (<-&Heq). simplify_eq.
     iPoseProof (big_sepL2_length with "Hargs") as "%Heq".
     destruct vv as [|v [|??]]; cbn in Heq; try lia.
-    cbn. iDestruct "Hargs" as "((%n&->)&_)".
-    iSplit; first done.
-    iExists n.
-    do 2 (iSplit; first done).
-    iIntros "!>" (tm_sec tm_min) "_". wp_pures. iModIntro.
+    cbn.
+    do 3 (iSplit; first done).
+    iIntros "!> _". wp_pures. iModIntro.
     iApply ("HCont" with "[-Htok] Htok").
-    iExists (#ML tm_sec), (#ML tm_min).
-    iSplit; first done.
-    iSplit; iExists _; done.
+    iExists 0. done.
   Qed.
 
 End ML_spec.
@@ -132,17 +128,16 @@ Section ML_Example.
   Context `{SI:indexT}.
   Context `{!ffiG Σ}.
 
-  Definition gmtime_client : mlanguage.expr (lang_to_mlang ML_lang) :=
-    (Fst (Extern "caml_gmtime" [ (Val #(LitBoxedInt 0))%MLE ])).
+  Definition new_boxedint_client : mlanguage.expr (lang_to_mlang ML_lang) :=
+    (Extern "caml_new_boxedint" []).
 
   Lemma ML_prog_correct_axiomatic :
-    ⊢ WP gmtime_client at ⟨∅, caml_gmtime_spec⟩ {{ v, ⌜∃x : Z, v = #x⌝}}.
+    ⊢ WP new_boxedint_client at ⟨∅, caml_new_boxedint_spec⟩ {{ v, ⌜∃x : Z, v = #ML (LitBoxedInt x)⌝}}.
   Proof.
-    unfold gmtime_client. wp_pures. wp_extern.
-    iModIntro. cbn. iSplit; first done. iExists _.
-    do 2 (iSplitR; first done). iIntros "!>" (tm_sec tm_min) "_".
-    wp_pures. iModIntro. iPureIntro. by eexists.
+    unfold new_boxedint_client. wp_pures. wp_extern.
+    iModIntro. cbn.
+    do 3 (iSplitR; first done). iIntros "!> _".
+    wp_pures. iModIntro. iPureIntro. eauto.
   Qed.
 
 End ML_Example.
-

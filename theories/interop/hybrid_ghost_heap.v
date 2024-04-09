@@ -377,12 +377,11 @@ Lemma hgh_freeze_block χ σ ζ γ b1 b2:
   lstore_own_elem γ (DfracOwn 1) b2 ∗
   γ ~ℓ~/.
 Proof using.
-  (* TODO: Fix this proof as it does not work with freeze_block_refl *)
   iIntros (Hfreeze) "H Hγ Hfresh".
-  iNamed "H". iNamed "HGHσo".
+  destruct (mutability b1) eqn:Heq.
+  - iNamed "H". iNamed "HGHσo".
   iDestruct (lstore_own_elem_of with "HGHζ Hγ") as %?.
   iDestruct (lloc_own_priv_of with "HGHχ Hfresh") as %?.
-  assert (mutability b1 = Mut). { destruct Hfreeze; easy. }
   iDestruct (lstore_own_elem_to_mut with "Hγ") as "Hγ"; first done.
   iMod (lstore_own_update _ _ _ b2 with "HGHζ Hγ") as "(HGHζ & Hγ)".
   iModIntro. iFrame "Hγ Hfresh". rewrite /HGH /named. iExists _, _. iFrame.
@@ -393,6 +392,7 @@ Proof using.
     { eapply freeze_lstore_freeze_lloc; eauto.
       by eapply lstore_hybrid_repr_lookup_lloc. }
     { eapply lstore_hybrid_repr_freeze_block; eauto. } }
+  - destruct Hfreeze; try inversion Heq. by iFrame.
 Qed.
 
 Lemma hgh_alloc_block χ σ ζ γ blk :
@@ -439,6 +439,15 @@ Lemma hgh_lookup_vblock χ σo ζ γ dq m bb :
   HGH χ σo ζ -∗
   lstore_own_elem γ dq (Bvblock (m, bb)) -∗
   ⌜∃ m', (m' = Immut → m = Immut) ∧ ζ !! γ = Some (Bvblock (m', bb))⌝.
+Proof using.
+  iIntros "H Hγ". iDestruct (hgh_lookup_block with "H Hγ") as %(?&Hfrz&?).
+  inversion Hfrz; subst; eauto.
+Qed.
+
+Lemma hgh_lookup_foreign χ σo ζ γ dq m bb :
+  HGH χ σo ζ -∗
+  lstore_own_elem γ dq (Bforeign m bb) -∗
+  ⌜∃ m', (m' = Immut → m = Immut) ∧ ζ !! γ = Some (Bforeign m' bb)⌝.
 Proof using.
   iIntros "H Hγ". iDestruct (hgh_lookup_block with "H Hγ") as %(?&Hfrz&?).
   inversion Hfrz; subst; eauto.
