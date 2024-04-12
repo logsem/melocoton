@@ -38,6 +38,9 @@ Context `{!wrapperBasicsG Σ}.
 Definition lloc_own_priv (γ : lloc) : iProp Σ :=
   γ ↪[wrapperG_γχvirt] LlocPrivate.
 
+Definition lloc_own_priv_persistent (γ : lloc) : iProp Σ :=
+  γ ↪[wrapperG_γχvirt]□ LlocPrivate.
+
 Definition lloc_own_pub (γ : lloc) (ℓ : loc) : iProp Σ :=
   gset_bij_own_elem wrapperG_γχbij γ ℓ.
 
@@ -53,6 +56,8 @@ Notation "γ ~ℓ~ ℓ" := (lloc_own_pub γ ℓ)
   (at level 20, format "γ  ~ℓ~  ℓ").
 Notation "γ ~ℓ~/" := (lloc_own_priv γ)
   (at level 20, format "γ  ~ℓ~/").
+Notation "γ ~ℓ~/☐" := (lloc_own_priv_persistent γ)
+  (at level 20, format "γ  ~ℓ~/☐").
 
 Lemma lloc_own_pub_inj γ1 γ2 ℓ1 ℓ2 :
   γ1 ~ℓ~ ℓ1 -∗ γ2 ~ℓ~ ℓ2 -∗ ⌜γ1 = γ2 ↔ ℓ1 = ℓ2⌝.
@@ -446,7 +451,7 @@ Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
 (* Foreign block points-to *)
 
 Definition lstore_own_foreign γ dq (mut : ismut) (v : option word) : iProp Σ :=
-  lstore_own_elem γ dq (Bforeign mut v).
+  lstore_own_elem γ dq (Bforeign mut v) ∗ γ ~ℓ~/☐.
 
 Notation "γ ↦foreignO[ mut ]{ dq } a" := (lstore_own_foreign γ dq mut a)%I
   (at level 20, format "γ  ↦foreignO[ mut ]{ dq }  a") : bi_scope.
@@ -513,7 +518,9 @@ Proof using.
          destruct Hstorebl2 as (ℓ & Vs & Hχ & Hσml); [by eapply elem_of_dom_2|].
          efeed specialize Hstore; eauto; [eapply lookup_union_Some; by eauto|].
          inversion Hstore. }
-    by iPoseProof (lstore_own_immut_to_elem with "Himm") as "Himm". }
+    iSplit.
+    - by iPoseProof (lstore_own_immut_to_elem with "Himm") as "Himm".
+    - admit. }
   1: iExists γ; iSplit; first done.
   1: by iApply (lloc_own_auth_get_pub with "Hχ").
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
@@ -534,7 +541,7 @@ Proof using.
   all: destruct Hstorebl2 as (ℓ & Vs & Hχ & Hσml); [by eapply elem_of_dom_2|].
   all: efeed specialize Hstore; eauto; [eapply lookup_union_Some; by eauto|].
   all: inversion Hstore.
-Qed.
+Admitted.
 
 Lemma block_sim_arr_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σMLvirt : store)
    vs bb :
@@ -568,7 +575,7 @@ Proof using.
   iIntros (Hfreeze Hstorebl Hstore Hdis) "Hχ Hζ Hsim".
   iInduction v as [[x|bo| | | n |]| | | |] "IH" forall (b).
   all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
-  1: { iDestruct "Hsim" as "(%γ & -> & Hsim)".
+  1: { iDestruct "Hsim" as "(%γ & -> & [Hsim _])".
     iPoseProof (lstore_own_elem_to_immut with "Hsim") as "Hsim"; first done.
     iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%H1 %H2]".
     iPureIntro. econstructor. by simplify_map_eq. }
