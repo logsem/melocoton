@@ -29,6 +29,7 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ".
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  iDestruct "Hpto" as "[Hpto Hγ]".
   iPoseProof (hgh_lookup_block with "GCHGH Hpto") as (b) "(%Hb&%Hγ)".
   inversion Hb; subst; clear Hb.
 
@@ -45,8 +46,9 @@ Proof using.
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[- $Hpto]").
-  rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
+  iApply ("Cont" with "[- $Hpto]"). iFrame.
+  rewrite /GC /named. 
+  iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
   eapply GC_correct_modify_foreign; eauto.
 Qed.
 

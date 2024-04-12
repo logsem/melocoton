@@ -67,7 +67,7 @@ Proof using.
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! θC' γ with "[-]"); try done.
-  iFrame "Hpto". iSplit; last by eauto.
+  iFrame. iSplit; last by eauto.
   rewrite /GC /named.
   iExists _, _, σMLvirt, _, _. iFrame; eauto.
 Qed.

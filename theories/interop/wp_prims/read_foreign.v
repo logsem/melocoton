@@ -30,6 +30,7 @@ Proof using.
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iAssert ⌜∃ m', ζC ρc !! γ = Some (Bforeign m' (Some w'))⌝%I as "%Helem2".
   {
+    iDestruct "Hpto" as "[Hpto _]".
     iDestruct (hgh_lookup_foreign with "GCHGH Hpto") as %(?&_&?). iPureIntro. eauto.
   }
   destruct Helem2 as [m' Helem2].

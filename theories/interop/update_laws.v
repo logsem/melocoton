@@ -66,11 +66,13 @@ Lemma freeze_foreign_to_immut γ θ b :
   ⊢ GC θ ∗ γ ↦foreign[Mut] b ==∗
     GC θ ∗ γ ↦foreign[Immut] b.
 Proof.
-  iIntros "(HGC & Hγ)". iNamed "HGC".
-  (* iMod (hgh_freeze_block _ _ _ _ _ _ _ with "GCHGH Hγ") as "(GCHGH & Hmtζ & Hmtfresh)". *)
-  (* iModIntro. iSplitR "Hmtζ Hmtfresh"; last by iFrame; eauto. *)
-  (* rewrite /GC /named. repeat iExists _. iFrame; eauto. *)
-Admitted.
+  iIntros "(HGC & [Hγ1 Hγ2])". iNamed "HGC".
+  assert (freeze_block (Bforeign Mut (Some b)) (Bforeign Immut (Some b))) as Hfreeze.
+    { econstructor. }
+  iMod (hgh_freeze_block _ _ _ _ _ _ Hfreeze with "GCHGH Hγ1 Hγ2") as "(GCHGH & Hmtζ & Hmtfresh)".
+  iModIntro. iSplitR "Hmtζ Hmtfresh"; last by iFrame; eauto.
+  rewrite /GC /named. repeat iExists _. iFrame; eauto.
+Qed.
 
 Lemma update_root θ (l:loc) v E :
   GC θ ∗ l ↦roots v -∗

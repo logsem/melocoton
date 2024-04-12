@@ -72,7 +72,7 @@ Section Proofs.
   Solve Obligations with solve_proper.
 
   Program Definition listener_interp : (protocol ML_lang.val Σ) -n> (listO D -n> D) -d> listO D -n> D := λne Ψ, λ interp, λne Δ, PersPred (
-    λ v, ∃ γ (a:addr), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign[Mut]{DfracDiscarded} (#C a) ∗
+    λ v, ∃ γ (a:addr), ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign[Immut]{DfracDiscarded} (#C a) ∗
            na_inv logrel_nais (nroot .@ "listener" .@ γ)
              (listener_invariant a (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)))%I.
   Next Obligation. solve_proper. Qed.
@@ -145,10 +145,10 @@ Section Proofs.
     wp_pures.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
-    iDestruct "Hγfgn" as "(Hγfgn'&_)".
+    iDestruct "Hγfgn" as "(Hγfgn'&Hγfresh)".
     iMod (na_inv_alloc logrel_nais _ _ (listener_invariant a _) with "[Ha]") as "#Hinv".
     { iNext. iRight. iFrame "Ha". }
-    iMod (ghost_map.ghost_map_elem_persist with "Hγfgn'") as "#Hγfgn'".
+    iMod (freeze_foreign_to_immut γ θ1 _ with "[$]") as "(HGC&#Hγfgn')".
     iModIntro. iApply "Cont2". iApply ("Return" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []").
     2,3: done.
     iApply "Cont". iFrame "Hna". iExists γ, a.
