@@ -445,8 +445,8 @@ Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
 
 (* Foreign block points-to *)
 
-Definition lstore_own_foreign γ dq (mut : ismut) (v : option word) : iProp Σ :=
-  lstore_own_elem γ dq (Bforeign mut v) ∗
+Definition lstore_own_foreign γ dq mut v : iProp Σ :=
+  lstore_own_elem γ dq (Bforeign (mut, v)) ∗
   match mut with
   | Mut   => γ ~ℓ~/
   | Immut => True
@@ -507,7 +507,7 @@ Proof using.
   iInduction H as [] "IH" forall "Hζ Hχ"; try (cbn; done).
   1: { iExists γ; iSplit; first done.
     iPoseProof (lstore_own_auth_get_immut
-      ζvirt γ (Bforeign Immut (Some (defs.C_intf.LitV (defs.C_intf.LitInt x))))
+      ζvirt γ (Bforeign (Immut, Some (defs.C_intf.LitV (defs.C_intf.LitInt x))))
       with "Hζ")
       as "Himm";
       try eauto.

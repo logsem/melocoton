@@ -43,7 +43,7 @@ Proof using.
   iExists (λ '(e', σ'), ∃ γ χC' ζC' θC' (aret:loc) mem',
       χC ρc !! γ = None ∧
       χC' = <[ γ := LlocPrivate ]> (χC ρc) ∧
-      ζC' = <[ γ := Bforeign Mut None ]> (ζC ρc) ∧
+      ζC' = <[ γ := Bforeign (Mut, None) ]> (ζC ρc) ∧
       GC_correct ζC' θC' ∧
       repr θC' roots_m privmem mem' ∧
       roots_are_live θC' roots_m ∧

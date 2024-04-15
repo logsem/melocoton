@@ -28,7 +28,7 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iAssert ⌜∃ m', ζC ρc !! γ = Some (Bforeign m' (Some w'))⌝%I as "%Helem2".
+  iAssert ⌜∃ m', ζC ρc !! γ = Some (Bforeign (m', Some w'))⌝%I as "%Helem2".
   {
     iDestruct "Hpto" as "[Hpto _]".
     iDestruct (hgh_lookup_foreign with "GCHGH Hpto") as %(?&_&?). iPureIntro. eauto.

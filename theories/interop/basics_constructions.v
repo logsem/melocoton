@@ -167,7 +167,7 @@ Lemma deserialize_ML_value χMLold v :
 Proof.
   induction v as [[x|bo| |x|ℓ|]| |v1 IHv1 v2 IHv2|v IHv|v IHv] in χMLold|-*; intros Hinj.
   1-3: eexists χMLold, ∅, _; split_and!; [by eapply extended_to_refl | econstructor ].
-  - pose (Bforeign Immut (Some (C_intf.LitV (C_intf.LitInt x)))) as blk.
+  - pose (Bforeign (Immut, (Some (#C x)))) as blk.
     destruct (allocate_in_χ_priv χMLold blk) as (χ & γ & Hextend); first done.
     eexists χ, _, (Lloc γ). split; eauto. econstructor. by simplify_map_eq.
   - destruct (ensure_in_χ_pub χMLold ℓ) as (χ' & γ & Hχ' & Hγ & _); first done.

@@ -99,21 +99,27 @@ Qed.
 Notation vblock :=
   (ismut * (vblock_tag * list lval))%type.
 
+Notation fblock :=
+  (ismut * option C_intf.val)%type.
+
 (** a block in the block-level store *)
 Inductive block :=
   | Bvblock (vblk : vblock)
   | Bclosure (clos_f clos_x : binder) (clos_body : ML_lang.expr)
   (** A limited form of OCaml's "custom blocks", storing a C value *)
-  | Bforeign (mut : ismut) (ptr : option C_intf.val).
+  | Bforeign (fblk : fblock).
 
 Definition vblock_mutability (vb: vblock) : ismut :=
   let '(i,_) := vb in i.
+
+Definition fblock_mutability (fb: fblock) : ismut :=
+  let '(i,_) := fb in i.
 
 Definition mutability (b: block) : ismut :=
   match b with
   | Bvblock vblk => vblock_mutability vblk
   | Bclosure _ _ _ => Immut
-  | Bforeign m _ => m
+  | Bforeign fblk => fblock_mutability fblk
   end.
 
 Definition vblock_get_tag (vb: vblock) : vblock_tag :=
@@ -123,7 +129,7 @@ Definition block_tag (b: block) : tag :=
   match b with
   | Bvblock vblk => TagVblock (vblock_get_tag vblk)
   | Bclosure _ _ _ => TagClosure
-  | Bforeign _ _ => TagForeign
+  | Bforeign _ => TagForeign
   end.
 
 Inductive lval_in_block : block → lval → Prop :=
@@ -187,7 +193,7 @@ Inductive freeze_block : block → block → Prop :=
   | freeze_block_mut tgvs :
     freeze_block (Bvblock (Mut, tgvs)) (Bvblock (Immut, tgvs))
   | freeze_block_foreign w :
-    freeze_block (Bforeign Mut w) (Bforeign Immut w)
+    freeze_block (Bforeign (Mut, w)) (Bforeign (Immut, w))
   | freeze_block_refl b :
     freeze_block b b.
 
@@ -294,7 +300,7 @@ Inductive is_val : lloc_map → lstore → val → lval → Prop :=
     is_val χ ζ (ML_lang.LitV ML_lang.LitUnit) (Lint 0)
   (** locations *)
   | is_val_boxedint χ ζ γ x :
-    ζ !! γ = Some (Bforeign Immut (Some (C_intf.LitV (C_intf.LitInt x)))) →
+    ζ !! γ = Some (Bforeign (Immut, Some (C_intf.LitV (C_intf.LitInt x)))) →
     is_val χ ζ (ML_lang.LitV (ML_lang.LitBoxedInt x)) (Lloc γ)
   | is_val_loc χ ζ ℓ γ :
     χ !! γ = Some (LlocPublic ℓ) →
@@ -552,15 +558,12 @@ Lemma lstore_immut_blocks_lookup_Some ζ γ b :
   lstore_immut_blocks ζ !! γ = Some b ↔ ζ !! γ = Some b ∧ mutability b = Immut.
 Proof.
   rewrite /lstore_immut_blocks map_filter_lookup /=.
-  set X := (ζ !! γ). destruct (ζ !! γ) as [[[i' ?]| |]|] eqn:HH; subst X; cbn;
+  set X := (ζ !! γ). destruct (ζ !! γ) as [[[i' ?]| |[i' ?]]|] eqn:HH; subst X; cbn;
       try naive_solver.
-  { destruct (decide (i' = Immut)); subst.
-    { rewrite option_guard_True //. naive_solver. }
-    { rewrite option_guard_False //. naive_solver. } }
-  { rewrite option_guard_True //. naive_solver. }
-  { destruct (decide (mut = Immut)); subst.
-    { rewrite option_guard_True //. naive_solver. }
-    { rewrite option_guard_False //. naive_solver. } }
+  2: rewrite option_guard_True //; naive_solver.
+  all: destruct (decide (i' = Immut)); subst.
+  1, 3: rewrite option_guard_True //; naive_solver.
+  all: rewrite option_guard_False //; naive_solver.
 Qed.
 
 Lemma lstore_immut_blocks_lookup_notin ζ γ :
@@ -796,7 +799,7 @@ Lemma is_val_insert_immut χ ζ γ bb bb2 x y :
 Proof.
   intros H1 H2; induction 1; econstructor; eauto.
   all: rewrite lookup_insert_ne; first done.
-  all: intros ->; destruct bb2 as [[mut [? ?]]| |]; cbn in *.
+  all: intros ->; destruct bb2 as [[mut ?]| |[mut ?]]; cbn in *.
   all: congruence.
 Qed.
 
@@ -1138,10 +1141,10 @@ Proof using.
   { eapply GC2; eauto. by constructor. }
 Qed.
 
-Lemma GC_correct_modify_foreign ζ θ γ m w m' w' :
-  ζ !! γ = Some (Bforeign m w) →
+Lemma GC_correct_modify_foreign ζ θ γ blk blk' :
+  ζ !! γ = Some (Bforeign blk) →
   GC_correct ζ θ →
-  GC_correct (<[γ := Bforeign m' w']> ζ) θ.
+  GC_correct (<[γ := Bforeign blk']> ζ) θ.
 Proof using.
   intros Hγ [GC1 GC2]. split; first done.
   intros γ0 blk1 γ1 Hγ0 [[??]|[Hne1 Hlu]]%lookup_insert_Some Hlloc; subst; eauto.

@@ -36,7 +36,7 @@ Proof using.
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
     e' = WrSE (ExprV #0) ∧
-    σ' = CState (WrapstateC (χC ρc) (<[γ:=Bforeign Mut (Some w')]> (ζC ρc)) (θC ρc) (rootsC ρc)) mem).
+    σ' = CState (WrapstateC (χC ρc) (<[γ:=Bforeign (Mut, Some w')]> (ζC ρc)) (θC ρc) (rootsC ρc)) mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".

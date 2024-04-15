@@ -446,8 +446,8 @@ Qed.
 
 Lemma hgh_lookup_foreign χ σo ζ γ dq m bb :
   HGH χ σo ζ -∗
-  lstore_own_elem γ dq (Bforeign m bb) -∗
-  ⌜∃ m', (m' = Immut → m = Immut) ∧ ζ !! γ = Some (Bforeign m' bb)⌝.
+  lstore_own_elem γ dq (Bforeign (m, bb)) -∗
+  ⌜∃ m', (m' = Immut → m = Immut) ∧ ζ !! γ = Some (Bforeign (m', bb))⌝.
 Proof using.
   iIntros "H Hγ". iDestruct (hgh_lookup_block with "H Hγ") as %(?&Hfrz&?).
   inversion Hfrz; subst; eauto.
