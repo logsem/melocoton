@@ -16,26 +16,6 @@ From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.combined Require Import adequacy rules.
 
-Section C_spec.
-
-  Import melocoton.c_interop.notation melocoton.c_lang.proofmode.
-
-  Context `{SI:indexT}.
-  Context  {Σ : gFunctors}.
-  Context `{!heapG_C Σ}.
-  Context `{!invG Σ}.
-
-  Definition new_boxedint_spec_C : protocol C_intf.val Σ:=
-    !!
-    {{ True }}
-      "new_boxedint" with []
-    {{
-      (a : loc), RET(#C a);
-      a ↦C ( #C 0 )
-    }}.
-
-End C_spec.
-
 Section FFI_spec.
 
   Import melocoton.c_interop.notation melocoton.c_lang.proofmode.
@@ -61,7 +41,7 @@ Section FFI_spec.
       }}.
 
   Lemma new_boxedint_correct :
-    (prims_proto caml_new_boxedint_spec) ⊔ new_boxedint_spec_C
+    prims_proto caml_new_boxedint_spec
     ||- caml_new_boxedint_prog :: wrap_proto caml_new_boxedint_spec.
   Proof.
     iIntros (fn ws Φ) "H". iNamed "H". iNamedProto "Hproto".
@@ -70,7 +50,6 @@ Section FFI_spec.
     { by iDestruct (big_sepL2_length with "Hsim") as %?. }
     destruct lvs as [|lv []]; try by (exfalso; eauto with lia); []. clear Hlen.
     destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
-    (* apply Forall2_cons_1 in Hrepr as [Hrepr _]. *)
     cbn.
     wp_call_direct.
 
