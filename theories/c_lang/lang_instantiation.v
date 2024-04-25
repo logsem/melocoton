@@ -6,7 +6,6 @@ From iris.prelude Require Import options.
 From melocoton Require Import stdpp_extra.
 From melocoton.language Require Import language.
 From melocoton.c_interface Require Import defs.
-From melocoton.c_lang Require Export lang metatheory.
 
 Local Notation state := (gmap loc heap_cell).
 
