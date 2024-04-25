@@ -20,7 +20,8 @@ Context {SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 Context {p:prog_environ C_lang Σ}.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ Ψ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
+Implicit Types Ψ : val → iProp Σ.
 Implicit Types efs : list expr.
 Implicit Types σ : gmap loc heap_cell.
 Implicit Types v : val.
@@ -34,25 +35,25 @@ Implicit Types l : loc.
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb
 induction directly, but this demonstrates that we can state the expected
 reasoning principle for recursive functions, without any visible ▷. *)
-Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) :
-   ⌜penv_prog s !! f = Some (Fun args e)⌝ -∗
-  □ ( □ (∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}) -∗
-     ∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (subst_all res e) @ s; E {{ Φ }}) -∗
-  ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}.
-Proof.
-  iIntros "%Hp #Hrec". iLöb as "IH". iIntros (v res) "HΨ %Hres".
-  iApply lifting.wp_pure_step_later. 1: eauto.
-  iIntros "!>". iApply ("Hrec" with "[] HΨ"). 2:done. iIntros "!>" (w res') "HΨ %Hres'".
-  iApply ("IH" with "HΨ"). iPureIntro. apply Hres'.
-Qed.
+(* Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) : *)
+(*    ⌜penv_prog s !! f = Some (Fun args e)⌝ -∗ *)
+(*   □ ( □ (∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}) -∗ *)
+(*      ∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (subst_all res e) @ s; E {{ Φ }}) -∗ *)
+(*   ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}. *)
+(* Proof. *)
+(*   iIntros "%Hp #Hrec". iLöb as "IH". iIntros (v res) "HΨ %Hres". *)
+(*   iApply lifting.wp_pure_step_later. 1: eauto. *)
+(*   iIntros "!>". iApply ("Hrec" with "[] HΨ"). 2:done. iIntros "!>" (w res') "HΨ %Hres'". *)
+(*   iApply ("IH" with "HΨ"). iPureIntro. apply Hres'. *)
+(* Qed. *)
 
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
-  to_val e1 = None →
+  to_outcome e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
     ⌜head_reducible (penv_prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜head_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
       state_interp σ2 ∗
-      from_option Φ False (to_val e2))
+      from_option Φ False (to_outcome e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
@@ -62,14 +63,14 @@ Proof.
   do 2 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
   iFrame.
-  destruct (to_val e') eqn:?; last by iExFalso.
-  iApply wp_value; first done. iApply "H2".
+  destruct (to_outcome e') eqn:?; last by iExFalso.
+  iApply wp_outcome; first done. iApply "H2".
 Qed.
 
 Lemma wp_Malloc_seq E n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ p; E
-  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
+  {{{ l, RET OVal (LitV (LitLoc l)); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
@@ -84,7 +85,7 @@ Qed.
 
 Lemma wp_free s E l (v:option val) :
   {{{ ▷ l O↦C (Some v) }}} Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt 1) @ s; E
-  {{{ RET LitV LitUnit; True }}}.
+  {{{ RET OVal (LitV LitUnit); True }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
@@ -99,7 +100,7 @@ Proof.
 Qed.
 
 Lemma wp_load s E l dq v :
-  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦C{dq} v }}}.
+  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET OVal v; l ↦C{dq} v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
@@ -111,7 +112,7 @@ Qed.
 
 Lemma wp_store s E l (v':option val) v :
   {{{ ▷ l O↦C Some v' }}} Store (Val $ LitV $ LitLoc l) (Val v) @ s; E
-  {{{ RET LitV LitUnit; l ↦C v }}}.
+  {{{ RET OVal (LitV LitUnit); l ↦C v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.

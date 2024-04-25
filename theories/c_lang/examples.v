@@ -37,12 +37,12 @@ Definition exampleProgram fname cname : gmap string function :=
 
 
 
-Definition FibSpec name := (λ (s:string) (v:list val) (Φ : (val → iPropI Σ)),
-  ⌜s = name⌝ ∗ ∃ z, ⌜v = [ #(LitInt z) ] ∧ (z >= 0)%Z⌝ ∗ Φ (#(fib (Z.to_nat z))))%I.
+Definition FibSpec name := (λ (s:string) (v:list val) (Φ : (outcome val → iPropI Σ)),
+  ⌜s = name⌝ ∗ ∃ z, ⌜v = [ #(LitInt z) ] ∧ (z >= 0)%Z⌝ ∗ Φ (OVal #(fib (Z.to_nat z))))%I.
 
 Definition StoreItSpec := (λ s v Φ,
   ⌜s = "store_it"⌝ ∗ ∃ l v', ⌜v = [ #(LitLoc l) ; v' ]⌝ ∗
-  (∃ v, (l I↦C v) ∗ ((l ↦C v') -∗ Φ (#0))))%I.
+  (∃ v, (l I↦C v) ∗ ((l ↦C v') -∗ Φ (OVal #0))))%I.
 
 Definition FibLeftSpec := FibSpec "fib_left".
 Definition FibRightSpec := FibSpec "fib_right".
@@ -67,7 +67,7 @@ Definition FinalEnv : prog_environ C_lang Σ :=
 
 (* A simple recursive function *)
 Lemma fib_prog_correct' (n:nat)
-  : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ SimpleEnv; ⊤ {{ v, ⌜v = #(fib n)⌝ }})%CE.
+  : ⊢ (WP (call: &"fib_impl" with (Val #n)) @ SimpleEnv; ⊤ {{ v, ⌜v = OVal #(fib n)⌝ }})%CE.
 Proof.
   iStartProof.
   iLöb as "IH" forall (n).
@@ -78,7 +78,7 @@ Proof.
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
     wp_apply wp_wand.
     { assert ((n-1)%Z=(n-1)%nat) as -> by lia. iApply "IH". }
-    iIntros (v) "->". wp_bind (FunCall _ _). wp_pure _. wp_apply wp_wand.
+    iIntros (v) "->". cbn. wp_bind (FunCall _ _). wp_pure _. wp_apply wp_wand.
     { assert ((n-2)%Z=(n-2)%nat) as -> by lia. iApply "IH". }
     iIntros (v) "->". wp_pures. iModIntro. iPureIntro. rewrite <- Nat2Z.inj_add.
     repeat f_equal.
@@ -87,7 +87,7 @@ Proof.
 Qed.
 
 Lemma heap_prog_correct (n:nat)
-  : ⊢ (WP heap_example @ RightEnv; ⊤ {{ v, ⌜v = #(1337 + fib 3)⌝ }}).
+  : ⊢ (WP heap_example @ RightEnv; ⊤ {{ v, ⌜v = OVal #(1337 + fib 3)⌝ }}).
 Proof.
   iStartProof. unfold heap_example.
   wp_alloc l as "Hl"; first lia. change (Z.to_nat 2) with 2.
@@ -136,7 +136,7 @@ Proof.
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
     wp_extern. cbn. iLeft. cbn. iModIntro. iSplit; first done.
     iExists _. iSplit. { iPureIntro. split; eauto; lia. }
-    wp_pures. wp_bind (FunCall _ _). wp_pures.
+    wp_pures. cbn. wp_bind (FunCall _ _). wp_pures.
     wp_extern. cbn. iLeft. cbn. iModIntro.
     iSplit; first done. iExists _. iSplit. { iPureIntro; split; eauto; lia. }
     wp_pures. wp_pures. iModIntro.
@@ -166,7 +166,7 @@ Proof.
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
     wp_extern. cbn. iLeft. cbn. iModIntro.
     iSplit; first done. iExists _. iSplit. { iPureIntro; split; eauto; lia. }
-    wp_pures. wp_bind (FunCall _ _). wp_pures.
+    wp_pures. cbn. wp_bind (FunCall _ _). wp_pures.
     wp_extern. cbn. iLeft. cbn. iModIntro.
     iSplit; first done. iExists _. iSplit. { iPureIntro; split; eauto; lia. }
     wp_pures. wp_pures. iModIntro.

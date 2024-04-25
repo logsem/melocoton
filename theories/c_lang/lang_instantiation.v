@@ -12,22 +12,23 @@ Local Notation state := (gmap loc heap_cell).
 
 Lemma melocoton_lang_mixin_C :
   @LanguageMixin expr val function (list ectx_item) state
-                 of_val lang.C_lang.to_val lang.C_lang.of_call lang.C_lang.is_call
+                 lang.C_lang.of_outcome lang.C_lang.to_outcome
+                 lang.C_lang.of_call lang.C_lang.is_call
                  nil comp_ectx fill
                  apply_function prim_step.
 Proof. split.
-  + apply lang.C_lang.to_of_val.
-  + apply lang.C_lang.of_to_val.
-  + apply lang.C_lang.val_prim_step.
+  + apply lang.C_lang.to_of_outcome.
+  + apply lang.C_lang.of_to_outcome.
+  + apply lang.C_lang.outcome_prim_step.
   + apply lang.C_lang.call_prim_step.
   + apply lang.C_lang.prim_step_call_dec.
   + apply lang.C_lang.prim_step_no_call.
-  + apply lang.C_lang.is_val_not_call.
+  + apply lang.C_lang.is_outcome_not_call.
   + apply lang.C_lang.is_call_in_cont.
   + done.
   + done.
   + apply lang.C_lang.is_call_of_call_inv.
-  + intros *. eapply lang.C_lang.fill_val.
+  + intros *. eapply lang.C_lang.fill_outcome.
   + eapply lang.C_lang.fill_comp.
   + done.
   + eapply lang.C_lang.prim_step_fill.
