@@ -7,19 +7,21 @@ From iris.prelude Require Import options.
 From iris.bi Require Import weakestpre.
 From melocoton Require Export named_props.
 
-(** Classifying expressions into values and calls. *)
+Inductive outcome (val: Type) :=
+| OVal (v : val)
+(* | OExn (v : val) *)
+.
 
-Inductive mixin_expr_class {val} :=
-| ExprVal (v : val) : mixin_expr_class
-| ExprCall (fn_name : string) (arg : list val) : mixin_expr_class.
+Arguments OVal {_} _.
+(* Arguments OExn {_} _. *)
 
 (** Weakestpre notations *)
 
 Notation "'WP' e 'at' s {{ Φ } }" := (wp s ⊤ e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e 'at' s {{ v , Q } }" := (wp s ⊤ e%E (λ v, Q))
+Notation "'WP' e 'at' s {{ o , Q } }" := (wp s ⊤ e%E (λ o, Q))
   (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/'  'at'  s '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+   format "'[hv' 'WP'  e  '/'  'at'  s '/' {{  '[' o ,  '/' Q  ']' } } ']'") : bi_scope.
 
 
 Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
@@ -44,7 +46,7 @@ Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
 (** Protocols *)
 
 Notation protocol val Σ :=
-  (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ).
+  (string -d> list val -d> (outcome val -d> iPropO Σ) -d> iPropO Σ).
 
 Section Protocols.
 Context {SI:indexT}.

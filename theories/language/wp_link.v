@@ -12,7 +12,8 @@ Import uPred.
 Section wp.
 Context `{SI:indexT, !langG val Λ Σ, !invG Σ}.
 Implicit Types P : iProp Σ.
-Implicit Types Φ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
+Implicit Types o : outcome val.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types Ψ : protocol val Σ.
@@ -134,8 +135,12 @@ Qed.
 
 Lemma wp_link_execs Ψaxiom Ψres (pres : gmap string (Λ.(func))) A :
   can_link_all Ψaxiom Ψres pres A
-  -> ⊢ ∀ e Φ i, match (nth_error A i) with None => ⌜False⌝ | 
-          Some (Ψi, pi) => WP e at ⟨pi, (spec_union_list_except i (map fst A)) ⊔ Ψaxiom ⟩ {{ Φ }} end
+  -> ⊢ ∀ e Φ i,
+      match (nth_error A i) with
+      | None => ⌜False⌝
+      | Some (Ψi, pi) =>
+          WP e at ⟨pi, (spec_union_list_except i (map fst A)) ⊔ Ψaxiom ⟩ {{ Φ }}
+      end
      -∗ WP e at ⟨pres, Ψaxiom⟩ {{ Φ }}.
 Proof.
   intros [Hdis HΨres Haxiom -> one_spec' Hsatis].
@@ -145,8 +150,8 @@ Proof.
   iIntros "H %σ Hσ".
   iSpecialize ("H" $! σ with "Hσ").
   iMod "H".
-  iDestruct "H" as "[(%x & -> & Hσ & H)|[(%s' & %vv' & %K & %HeqK & %H2 & >(%Ξ & Hσ & [HΨ|HΨ] & H3))|(%HH & H3)]]".
-  - iModIntro. iLeft. iExists _. iFrame. iPureIntro. done.
+  iDestruct "H" as "[(%x & Hs & Hσ & H)|[(%s' & %vv' & %K & %HeqK & %H2 & >(%Ξ & Hσ & [HΨ|HΨ] & H3))|(%HH & H3)]]".
+  - iModIntro. iLeft. iExists _. iFrame.
   - iDestruct "HΨ" as "(%kidx & %Hknei & HΨ)". rewrite nth_error_map.
     destruct (nth_error A kidx) as [[Ψc pc]|] eqn:Heqk; cbn; last iPure "HΨ" as [].
     specialize (Hsatis kidx). rewrite Heqk in Hsatis.
@@ -174,20 +179,21 @@ Proof.
     iDestruct ("H" $! _ _ Hstep') as ">H". do 2 iModIntro.
     iDestruct "H" as ">[Hσ H]". iModIntro.
     iFrame "Hσ".
-    iApply (wp_bind).
+    iApply wp_bind.
     iApply ("IHe" $! _ _ kidx).
     rewrite Heqk.
     iApply (wp_wand with "H").
-    iIntros (v) "Hv".
+    iIntros (o) "HΞ".
     iApply ("IHe" $! _ _ i).
-    rewrite Heq.
-    iApply ("H3" with "Hv").
+    rewrite Heq. iApply "H3". iApply "HΞ".
   - iRight. iLeft. iModIntro. do 3 iExists _; iSplitR; first done.
     destruct (union_map_list (map snd A) !! s') as [v|] eqn:Heqv.
     { iExFalso. iDestruct (Haxiom $! s' vv' Ξ with "HΨ") as "%Hfalse". exfalso.
       apply Hfalse. eapply elem_of_dom_2. done. }
     cbn. iSplitR; first done. iModIntro. iExists Ξ. iFrame. iNext.
-    iIntros (r) "Hr". iSpecialize ("H3" with "Hr"). iApply ("IHe" $! _ _ i). by rewrite Heq.
+    iIntros (r) "Hr". iSpecialize ("H3" $! r).
+    iApply ("IHe" $! _ _ i). rewrite Heq.
+    iApply "H3". iAssumption.
   - iModIntro. iRight. iRight.
     iSplitR.
     { iPureIntro. eapply reducible_mono; last done.

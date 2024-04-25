@@ -9,14 +9,15 @@ Section lifting.
 Context `{SI:indexT, !langG val Λ Σ, !invG Σ}.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types s : prog_environ Λ Σ.
+Implicit Types o : outcome val.
 Implicit Types v : val.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
 
 Lemma wp_lift_step_fupd s E Φ e1 :
-  to_val e1 = None →
+  to_outcome e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
     ⌜reducible (penv_prog s) e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2⌝
@@ -35,12 +36,12 @@ Qed.
 
 
 Lemma wp_lift_atomic_step {s E Φ} e1 :
-  to_val e1 = None →
+  to_outcome e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
     ⌜reducible (penv_prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
       state_interp σ2 ∗
-      from_option Φ False (to_val e2))
+      from_option Φ False (to_outcome e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
@@ -49,8 +50,8 @@ Proof.
   iIntros (e' σ' Hstep). do 3 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
   iFrame.
-  destruct (to_val e') eqn:?; last by iExFalso.
-  iApply wp_value; first done. iApply "H2".
+  destruct (to_outcome e') eqn:?; last by iExFalso.
+  iApply wp_outcome; first done. iApply "H2".
 Qed.
 
 Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state Λ)} {s E Φ} e1 e2 :
@@ -60,7 +61,7 @@ Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state Λ)} {s E Φ} e1 e2 :
   (|={E}[E]▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply wp_lift_step_fupd.
-  { specialize (Hsafe inhabitant). destruct s; eauto using reducible_not_val. }
+  { specialize (Hsafe inhabitant). destruct s; eauto using reducible_not_outcome. }
   iIntros (σ1) "Hσ". iMod "H". iModIntro. iSplitR.
   { iPureIntro. destruct (Hsafe σ1) as (?&?&?Hsafe').
     destruct (Hstep _ _ _ Hsafe') as (->&->).  do 2 eexists. done. }
@@ -77,7 +78,7 @@ Proof.
     + intros σ1. destruct (Hred σ1) as (e' & σ' & H). do 2 eexists.
       apply prim_step_fill, H.
     + intros σ1 e2 σ2 HH. apply fill_step_inv in HH as (?&?&HH).
-      2: { destruct (Hred σ1) as (?&?&?). by eapply val_stuck. }
+      2: { destruct (Hred σ1) as (?&?&?). by eapply outcome_stuck. }
       apply Hdet in HH as (-> & ->). done.
   - apply IH.
 Qed.
@@ -91,7 +92,7 @@ Proof.
   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl.
   { by iApply "Hwp". }
   iApply wp_lift_pure_det_step_no_fork.
-  - intros σ. specialize (Hsafe σ). destruct s; eauto using reducible_not_val.
+  - intros σ. specialize (Hsafe σ). destruct s; eauto using reducible_not_outcome.
   - done.
   - iApply (step_fupd_wand with "Hwp").
     iApply "IH".
