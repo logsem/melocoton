@@ -14,21 +14,22 @@ Section BackwardsLiftedAdequacy.
   Context (Λ : language val).
   Context {Σ : gFunctors}.
 
-  Context (Φpure : state Λ → val → Prop).
+  Context (Φpure : state Λ → outcome val → Prop).
   Context (p : lang_prog Λ).
   Context (Ψ : protocol val Σ).
-  Context (Φbi : val → iProp Σ).
+  Context (Φbi : outcome val → iProp Σ).
 
   Notation step := (@lang.prim_step _ Λ p).
   Notation cfg := (prod (expr Λ) (state Λ)).
 
   Implicit Types σ : state Λ.
   Implicit Types v : val.
+  Implicit Types o : outcome val.
   Implicit Types e : expr Λ.
   Implicit Types X : cfg → Prop.
 
   Definition sideConds `{!invG Σ, !langG val Λ Σ} : iProp Σ := 
-    □ (∀ σ v, state_interp σ ∗ Φbi v ==∗ ⌜Φpure σ v⌝)
+    □ (∀ σ o, state_interp σ ∗ Φbi o ==∗ ⌜Φpure σ o⌝)
   ∗ □ (∀ f s vv, penv_proto ⟨p,Ψ⟩ f s vv -∗ False).
   Context `{!invPreG Σ}.
 
@@ -42,7 +43,7 @@ Section BackwardsLiftedAdequacy.
     @mlanguage.safe _ (lang_to_mlang Λ) p e' σ' Φ → safe p e' σ' Φ.
   Proof.
     rewrite /safe /mlanguage.safe /mlanguage.to_val; cbn.
-    destruct (to_val e') eqn:Heq.
+    destruct (to_outcome e') eqn:Heq.
     - done.
     - intros (X&HX). inversion HX; simplify_eq.
       by eapply H2.

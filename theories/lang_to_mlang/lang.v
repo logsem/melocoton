@@ -13,7 +13,7 @@ Section ToMlang.
 
   Inductive prim_step_mrel : prog → expr_state → (expr_state → Prop) → Prop :=
   | LiftStep p e1 σ1 (X : _ → Prop) :
-      (to_val e1 = None → reducible p e1 σ1) →
+      (to_outcome e1 = None → reducible p e1 σ1) →
       (∀ e2 σ2, prim_step p e1 σ1 e2 σ2 → X (e2, σ2)) →
       prim_step_mrel p (e1, σ1) X.
 
@@ -28,20 +28,20 @@ Section ToMlang.
   Notation ectx := Λ.(ectx).
 
   Lemma language_mlanguage_mixin :
-    MlanguageMixin (val:=val) (of_val Λ) to_val Λ.(of_call) Λ.(is_call) empty_ectx
+    MlanguageMixin (val:=val) (of_outcome Λ) to_outcome Λ.(of_call) Λ.(is_call) empty_ectx
       Λ.(comp_ectx) Λ.(fill) Λ.(apply_func) prim_step.
   Proof using.
     constructor.
-    - apply to_of_val.
-    - apply of_to_val.
+    - apply to_of_outcome.
+    - apply of_to_outcome.
     - intros p v σ. constructor.
-      + rewrite to_of_val. inversion 1.
-      + apply val_prim_step.
+      + rewrite to_of_outcome. inversion 1.
+      + apply outcome_prim_step.
     - intros p e f vs C σ X Hcall. split; intros H.
       + inversion H; simplify_eq.
         destruct H3 as (?&?&Hstep).
-        { destruct (to_val e) eqn:HH; auto.
-          eapply is_val_not_call in Hcall; by eauto. }
+        { destruct (to_outcome e) eqn:HH; auto.
+          eapply is_outcome_not_call in Hcall; by eauto. }
         pose proof Hstep as Hstep2.
         eapply call_prim_step in Hstep as (?&?&?&?&?&?); eauto; simplify_eq.
         do 2 eexists. repeat split; eauto.
@@ -52,12 +52,12 @@ Section ToMlang.
         * intros *. pose proof (is_call_of_call e f vs C Hcall).
           intros Hstep. rewrite call_prim_step in Hstep; eauto.
           destruct Hstep as (?&?&?&?&?&?); simplify_eq. congruence.
-    - eapply is_val_not_call.
+    - eapply is_outcome_not_call.
     - eapply is_call_in_ctx.
     - eapply of_call_is_call.
     - eapply is_call_of_call.
     - eapply is_call_of_call_inv.
-    - eapply fill_val.
+    - intros e K H. apply fill_outcome, H.
     - eapply fill_comp.
     - eapply fill_empty.
     - intros p C e σ X Hnv. inversion 1; simplify_eq. econstructor.

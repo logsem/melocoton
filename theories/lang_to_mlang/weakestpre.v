@@ -13,8 +13,9 @@ Context {val : Type}.
 Context (Λ: language val).
 Context `{!langG val Λ Σ, !invG Σ}.
 Implicit Types P : iProp Σ.
-Implicit Types Φ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
 Implicit Types v : val.
+Implicit Types o : outcome val.
 Implicit Types T : protocol val Σ.
 
 Global Program Instance lang_to_mlang_mlangG :
@@ -53,7 +54,7 @@ Proof using.
     iSplitR; first done. iSplitR; first done. iSplitR; first done. iFrame.
     iExists Ξ. iFrame. iNext. iIntros (v) "[Hv _]". iApply "IH". by iApply "Hr".
   - iRight. iRight. iModIntro. iSplitR.
-    { iPureIntro. eapply reducible_not_val. done. }
+    { iPureIntro. eapply reducible_not_outcome. done. }
     iExists (λ '(e2, σ2), language.prim_step p e σ e2 σ2).
     iSplit. { iPureIntro. by econstructor. }
     iIntros (e' σ' Hstep). iMod ("H3" $! _ _ Hstep) as "H3".

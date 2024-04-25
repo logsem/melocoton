@@ -10,14 +10,15 @@ Context `{SI:indexT, !invG Σ, !mlangG val Λ Σ}.
 Implicit Types prog : mixin_prog (func Λ).
 Implicit Types pe : prog_environ Λ Σ.
 Implicit Types v : val.
+Implicit Types o : outcome val.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
 Implicit Types X : expr Λ * state Λ → Prop.
 
 Lemma wp_lift_step_fupd pe E Φ e1 :
-  to_val e1 = None →
+  to_outcome e1 = None →
   not_is_ext_call (penv_prog pe) e1 →
   (∀ σ1, state_interp σ1 ={E}=∗
     ∃ X, ⌜prim_step (penv_prog pe) (e1, σ1) X⌝ ∗ |={E}▷=>
@@ -37,12 +38,12 @@ Qed.
 
 
 Lemma wp_lift_atomic_step {pe E Φ} e1 :
-  to_val e1 = None →
+  to_outcome e1 = None →
   not_is_ext_call (penv_prog pe) e1 →
   (∀ σ1, state_interp σ1 ={E}=∗
     ∃ X, ⌜prim_step (penv_prog pe) (e1, σ1) X⌝ ∗ |={E}▷=>
       ∀ e2 σ2, ⌜X (e2, σ2)⌝ -∗
-        state_interp σ2 ∗ from_option Φ False (to_val e2))
+        state_interp σ2 ∗ from_option Φ False (to_outcome e2))
   ⊢ WP e1 @ pe; E {{ Φ }}.
 Proof.
   iIntros (Hnv Hnc) "H".
@@ -51,12 +52,12 @@ Proof.
   iExists _. iSplit; first done. do 2 iModIntro.
   iMod "H". iIntros "!>" (? ? HX).
   iDestruct ("H" $! _ _ HX) as "[? ?]". iFrame.
-  destruct (to_val e2) eqn:?; last by iExFalso.
-  by iApply wp_value.
+  destruct (to_outcome e2) eqn:?; last by iExFalso.
+  by iApply wp_outcome.
 Qed.
 
 Lemma wp_lift_pure_det_step `{!Inhabited (state Λ)} {pe E Φ} e1 e2 :
-  (to_val e1 = None) →
+  (to_outcome e1 = None) →
   (∀ σ1, prim_step (penv_prog pe) (e1, σ1) (λ '(e', σ'), e' = e2 ∧ σ' = σ1)) →
   (|={E}[E]▷=> WP e2 @ pe; E {{ Φ }}) ⊢ WP e1 @ pe; E {{ Φ }}.
 Proof.
