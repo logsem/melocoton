@@ -227,25 +227,25 @@ Notation "Ψ 'on' fns" := (proto_on Ψ fns) (at level 10).
 
 Notation "'!!' x .. y '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)) ..))%I
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)) ..))%I
   (at level 20, x closed binder, y closed binder, u closed binder, v closed binder,
    format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)))%I
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)))%I
   (at level 20, u closed binder, v closed binder,
    format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' x .. y '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (Q -∗ Φ pat)) ..))%I
+    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))) ..))%I
   (at level 20, x closed binder, y closed binder,
    format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (Q -∗ Φ pat)))%I
+    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))))%I
   (at level 20,
    format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
 

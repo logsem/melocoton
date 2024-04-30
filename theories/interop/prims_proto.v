@@ -42,13 +42,13 @@ Definition int2val_proto : C_proto :=
   !! θ z
   {{ "HGC" ∷ GC θ }}
     "int2val" with [C_intf.LitV $ C_intf.LitInt $ z]
-  {{ w, RET (OVal w); GC θ ∗ ⌜repr_lval θ (Lint z) w⌝ }}.
+  {{ w, RET w; GC θ ∗ ⌜repr_lval θ (Lint z) w⌝ }}.
 
 Definition val2int_proto : C_proto :=
   !! θ w z
   {{ "HGC" ∷ GC θ ∗ "%Hrepr" ∷ ⌜repr_lval θ (Lint z) w⌝ }}
     "val2int" with [w]
-  {{ RET OVal (C_intf.LitV $ C_intf.LitInt $ z); GC θ }}.
+  {{ RET C_intf.LitV $ C_intf.LitInt $ z; GC θ }}.
 
 Definition registerroot_proto : C_proto :=
   !! θ l v w
@@ -58,13 +58,13 @@ Definition registerroot_proto : C_proto :=
      "%Hrepr" ∷ ⌜repr_lval θ v w⌝
   }}
     "registerroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
-  {{ RET OVal (C_intf.LitV $ C_intf.LitInt $ 0); GC θ ∗ l ↦roots v }}.
+  {{ RET C_intf.LitV $ C_intf.LitInt $ 0; GC θ ∗ l ↦roots v }}.
 
 Definition unregisterroot_proto : C_proto :=
   !! θ l v
   {{ "HGC" ∷ GC θ ∗ "Hpto" ∷ l ↦roots v }}
     "unregisterroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
-  {{ w, RET OVal (C_intf.LitV $ C_intf.LitInt $ 0); GC θ ∗ l ↦C w ∗ ⌜repr_lval θ v w⌝ }}.
+  {{ w, RET C_intf.LitV $ C_intf.LitInt $ 0; GC θ ∗ l ↦C w ∗ ⌜repr_lval θ v w⌝ }}.
 
 Definition modify_proto : C_proto :=
   !! θ w i v' w' γ mut tg vs
@@ -78,7 +78,7 @@ Definition modify_proto : C_proto :=
      "Hpto" ∷ γ ↦vblk[mut] (tg, vs)
   }}
     "modify" with [ w; C_intf.LitV $ C_intf.LitInt $ i; w' ]
-  {{ RET OVal (C_intf.LitV $ C_intf.LitInt $ 0);
+  {{ RET C_intf.LitV $ C_intf.LitInt $ 0;
      GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs)
   }}.
 
@@ -92,7 +92,7 @@ Definition readfield_proto : C_proto :=
      "Hpto" ∷ γ ↦vblk[m]{dq} (tg, vs)
   }}
     "readfield" with [ w; C_intf.LitV $ C_intf.LitInt $ i ]
-  {{ w' v', RET (OVal w');
+  {{ w' v', RET w';
      GC θ ∗
      γ ↦vblk[m]{dq} (tg, vs) ∗
      ⌜vs !! (Z.to_nat i) = Some v'⌝ ∗
@@ -103,8 +103,8 @@ Definition isblock_proto : C_proto :=
   !! θ lv w
   {{ "HGC" ∷ GC θ ∗ "%Hreprw" ∷ ⌜repr_lval θ lv w⌝ }}
     "isblock" with [ w ]
-  {{ RET OVal (C_intf.LitV $ C_intf.LitInt
-            (match lv with Lloc _ => 1 | _ => 0 end));
+  {{ RET C_intf.LitV $ C_intf.LitInt
+            (match lv with Lloc _ => 1 | _ => 0 end);
      GC θ
   }}.
 
@@ -117,7 +117,7 @@ Definition read_tag_proto : C_proto :=
      "Hpto" ∷ lstore_own_elem γ dq bl
   }}
     "read_tag" with [ w ]
-  {{ RET OVal (C_intf.LitV $ C_intf.LitInt $ (tag_as_int tg));
+  {{ RET C_intf.LitV $ C_intf.LitInt $ (tag_as_int tg);
      GC θ ∗ lstore_own_elem γ dq bl
   }}.
 
@@ -129,7 +129,7 @@ Definition length_proto : C_proto :=
      "Hpto" ∷ γ ↦vblk[ a ]{ dq } bl
   }}
     "length" with [ w ]
-  {{ RET OVal (C_intf.LitV $ C_intf.LitInt $ length $ snd $ bl);
+  {{ RET C_intf.LitV $ C_intf.LitInt $ length $ snd $ bl;
      GC θ ∗ γ ↦vblk[ a ]{ dq } bl
   }}.
 
@@ -138,7 +138,7 @@ Definition alloc_proto : C_proto :=
   {{ "HGC" ∷ GC θ ∗ "%Hsz" ∷ ⌜0 ≤ sz⌝%Z }}
     "alloc" with
       [ C_intf.LitV $ C_intf.LitInt $ vblock_tag_as_int $ tg; C_intf.LitV $ C_intf.LitInt $ sz ]
-  {{ θ' γ w, RET OVal w;
+  {{ θ' γ w, RET w;
      GC θ' ∗
      γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) ∗
      ⌜repr_lval θ' (Lloc γ) w⌝
@@ -183,14 +183,14 @@ Definition callback_proto (Ψ : ML_proto) : C_proto :=
      "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) at ⟨∅, Ψ⟩ {{ Φ' }}
   }}
     "callback" with [ w; w' ]
-  {{ θ' vret lvret wret, RET OVal wret;
+  {{ θ' vret lvret wret, RET wret;
      GC θ' ∗ Φ' (OVal vret) ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝
   }}.
 
 Definition main_proto (Φ' : Z → Prop) (Pinit : iProp Σ) : C_proto :=
   !! {{ "Hat_init" ∷ at_init ∗ "Hinitial_resources" ∷ Pinit }}
     "main" with []
-  {{ x, RET OVal (code_int x); ⌜Φ' x⌝ }}.
+  {{ x, RET code_int x; ⌜Φ' x⌝ }}.
 
 Definition prim_proto (p : prim) (Ψ : ML_proto) : C_proto :=
   match p with

@@ -30,13 +30,13 @@ Definition is_odd_proto : protocol val Σ :=
   !! (x:Z)
   {{ "%" ∷ ⌜(0 ≤ x)%Z⌝ }}
     "is_odd" with [ #x ]
-  {{ RET OVal #(Z.odd x); True }}.
+  {{ RET #(Z.odd x); True }}.
 
 Definition is_even_proto : protocol val Σ :=
   !! (x:Z)
   {{ "%" ∷ ⌜(0 ≤ x)%Z⌝ }}
     "is_even" with [ #x ]
-  {{ RET OVal #(Z.even x); True }}.
+  {{ RET #(Z.even x); True }}.
 
 Lemma wp_is_even (x:Z) :
   (0 ≤ x)%Z →
