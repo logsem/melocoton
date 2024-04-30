@@ -121,7 +121,7 @@ Section Proofs.
       wp_pure _.
       wp_apply (wp_readfield with "[$HGC $Hγbuf2]"); [mdone..|].
       iIntros (vγref2 wγref2) "(HGC&_&%Heq1&%Hreprγref2)". cbv in Heq1; simplify_eq.
-      wp_apply (wp_load with "Hℓcap2"). iIntros "Hℓcap2".
+      cbn; wp_apply (wp_load with "Hℓcap2"). iIntros "Hℓcap2".
       wp_apply (wp_int2val with "HGC"); [mdone..|].
       iIntros (w0) "(HGC&%Hrepr0)".
       wp_apply (wp_modify with "[$HGC $Hγusedref2]"); [mdone..|].
@@ -129,13 +129,14 @@ Section Proofs.
       wp_apply (wp_free with "Hℓcap2"). iIntros "_".
       do 2 wp_pure _.
       rewrite bool_decide_decide; destruct decide; try done.
-      wp_pure _. iApply (wp_post_mono with "[HGC]").
-      1: wp_apply (wp_int2val with "HGC"); [mdone..|iIntros (w) "H"; iAccu].
-      iIntros (ww1) "(HGC&%Hreprw1)".
+      wp_pure _. iApply (wp_post_mono _ _ _ 
+        (λ o, ∃ w, ⌜o = OVal w⌝ ∗ GC θ ∗ ⌜repr_lval θ (Lint 1) w⌝)%I with "[HGC]").
+      1: wp_apply (wp_int2val with "HGC"); [mdone..|iIntros (w) "H"; iExists w; iFrame; try done].
+      iIntros (o) "(%w&->&HGC&Hreprw1)".
       iMod (bufToML_fixed with "HGC [Hγusedref Hγfgnpto Hℓbuf Hℓbufuninit HContent] Hsim1") as "(HGC&HBuf1)"; last first.
       1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2") as "(HGC&HBuf2)"; last first.
       1: iApply "HΦ".
-      1: iApply ("Return" $! _ (#ML true) with "HGC (HCont HBuf1 HBuf2) [//] [//]").
+      1: iApply ("Return" $! _ (#ML true) _ (w) with "HGC (HCont HBuf1 HBuf2) [//]"); try done.
       { iExists _, _, _, _, _. unfold named.
         iSplit; first done.
         change (Z.to_nat 0) with 0; cbn.

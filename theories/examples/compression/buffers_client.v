@@ -181,7 +181,7 @@ Section MLclient.
   Lemma ML_client_applied_spec :
     ⊢ WP
       ML_client_applied_code at ML_client_env
-    {{ v, ⌜∃ (x:Z), v = #x ∧ x = 1%Z⌝ }}.
+    {{ v, ⌜∃ (x:Z), v = OVal #x ∧ x = 1%Z⌝ }}.
   Proof.
     unfold ML_client_applied_code.
     wp_apply (wp_allocN); [done..|].

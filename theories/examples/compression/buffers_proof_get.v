@@ -48,9 +48,12 @@ Section Proofs.
     { change (map ?a ?b) with (@fmap _ list_fmap _ _ a b). rewrite list_lookup_fmap Heqres.
       cbn; done. }
     iIntros "Hℓbuf".
-    iApply (wp_post_mono with "[HGC]").
-    1: wp_apply (wp_int2val with "HGC"); [done..|iIntros (w) "?"; iAccu].
-    iIntros (w) "(HGC&%Hww)".
+    iApply (wp_post_mono _ _ _
+      (λ o : outcome word,
+       (∃ w : word, ⌜o = OVal w⌝ ∗ GC θ ∗ ⌜repr_lval θ (Lint res) w⌝)%I) with "[HGC]").
+    { wp_apply (wp_int2val with "HGC"); try done. iIntros (w) "[HGC %Hr]".
+      iExists w. iFrame. iSplit; done. }
+    iIntros (o) "(%w&->&HGC&%Hww)".
     iMod (bufToML_fixed with "HGC [Hγusedref HContent Hγfgnpto Hℓbuf] Hsimb") as "(HGC&HBuffer)"; last first.
     { iModIntro. iApply "HΦ".
       iApply ("Return" with "HGC (HCont HBuffer) [//] [//]"). }

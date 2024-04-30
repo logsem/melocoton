@@ -246,7 +246,7 @@ Section Specs.
       "->" ∷ ⌜s = buf_alloc_name⌝
     ∗ "->" ∷ ⌜vv = [ #z ]⌝
     ∗ "%Hb1" ∷ ⌜(0 < z)%Z⌝
-    ∗ "HCont" ∷ ▷ (∀ v, buffer_ML v z nil -∗ Φ v).
+    ∗ "HCont" ∷ ▷ (∀ v, buffer_ML v z nil -∗ Φ (OVal v)).
 
   Lemma buf_alloc_spec_ML_simple_refines :
     buf_alloc_spec_ML_simple ⊑ buf_alloc_spec_ML.
@@ -260,7 +260,7 @@ Section Specs.
     iExists _. cbn. done.
   Qed.
 
-  Definition buf_update_spec_ML_simple Ψcb s vv (Φ:MLval → iProp Σ) : iProp Σ :=
+  Definition buf_update_spec_ML_simple Ψcb s vv (Φ:(outcome MLval) → iProp Σ) : iProp Σ :=
     ∃ (i j : nat) b1 b2 F V n m (P : Z → iProp Σ) (f : Z → Z)
       (Hblen : (i ≤ length m)),
       "->" ∷ ⌜s = buf_upd_name⌝
@@ -270,8 +270,8 @@ Section Specs.
     ∗ "%Hb3" ∷ ⌜j < n⌝%Z
     ∗ "Hbuffer" ∷ buffer_ML V n m
     ∗ "HP" ∷ P i
-    ∗ "#Hcallback" ∷ (□ ∀ k, P(k) -∗ WP (RecV b1 b2 F) (#k) at ⟨ ∅, Ψcb ⟩ {{ v, ⌜v = #(f k)⌝ ∗ P (k+1)%Z}})
-    ∗ "HCont" ∷ ▷ (buffer_ML V n (list_parallel_insert_extending f i (j+1) m Hblen) -∗ P (j+1) -∗ Φ #()).
+    ∗ "#Hcallback" ∷ (□ ∀ k, P(k) -∗ WP (RecV b1 b2 F) (#k) at ⟨ ∅, Ψcb ⟩ {{ v, ⌜v = OVal #(f k)⌝ ∗ P (k+1)%Z}})
+    ∗ "HCont" ∷ ▷ (buffer_ML V n (list_parallel_insert_extending f i (j+1) m Hblen) -∗ P (j+1) -∗ Φ (OVal #())).
 
   Lemma buf_update_spec_ML_simple_refines Ψ :
     buf_update_spec_ML_simple Ψ ⊑ buf_update_spec_ML Ψ.
