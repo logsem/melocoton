@@ -43,7 +43,7 @@ Proof using.
   iMod (hgh_modify_block with "GCHGH Hpto") as "(GCHGH & Hpto)"; first done.
   do 3 iModIntro. iFrame.
   iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done.
+  iApply wp_outcome; first done.
   change (Z.of_nat 0) with (Z0).
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[- $Hpto]"). iFrame.

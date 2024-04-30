@@ -42,7 +42,7 @@ Proof using.
   iPoseProof ("HL" with "GCrootspto") as "((%W&Hpto&%Hw)&GCrootspto)".
   iClear "HL".
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done.
+  iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! W with "[- $Hpto]"). iSplit; last done.
   repeat iExists _. iFrame. iPureIntro; split_and!; eauto.

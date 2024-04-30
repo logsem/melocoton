@@ -27,8 +27,8 @@ Import mlanguage.
 
 Lemma wp_to_val (pe : progenv.prog_environ wrap_lang Σ) v:
     not_at_boundary
- -∗ WP (WrSE (ExprML (ML_lang.Val v))) at pe {{ w,
-      ∃ θ' lv, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗
+ -∗ WP (WrSE (ExprML (ML_lang.Val v))) at pe {{ o,
+      ∃ θ' w lv, ⌜OVal w = o⌝ ∗ GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗
       at_boundary wrap_lang }}.
 Proof using.
   iIntros "Hnb".
@@ -53,17 +53,19 @@ Proof using.
   iIntros (? ? (w & ρc & mem & Hcore & -> & ->)).
   iMod (wrap_interp_ml_to_c with "SI Hnb") as "(SI & Hb & HGC & (%lvs & Hsim & %Hrepr))";
     first done.
-  do 3 iModIntro. iFrame "SI". iApply weakestpre.wp_value'.
+  do 3 iModIntro. iFrame "SI".
+  replace (WrSE (ExprV w)) with (of_outcome wrap_lang (OVal w)) by done. 
+  iApply weakestpre.wp_outcome'.
   iDestruct (big_sepL2_cons_inv_l with "Hsim") as "(% & % & -> & Hsim & _)".
-  iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
+  iExists _, _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
 Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
   Ψ on prim_names ⊑ ⊥ →
   not_at_boundary -∗
   WP eml at ⟨ ∅, Ψ ⟩ {{ Φ }} -∗
-  WP (WrSE (ExprML eml)) at ⟪ wrap_prog emain, wrap_proto Ψ ⟫ {{ w,
-    ∃ θ' lv v, GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ v ∗
+  WP (WrSE (ExprML eml)) at ⟪ wrap_prog emain, wrap_proto Ψ ⟫ {{ o,
+    ∃ θ' w lv v, ⌜OVal w = o⌝ ∗ GC θ' ∗ ⌜repr_lval θ' lv w⌝ ∗ lv ~~ v ∗ Φ (OVal v) ∗
     at_boundary wrap_lang }}.
 Proof.
   intros Hnprims.
@@ -76,13 +78,14 @@ Proof.
   iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %Hpublocs.
   iMod ("HWP" $! σ with "[$HσML]") as "[HWP|[HWP|HWP]]".
   (* value *)
-  + iDestruct "HWP" as "(%x & -> & Hσ & Hret)".
-    iPoseProof (wp_to_val _ x with "Hnb") as "Hwp".
+  + iDestruct "HWP" as "(%o & -> & Hσ & Hret)".
+    destruct o.
+    iPoseProof (wp_to_val _ v with "Hnb") as "Hwp".
     iDestruct (weakestpre.wp_strong_mono_post with "[Hret] Hwp") as "Hwp";
       last first.
     { rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
       iApply ("Hwp" $! (MLState ρml σ)). iFrame. by iPureIntro. }
-    { cbn. iIntros (v) "(%θ' & %lv & ? & ? & ? & ?)". iExists _, _, _. iFrame. }
+    { cbn. iIntros (vv) "(%θ' & %w & %lv & ? & ? & ? & ? & ?)". iExists _, _, _, _. iFrame. }
   (* extcall *)
   + iDestruct "HWP" as "(%fn_name & %vs & %K' & -> & %Hfn & >(%Ξ & Hσ & HT & Hr))".
     iAssert (⌜¬ is_prim_name fn_name⌝)%I with "[HT]" as "%Hnprim".
@@ -126,12 +129,12 @@ Proof.
     { iPureIntro. apply not_elem_of_dom.
       rewrite dom_wrap_prog not_elem_of_prim_names //. }
     iFrame "Hb Hst'".
-    iExists (λ wret, ∃ θ' vret lvret, GC θ' ∗ Ξ vret ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
+    iExists (λ o, ∃ θ' wret vret lvret, ⌜OVal wret = o⌝ ∗ GC θ' ∗ Ξ (OVal vret) ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝)%I.
     iSplitL "HGC HT".
     { rewrite /wrap_proto /named /=. iExists _, _, _, _.
       iFrame "HGC HT Hblk". iSplit; first done.
-      iIntros (? ? ? ?) "? ? ? %". iExists _, _, _. by iFrame. }
-    iNext. iIntros (wret) "((%θ' & %vret & %lvret & HGC & HΞ & Hsim & %) & Hb)".
+      iIntros (? ? ? ?) "? ? ? %". iExists _, _, _, _. by iFrame. }
+    iNext. iIntros (o) "((%θ' & %wret & %vret & %lvret & <- & HGC & HΞ & Hsim & %) & Hb)".
 
     (* extcall done; take an administrative step for the call return *)
 
@@ -152,7 +155,9 @@ Proof.
 
     (* continue execution using IH *)
 
-    iApply ("IH" with "Hnb"). by iApply "Hr".
+    iApply ("IH" with "Hnb").
+    replace (Val vret) with (lang.ML_lang.of_outcome (OVal vret)) by done.
+    by iApply "Hr".
 
   (* step *)
   + iDestruct "HWP" as "(%Hred & HWP)".
@@ -210,14 +215,14 @@ Proof using.
   do 3 iModIntro. iFrame "Hst".
   iApply (weakestpre.wp_wand with "[-Cont Hcont Hclos]").
   { by iApply (wp_simulates with "Hnb [WPcallback]"). }
-  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & % & Hsim & Hψ & ?)".
+  cbn. iIntros (o) "(%θ' & %wr & %lv & %vret & <- & HGC & % & Hsim & Hψ & ?)".
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame; eauto.
 Qed.
 
 Lemma main_correct emain Ψ P (Φ : Z → Prop) :
   Ψ on prim_names ⊑ ⊥ →
-  (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = (LitV (LitInt x)) ∧ Φ x⌝ }}) →
+  (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = OVal (LitV (LitInt x)) ∧ Φ x⌝ }}) →
   wrap_proto Ψ |- wrap_prog emain :: main_proto Φ P.
 Proof using.
   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamedProto "Hproto".
@@ -259,14 +264,15 @@ Proof using.
   iApply (weakestpre.wp_wand with "[-Cont Hcont]").
   { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done.
     iApply (Hmain with "[$]"). }
-  cbn. iIntros (v) "(%θ' & %lv & %vret & HGC & %Hrepr & Hsim & HΦ' & ?)".
-  iDestruct "HΦ'" as (? ->) "%". iDestruct "Hsim" as "->". inversion Hrepr; simplify_eq.
+  cbn. iIntros (o) "(%θ' & %v & %lv & %vret & <- & HGC & %Hrepr & Hsim & HΦ' & ?)".
+  iDestruct "HΦ'" as (?) "[%Hv %HΦ]". inversion Hv. subst.
+  iDestruct "Hsim" as "->". inversion Hrepr; simplify_eq.
   iApply "Hcont". iFrame. by iApply "Cont".
 Qed.
 
 Lemma wrap_correct emain Ψ (Φ : Z → Prop) P :
   Ψ on prim_names ⊑ ⊥ →
-  (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = (LitV (LitInt x)) ∧ Φ x⌝ }}) →
+  (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = OVal (LitV (LitInt x)) ∧ Φ x⌝ }}) →
   wrap_proto Ψ |- wrap_prog emain :: prims_proto Ψ ⊔ main_proto Φ P.
 Proof using.
   intros Hnprim Hmain.
