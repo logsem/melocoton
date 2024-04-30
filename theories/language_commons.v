@@ -26,22 +26,36 @@ Notation "'WP' e 'at' s {{ o , Q } }" := (wp s ⊤ e%E (λ o, Q))
 
 Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
   (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
     (at level 20, x closed binder, y closed binder,
      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
 
 Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }})%I
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }})%I
     (at level 20,
      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
 
+(* Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RETV' pat ; Q } } }" := *)
+(*   (□ ∀ Φ, *)
+(*       P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I *)
+(*     (at level 20, x closed binder, y closed binder, *)
+(*      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' x  ..  y ,  RETV  pat ;  '/' Q  ']' } } } ']'") : bi_scope. *)
+(**)
+(* Notation "'{{{' P } } } e 'at' s {{{ 'RETV' pat ; Q } } }" := *)
+(*   (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }})%I *)
+(*     (at level 20, *)
+(*      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' RETV  pat ;  '/' Q  ']' } } } ']'") : bi_scope. *)
 
 
 Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
 Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
 
+(* Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RETV' pat ; Q } } }" := *)
+(*   (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope. *)
+(* Notation "'{{{' P } } } e 'at' s {{{ 'RETV' pat ; Q } } }" := *)
+(*   (∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope. *)
 
 (** Protocols *)
 

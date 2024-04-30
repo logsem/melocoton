@@ -92,7 +92,7 @@ Definition readfield_proto : C_proto :=
      "Hpto" ∷ γ ↦vblk[m]{dq} (tg, vs)
   }}
     "readfield" with [ w; C_intf.LitV $ C_intf.LitInt $ i ]
-  {{ w' v', RET OVal w';
+  {{ w' v', RET (OVal w');
      GC θ ∗
      γ ↦vblk[m]{dq} (tg, vs) ∗
      ⌜vs !! (Z.to_nat i) = Some v'⌝ ∗

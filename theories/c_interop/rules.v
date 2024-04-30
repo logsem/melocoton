@@ -26,7 +26,7 @@ Lemma store_to_root pe (l:loc) (v v' : lval) w θ :
   repr_lval θ v w →
   {{{ GC θ ∗ l ↦roots v' }}}
      (#l <- w)%CE at pe
-  {{{ RET OVal (LitV LitUnit); GC θ ∗ l ↦roots v }}}%CE.
+  {{{ RET LitV LitUnit; GC θ ∗ l ↦roots v }}}%CE.
 Proof.
   iIntros (Hrepr Φ) "(HGC&Hroot) HΦ".
   iDestruct (update_root with "[$HGC $Hroot]") as (w') "(Hpto & _ & Hupd)".
@@ -39,7 +39,7 @@ Qed.
 Lemma load_from_root pe (l:loc) (v : lval) dq θ :
   {{{ GC θ ∗ l ↦roots{dq} v }}}
      ( * #l)%CE at pe
-  {{{ w, RET OVal w; l ↦roots{dq} v ∗ GC θ ∗ ⌜repr_lval θ v w⌝ }}}%CE.
+  {{{ w, RET w; l ↦roots{dq} v ∗ GC θ ∗ ⌜repr_lval θ v w⌝ }}}%CE.
 Proof.
   iIntros (Φ) "(HGC&Hroot) HΦ".
   iDestruct (access_root with "[$HGC $Hroot]") as (w') "(Hpto & %Hrepr & Hupd)".
@@ -54,7 +54,7 @@ Lemma wp_int2val p Ψ θ (x : Z) :
   int2val_proto ⊑ Ψ →
   {{{ GC θ }}}
     (call: &"int2val" with (Val #x))%CE at ⟨p, Ψ⟩
-  {{{ w, RET OVal w; GC θ ∗ ⌜repr_lval θ (Lint x) w⌝ }}}.
+  {{{ w, RET w; GC θ ∗ ⌜repr_lval θ (Lint x) w⌝ }}}.
 Proof.
   iIntros (Hp Hproto Φ) "HGC Cont".
   wp_pures. wp_extern; first done.
@@ -70,7 +70,7 @@ Lemma wp_val2int p Ψ θ (w:word) (x : Z) :
   repr_lval θ (Lint x) w →
   {{{ GC θ }}}
     (call: &"val2int" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal (#x); GC θ }}}.
+  {{{ RET #x; GC θ }}}.
 Proof.
   iIntros (Hp Hproto Hrepr Φ) "HGC Cont".
   wp_pures. wp_extern; first done.
@@ -87,7 +87,7 @@ Lemma wp_registerroot p Ψ θ v w a :
   repr_lval θ v w →
   {{{ GC θ ∗ a ↦C w }}}
     (call: &"registerroot" with (Val (# a)))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal (# 0); GC θ ∗ a ↦roots v }}}.
+  {{{ RET # 0; GC θ ∗ a ↦roots v }}}.
 Proof.
   iIntros (Hp Hproto Hrepr Φ) "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
@@ -103,7 +103,7 @@ Lemma wp_unregisterroot p Ψ θ v a :
   unregisterroot_proto ⊑ Ψ →
   {{{ GC θ ∗ a ↦roots v }}}
     (call: &"unregisterroot" with (Val (# a)))%CE at ⟨p, Ψ⟩
-  {{{ w, RET OVal (# 0); GC θ ∗ a ↦C w ∗ ⌜repr_lval θ v w⌝ }}}.
+  {{{ w, RET # 0; GC θ ∗ a ↦C w ∗ ⌜repr_lval θ v w⌝ }}}.
 Proof.
   iIntros (Hp Hproto Φ) "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
@@ -123,7 +123,7 @@ Lemma wp_modify p Ψ θ γ w mut tg vs v' w' i :
   (0 ≤ i < length vs)%Z →
   {{{ GC θ ∗ γ ↦vblk[mut] (tg, vs) }}}
     (call: &"modify" with (Val w, Val (# i), Val w'))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal (# 0); GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) }}}.
+  {{{ RET #0; GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
@@ -141,7 +141,7 @@ Lemma wp_readfield p Ψ θ γ w m dq tg vs i :
   (0 ≤ i < length vs)%Z →
   {{{ GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}
     (call: &"readfield" with (Val w, Val (# i)))%CE at ⟨p, Ψ⟩
-  {{{ v' w', RET OVal w';
+  {{{ v' w', RET w';
         GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) ∗
         ⌜vs !! (Z.to_nat i) = Some v'⌝ ∗
         ⌜repr_lval θ v' w'⌝ }}}.
@@ -161,7 +161,7 @@ Lemma wp_isblock p Ψ θ lv w :
   repr_lval θ lv w →
   {{{ GC θ }}}
     (call: &"isblock" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal #(match lv return Z with | Lloc _ => 1 | _ => 0 end); GC θ }}}.
+  {{{ RET #(match lv return Z with | Lloc _ => 1 | _ => 0 end); GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
   wp_pures. wp_extern; first done.
@@ -178,7 +178,7 @@ Lemma wp_isblock_true p Ψ θ γ w :
   repr_lval θ (Lloc γ) w →
   {{{ GC θ }}}
     (call: &"isblock" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal #1; GC θ }}}.
+  {{{ RET #1; GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
   iApply (wp_isblock with "HGC"); [done..|].
@@ -191,7 +191,7 @@ Lemma wp_isblock_false p Ψ θ z w :
   repr_lval θ (Lint z) w →
   {{{ GC θ }}}
     (call: &"isblock" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal #0; GC θ }}}.
+  {{{ RET #0; GC θ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
   iApply (wp_isblock with "HGC"); [done..|].
@@ -204,7 +204,7 @@ Lemma wp_read_tag p Ψ θ γ w dq bl :
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ lstore_own_elem γ dq bl}}}
     (call: &"read_tag" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal #(tag_as_int (block_tag bl)); GC θ ∗ lstore_own_elem γ dq bl }}}.
+  {{{ RET #(tag_as_int (block_tag bl)); GC θ ∗ lstore_own_elem γ dq bl }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC&Hpto) Cont".
   wp_pures. wp_extern; first done.
@@ -221,7 +221,7 @@ Lemma wp_length p Ψ θ γ w m dq tg vs :
   repr_lval θ (Lloc γ) w →
   {{{ GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}
     (call: &"length" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal #(length vs);
+  {{{ RET #(length vs);
         GC θ ∗ γ ↦vblk[m]{dq} (tg, vs) }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
@@ -241,7 +241,7 @@ Lemma wp_alloc tg p Ψ θ tgnum sz :
   vblock_tag_as_int tg = tgnum →
   {{{ GC θ }}}
     (call: &"alloc" with (Val (# tgnum), Val (# sz)))%CE at ⟨p, Ψ⟩
-  {{{ θ' γ w, RET OVal w;
+  {{{ θ' γ w, RET w;
         GC θ' ∗ γ ↦fresh (tg, List.repeat (Lint 0) (Z.to_nat sz)) ∗
         ⌜repr_lval θ' (Lloc γ) w⌝ }}}.
 Proof.
@@ -317,7 +317,7 @@ Lemma wp_callback p ΨML Ψ θ w γ f x e lv' w' v' Φ :
       (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) at ⟨∅, ΨML⟩ {{ Φ }})
   }}}
     (call: &"callback" with (Val w, Val w'))%CE at ⟨p, Ψ⟩
-  {{{ θ' vret lvret wret, RET OVal wret;
+  {{{ θ' vret lvret wret, RET wret;
         GC θ' ∗
         Φ (OVal vret) ∗
         lvret ~~ vret ∗
@@ -337,7 +337,7 @@ Lemma wp_main p Ψ Φ P :
   main_proto Φ P ⊑ Ψ →
   {{{ at_init ∗ P }}}
     (call: &"main" with ( ))%CE at ⟨p, Ψ⟩
-  {{{ x, RET OVal (code_int x); ⌜Φ x⌝ }}}.
+  {{{ x, RET code_int x; ⌜Φ x⌝ }}}.
 Proof.
   intros Hp Hproto **. iIntros "(Hinit&HP) Cont".
   wp_pures. wp_extern; first done.
@@ -376,7 +376,7 @@ Lemma wp_CAMLunregister1 (l:loc) lv p θ Ψ :
   unregisterroot_proto ⊑ Ψ →
   {{{ GC θ ∗ l ↦roots lv}}}
     (CAMLunregister1 (#l))%CE at ⟨p, Ψ⟩
-  {{{ RET OVal (#0); GC θ }}}.
+  {{{ RET #0; GC θ }}}.
 Proof.
   iIntros (???) "Hin Cont".
   unfold CAMLunregister1.
