@@ -35,7 +35,7 @@ Section FixpointSpec.
   Lemma ML_client_applied_spec_fix:
     ⊢ WP
       ML_client_applied_code at ML_client_env (buf_library_spec_ML)
-    {{ v, ⌜∃ (x:Z), v = #x ∧ x = 1%Z⌝ }}.
+    {{ v, ⌜∃ (x:Z), v = OVal #x ∧ x = 1%Z⌝ }}.
   Proof.
     apply ML_client_applied_spec.
   Qed.
@@ -49,7 +49,7 @@ Definition fullprog : mlang_prog combined_lang :=
 
 Lemma buffers_adequate :
   umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-    (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
+    (λ '(e, σ), mlanguage.to_outcome e = Some (OVal (code_int 1))).
 Proof.
   eapply umrel_upclosed.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.

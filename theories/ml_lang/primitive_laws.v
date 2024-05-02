@@ -5,6 +5,7 @@ From iris.proofmode Require Import proofmode.
 From iris.bi.lib Require Import fractional.
 From transfinite.base_logic.lib Require Import mono_nat.
 From transfinite.base_logic.lib Require Export gen_heap gen_inv_heap.
+From melocoton Require Export language_commons.
 From melocoton.language Require Export weakestpre lifting.
 From melocoton.ml_lang Require Export lang_instantiation class_instances.
 From melocoton.ml_lang Require Import tactics notation.
@@ -76,9 +77,11 @@ Section lifting.
 Context `{SI: indexT}.
 Context `{!heapG_ML Σ, !invG Σ}.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ Ψ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
+Implicit Types Ψ : val → iProp Σ.
 Implicit Types σ : state.
 Implicit Types v : val.
+Implicit Types o : outcome val.
 Implicit Types vs : list val.
 Implicit Types l : loc.
 Implicit Types pe : prog_environ ML_lang Σ.
@@ -129,12 +132,12 @@ Lemma mapsto_persist l dq v : l ↦M{dq} v ==∗ l ↦M□ v.
 Proof. apply mapsto_persist. Qed.
 
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
-  to_val e1 = None →
+  to_outcome e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
     ⌜head_reducible (penv_prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜head_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
       state_interp σ2 ∗
-      from_option Φ False (to_val e2))
+      from_option Φ False (to_outcome e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
@@ -144,13 +147,13 @@ Proof.
   do 2 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
   iFrame.
-  destruct (to_val e') eqn:?; last by iExFalso.
-  iApply wp_value; first done. iApply "H2".
+  destruct (to_outcome e') eqn:?; last by iExFalso.
+  iApply wp_outcome; first done. iApply "H2".
 Qed.
 
-Lemma wp_allocN pe E v n :
+Lemma wp_allocN pe v n :
   (0 ≤ n)%Z →
-  {{{ True }}} AllocN (Val $ LitV $ LitInt n) (Val v) @ pe; E
+  {{{ True }}} AllocN (Val $ LitV $ LitInt n) (Val v) at pe
   {{{ l, RET LitV (LitLoc l); l ↦∗ (replicate (Z.to_nat n) v) ∗ meta_token l ⊤ }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
@@ -161,8 +164,8 @@ Proof.
   iModIntro. iFrame. iApply "HΦ"; iFrame.
 Qed.
 
-Lemma wp_alloc pe E v :
-  {{{ True }}} Alloc (Val v) @ pe; E
+Lemma wp_alloc pe v :
+  {{{ True }}} Alloc (Val v) at pe
   {{{ l, RET LitV (LitLoc l); l ↦M v ∗ meta_token l ⊤ }}}.
 Proof.
   iIntros (HΦ) "_ HΦ". by iApply wp_allocN.
@@ -171,7 +174,7 @@ Qed.
 Lemma wp_allocN_wrong_size pe E v n :
   (n < 0)%Z →
   {{{ True }}} AllocN (Val $ LitV $ LitInt n) (Val v) @ pe; E
-  {{{ RET v; False }}}.
+  {{{ RET OVal v; False }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
@@ -188,7 +191,7 @@ Lemma wp_loadN pe E l i dq vs v :
   (0 ≤ i)%Z →
   vs !! Z.to_nat i = Some v →
   {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) @ pe; E
-  {{{ RET v; l ↦∗{dq} vs }}}.
+  {{{ RET OVal v; l ↦∗{dq} vs }}}.
 Proof.
   iIntros (Hi Hv Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
@@ -202,7 +205,7 @@ Qed.
 Lemma wp_loadN_oob pe E l i dq vs :
   (i < 0 ∨ length vs ≤ i)%Z →
   {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) @ pe; E
-  {{{ v, RET v; False }}}.
+  {{{ v, RET OVal v; False }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
@@ -219,7 +222,7 @@ Qed.
 
 Lemma wp_load pe E l dq v :
   {{{ ▷ l ↦M{dq} v }}} Load (Val $ LitV $ LitLoc l) @ pe; E
-  {{{ RET v; l ↦M{dq} v }}}.
+  {{{ RET OVal v; l ↦M{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply (wp_loadN with "Hl"); try done.
 Qed.
@@ -227,7 +230,7 @@ Qed.
 Lemma wp_storeN pe E l i vs w :
   (0 ≤ i < length vs)%Z →
   {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) @ pe; E
-  {{{ RET LitV LitUnit; l ↦∗ <[ Z.to_nat i := w ]> vs }}}.
+  {{{ RET OVal (LitV LitUnit); l ↦∗ <[ Z.to_nat i := w ]> vs }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
@@ -238,13 +241,13 @@ Proof.
   iIntros (v2 σ2 Hstep); inv_head_step. iModIntro.
   iMod (gen_heap_update with "Hσ Hl") as "[Hσ Hl]".
   rewrite (store_insert_offset _ _ _ vs); auto; [].
-  iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl". 
+  iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl".
 Qed.
 
 Lemma wp_storeN_oob pe E l i vs w :
   (i < 0 ∨ length vs ≤ i)%Z →
   {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) @ pe; E
-  {{{ v, RET v; False }}}.
+  {{{ v, RET OVal v; False }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
@@ -262,14 +265,14 @@ Qed.
 
 Lemma wp_store pe E l v w :
   {{{ ▷ l ↦M v }}} Store (Val $ LitV $ LitLoc l) (Val w) @ pe; E
-  {{{ RET LitV LitUnit; l ↦M w }}}.
+  {{{ RET OVal (LitV LitUnit); l ↦M w }}}.
 Proof.
   iIntros (Φ) "Hl HΦ". by iApply (wp_storeN with "Hl").
 Qed.
 
 Lemma wp_length pe E l dq vs :
   {{{ ▷ l ↦∗{dq} vs }}} Length (Val $ LitV $ LitLoc l) @ pe; E
-  {{{ RET LitV $ LitInt (length vs); l ↦∗{dq} vs }}}.
+  {{{ RET OVal (LitV $ LitInt (length vs)); l ↦∗{dq} vs }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.

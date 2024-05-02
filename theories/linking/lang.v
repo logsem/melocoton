@@ -15,8 +15,8 @@ Section Linking.
     (Λ1.(func) + Λ2.(func)).
 
   Inductive simple_expr : Type :=
-  (** The linked module produces a value
-     (following one of the underlying modules producing a value) *)
+  (** The linked module produces a outcome
+     (following one of the underlying modules producing a outcome) *)
   | ExprO (o : outcome val)
   (** Function call (outgoing or incoming) *)
   | ExprCall (fn_name : string) (args : list val)

@@ -50,11 +50,11 @@ Lemma tac_wp_pure `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ Δ' s E K e1 e2 φ n
 
 
 Lemma tac_wp_value_nofupd `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ v :
-  envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
-Proof. rewrite envs_entails_unseal=> ->. by apply wp_value. Qed.
+  envs_entails Δ (Φ (OVal v)) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
+Proof. rewrite envs_entails_unseal=> ->. by apply wp_outcome. Qed.
 
-Lemma tac_wp_value`{SI:indexT}  `{!heapG_ML Σ, !invG Σ} Δ s E (Φ : val → iPropI Σ) v :
-  envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
+Lemma tac_wp_value`{SI:indexT}  `{!heapG_ML Σ, !invG Σ} Δ s E (Φ : outcome val → iPropI Σ) v :
+  envs_entails Δ (|={E}=> Φ (OVal v)) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 
 (** Simplify the goal if it is [WP] of a value.
@@ -187,8 +187,8 @@ Tactic Notation "wp_extern" :=
 
 
 Lemma tac_wp_bind `{SI:indexT} `{!heapG_ML Σ, !invG Σ} K Δ s E Φ e f :
-  f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
-  envs_entails Δ (WP e @ s; E {{ v, WP f (Val v) @ s; E {{ Φ }} }})%I →
+  f = (λ o, fill K (lang.ML_lang.of_outcome o)) → (* as an eta expanded hypothesis so that we can `simpl` it *)
+  envs_entails Δ (WP e @ s; E {{ o, WP f o @ s; E {{ Φ }} }})%I →
   envs_entails Δ (WP fill K e @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> -> ->. by apply: wp_bind. Qed.
 

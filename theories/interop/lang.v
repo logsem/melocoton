@@ -518,7 +518,6 @@ Next Obligation.
     inversion H; econstructor; eauto; naive_solver. }
 Qed.
 
-Locate of_val.
 Lemma mlanguage_mixin :
   MlanguageMixin (val:=word) of_outcome to_outcome to_call is_call [] comp_ectx fill
     apply_func prim_step.

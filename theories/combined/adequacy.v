@@ -208,8 +208,8 @@ Section MainAlloc.
   Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
   Notation MLIntV x := (LitV (LitInt x)).
 
-  Notation Φpure Φ := (λ _ w, ∃ x, w = code_int x ∧ Φ x).
-  Notation Φbi Φ := (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I.
+  Notation Φpure Φ := (λ _ w, ∃ x, w = OVal (code_int x) ∧ Φ x).
+  Notation Φbi Φ := (λ w, ∃ x, ⌜w = OVal (code_int x) ∧ Φ x⌝)%I.
   Lemma alloc_main p Φ :
     (∀ `{!heapG_C Σ, !heapG_ML Σ, !wrapperG Σ, !linkG Σ, !logrelG Σ},
        ⊥ |- p :: main_proto Φ na_tok_of) →
@@ -217,7 +217,7 @@ Section MainAlloc.
       (λ HH : mlangG word combined_lang Σ,
          (sideConds combined_lang (Φpure Φ) p ⊥ (Φbi Φ)) ∗
           state_interp σ_init ∗
-          (WP (LkCall "main" []) at ⟪p,⊥⟫ {{ w, ∃ x : Z, ⌜w = code_int x ∧ Φ x⌝ }}))%I
+          (WP (LkCall "main" []) at ⟪p,⊥⟫ {{ w, ∃ x : Z, ⌜w = OVal (code_int x) ∧ Φ x⌝ }}))%I
       True.
   Proof using All.
     intros Hspec P _ Halloc.
@@ -238,7 +238,7 @@ Section MainAlloc.
       - iIntros (? ? ?). done. }
     pose (FFIG _ _ _ _ _ _ _ _) as FFI.
     specialize (Hspec _ _ _ _ _).
-    pose proof (Hspec "main" [] (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I) as Hspecm.
+    pose proof (Hspec "main" [] (λ w, ∃ x, ⌜w = OVal (code_int x) ∧ Φ x⌝)%I) as Hspecm.
     iDestruct (Hspecm with "[Hinit2 Htok]") as "Hmain".
     { rewrite /main_proto /named. do 2 (iSplit; first done). iFrame.
       iIntros "!>" (? ?). eauto. }
@@ -258,13 +258,14 @@ Local Existing Instance ordI.
 Lemma main_adequacy_trace (p : mlang_prog combined_lang) Φ :
   (∀ `{!ffiG Σ}, ⊥ |- p :: main_proto Φ na_tok) →
   umrel.trace (prim_step p) (LkCall "main" [], σ_init)
-    (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Φ x).
+    (λ '(e, σ), ∃ x, to_outcome e = Some (OVal (code_int x)) ∧ Φ x).
 Proof using All.
   intros Hspec. eapply umrel_upclosed.
-  1: eapply (@alloc_adequacy_coind _ combined_lang ffiΣ (λ _ w, ∃ x, w = code_int x ∧ Φ x) p ⊥
-               (λ w, ∃ (x:Z), ⌜w = code_int x ∧ Φ x⌝)%I).
+  1: eapply (@alloc_adequacy_coind _ combined_lang ffiΣ (λ _ w, ∃ x, w = OVal (code_int x) ∧ Φ x) p ⊥
+               (λ w, ∃ (x:Z), ⌜w = OVal (code_int x) ∧ Φ x⌝)%I).
   { apply _. }
-  2: { intros [? ?] (? & ? & HH). naive_solver. }
+  2: { intros [? ?] (? & ? & HH). destruct HH as [x0 [H0 HΦ]].
+       exists x0. split; eauto. naive_solver. }
   intros Hinv. eapply (alloc_main p). intros Hffi ? ? ? ?.
   by pose proof (Hspec ffiΣ (FFIG _ _ _ _ _ _ _ _)).
 Qed.
@@ -272,15 +273,16 @@ Qed.
 Lemma main_adequacy_star (p : mlang_prog combined_lang) Φ X :
   (∀ `{!ffiG Σ}, ⊥ |- p :: main_proto Φ na_tok) →
   umrel.star_AD (prim_step p) (LkCall "main" [], σ_init) X →
-  ∃ e σ, X (e, σ) ∧ (∀ x, to_val e = Some (code_int x) → Φ x).
+  ∃ e σ, X (e, σ) ∧ (∀ x, to_outcome e = Some (OVal (code_int x)) → Φ x).
 Proof using All.
   intros Hspec HWP.
-  unshelve epose proof (@alloc_adequacy _ combined_lang ffiΣ (λ _ w, ∃ x, w = code_int x ∧ Φ x) p ⊥
-            (λ w, ∃ x, ⌜w = code_int x ∧ Φ x⌝)%I _ (LkCall "main" []) σ_init _ _ HWP)
+  unshelve epose proof (@alloc_adequacy _ combined_lang ffiΣ (λ _ w, ∃ x, w = OVal (code_int x) ∧ Φ x) p ⊥
+            (λ w, ∃ x, ⌜w = OVal (code_int x) ∧ Φ x⌝)%I _ (LkCall "main" []) σ_init _ _ HWP)
     as HH.
   2: { destruct HH as (? & ? & ? & HH). eexists _, _. split; eauto.
-       intros y Hy. destruct (HH (code_int y)) as (? & ?%code_int_inj & ?); eauto.
-       by simplify_eq. }
+       intros y Hy. destruct (HH (OVal (code_int y))) as [xx [Ho Hc]]; eauto.
+       assert (y = xx) as ->; try done.
+       apply code_int_inj. inversion Ho. unfold code_int. now do 2 f_equal. }
   intros Hinv. eapply (alloc_main p). intros Hffi ? ? ? ?.
   by specialize (Hspec ffiΣ (FFIG _ _ _ _ _ _ _ _)); cbn in *.
 Qed.
@@ -296,12 +298,12 @@ Lemma combined_adequacy_trace
   (∀ `{!ffiG Σ},
     Ψ on prim_names ⊑ ⊥ ∧
     dom p ## prim_names ∧
-    (⊢ na_tok -∗ WP e at ⟨ ∅ , Ψ ⟩ {{ k, ⌜∃ x, k = (ML_lang.LitV (ML_lang.LitInt x)) ∧ Pret x⌝ }}) ∧
+    (⊢ na_tok -∗ WP e at ⟨ ∅ , Ψ ⟩ {{ k, ⌜∃ x, k = OVal (ML_lang.LitV (ML_lang.LitInt x)) ∧ Pret x⌝ }}) ∧
     prims_proto Ψ ||- p :: wrap_proto Ψ
   ) →
   umrel.trace (prim_step (combined_prog e p))
     (LkCall "main" [], σ_init)
-    (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ Pret x).
+    (λ '(e, σ), ∃ x, to_outcome e = Some (OVal (code_int x)) ∧ Pret x).
 Proof.
   intros Hspec. apply main_adequacy_trace. intros Σ Hffi.
   specialize (Hspec Σ Hffi) as (HΨ & Hdomp & He & Hp).
@@ -322,7 +324,7 @@ Lemma typed_adequacy_trace
   ) →
   umrel.trace (prim_step (combined_prog e p))
     (LkCall "main" [], σ_init)
-    (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ True).
+    (λ '(e, σ), ∃ x, to_outcome e = Some (OVal (code_int x)) ∧ True).
 Proof.
   intros Hspec. eapply combined_adequacy_trace.
   intros Σ H; destruct (Hspec Σ H) as (HH1&HH2&HH3&HH4&HH5).
@@ -336,7 +338,7 @@ Proof.
     iIntros (vr) "Hvr Htok". wp_pures. iModIntro. iApply ("H3" with "Hvr Htok"). }
   { iApply (@language.weakestpre.wp_wand with "[Hsemtype]").
      - unfold env_subst. by rewrite ml_lang.metatheory.subst_all_empty.
-     - cbn. iIntros (v) "((%n&->)&_)". iPureIntro. by eexists. }
+     - cbn. iIntros (v) "(%v'&->&(%n&->)&_)". iPureIntro. by eexists. }
 Qed.
 
 Lemma typed_adequacy_trace_simplified
@@ -351,7 +353,7 @@ Lemma typed_adequacy_trace_simplified
   ) →
   umrel.trace (prim_step (combined_prog e p))
     (LkCall "main" [], σ_init)
-    (λ '(e, σ), ∃ x, to_val e = Some (code_int x) ∧ True).
+    (λ '(e, σ), ∃ x, to_outcome e = Some (OVal (code_int x)) ∧ True).
 Proof.
   intros Hspec. eapply typed_adequacy_trace.
   intros Σ H; destruct (Hspec Σ H) as (HH1&HH2&HH3&HH5).

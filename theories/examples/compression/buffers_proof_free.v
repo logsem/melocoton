@@ -65,7 +65,7 @@ Section Proofs.
     wp_apply (wp_modify with "[$HGC $Hγusedref]"); [done..|].
     change (Z.to_nat 0) with 0. cbn.
     iIntros "(HGC&Hγusedref)". wp_pure _.
-    iApply (wp_post_mono _ _ _ 
+    iApply (wp_post_mono _ _ _
       (λ o, ∃ w, ⌜o = OVal w⌝ ∗ GC θ ∗ ⌜repr_lval θ (Lint 0) w⌝)%I with "[HGC]").
     { wp_apply (wp_int2val with "HGC"); try done.
       iIntros (w) "?". iExists w. iFrame. done. }

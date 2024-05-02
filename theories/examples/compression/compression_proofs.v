@@ -52,8 +52,6 @@ Proof using Hp.
   iApply "HΦ". iApply "Hcont".
 Qed.
 
-(* Unset Printing Notations. *)
-
 Lemma buffy_compress_rec_spec ℓin ℓout vin bin vspace :
    isBuffer vin bin →
    length vspace ≥ buffer_max_len (length bin) →
@@ -119,9 +117,7 @@ Proof using Hp.
       iSplit; first done. iFrame.
       repeat iSplit; try iPureIntro.
       - done.
-      - cbn. rewrite -Hlen. do 2 f_equal.
-        replace (Z.of_nat (S (length vov))) with (1 + (length vov))%Z by lia.
-        by done.
+      - cbn. do 3 f_equal. lia.
       - done.
       - cbn. by rewrite Hlen.
       - unfold array. iApply (big_sepL_wand with "HℓinR").

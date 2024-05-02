@@ -36,7 +36,7 @@ Section logrel.
   Context {Σ : gFunctors}.
   Context `{!heapG_ML Σ, !invG Σ, !logrelG Σ}.
   Notation D := (persistent_predO val (iPropI Σ)).
-  Implicit Types τi : D.
+  Implicit Types τi  : D.
   Implicit Types Δ : listO D.
   Implicit Types interp : listO D -n> D.
 
@@ -45,10 +45,11 @@ Section logrel.
   Context (T : prog_environ ML_lang Σ).
   Notation "'WP' e {{ Φ } }" := (wp T ⊤ e%E Φ)
     (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-  Notation "'WP' e {{ v , Q } }" := (wp T ⊤ e%E (λ v, Q))
+  Notation "'WP' e {{ o , Q } }" := (wp T ⊤ e%E (λ o, Q))
     (at level 20, e, Q at level 200,
-     format "'[hv' 'WP'  e  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+     format "'[hv' 'WP'  e  '/' {{  '[' o ,  '/' Q  ']' } } ']'") : bi_scope.
   Notation of_val w := (of_val ML_lang w%V).
+  Notation of_outcome w := (of_outcome ML_lang w%V).
 
   Program Definition env_lookup (x : nat) : listO D -n> D :=
     λne Δ, default (inhabitant : persistent_pred _ _) (Δ !! x).
@@ -65,28 +66,29 @@ Section logrel.
   Program Definition interp_prod
           (interp1 interp2 : listO D -n> D) : listO D -n> D :=
     λne Δ,
-    PersPred (λ w, ∃ w1 w2, ⌜w = PairV w1 w2⌝ ∧ interp1 Δ w1 ∧ interp2 Δ w2)%I.
+    PersPred (λ w, ∃ w1 w2, ⌜w = (PairV w1 w2)⌝ ∧
+                            interp1 Δ w1 ∧ interp2 Δ w2)%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
   Program Definition interp_sum
       (interp1 interp2 : listO D -n> D) : listO D -n> D :=
     λne Δ,
     PersPred (λ w, (∃ w1, ⌜w = InjLV w1⌝ ∧ interp1 Δ w1) ∨
-                 (∃ w2, ⌜w = InjRV w2⌝ ∧ interp2 Δ w2))%I.
+                   (∃ w2, ⌜w = InjRV w2⌝ ∧ interp2 Δ w2))%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
   Program Definition interp_arrow
       (interp1 interp2 : listO D -n> D) : listO D -n> D :=
     λne Δ,
     PersPred (λ w, ∃ b1 b2 e, ⌜w = RecV b1 b2 e⌝ ∗ □ ∀ v, interp1 Δ v → na_tok -∗
-                        WP App (of_val w) (of_val v) {{ λ v, interp2 Δ v ∗ na_tok }})%I.
+                        WP App w v {{ λ o, ∃v, ⌜o = OVal v⌝ ∗ interp2 Δ v ∗ na_tok }})%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
   Program Definition interp_forall
       (interp : listO D -n> D) : listO D -n> D :=
     λne Δ,
     PersPred (λ w, □ ∀ τi : D,
-      na_tok -∗ WP TApp (of_val w) {{ λ v, interp (τi :: Δ) v ∗ na_tok }})%I.
+      na_tok -∗ WP TApp w {{ λ o, ∃v, ⌜o = OVal v⌝ ∗ interp (τi :: Δ) v ∗ na_tok }})%I.
   Solve Obligations with repeat intros ?; simpl; solve_proper.
 
   Program Definition interp_exist (interp : listO D -n> D) : listO D -n> D :=
@@ -113,8 +115,8 @@ Section logrel.
 
   Program Definition interp_array_inv_L γ (l : loc) : iPropO Σ :=
     (∃ vs, l ↦∗ vs ∗ ghost_var γ (1/2) vs)%I.
-  Program Definition interp_array_inv_R γ : D -n> iPropO Σ := λne τi,
-    (∃ vs, ([∗ list] v∈vs, τi v) ∗ ghost_var γ (1/2) vs)%I.
+  Program Definition interp_array_inv_R γ : D -n> iPropO Σ := λne τiv,
+    (∃ vs, ([∗ list] v∈vs, τiv v) ∗ ghost_var γ (1/2) vs)%I.
   Solve Obligations with solve_proper.
 
   Program Definition interp_array (interp : listO D -n> D) : listO D -n> D :=
@@ -150,17 +152,17 @@ Section logrel.
     (λ s vv Φ, ∃ tl tr, ⌜p_types !! s = Some (FunType tl tr)⌝
                       ∗ ([∗ list] k↦τ;v ∈ tl;vv, ⟦ τ ⟧ Δ v)
                       ∗ na_tok
-                      ∗ (∀ vr, ⟦ tr ⟧ Δ vr -∗ na_tok -∗ Φ vr))%I.
+                      ∗ (∀ vr, ⟦ tr ⟧ Δ vr -∗ na_tok -∗ Φ (OVal vr)))%I.
 
   (* Compare with language/wp_link.v
      The difference between this and program_fulfills is that we allow axiomatically specified
      functions to be well-typed.*)
 
   Definition interp_prog_env (p_types : gmap string program_type) (Δ : listO D) : iProp Σ :=
-    (□ ∀ s vv Φ, prog_env_proto p_types Δ s vv Φ -∗ WP (of_call _ s vv) {{v, Φ v}}).
+    (□ ∀ s vv Φ, prog_env_proto p_types Δ s vv Φ -∗ WP (of_call _ s vv) {{o, Φ o}}).
 
   Definition interp_expr (τ : type) (Δ : listO D) (e : expr ML_lang) : iProp Σ :=
-    na_tok -∗ WP e {{ λ v, ⟦ τ ⟧ Δ v ∗ na_tok }}%I.
+    na_tok -∗ WP e {{ λ o, ∃v, ⌜o = OVal v⌝ ∗ ⟦ τ ⟧ Δ v ∗ na_tok }}%I.
 
   Global Instance interp_env_base_persistent Δ Γ vs :
   TCForall Persistent (zip_with (λ τ, ⟦ τ ⟧ Δ) Γ vs).
