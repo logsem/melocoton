@@ -80,8 +80,8 @@ Section FFI_spec.
     destruct lvs as [|lv []]; try by (exfalso; eauto with lia); []. clear Hlen.
     destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
     apply Forall2_cons_1 in Hrepr as [Hrepr _].
-    cbn -[lstore_own_elem].
-    iDestruct "Hsim" as "[Hγ Hemp]".
+    cbn.
+    iDestruct "Hsim" as "[Hγ _]".
     iDestruct "Hγ" as (γ) "[-> Hγ]".
     wp_call_direct.
 

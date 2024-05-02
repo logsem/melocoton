@@ -4,6 +4,7 @@ From transfinite.base_logic.lib Require Import ghost_map ghost_var gen_heap gset
 From iris.proofmode Require Import proofmode.
 From melocoton Require Import named_props iris_extra.
 From melocoton.ml_lang Require Import lang.
+From melocoton.c_interface Require Import defs.
 From melocoton.interop Require Export basics.
 
 Class wrapperBasicsGpre `{SI: indexT} Σ := WrapperBasicsGpre {
@@ -464,7 +465,7 @@ Fixpoint block_sim (v : val) (lv : lval) : iProp Σ := match v with
   | ML_lang.LitV (ML_lang.LitBool b) => ⌜lv = (Lint (if b then 1 else 0))⌝
   | ML_lang.LitV ML_lang.LitUnit => ⌜lv = (Lint 0)⌝
   | ML_lang.LitV (ML_lang.LitBoxedInt i) => ∃ γ,
-      ⌜lv = (Lloc γ)⌝ ∗ γ ↦foreignO[Immut] (Some (defs.C_intf.LitV (defs.C_intf.LitInt i)))
+      ⌜lv = (Lloc γ)⌝ ∗ γ ↦foreignO[Immut] (Some (C_intf.LitV (C_intf.LitInt i)))
   | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜lv = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
   | ML_lang.LitV (ML_lang.LitForeign γ) => ⌜lv = (Lloc γ)⌝
   | ML_lang.PairV v1 v2 => ∃ γ lv1 lv2,
