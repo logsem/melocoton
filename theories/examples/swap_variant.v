@@ -116,7 +116,7 @@ Proof.
   iIntros "[HGC _]". wp_pures.
 
   wp_bind (!_)%CE.
-  iApply (wp_wand _ _ _ (λ v, ⌜v = #C(vblock_tag_as_int (swap_tag tag))⌝)%I).
+  iApply (wp_wand _ _ _ (λ v, ⌜v = OVal #C(vblock_tag_as_int (swap_tag tag))⌝)%I).
   { by destruct tag; wp_pures; done. }
   iIntros (v1 ->).
 
@@ -197,7 +197,7 @@ Definition swap_variant_client : mlanguage.expr (lang_to_mlang ML_lang) :=
 
 Lemma ML_prog_correct_axiomatic :
   ⊢ WP swap_variant_client at ⟨∅, swap_variant_ml_spec⟩
-    {{ v, ⌜∃x : Z, v = #x ∧ x = 1⌝ }}.
+    {{ v, ⌜∃x : Z, v = OVal #x ∧ x = 1⌝ }}.
 Proof.
   unfold swap_variant_client. wp_pures.
   wp_extern.
@@ -215,7 +215,7 @@ Definition fullprog : mlang_prog combined_lang :=
 
 Lemma swap_variant_adequate :
   umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-    (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
+    (λ '(e, σ), mlanguage.to_outcome e = Some (OVal (code_int 1))).
 Proof.
   eapply umrel_upclosed.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
@@ -224,6 +224,6 @@ Proof.
     { iIntros (? Hn ?) "(% & H)". iNamedProto "H".
       exfalso. set_solver. }
     { set_solver. } }
-  { intros [?] (? & -> & ?). do 2 f_equal; done. }
+  { intros [?] (? & -> & ?). do 3 f_equal; done. }
 Qed.
 

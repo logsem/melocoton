@@ -97,7 +97,7 @@ Definition add_one_client : mlanguage.expr (lang_to_mlang ML_lang) :=
   (Extern "add_one" [ Val (#1)%MLE ]).
 
 Lemma ML_prog_correct_axiomatic :
-  ⊢ WP add_one_client at ⟨∅, add_one_ml_spec⟩ {{ v, ⌜∃x : Z, v = #x ∧ x = 2⌝}}.
+  ⊢ WP add_one_client at ⟨∅, add_one_ml_spec⟩ {{ v, ⌜∃x : Z, v = OVal #x ∧ x = 2⌝}}.
 Proof.
   unfold add_one_client. wp_pures. wp_extern.
   iModIntro. cbn. iSplit; first done. iExists _.
@@ -114,7 +114,7 @@ Definition fullprog : mlang_prog combined_lang :=
 
 Lemma add_one_adequate :
   umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-    (λ '(e, σ), mlanguage.to_val e = Some (code_int 2)).
+    (λ '(e, σ), mlanguage.to_outcome e = Some (OVal (code_int 2))).
 Proof.
   eapply umrel_upclosed.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.
@@ -123,6 +123,6 @@ Proof.
     { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H".
       exfalso. set_solver. }
     { set_solver. } }
-  { intros [?] (? & -> & ?). do 2 f_equal; done. }
+  { intros [?] (? & -> & ?). do 3 f_equal; done. }
 Qed.
 

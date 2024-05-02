@@ -165,7 +165,7 @@ Import melocoton.ml_lang.proofmode.
   End LogRel.
 
 Lemma ML_prog_correct_axiomatic :
-  ⊢ WP swap_pair_client at ⟨∅, swap_pair_ml_spec⟩ {{ v, ⌜∃ x : Z, v = #x ∧ x = 1⌝}}.
+  ⊢ WP swap_pair_client at ⟨∅, swap_pair_ml_spec⟩ {{ v, ⌜∃ x : Z, v = OVal #x ∧ x = 1⌝}}.
 Proof.
   unfold swap_pair_client. wp_pures.
   wp_extern.
@@ -183,7 +183,7 @@ Definition fullprog : mlang_prog combined_lang :=
 
 Lemma swap_pair_adequate :
   umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-    (λ '(e, σ), mlanguage.to_val e = Some (code_int 1)).
+    (λ '(e, σ), mlanguage.to_outcome e = Some (OVal (code_int 1))).
 Proof.
   eapply umrel_upclosed.
   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!.

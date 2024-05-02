@@ -28,7 +28,7 @@ Section typed_interp.
     iIntros "He Hcont Htok". iApply wp_bind.
     iApply (wp_wand with "[He Htok]").
     { iSpecialize ("He" with "Htok"). done. }
-    cbn. iIntros (o) "(%v&->&Hv&Htok)".
+    cbn. iIntros (o) "((%v&->&Hv)&Htok)".
     iSpecialize ("Hcont" with "Hv Htok"). done.
   Qed.
 
@@ -45,7 +45,7 @@ Section typed_interp.
 
   Lemma sem_typed_nat P Γ (n:Z) : ⊢ P ;; Γ ⊨ # n : TNat.
   Proof.
-    iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_outcome; [|iExists _]; eauto.
+    iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_outcome; [|iFrame; iExists _]; eauto.
   Qed.
 
   Lemma sem_typed_boxednat P Γ (n:Z) : ⊢ P ;; Γ ⊨ #(LitBoxedInt n) : TBoxedNat.
@@ -55,7 +55,7 @@ Section typed_interp.
 
   Lemma sem_typed_bool P Γ (b:bool) : ⊢ P ;; Γ ⊨ # b : TBool.
   Proof.
-    iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_outcome; [|iExists _]; eauto.
+    iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_outcome; [|iFrame; iExists _]; eauto.
   Qed.
 
   Lemma sem_typed_natish_binop P Γ op e1 e2 t :
@@ -177,7 +177,7 @@ Section typed_interp.
     iIntros (v) "#Hv /=".
     iIntros "Htok".
     iApply wp_pure_step_later; first done. iIntros "!>".
-    iApply wp_outcome; simpl; [done|iExists _]. iSplit; eauto.
+    iApply wp_outcome; simpl; [done|iFrame; iExists _]; eauto.
   Qed.
 
   Lemma sem_typed_injr P Γ e τ1 τ2 : P ;; Γ ⊨ e : τ2 -∗ P ;; Γ ⊨ InjR e : TSum τ1 τ2.
@@ -187,7 +187,7 @@ Section typed_interp.
     iIntros (v) "#Hv /=".
     iIntros "Htok".
     iApply wp_pure_step_later; first done. iIntros "!>".
-    iApply wp_outcome; simpl; [done|iExists _]. iSplit; eauto.
+    iApply wp_outcome; simpl; [done|iFrame; iExists _]; eauto.
   Qed.
 
   Lemma sem_typed_case P Γ e0 e1 e2 τ1 τ2 τ3 :
@@ -204,7 +204,7 @@ Section typed_interp.
       iApply wp_pure_step_later; auto 1 using to_of_val; asimpl. iIntros "!>".
       iPoseProof ("IH2" $! Δ vs with "HΓ HP") as "IH".
       iApply (interp_expr_bind [AppLCtx _]); first (by iApply "IH"); last iFrame.
-      iIntros (v) "#(%&%&%&_&Hv)". by iApply "Hv".
+      iIntros (v) "#(%&%&%&->&H)". cbn. by iApply "H".
     + iIntros "Htok".
       iApply wp_pure_step_later; auto 1 using to_of_val; asimpl. iIntros "!>".
       iPoseProof ("IH3" $! Δ vs with "HΓ HP") as "IH".
@@ -235,9 +235,9 @@ Section typed_interp.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP Htok"; simpl.
     iApply wp_pure_step_later; first done; iIntros "!>".
-    iApply wp_outcome; first done.
+    iApply wp_outcome; first done. iFrame.
     iExists _. iSplit; eauto.
-    iFrame "Htok". iLöb as "IHL". cbn.
+    iLöb as "IHL". cbn.
     iExists _, _, _. iSplit; first done.
     iIntros "!> %v #Hv Htok".
     iApply wp_pure_step_later; first done; iIntros "!>".
@@ -276,7 +276,7 @@ Section typed_interp.
     iIntros (v) "#Hv /= Htok".
     iApply wp_wand_r; iSplitL;
       [iApply ("Hv" $! (⟦ τ' ⟧ Δ)); last done; iPureIntro; apply _|]; cbn.
-    iIntros (w) "(%vo&->&?&$)".
+    iIntros (w) "((%vo&->&?)&$)".
     iExists _; iSplit; eauto.
     by iApply interp_subst.
   Qed.
@@ -285,7 +285,7 @@ Section typed_interp.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP /= Htok".
     iApply (wp_wand with "[Htok]"); first by iApply "IH".
-    iIntros (o) "(%v&->&H&$)".
+    iIntros (o) "((%v&->&H)&$)".
     rewrite -interp_subst.
     iExists _; iSplit; eauto.
     iExists (interp _ _ Δ), _; iSplit; done.
@@ -310,7 +310,7 @@ Section typed_interp.
       1: iApply interp_env_binder_insert_2; first iApply "Hv".
       1: iApply interp_env_ren; done.
       1: iApply interp_prog_env_ren; done. }
-    iIntros (o) "(%v&->&H&$)".
+    iIntros (o) "((%v&->&H)&$)".
     iExists _. iSplit; eauto.
     iApply (interp_weaken _ [] [_]); done.
   Qed.
@@ -323,7 +323,7 @@ Section typed_interp.
     iApply wp_pure_step_later; first done; iIntros "!>"; cbn.
     rewrite lookup_singleton.
     iApply wp_outcome; first done.
-    iExists _. iSplit; eauto.
+    iFrame. iExists _. iSplit; eauto.
     rewrite /= -interp_subst fixpoint_interp_rec1_eq /=.
     iFrame. iModIntro; eauto.
   Qed.
@@ -444,7 +444,7 @@ Section typed_interp.
       iIntros "Htok". rewrite !app_nil_r in HPs|-*.
       iApply "HP". iExists _, _.
       iSplit; first done. iFrame "Htok H1".
-      iIntros (v) "Hf Hn". iExists _; eauto.
+      iIntros (v) "Hf Hn". iFrame. iExists _; eauto.
     - eapply Forall2_cons_inv_l in H2 as (τ&tl2'&Heτ&H2&->).
       cbn. iPoseProof Heτ as "Heτ"; clear Heτ.
       iApply (interp_expr_bind [ExternCtx s vl1 _]); first by iApply "Heτ".
@@ -537,7 +537,7 @@ Section typed_interp.
     wp_pure _.
     1: split; first done; cbn; by rewrite Hargs.
     iPoseProof (fundamental _ _ _ _ Htye $! Δ args with "Hmap IHL Htok") as "H".
-    iApply (wp_wand with "H"). iIntros (o) "(%v&->&Hv&Htok)". iApply ("HCont" with "Hv Htok").
+    iApply (wp_wand with "H"). iIntros (o) "((%v&->&Hv)&Htok)". iApply ("HCont" with "Hv Htok").
   Qed.
 
   Theorem fundamental_empty_ctx : ⊢ ∀ Δ, ⟦ ∅ ⟧* Δ ∅.

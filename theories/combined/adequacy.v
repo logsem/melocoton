@@ -338,7 +338,7 @@ Proof.
     iIntros (vr) "Hvr Htok". wp_pures. iModIntro. iApply ("H3" with "Hvr Htok"). }
   { iApply (@language.weakestpre.wp_wand with "[Hsemtype]").
      - unfold env_subst. by rewrite ml_lang.metatheory.subst_all_empty.
-     - cbn. iIntros (v) "(%v'&->&(%n&->)&_)". iPureIntro. by eexists. }
+     - cbn. iIntros (v) "((%v'&->&(%n&->))&_)". iPureIntro. by eexists. }
 Qed.
 
 Lemma typed_adequacy_trace_simplified

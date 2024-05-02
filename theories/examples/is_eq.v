@@ -90,7 +90,7 @@ Section C_specs.
     iDestruct "Hx" as "-#Hx". iDestruct "Hy" as "-#Hy".
     iAssert (▷ ∀ wret, GC θ -∗ na_tok -∗
        ⌜repr_lval θ (Lint (bool_to_Z (bool_decide (x = y)))) wret⌝ -∗
-       Φ'' wret)%I with "[Return Cont HΦ]" as "Return". {
+       Φ'' (OVal wret))%I with "[Return Cont HΦ]" as "Return". {
       iIntros "!>" (?) "??". iIntros (?).
       iApply "HΦ". iApply ("Return" with "[$] [-] [] [//]").
       { by iApply "Cont". } done.
@@ -107,7 +107,7 @@ Section C_specs.
       iIntros "HGC". wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC".
-      wp_apply (wp_val2int with "HGC"); [done..|].
+      cbn; wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w) "[HGC %]".
@@ -121,7 +121,7 @@ Section C_specs.
       iIntros "HGC". wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC".
-      wp_apply (wp_val2int with "HGC"); [done..|].
+      cbn; wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
@@ -135,7 +135,7 @@ Section C_specs.
       iIntros "HGC". wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC".
-      wp_apply (wp_val2int with "HGC"); [done..|].
+      cbn; wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
