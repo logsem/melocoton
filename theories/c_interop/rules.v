@@ -355,9 +355,8 @@ Lemma wp_CAMLlocal n e2 p Ψ Φ θ :
   p !! "registerroot" = None →
   registerroot_proto ⊑ Ψ →
   (⊢ GC θ -∗
-     (▷ ∀ (l:loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := #l]} e2) at ⟨ p, Ψ ⟩ {{Φ}}) -∗
-     WP (CAMLlocal: n in e2)%CE at ⟨ p, Ψ ⟩
-     {{Φ}}%CE)%I.
+     (▷ ∀ (l : loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := Val #C l]} ∅ e2) at ⟨ p, Ψ ⟩ {{Φ}}) -∗
+     WP (CAMLlocal: n in e2)%CE at ⟨ p, Ψ ⟩ {{Φ}}%CE)%I.
 Proof.
   iIntros (????) "HGC Cont". unfold CAMLlocal.
   wp_apply wp_Malloc. 1-2: done. change (Z.to_nat 1) with 1. cbn.

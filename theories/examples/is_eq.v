@@ -41,7 +41,7 @@ Definition is_eq_code (x_arg y_arg : expr) : C_lang.expr :=
    call: &"int2val" with ("res").
 
 Lemma is_eq_code_subst (wx wy : val) :
-  C_lang.subst_all (<["x_arg":=wx]> (<["y_arg":=wy]> ∅)) (is_eq_code "x_arg" "y_arg")
+  C_lang.subst_all (<["x_arg":=Val wx]> (<["y_arg":=Val wy]> ∅)) ∅ (is_eq_code "x_arg" "y_arg")
   = (is_eq_code wx wy).
 Proof. done. Qed.
 

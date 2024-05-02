@@ -1,4 +1,4 @@
-From stdpp Require Export binders strings.
+From stdpp Require Export binders strings options.
 From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
@@ -8,7 +8,7 @@ From melocoton.c_interface Require Import defs.
 
 (* Engineering note: definitions and lemmas defined as [Local] correspond to
    fields of [LanguageMixin] that thus get re-exported as generic functions on a
-   [language]. We define them as local to avoid the ml_lang-specific name
+   [language]. We define them as local to avoid the c_lang-specific name
    clashing with the generic name, and always pick the generic name.
 *)
 
@@ -36,6 +36,8 @@ Inductive expr :=
   (* Substitution *)
   | Var (x : string)
   | Let (x : binder) (e1 e2 : expr)
+  (* Local variables *)
+  | AdressOf (x : string)
   (* Memory *)
   | Load (e : expr)
   | Store (e0 e1 : expr) (* e0 <- e1 *)
@@ -54,6 +56,7 @@ Definition expr_rect (P : expr → Type) :
     (∀ v : val, P (Val v))
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ x : string, P (AdressOf x))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -65,25 +68,26 @@ Definition expr_rect (P : expr → Type) :
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
   → ∀ e : expr, P e.
 Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 => _).
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 => _).
   refine (fix IH e {struct e} : P e := _).
   refine (match e as e0 return (P e0) with
      | Val v => H1 v
      | Var x => H2 x
      | Let x0 e3 e4 => H3 x0 e3 (IH e3) e4 (IH e4)
-     | Load e1 => H4 e1 (IH e1)
-     | Store e2 e3 => H5 e2 (IH e2) e3 (IH e3)
-     | Malloc e0 => H6 e0 (IH e0)
-     | Free e2 e3 => H7 e2 (IH e2) e3 (IH e3)
-     | UnOp op0 e1 => H8 op0 e1 (IH e1)
-     | BinOp op0 e3 e4 => H9 op0 e3 (IH e3) e4 (IH e4)
-     | If e3 e4 e5 =>  H10 e3 (IH e3) e4 (IH e4) e5 (IH e5)
-     | While e2 e3 => H11 e2 (IH e2) e3 (IH e3)
-     | FunCall e1 ee0 => H12 e1 (IH e1) ee0 
+     | AdressOf x => H4 x
+     | Load e1 => H5 e1 (IH e1)
+     | Store e2 e3 => H6 e2 (IH e2) e3 (IH e3)
+     | Malloc e0 => H7 e0 (IH e0)
+     | Free e2 e3 => H8 e2 (IH e2) e3 (IH e3)
+     | UnOp op0 e1 => H9 op0 e1 (IH e1)
+     | BinOp op0 e3 e4 => H10 op0 e3 (IH e3) e4 (IH e4)
+     | If e3 e4 e5 =>  H11 e3 (IH e3) e4 (IH e4) e5 (IH e5)
+     | While e2 e3 => H12 e2 (IH e2) e3 (IH e3)
+     | FunCall e1 ee0 => H13 e1 (IH e1) ee0
           ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In2 x ll), P x :=
             match ll as ll0 return forall (x:expr) (i:In2 x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
+            with nil => fun x i => False_rect _ i
+            | ex::er => fun x i => match i with
                                      inl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
                                    | inr H2 => IHl er x H2 end end) ee0)
      end).
@@ -93,6 +97,7 @@ Definition expr_ind (P : expr → Prop) :
     (∀ v : val, P (Val v))
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ (x : string), P (AdressOf x))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -104,74 +109,80 @@ Definition expr_ind (P : expr → Prop) :
   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
   → ∀ e : expr, P e.
 Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 => _).
+  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 => _).
   refine (fix IH e {struct e} : P e := _).
   refine (match e as e0 return (P e0) with
      | Val v => H1 v
      | Var x => H2 x
      | Let x0 e3 e4 => H3 x0 e3 (IH e3) e4 (IH e4)
-     | Load e1 => H4 e1 (IH e1)
-     | Store e2 e3 => H5 e2 (IH e2) e3 (IH e3)
-     | Malloc e0 => H6 e0 (IH e0)
-     | Free e2 e3 => H7 e2 (IH e2) e3 (IH e3)
-     | UnOp op0 e1 => H8 op0 e1 (IH e1)
-     | BinOp op0 e3 e4 => H9 op0 e3 (IH e3) e4 (IH e4)
-     | If e3 e4 e5 =>  H10 e3 (IH e3) e4 (IH e4) e5 (IH e5)
-     | While e2 e3 => H11 e2 (IH e2) e3 (IH e3)
-     | FunCall e1 ee0 => H12 e1 (IH e1) ee0 
+     | AdressOf x => H4 x
+     | Load e1 => H5 e1 (IH e1)
+     | Store e2 e3 => H6 e2 (IH e2) e3 (IH e3)
+     | Malloc e0 => H7 e0 (IH e0)
+     | Free e2 e3 => H8 e2 (IH e2) e3 (IH e3)
+     | UnOp op0 e1 => H9 op0 e1 (IH e1)
+     | BinOp op0 e3 e4 => H10 op0 e3 (IH e3) e4 (IH e4)
+     | If e3 e4 e5 =>  H11 e3 (IH e3) e4 (IH e4) e5 (IH e5)
+     | While e2 e3 => H12 e2 (IH e2) e3 (IH e3)
+     | FunCall e1 ee0 => H13 e1 (IH e1) ee0
           ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x :=
             match ll as ll0 return forall (x:expr) (i:In x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
+            with nil => fun x i => False_rect _ i
+            | ex::er => fun x i => match i with
                                      or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
                                    | or_intror H2 => IHl er x H2 end end) ee0)
      end).
 Qed.
 
-
-Definition expr_val_ind (P : expr → Prop) (Pv : val → Prop):
-    (∀ v : val, P (Val v))
-  → (∀ x : string, P (Var x))
-  → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
-  → (∀ e : expr, P e → P (Load e))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
-  → (∀ e1 : expr, P e1 → P (Malloc e1))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
-  → (∀ (op : un_op) (e : expr), P e → P (UnOp op e))
-  → (∀ (op : bin_op) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
-  → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
-  → ∀ e : expr, P e.
-Proof.
-  refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 => _).
-  refine (fix IH e {struct e} : P e := _).
-  refine (match e as e0 return (P e0) with
-     | Val v => H1 v
-     | Var x => H2 x
-     | Let x0 e3 e4 => H3 x0 e3 (IH e3) e4 (IH e4)
-     | Load e1 => H4 e1 (IH e1)
-     | Store e2 e3 => H5 e2 (IH e2) e3 (IH e3)
-     | Malloc e0 => H6 e0 (IH e0)
-     | Free e2 e3 => H7 e2 (IH e2) e3 (IH e3)
-     | UnOp op0 e1 => H8 op0 e1 (IH e1)
-     | BinOp op0 e3 e4 => H9 op0 e3 (IH e3) e4 (IH e4)
-     | If e3 e4 e5 =>  H10 e3 (IH e3) e4 (IH e4) e5 (IH e5)
-     | While e2 e3 => H11 e2 (IH e2) e3 (IH e3)
-     | FunCall e1 ee0 => H12 e1 (IH e1) ee0 
-          ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x :=
-            match ll as ll0 return forall (x:expr) (i:In x ll0), P x
-            with nil => fun x i => False_rect _ i 
-            | ex::er => fun x i => match i with 
-                                     or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end
-                                   | or_intror H2 => IHl er x H2 end end) ee0)
-     end).
-Qed.
+(* TODO:
+   - Delete or fix ?
+*)
+(* Definition expr_val_ind (P : expr → Prop) (Pv : val → Prop): *)
+(*     (∀ v : val, P (Val v)) *)
+(*   → (∀ x : string, P (Var x)) *)
+(*   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2)) *)
+(*   → (∀ x : string, P (AdressOf x)) *)
+(*   → (∀ e : expr, P e → P (Load e)) *)
+(*   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1)) *)
+(*   → (∀ e1 : expr, P e1 → P (Malloc e1)) *)
+(*   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1)) *)
+(*   → (∀ (op : un_op) (e : expr), P e → P (UnOp op e)) *)
+(*   → (∀ (op : bin_op) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2)) *)
+(*   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2)) *)
+(*   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1)) *)
+(*   → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee)) *)
+(*   → ∀ e : expr, P e. *)
+(* Proof. *)
+(*   refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 => _). *)
+(*   refine (fix IH e {struct e} : P e := _). *)
+(*   refine (match e as e0 return (P e0) with *)
+(*      | Val v => H1 v *)
+(*      | Var x => H2 x *)
+(*      | Let x0 e3 e4 => H3 x0 e3 (IH e3) e4 (IH e4) *)
+(*      | AdressOf x => H4 x *)
+(*      | Load e1 => H5 e1 (IH e1) *)
+(*      | Store e2 e3 => H6 e2 (IH e2) e3 (IH e3) *)
+(*      | Malloc e0 => H7 e0 (IH e0) *)
+(*      | Free e2 e3 => H8 e2 (IH e2) e3 (IH e3) *)
+(*      | UnOp op0 e1 => H9 op0 e1 (IH e1) *)
+(*      | BinOp op0 e3 e4 => H10 op0 e3 (IH e3) e4 (IH e4) *)
+(*      | If e3 e4 e5 =>  H11 e3 (IH e3) e4 (IH e4) e5 (IH e5) *)
+(*      | While e2 e3 => H12 e2 (IH e2) e3 (IH e3) *)
+(*      | FunCall e1 ee0 => H13 e1 (IH e1) ee0 *)
+(*           ((fix IHl (ll:list expr) {struct ll} : forall (x:expr) (i:In x ll), P x := *)
+(*             match ll as ll0 return forall (x:expr) (i:In x ll0), P x *)
+(*             with nil => fun x i => False_rect _ i *)
+(*             | ex::er => fun x i => match i with *)
+(*                                      or_introl H1 => match H1 in (_ = xe) return P xe with eq_refl => IH ex end *)
+(*                                    | or_intror H2 => IHl er x H2 end end) ee0) *)
+(*      end). *)
+(* Qed. *)
 
 Definition expr_rec (P : expr → Set) :
     (∀ v : val, P (Val v))
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ (x : string), P (AdressOf x))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -190,14 +201,14 @@ Bind Scope c_expr_scope with expr.
 
 Inductive function := Fun (b : list binder) (e : expr).
 
-Definition arity (F : function) := match F with Fun b e => length b end.
+Definition arity (F : function) := match F with Fun args _ => length args end.
 
 Notation of_val := Val (only parsing).
 
 Local Definition to_val (e : expr) : option val :=
   match e with
   | Val v => Some v
-  | _ => None
+  | _     => None
   end.
 
 Local Lemma to_of_val v : to_val (of_val v) = Some v.
@@ -241,6 +252,7 @@ Proof.
      | Var x, Var x' => cast_if (decide (x = x'))
      | Let x e1 e2, Let x' e1' e2' =>
         cast_if_and3 (decide (x = x')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | AdressOf x, AdressOf x' => cast_if (decide (x = x'))
      | Load e, Load e' => cast_if (decide (e = e'))
      | Store e1 e2, Store e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Malloc e, Malloc e' => cast_if (decide (e = e'))
@@ -252,7 +264,7 @@ Proof.
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | While e1 e2, While e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | FunCall x el, FunCall x' el' => 
+     | FunCall x el, FunCall x' el' =>
         let gol := (fix gol (l1 l2 : list expr) {struct l1} : Decision (l1 = l2) :=
                        match l1, l2 with
                        | nil, nil => left eq_refl
@@ -274,7 +286,7 @@ Proof.
  refine (inj_countable' (λ op, match op with
   | PlusOp => 0 | MinusOp => 1 | MultOp => 2 | QuotOp => 3 | RemOp => 4
   | AndOp => 5 | OrOp => 6 | XorOp => 7 | ShiftLOp => 8 | ShiftROp => 9
-  | LeOp => 10 | LtOp => 11 | EqOp => 12 | PtrOffsetOp => 13 | PtrDiffOp => 14 
+  | LeOp => 10 | LtOp => 11 | EqOp => 12 | PtrOffsetOp => 13 | PtrDiffOp => 14
   end) (λ n, match n with
   | 0 => PlusOp | 1 => MinusOp | 2 => MultOp | 3 => QuotOp | 4 => RemOp
   | 5 => AndOp | 6 => OrOp | 7 => XorOp | 8 => ShiftLOp | 9 => ShiftROp
@@ -290,15 +302,16 @@ Proof. (* string + binder + un_op + bin_op + val *)
      | Val v => GenNode 0 [GenLeaf (inr (inr (inr (inr v))))]
      | Var x => GenLeaf (inl x)
      | Let x e1 e2 => GenNode 1 [GenLeaf (inr (inl x)); go e1; go e2]
-     | Load e => GenNode 2 [go e]
-     | Store e1 e2 => GenNode 3 [go e1; go e2]
-     | Malloc e => GenNode 4 [go e]
-     | Free e1 e2 => GenNode 5 [go e1; go e2]
-     | UnOp op e => GenNode 6 [GenLeaf (inr (inr (inl op))); go e]
-     | BinOp op e1 e2 => GenNode 7 [GenLeaf (inr (inr (inr (inl op)))); go e1; go e2]
-     | If e0 e1 e2 => GenNode 8 [go e0; go e1; go e2]
-     | While e1 e2 => GenNode 9 [go e1; go e2]
-     | FunCall ef ea => GenNode 10 (go ef :: map go ea)
+     | AdressOf x => GenNode 2 [GenLeaf (inl x)]
+     | Load e => GenNode 3 [go e]
+     | Store e1 e2 => GenNode 4 [go e1; go e2]
+     | Malloc e => GenNode 5 [go e]
+     | Free e1 e2 => GenNode 6 [go e1; go e2]
+     | UnOp op e => GenNode 7 [GenLeaf (inr (inr (inl op))); go e]
+     | BinOp op e1 e2 => GenNode 8 [GenLeaf (inr (inr (inr (inl op)))); go e1; go e2]
+     | If e0 e1 e2 => GenNode 9 [go e0; go e1; go e2]
+     | While e1 e2 => GenNode 10 [go e1; go e2]
+     | FunCall ef ea => GenNode 11 (go ef :: map go ea)
      end).
  set (dec :=
    fix go e :=
@@ -306,20 +319,21 @@ Proof. (* string + binder + un_op + bin_op + val *)
      | GenNode 0 [GenLeaf (inr (inr (inr (inr v))))] => Val v
      | GenLeaf (inl x) => Var x
      | GenNode 1 [GenLeaf (inr (inl x)); e1; e2] => Let x (go e1) (go e2)
-     | GenNode 2 [e] => Load (go e)
-     | GenNode 3 [e1; e2] => Store (go e1) (go e2)
-     | GenNode 4 [e] => Malloc (go e)
-     | GenNode 5 [e1; e2] => Free (go e1) (go e2)
-     | GenNode 6 [GenLeaf (inr (inr (inl op))); e] => UnOp op (go e)
-     | GenNode 7 [GenLeaf (inr (inr (inr (inl op)))); e1; e2] => BinOp op (go e1) (go e2)
-     | GenNode 8 [e0; e1; e2] => If (go e0) (go e1) (go e2)
-     | GenNode 9 [e1; e2] => While (go e1) (go e2)
-     | GenNode 10 (ef :: ea) => FunCall (go ef) (map go ea)
+     | GenNode 2 [GenLeaf (inl x)] => AdressOf x
+     | GenNode 3 [e] => Load (go e)
+     | GenNode 4 [e1; e2] => Store (go e1) (go e2)
+     | GenNode 5 [e] => Malloc (go e)
+     | GenNode 6 [e1; e2] => Free (go e1) (go e2)
+     | GenNode 7 [GenLeaf (inr (inr (inl op))); e] => UnOp op (go e)
+     | GenNode 8 [GenLeaf (inr (inr (inr (inl op)))); e1; e2] => BinOp op (go e1) (go e2)
+     | GenNode 9 [e0; e1; e2] => If (go e0) (go e1) (go e2)
+     | GenNode 10 [e1; e2] => While (go e1) (go e2)
+     | GenNode 11 (ef :: ea) => FunCall (go ef) (map go ea)
      | _ => Val $ LitV (LitInt 0) (* dummy *)
      end).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ ).
- destruct e as [ | | | | | | | | | | |ef ee]; simpl; f_equal.
+ destruct e as [ | | | | | | | | | | | |ef ee]; simpl; f_equal.
  1-17: done.
  all: unfold map; by induction ee as [|ex er ->]; simpl; f_equal.
 Qed.
@@ -370,28 +384,47 @@ Lemma fill_app (K1 K2 : ectx) e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
 Proof. apply foldl_app. Qed.
 
 (** Substitution *)
-Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
+
+(* TODO: Some comment here detailing how this definition is dangerous *)
+Fixpoint subst_all (gv : gmap string expr) (ga : gmap string expr) (e : expr) : expr :=
   match e with
+  | Var x =>
+      match gv !! x with
+      | None   => e
+      | Some k => k
+      end
+  | AdressOf x =>
+      match ga !! x with
+      | None   => e
+      | Some k => k
+      end
   | Val _ => e
-  | Var y => match g !! y with None => Var y | Some k => Val k end
-  | Let (BNamed s) e1 e2 => Let (BNamed s) (subst_all g e1) $ subst_all (delete s g) e2
-  | Let (BAnon) e1 e2 => Let (BAnon) (subst_all g e1) $ subst_all g e2
-  | Load e => Load (subst_all g e)
-  | Store e1 e2 => Store (subst_all g e1) (subst_all g e2)
-  | Malloc e => Malloc (subst_all g e)
-  | Free e1 e2 => Free (subst_all g e1) (subst_all g e2)
-  | UnOp op e => UnOp op (subst_all g e)
-  | BinOp op e1 e2 => BinOp op (subst_all g e1) (subst_all g e2)
-  | If e0 e1 e2 => If (subst_all g e0) (subst_all g e1) (subst_all g e2)
-  | While e1 e2 => While (subst_all g e1) (subst_all g e2)
-  | FunCall ef ea => FunCall (subst_all g ef) (map (subst_all g) ea)
+  | Let (BNamed s) e1 e2 =>
+      Let (BNamed s) (subst_all gv ga e1) $ subst_all (delete s gv) (delete s ga) e2
+  | Let (BAnon) e1 e2 => Let (BAnon) (subst_all gv ga e1) $ subst_all gv ga e2
+  | Load e => Load (subst_all gv ga e)
+  | Store e1 e2 => Store (subst_all gv ga e1) (subst_all gv ga e2)
+  | Malloc e => Malloc (subst_all gv ga e)
+  | Free e1 e2 => Free (subst_all gv ga e1) (subst_all gv ga e2)
+  | UnOp op e => UnOp op (subst_all gv ga e)
+  | BinOp op e1 e2 => BinOp op (subst_all gv ga e1) (subst_all gv ga e2)
+  | If e0 e1 e2 => If (subst_all gv ga e0) (subst_all gv ga e1) (subst_all gv ga e2)
+  | While e1 e2 => While (subst_all gv ga e1) (subst_all gv ga e2)
+  | FunCall ef ea => FunCall (subst_all gv ga ef) (map (subst_all gv ga) ea)
   end.
 
-Definition subst (x : string) (v : val) (e : expr) : expr :=
-  subst_all {[x:=v]} e.
+(* e [x <- ex] *)
+Definition subst_var (x : binder) (ex : expr) (e : expr) : expr :=
+  match x with
+  | BNamed x => subst_all {[x:=ex]} ∅ e
+  | BAnon    => e
+  end.
 
-Definition subst' (mx : binder) (v : val) : expr → expr :=
-  match mx with BNamed x => subst x v | BAnon => id end.
+Definition subst_adr (x : binder) (ex : expr) (e : expr) : expr :=
+  match x with
+  | BNamed x => subst_all ∅ {[x:=ex]} e
+  | BAnon    => e
+  end.
 
 (** The stepping relation *)
 Definition un_op_eval (op : un_op) (v : val) : option val :=
@@ -454,19 +487,62 @@ Definition asTruth (v:val) : bool := match v with
   | LitV (LitFunPtr p) => true
   | LitV (LitNull) => false end.
 
-(* Note that this way, a function where all arguments have the same name (say x), that returns x, returns the first argument *)
-Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string val) := match an, av with
-  nil, nil => Some ∅
-| (BNamed ax::ar), (vx::vr) => option_map (<[ax:=vx]>) (zip_args ar vr)
-| (BAnon::ar), (vx::vr) => zip_args ar vr
-| _, _ => None end.
+(*
+ * Fails if :
+ * - two variables share the same name
+ * - a variable is used before it's declaration
+ *)
+Fixpoint heap_locals (env : gset string) (e : expr) : option (gset string) :=
+  match e with
+  | Val _ => Some ∅
+  | Var x => if decide (x ∈ env) then Some ∅ else None
+  | AdressOf x => if decide (x ∈ env) then Some {[ x ]} else None
+  | Let (BNamed x) e1 e2 =>
+      if decide (x ∈ env) then None else
+      hl1 ← heap_locals env e1;
+      hl2 ← heap_locals (env ∪ {[ x ]}) e2;
+      Some (hl1 ∪ hl2)
+  | Let BAnon e1 e2 | Store e1 e2 | Free e1 e2 | BinOp _ e1 e2 | While e1 e2 =>
+      hl1 ← heap_locals env e1;
+      hl2 ← heap_locals env e2;
+      Some (hl1 ∪ hl2)
+  | Load e | Malloc e | UnOp _ e => heap_locals env e
+  | If e1 e2 e3   =>
+      hl1 ← heap_locals env e1;
+      hl2 ← heap_locals env e2;
+      hl3 ← heap_locals env e3;
+      Some (hl1 ∪ hl2 ∪ hl3)
+  | FunCall ef ea =>
+      List.fold_left (fun acc e =>
+        hle  ← heap_locals env e;
+        acc' ← acc;
+        Some (acc' ∪ hle))
+      ea (heap_locals env ef)
+  end.
 
-Definition apply_function (f:function) (av : list val) := match f with Fun an e =>
-    match (zip_args an av) with Some σ => Some (subst_all σ e) | _ => None end end.
+(* Note that this way, a function where all arguments have the same name (say x), that returns x, returns the first argument *)
+Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string expr) :=
+  match an, av with
+  | nil, nil => Some ∅
+  | (BNamed ax::ar), (vx::vr) => option_map (<[ax:=Val vx]>) (zip_args ar vr)
+  | (BAnon::ar), (vx::vr) => zip_args ar vr
+  | _, _ => None
+  end.
+
+Definition apply_function (f : function) (av : list val) :=
+  match f with
+  | Fun an e =>
+    match zip_args an av with
+    | Some σ =>
+        let locals := heap_locals (dom σ) e in
+        Some (subst_all σ ∅ e)
+    | _      => None
+    end
+  end.
 
 Inductive head_step (p : gmap string function) : expr → c_state → expr → c_state → Prop :=
   | LetS x v1 e2 ee σ :
-     ee = subst' x v1 e2 ->
+     ee = subst_var x (Val v1) e2 ->
      head_step p (Let x (Val v1) e2) σ ee σ
   | LoadS l v σ :
      σ !! l = Some $ Storing v →
@@ -812,7 +888,7 @@ Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
 Proof.
   induction le in lv|-*.
   - intros H. injection H. intros <-. easy.
-  - cbn. destruct a. 2-12:congruence.
+  - cbn. destruct a. 2-13:congruence.
     destruct (unmap_val le) eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.

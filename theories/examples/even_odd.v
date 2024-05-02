@@ -67,8 +67,13 @@ Qed.
 
 Lemma wp_is_odd (x:Z) :
   (0 ≤ x)%Z →
+<<<<<<< HEAD
   ⊢ WP subst "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
       {{ λ o, ⌜o = OVal #(Z.odd x)⌝ }}.
+=======
+  ⊢ WP subst_var "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
+      {{ λ v, ⌜v = #(Z.odd x)⌝ }}.
+>>>>>>> 6f3937f (First try at locals)
 Proof.
   iIntros (?). iStartProof.
   rewrite /is_even_code /=. cbn; simplify_map_eq.

@@ -38,7 +38,7 @@ reasoning principle for recursive functions, without any visible ▷. *)
 Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) :
    ⌜penv_prog s !! f = Some (Fun args e)⌝ -∗
   □ ( □ (∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}) -∗
-     ∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (subst_all res e) @ s; E {{ Φ }}) -∗
+     ∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (subst_all res ∅ e) @ s; E {{ Φ }}) -∗
   ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}.
 Proof.
   iIntros "%Hp #Hrec". iLöb as "IH". iIntros (v res) "HΨ %Hres".
