@@ -35,17 +35,17 @@ Implicit Types l : loc.
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb
 induction directly, but this demonstrates that we can state the expected
 reasoning principle for recursive functions, without any visible ▷. *)
-(* Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) : *)
-(*    ⌜penv_prog s !! f = Some (Fun args e)⌝ -∗ *)
-(*   □ ( □ (∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}) -∗ *)
-(*      ∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (subst_all res e) @ s; E {{ Φ }}) -∗ *)
-(*   ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}. *)
-(* Proof. *)
-(*   iIntros "%Hp #Hrec". iLöb as "IH". iIntros (v res) "HΨ %Hres". *)
-(*   iApply lifting.wp_pure_step_later. 1: eauto. *)
-(*   iIntros "!>". iApply ("Hrec" with "[] HΨ"). 2:done. iIntros "!>" (w res') "HΨ %Hres'". *)
-(*   iApply ("IH" with "HΨ"). iPureIntro. apply Hres'. *)
-(* Qed. *)
+Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) :
+   ⌜penv_prog s !! f = Some (Fun args e)⌝ -∗
+  □ ( □ (∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}) -∗
+     ∀ vs res, Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (subst_all res e) @ s; E {{ Φ }}) -∗
+  ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}.
+Proof.
+  iIntros "%Hp #Hrec". iLöb as "IH". iIntros (v res) "HΨ %Hres".
+  iApply lifting.wp_pure_step_later. 1: eauto.
+  iIntros "!>". iApply ("Hrec" with "[] HΨ"). 2:done. iIntros "!>" (w res') "HΨ %Hres'".
+  iApply ("IH" with "HΨ"). iPureIntro. apply Hres'.
+Qed.
 
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
   to_outcome e1 = None →
