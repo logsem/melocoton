@@ -171,10 +171,10 @@ Proof.
   iIntros (HΦ) "_ HΦ". by iApply wp_allocN.
 Qed.
 
-Lemma wp_allocN_wrong_size pe E v n :
+Lemma wp_allocN_wrong_size pe v n :
   (n < 0)%Z →
-  {{{ True }}} AllocN (Val $ LitV $ LitInt n) (Val v) @ pe; E
-  {{{ RET OVal v; False }}}.
+  {{{ True }}} AllocN (Val $ LitV $ LitInt n) (Val v) at pe
+  {{{ RET v; False }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
@@ -187,11 +187,11 @@ Proof.
   do 4 iModIntro. iFrame. by iApply "IH".
 Qed.
 
-Lemma wp_loadN pe E l i dq vs v :
+Lemma wp_loadN pe l i dq vs v :
   (0 ≤ i)%Z →
   vs !! Z.to_nat i = Some v →
-  {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) @ pe; E
-  {{{ RET OVal v; l ↦∗{dq} vs }}}.
+  {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) at pe
+  {{{ RET v; l ↦∗{dq} vs }}}.
 Proof.
   iIntros (Hi Hv Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
@@ -202,10 +202,10 @@ Proof.
   by iApply "HΦ".
 Qed.
 
-Lemma wp_loadN_oob pe E l i dq vs :
+Lemma wp_loadN_oob pe l i dq vs :
   (i < 0 ∨ length vs ≤ i)%Z →
-  {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) @ pe; E
-  {{{ v, RET OVal v; False }}}.
+  {{{ ▷ l ↦∗{dq} vs }}} LoadN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) at pe
+  {{{ v, RET v; False }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
@@ -220,17 +220,17 @@ Proof.
   do 4 iModIntro. iFrame. by iApply ("IH" with "[$] [$]").
 Qed.
 
-Lemma wp_load pe E l dq v :
-  {{{ ▷ l ↦M{dq} v }}} Load (Val $ LitV $ LitLoc l) @ pe; E
-  {{{ RET OVal v; l ↦M{dq} v }}}.
+Lemma wp_load pe l dq v :
+  {{{ ▷ l ↦M{dq} v }}} Load (Val $ LitV $ LitLoc l) at pe
+  {{{ RET v; l ↦M{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply (wp_loadN with "Hl"); try done.
 Qed.
 
-Lemma wp_storeN pe E l i vs w :
+Lemma wp_storeN pe l i vs w :
   (0 ≤ i < length vs)%Z →
-  {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) @ pe; E
-  {{{ RET OVal (LitV LitUnit); l ↦∗ <[ Z.to_nat i := w ]> vs }}}.
+  {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) at pe
+  {{{ RET LitV LitUnit; l ↦∗ <[ Z.to_nat i := w ]> vs }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.
@@ -244,10 +244,10 @@ Proof.
   iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl".
 Qed.
 
-Lemma wp_storeN_oob pe E l i vs w :
+Lemma wp_storeN_oob pe l i vs w :
   (i < 0 ∨ length vs ≤ i)%Z →
-  {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) @ pe; E
-  {{{ v, RET OVal v; False }}}.
+  {{{ ▷ l ↦∗ vs }}} StoreN (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i) (Val w) at pe
+  {{{ v, RET v; False }}}.
 Proof.
   iIntros (Hi Φ) ">Hl HΦ". iLöb as "IH".
   iApply wp_lift_step_fupd; first done.
@@ -263,16 +263,16 @@ Proof.
   iApply ("IH" with "[$] [$]").
 Qed.
 
-Lemma wp_store pe E l v w :
-  {{{ ▷ l ↦M v }}} Store (Val $ LitV $ LitLoc l) (Val w) @ pe; E
-  {{{ RET OVal (LitV LitUnit); l ↦M w }}}.
+Lemma wp_store pe l v w :
+  {{{ ▷ l ↦M v }}} Store (Val $ LitV $ LitLoc l) (Val w) at pe
+  {{{ RET LitV LitUnit; l ↦M w }}}.
 Proof.
   iIntros (Φ) "Hl HΦ". by iApply (wp_storeN with "Hl").
 Qed.
 
-Lemma wp_length pe E l dq vs :
-  {{{ ▷ l ↦∗{dq} vs }}} Length (Val $ LitV $ LitLoc l) @ pe; E
-  {{{ RET OVal (LitV $ LitInt (length vs)); l ↦∗{dq} vs }}}.
+Lemma wp_length pe l dq vs :
+  {{{ ▷ l ↦∗{dq} vs }}} Length (Val $ LitV $ LitLoc l) at pe
+  {{{ RET LitV $ LitInt (length vs); l ↦∗{dq} vs }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.

@@ -67,10 +67,10 @@ Proof.
   iApply wp_outcome; first done. iApply "H2".
 Qed.
 
-Lemma wp_Malloc_seq E n :
+Lemma wp_Malloc_seq n :
   (0 < n)%Z →
-  {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ p; E
-  {{{ l, RET OVal (LitV (LitLoc l)); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
+  {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) at p
+  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
@@ -83,9 +83,9 @@ Proof.
   by iApply heap_array_to_seq_mapsto.
 Qed.
 
-Lemma wp_free s E l (v:option val) :
-  {{{ ▷ l O↦C (Some v) }}} Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt 1) @ s; E
-  {{{ RET OVal (LitV LitUnit); True }}}.
+Lemma wp_free s l (v:option val) :
+  {{{ ▷ l O↦C (Some v) }}} Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt 1) at s
+  {{{ RET LitV LitUnit; True }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
@@ -99,8 +99,8 @@ Proof.
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_load s E l dq v :
-  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET OVal v; l ↦C{dq} v }}}.
+Lemma wp_load s l dq v :
+  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) at s {{{ RET v; l ↦C{dq} v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
@@ -110,9 +110,9 @@ Proof.
   by iApply "HΦ".
 Qed.
 
-Lemma wp_store s E l (v':option val) v :
-  {{{ ▷ l O↦C Some v' }}} Store (Val $ LitV $ LitLoc l) (Val v) @ s; E
-  {{{ RET OVal (LitV LitUnit); l ↦C v }}}.
+Lemma wp_store s l (v':option val) v :
+  {{{ ▷ l O↦C Some v' }}} Store (Val $ LitV $ LitLoc l) (Val v) at s
+  {{{ RET LitV LitUnit; l ↦C v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.

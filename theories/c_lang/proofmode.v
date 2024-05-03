@@ -211,16 +211,16 @@ Implicit Types v : val.
 Implicit Types z : Z.
 
 
-Lemma tac_wp_Malloc Δ Δ' s E j K n Φ :
+Lemma tac_wp_Malloc Δ Δ' s j K n Φ :
   (0 < n)%Z →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   (∀ l,
     match envs_app false (Esnoc Enil j (array l (DfracOwn 1) (replicate (Z.to_nat n) None))) Δ' with
     | Some Δ'' =>
-       envs_entails Δ'' (WP fill K (Val $ LitV $ LitLoc l) @ s; E {{ Φ }})
+       envs_entails Δ'' (WP fill K (Val $ LitV $ LitLoc l) at s {{ Φ }})
     | None => False
     end) →
-  envs_entails Δ (WP fill K (Malloc (Val $ LitV $ LitInt n)) @ s; E {{ Φ }}).
+  envs_entails Δ (WP fill K (Malloc (Val $ LitV $ LitInt n)) at s {{ Φ }}).
 Proof.
   rewrite envs_entails_unseal=> ? ? HΔ.
   rewrite -wp_bind. eapply wand_apply; first exact: wp_Malloc.
@@ -232,12 +232,12 @@ Proof.
   by rewrite right_id wand_elim_r.
 Qed.
 
-Lemma tac_wp_free Δ Δ' s E i K l (v:option val) Φ :
+Lemma tac_wp_free Δ Δ' s i K l (v:option val) Φ :
   envs_lookup i Δ = Some (false, (l I↦C v))%I →
   MaybeIntoLaterNEnvs 1 (envs_delete false i false Δ) Δ' →
   (let Δ'' := (Δ') in
-   envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})) →
-  envs_entails Δ (WP fill K (Free (LitV l) (Val (LitV (LitInt 1)))) @ s; E {{ Φ }}).
+   envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) at s {{ Φ }})) →
+  envs_entails Δ (WP fill K (Free (LitV l) (Val (LitV (LitInt 1)))) at s {{ Φ }}).
 Proof.
   rewrite envs_entails_unseal=> Hlk ? Hfin.
   rewrite -wp_bind. eapply wand_apply; first apply wp_free.
@@ -344,7 +344,7 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let process_array _ :=
         first
-          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_Malloc _ _ _ _ Htmp K))
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_Malloc _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
         [idtac|tc_solve
          |finish ()]
@@ -367,7 +367,7 @@ Tactic Notation "wp_free" :=
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     first
-      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ _ K));
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ K));
         [solve_mapsto ()
         |tc_solve
         |pm_reduce; wp_finish] (*

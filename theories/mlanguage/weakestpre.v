@@ -71,7 +71,7 @@ Definition mprogwp `{!indexT, !invG Σ, !mlangG val Λ Σ}
 :=
   (λ fname vs Φ, ⌜fname ∈ dom p⌝ ∗ ∀ Φ',
      at_boundary Λ -∗
-     ▷ (∀ v, Φ v ∗ at_boundary Λ -∗ Φ' v) -∗
+     ▷ (∀ o, Φ o ∗ at_boundary Λ -∗ Φ' o) -∗
      WP to_call Λ fname vs at ⟪p, Ψ⟫ {{ Φ' }})%I.
 
 Notation "Ψext '|-' p '::' Ψp" := (Ψp ⊑ mprogwp p Ψext)
@@ -84,7 +84,6 @@ Section wp.
 Context `{SI:indexT, !invG Σ, !mlangG val Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : outcome val → iProp Σ.
-Implicit Types v : val.
 Implicit Types o : outcome val.
 Implicit Types e : expr Λ.
 Implicit Types Ψ : protocol val Σ.
@@ -226,7 +225,7 @@ Qed.
 Lemma wp_step pe E e P Φ :
   TCEq (to_outcome e) None →
   ( ▷ P) -∗
-    WP e @ pe; E {{ v, P ={E}=∗ Φ v }} -∗
+    WP e @ pe; E {{ o, P ={E}=∗ Φ o }} -∗
   WP e @ pe; E {{ Φ }}.
 Proof.
   iIntros (H) "H1 H2".
@@ -297,9 +296,9 @@ Lemma wp_outcome s E Φ e o : to_outcome e = Some o -> Φ o ⊢ WP e @ s; E {{ �
 Proof. intros <-%of_to_outcome. apply wp_outcome'. Qed.
 
 
-Lemma wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
+Lemma wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ o, R ∗ Φ o }}.
 Proof. iIntros "[? H]". iApply (wp_post_mono with "H"); auto with iFrame. Qed.
-Lemma wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
+Lemma wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ o, Φ o ∗ R }}.
 Proof. iIntros "[H ?]". iApply (wp_post_mono with "H"); auto with iFrame. Qed.
 
 Lemma wp_internal_call_inv E p Ψ fn vs Φ :
@@ -422,7 +421,6 @@ Section proofmode_classes.
   Context `{SI:indexT, !invG Σ, !mlangG val Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : outcome val → iProp Σ.
-  Implicit Types v : val.
   Implicit Types o : outcome val.
   Implicit Types e : expr Λ.
 

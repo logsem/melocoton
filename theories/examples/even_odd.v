@@ -41,7 +41,7 @@ Definition is_even_proto : protocol val Σ :=
 Lemma wp_is_even (x:Z) :
   (0 ≤ x)%Z →
   ⊢ WP subst "x" (#x) (is_even_code "x") at ⟨is_even_prog, is_odd_proto⟩
-      {{ λ v, ⌜v = OVal #(Z.even x)⌝ }}.
+      {{ λ o, ⌜o = OVal #(Z.even x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
   rewrite /is_even_code /=. cbn; simplify_map_eq.
@@ -68,7 +68,7 @@ Qed.
 Lemma wp_is_odd (x:Z) :
   (0 ≤ x)%Z →
   ⊢ WP subst "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
-      {{ λ v, ⌜v = OVal #(Z.odd x)⌝ }}.
+      {{ λ o, ⌜o = OVal #(Z.odd x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
   rewrite /is_even_code /=. cbn; simplify_map_eq.
