@@ -27,27 +27,28 @@ Proof using.
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "%σ Hσ". cbn -[wrap_prog].
+  iIntros "%σ Hσ".
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iDestruct "Hpto" as "(Hpto & _)".
+  iDestruct "Hpto" as "[Hpto Hγ]".
   iPoseProof (hgh_lookup_block with "GCHGH Hpto") as (b) "(%Hb&%Hγ)".
   inversion Hb; subst; clear Hb.
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
     e' = WrSE (ExprV #0) ∧
-    σ' = CState (WrapstateC (χC ρc) (<[γ:=Bforeign (Some w')]> (ζC ρc)) (θC ρc) (rootsC ρc)) mem).
+    σ' = CState (WrapstateC (χC ρc) (<[γ:=Bforeign (Mut, Some w')]> (ζC ρc)) (θC ρc) (rootsC ρc)) mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIζ GCζ") as "(SIζ&GCζ)".
   iMod (hgh_modify_block with "GCHGH Hpto") as "(GCHGH & Hpto)"; first done.
-  do 3 iModIntro. iFrame. cbn -[wrap_prog] in *.
+  do 3 iModIntro. iFrame.
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   change (Z.of_nat 0) with (Z0).
   iApply "Hcont". iFrame.
-  iApply ("Cont" with "[- $Hpto]"); iSplit; last done.
-  rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
+  iApply ("Cont" with "[- $Hpto]"). iFrame.
+  rewrite /GC /named. 
+  iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
   eapply GC_correct_modify_foreign; eauto.
 Qed.
 

@@ -331,22 +331,22 @@ Inductive c_prim_step :
     (∀ γ χC' ζC' θC' a mem',
       χC ρc !! γ = None →
       χC' = <[ γ := LlocPrivate ]> (χC ρc) →
-      ζC' = <[ γ := Bforeign None ]> (ζC ρc) →
+      ζC' = <[ γ := Bforeign (Mut, None) ]> (ζC ρc) →
       GC_correct ζC' θC' →
       repr θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
       Y (CLocV a) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     c_prim_step Pallocforeign [] ρc mem Y
-  | PrimReadForeignS w γ aforeign ρc mem Y :
+  | PrimReadForeignS w γ mut aforeign ρc mem Y :
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (Bforeign (Some aforeign)) →
+    (ζC ρc) !! γ = Some (Bforeign (mut, Some aforeign)) →
     Y aforeign ρc mem →
     c_prim_step Preadforeign [w] ρc mem Y
   | PrimWriteForeignS w γ aforeigno aforeign' ζC' ρc mem Y :
     repr_lval (θC ρc) (Lloc γ) w →
-    (ζC ρc) !! γ = Some (Bforeign aforeigno) →
-    ζC' = <[ γ := Bforeign (Some aforeign') ]> (ζC ρc) →
+    (ζC ρc) !! γ = Some (Bforeign (Mut, aforeigno)) →
+    ζC' = <[ γ := Bforeign (Mut, Some aforeign') ]> (ζC ρc) →
     Y (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem →
     c_prim_step Pwriteforeign [w; aforeign'] ρc mem Y.
 
@@ -404,7 +404,7 @@ Proof.
     pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union.
     specialize (H4 γ
                  (<[ γ := LlocPrivate ]> (χC ρc))
-                 (<[ γ := Bforeign None ]> (ζC ρc))
+                 (<[ γ := Bforeign (Mut, None) ]> (ζC ρc))
                  (<[ γ := w ]> (θC ρc))
                  w mem).
     do 3 eexists. eapply H4; eauto.

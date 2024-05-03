@@ -58,6 +58,7 @@ Section C_specs.
     match τ with
     | TUnit | TNat | TBool => True
     | TProd τ1 τ2 | TSum τ1 τ2 => valid_is_eq_type τ1 ∧ valid_is_eq_type τ2
+    | TBoxedNat
     | TArray _ | TArrow _ _ | TRec _ | TVar _ | TForall _ | TExist _ => False
     end.
 

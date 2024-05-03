@@ -25,6 +25,10 @@ Notation "'Val_int' '(' x ')'" := (call: &"int2val" with (x%CE))%CE
   (at level 70, x at level 69,
   format "'Val_int' '(' x ')'") : c_expr_scope.
 
+Notation "'BoxedInt_val' '(' x ')'" := (call: &"read_foreign" with (x%CE))%CE
+  (at level 70, x at level 69,
+  format "'BoxedInt_val' '(' x ')'") : c_expr_scope.
+
 Notation "'Custom_contents' '(' x ')'" := (call: &"read_foreign" with (x%CE))%CE
   (at level 70, x at level 69,
   format "'Custom_contents' '(' x ')'") : c_expr_scope.

@@ -27,7 +27,7 @@ Proof using.
   iSplit; first done.
   iIntros (Φ') "Hb Hcont". iApply wp_wrap_call; first done. cbn [snd].
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros "%σ Hσ". cbn -[wrap_prog].
+  iIntros "%σ Hσ".
   SI_at_boundary. SI_GC_agree.
   iAssert (⌜∀ k lv, roots_m !! k = Some lv →
             ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
@@ -43,7 +43,7 @@ Proof using.
   iExists (λ '(e', σ'), ∃ γ χC' ζC' θC' (aret:loc) mem',
       χC ρc !! γ = None ∧
       χC' = <[ γ := LlocPrivate ]> (χC ρc) ∧
-      ζC' = <[ γ := Bforeign None ]> (ζC ρc) ∧
+      ζC' = <[ γ := Bforeign (Mut, None) ]> (ζC ρc) ∧
       GC_correct ζC' θC' ∧
       repr θC' roots_m privmem mem' ∧
       roots_are_live θC' roots_m ∧
@@ -62,12 +62,12 @@ Proof using.
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ&SIχ)".
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ&SIθ)".
 
-  do 3 iModIntro. iFrame. cbn -[wrap_prog].
+  do 3 iModIntro. iFrame.
   iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_value; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! θC' γ with "[-]"); try done.
-  iFrame "Hpto". iSplit; last by eauto.
+  iFrame. iSplit; last by eauto.
   rewrite /GC /named.
   iExists _, _, σMLvirt, _, _. iFrame; eauto.
 Qed.

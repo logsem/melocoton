@@ -27,7 +27,7 @@ Section Proofs.
        GC θ' ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
        ⌜repr_lval θ' lv w'⌝ }}}%CE.
   Proof.
-    cbn. iIntros (Hb1 Hlval Φ) "HGC HΦ". wp_call_direct.
+    iIntros (Hb1 Hlval Φ) "HGC HΦ". wp_call_direct.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓbk) "(HGC&Hℓbk)"; wp_pures.
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
@@ -101,19 +101,15 @@ Section Proofs.
     change (Z.to_nat 0) with 0.
     change (Z.to_nat 1) with 1.
     change (Z.to_nat 2) with 2.
-    cbn.
     iMod (freeze_to_immut with "[$HGC $Hγbf]") as "(HGC&Hγbf)".
     iMod (freeze_to_immut with "[$HGC $Hγbf2]") as "(HGC&Hγbf2)".
     iMod (freeze_to_mut with "[$HGC $Hγbfref]") as "(HGC&Hγbfref)".
-
-    iPoseProof "Hγbk" as "(Hγbk&%Hγbk)".
 
     iAssert (isBufferRecord (Lloc γbf) ℓbts (buf_alloc_res_buffer n) n) with "[Hγbk Hγbf Hγbf2 Hγbfref Hbts]" as "Hbuffer".
     { iExists γbf, γbfref, γbf2, γbk, 0. unfold named. iFrame.
       iSplit; first done.
       iExists (replicate n None). unfold named, lstore_own_foreign.
       rewrite map_replicate; cbn.
-      iFrame. iSplit; first done.
       rewrite (_: Z.to_nat n = n); last lia. iFrame.
       iPureIntro; split_and!.
       1: done.

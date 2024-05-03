@@ -148,29 +148,29 @@ Definition alloc_foreign_proto : C_proto :=
   !! θ
   {{ GC θ }}
     "alloc_foreign" with []
-  {{ θ' γ w, RET w; GC θ' ∗ γ ↦foreignO None ∗ ⌜repr_lval θ' (Lloc γ) w⌝ }}.
+  {{ θ' γ w, RET w; GC θ' ∗ γ ↦foreignO[Mut] None ∗ ⌜repr_lval θ' (Lloc γ) w⌝ }}.
 
 Definition write_foreign_proto : C_proto :=
   !! θ γ w wo w'
   {{
      "HGC" ∷ GC θ ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-     "Hpto" ∷ γ ↦foreignO wo
+     "Hpto" ∷ γ ↦foreignO[Mut] wo
   }}
     "write_foreign" with [ w; w' ]
   {{ RET (C_intf.LitV (C_intf.LitInt 0));
-     GC θ ∗ γ ↦foreign w'
+     GC θ ∗ γ ↦foreign[Mut] w'
   }}.
 
 Definition read_foreign_proto : C_proto :=
-  !! θ γ w w' dq
+  !! θ γ w w' m dq
   {{
      "HGC" ∷ GC θ ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
-     "Hpto" ∷ γ ↦foreign{dq} w'
+     "Hpto" ∷ γ ↦foreign[m]{dq} w'
   }}
     "read_foreign" with [ w ]
-  {{ RET w'; GC θ ∗ γ ↦foreign{dq} w' }}.
+  {{ RET w'; GC θ ∗ γ ↦foreign[m]{dq} w' }}.
 
 Definition callback_proto (Ψ : ML_proto) : C_proto :=
   !! θ w γ w' lv' v' f x e Φ'

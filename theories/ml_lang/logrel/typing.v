@@ -5,6 +5,7 @@ From iris.prelude Require Import options.
 Inductive type :=
   | TUnit : type
   | TNat : type
+  | TBoxedNat : type
   | TBool : type
   | TProd : type → type → type
   | TSum : type → type → type
@@ -38,12 +39,15 @@ Definition binop_boolish (op : bin_op) : bool :=
   | _ => false
   end.
 
+Inductive is_natlike : type → Prop :=
+  | nat_natlike : is_natlike TNat
+  | boxednat_natlike : is_natlike TBoxedNat.
+
 Inductive EqType : type → Prop :=
   | EqTUnit : EqType TUnit
   | EqTNat : EqType TNat
   | EqTBool : EqType TBool
   | EQTArray τ : EqType (TArray τ).
-
 
 Inductive program_type := FunType : list type -> type -> program_type.
 Definition subst_prog_type (f : var → type) : program_type → program_type := fun '(FunType tv tr) => FunType (fmap (subst f) tv) (subst f tr).
@@ -58,18 +62,25 @@ Inductive typed (P : program_env) (Γ : gmap string type) : expr → type → Pr
   | Var_typed x τ : Γ !! x = Some τ → P ;; Γ ⊢ₜ Var x : τ
   | Unit_typed : P ;; Γ ⊢ₜ  #LitUnit : TUnit
   | Nat_typed (n:Z) : P ;; Γ ⊢ₜ # n : TNat
+  | BoxedNat_typed (n:Z) : P ;; Γ ⊢ₜ #(LitBoxedInt n) : TBoxedNat
   | Bool_typed (b:bool) : P ;; Γ ⊢ₜ # b : TBool
   | BinOp_typed_nat_nat op e1 e2 :
-     binop_arithmetic op = true → 
+     binop_arithmetic op = true →
      P ;; Γ ⊢ₜ e1 : TNat → P ;; Γ ⊢ₜ e2 : TNat → P ;; Γ ⊢ₜ BinOp op e1 e2 : TNat
   | BinOp_typed_nat_bool op e1 e2 :
-     binop_arithmetic_to_bool op = true → 
+     binop_arithmetic_to_bool op = true →
      P ;; Γ ⊢ₜ e1 : TNat → P ;; Γ ⊢ₜ e2 : TNat → P ;; Γ ⊢ₜ BinOp op e1 e2 : TBool
+  | BinOp_typed_boxednat_boxednat op e1 e2 :
+     binop_arithmetic op = true →
+     P ;; Γ ⊢ₜ e1 : TBoxedNat → P ;; Γ ⊢ₜ e2 : TBoxedNat → P ;; Γ ⊢ₜ BinOp op e1 e2 : TBoxedNat
+  | BinOp_typed_boxednat_bool op e1 e2 :
+     binop_arithmetic_to_bool op = true →
+     P ;; Γ ⊢ₜ e1 : TBoxedNat → P ;; Γ ⊢ₜ e2 : TBoxedNat → P ;; Γ ⊢ₜ BinOp op e1 e2 : TBool
   | BinOp_typed_bool op e1 e2 :
-     binop_boolish op = true → 
+     binop_boolish op = true →
      P ;; Γ ⊢ₜ e1 : TBool → P ;; Γ ⊢ₜ e2 : TBool → P ;; Γ ⊢ₜ BinOp op e1 e2 : TBool
   | BinOp_typed_eq T e1 e2 :
-     EqType T → 
+     EqType T →
      P ;; Γ ⊢ₜ e1 : T → P ;; Γ ⊢ₜ e2 : T → P ;; Γ ⊢ₜ BinOp EqOp e1 e2 : TBool
   | Pair_typed e1 e2 τ1 τ2 : P ;; Γ ⊢ₜ e1 : τ1 → P ;; Γ ⊢ₜ e2 : τ2 → P ;; Γ ⊢ₜ Pair e1 e2 : TProd τ1 τ2
   | Fst_typed e τ1 τ2 : P ;; Γ ⊢ₜ e : TProd τ1 τ2 → P ;; Γ ⊢ₜ Fst e : τ1
@@ -106,13 +117,16 @@ Inductive typed (P : program_env) (Γ : gmap string type) : expr → type → Pr
 where "P ;; Γ ⊢ₜ e : τ" := (typed P Γ e τ).
 
 (* Forall2 (typed Γ) requires special care *)
-Lemma typed_ind (P : program_env → gmap string type → expr → type → Prop) : 
+Lemma typed_ind (P : program_env → gmap string type → expr → type → Prop) :
     (∀ (P0 : program_env) (Γ : gmap string type) (x : string) (τ : type), Γ !! x = Some τ → P P0 Γ x τ)
   → (∀ (P0 : program_env) (Γ : gmap string type), P P0 Γ #() TUnit)
   → (∀ (P0 : program_env) (Γ : gmap string type) (n : Z), P P0 Γ #n TNat)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (n : Z), P P0 Γ #(LitBoxedInt n) TBoxedNat)
   → (∀ (P0 : program_env) (Γ : gmap string type) (b : bool), P P0 Γ #b TBool)
   → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic op = true → P0;; Γ ⊢ₜ e1 : TNat → P P0 Γ e1 TNat → P0;; Γ ⊢ₜ e2 : TNat → P P0 Γ e2 TNat → P P0 Γ (BinOp op e1 e2) TNat)
   → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic_to_bool op = true → P0;; Γ ⊢ₜ e1 : TNat → P P0 Γ e1 TNat → P0;; Γ ⊢ₜ e2 : TNat → P P0 Γ e2 TNat → P P0 Γ (BinOp op e1 e2) TBool)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic op = true → P0;; Γ ⊢ₜ e1 : TBoxedNat → P P0 Γ e1 TBoxedNat → P0;; Γ ⊢ₜ e2 : TBoxedNat → P P0 Γ e2 TBoxedNat → P P0 Γ (BinOp op e1 e2) TBoxedNat)
+  → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_arithmetic_to_bool op = true → P0;; Γ ⊢ₜ e1 : TBoxedNat → P P0 Γ e1 TBoxedNat → P0;; Γ ⊢ₜ e2 : TBoxedNat → P P0 Γ e2 TBoxedNat → P P0 Γ (BinOp op e1 e2) TBool)
   → (∀ (P0 : program_env) (Γ : gmap string type) (op : bin_op) (e1 e2 : expr), binop_boolish op = true → P0;; Γ ⊢ₜ e1 : TBool → P P0 Γ e1 TBool → P0;; Γ ⊢ₜ e2 : TBool → P P0 Γ e2 TBool → P P0 Γ (BinOp op e1 e2) TBool)
   → (∀ (P0 : program_env) (Γ : gmap string type) (T : type) (e1 e2 : expr), EqType T → P0;; Γ ⊢ₜ e1 : T → P P0 Γ e1 T → P0;; Γ ⊢ₜ e2 : T → P P0 Γ e2 T → P P0 Γ (BinOp EqOp e1 e2) TBool)
   → (∀ (P0 : program_env) (Γ : gmap string type) (e1 e2 : expr) (τ1 τ2 : type), P0;; Γ ⊢ₜ e1 : τ1 → P P0 Γ e1 τ1 → P0;; Γ ⊢ₜ e2 : τ2 → P P0 Γ e2 τ2 → P P0 Γ (e1, e2)%MLE (TProd τ1 τ2))
@@ -133,14 +147,14 @@ Lemma typed_ind (P : program_env → gmap string type → expr → type → Prop
   → (∀ (P0 : program_env) (Γ : gmap string type) (e1 e2 : expr) (τ : type), P0;; Γ ⊢ₜ e1 : TNat → P P0 Γ e1 TNat → P0;; Γ ⊢ₜ e2 : τ → P P0 Γ e2 τ → P P0 Γ (AllocN e1 e2) (TArray τ))
   → (∀ (P0 : program_env) (Γ : gmap string type) (e1 e2 : expr) (τ : type), P0;; Γ ⊢ₜ e1 : TArray τ → P P0 Γ e1 (TArray τ) → P0;; Γ ⊢ₜ e2 : TNat → P P0 Γ e2 TNat → P P0 Γ (LoadN e1 e2) τ)
   → (∀ (P0 : program_env) (Γ : gmap string type) (e1 e2 e3 : expr) (τ : type), P0;; Γ ⊢ₜ e1 : TArray τ → P P0 Γ e1 (TArray τ) → P0;; Γ ⊢ₜ e2 : TNat → P P0 Γ e2 TNat → P0;; Γ ⊢ₜ e3 : τ → P P0 Γ e3 τ → P P0 Γ (StoreN e1 e2 e3) TUnit)
-  → (∀ (P0 : program_env) (Γ : gmap string type) (s : string) (el : list expr) (tl : list type) (tr : type), P0 !! s = Some (FunType tl tr) → Forall2 (typed P0 Γ) el tl → Forall2 (P P0 Γ) el tl → P P0 Γ (Extern s el) tr) 
+  → (∀ (P0 : program_env) (Γ : gmap string type) (s : string) (el : list expr) (tl : list type) (tr : type), P0 !! s = Some (FunType tl tr) → Forall2 (typed P0 Γ) el tl → Forall2 (P P0 Γ) el tl → P P0 Γ (Extern s el) tr)
   →  ∀ (P0 : program_env) (Γ : gmap string type) (e : expr) (t : type), P0;; Γ ⊢ₜ e : t → P P0 Γ e t.
 Proof.
-  do 27 intros ?.
-  fix IH 5. intros ????; destruct 1; eauto 5.
-  enough (Forall2 (P P0 Γ) el tl) by (eapply H25; clear IH; done).
-  clear H26.
-  revert el tl H27. fix IHf 3.
+  do 29 intros ?.
+  fix IH 6. intros ????; destruct 1; eauto 5.
+  enough (Forall2 (P P0 Γ) el tl) by (eapply H28; clear IH; done).
+  clear H29.
+  revert el tl H30. fix IHf 3.
   intros el tl; destruct 1; econstructor.
   1: by eapply IH.
   by eapply IHf.
@@ -174,10 +188,9 @@ Fixpoint zip_types (an : list binder) (av : list type) : option (gmap string typ
 | _, _ => None end.
 
 Definition fun_typed (P : program_env) (Pt : program_type) (m : ml_function) : Prop := match m, Pt with
-  MlFun bs e, FunType ats rt => ∃ Γ', zip_types bs ats = Some Γ' ∧ typed P Γ' e rt end. 
+  MlFun bs e, FunType ats rt => ∃ Γ', zip_types bs ats = Some Γ' ∧ typed P Γ' e rt end.
 
 Definition program_typed (P : program_env) (p : gmap string ml_function) : Prop :=
   map_Forall (λ s Pt, ∃ m, p !! s = Some m ∧ fun_typed P Pt m) P.
-
 
 Notation "P ;; Γ ⊢ₜ e : τ" := (typed P Γ e τ) (at level 74, e, τ at next level).

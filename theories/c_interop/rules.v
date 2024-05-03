@@ -260,7 +260,7 @@ Lemma wp_alloc_foreign p Ψ θ :
   {{{ GC θ }}}
     (call: &"alloc_foreign" with ( ))%CE at ⟨p, Ψ⟩
   {{{ θ' γ w, RET w;
-        GC θ' ∗ γ ↦foreignO None ∗
+        GC θ' ∗ γ ↦foreignO[Mut] None ∗
         ⌜repr_lval θ' (Lloc γ) w⌝ }}}.
 Proof.
   intros Hp Hproto **. iIntros "HGC Cont".
@@ -276,9 +276,9 @@ Lemma wp_write_foreign p Ψ θ w γ ao a' :
   p !! "write_foreign" = None →
   write_foreign_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
-  {{{ GC θ ∗ γ ↦foreignO ao }}}
+  {{{ GC θ ∗ γ ↦foreignO[Mut] ao }}}
     (call: &"write_foreign" with (Val w, Val a'))%CE at ⟨p, Ψ⟩
-  {{{ RET (# 0); GC θ ∗ γ ↦foreign a' }}}.
+  {{{ RET (# 0); GC θ ∗ γ ↦foreign[Mut] a' }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & ?) Cont".
   wp_pures. wp_extern; first done.
@@ -289,19 +289,19 @@ Proof.
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_read_foreign p Ψ θ w γ a dq :
+Lemma wp_read_foreign p Ψ θ w γ a m dq :
   p !! "read_foreign" = None →
   read_foreign_proto ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
-  {{{ GC θ ∗ γ ↦foreign{dq} a }}}
+  {{{ GC θ ∗ γ ↦foreign[m]{dq} a }}}
     (call: &"read_foreign" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET a; GC θ ∗ γ ↦foreign{dq} a }}}.
+  {{{ RET a; GC θ ∗ γ ↦foreign[m]{dq} a }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & ?) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /read_foreign_proto /named. iSplit; first done.
-  do 5 iExists _. iFrame.
+  do 6 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!> [? ?]".
   iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.

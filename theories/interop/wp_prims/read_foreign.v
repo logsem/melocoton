@@ -4,7 +4,7 @@ From melocoton Require Import named_props stdpp_extra.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_interface Require Import defs notation resources.
 From melocoton.interop Require Import state lang basics_resources.
-From melocoton.interop Require Export prims weakestpre prims_proto.
+From melocoton.interop Require Export prims weakestpre prims_proto update_laws.
 From melocoton.interop.wp_prims Require Import common.
 From melocoton.mlanguage Require Import weakestpre.
 Import Wrap.
@@ -28,11 +28,12 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iAssert ⌜ζC ρc !! γ = Some (Bforeign (Some w'))⌝%I as "%Helem2".
-  { iDestruct "Hpto" as "(Hpto & _)".
-    iDestruct (hgh_lookup_block with "GCHGH Hpto") as %(b&Hb&Hγ).
-    inversion Hb; subst; eauto. }
-
+  iAssert ⌜∃ m', ζC ρc !! γ = Some (Bforeign (m', Some w'))⌝%I as "%Helem2".
+  {
+    iDestruct "Hpto" as "[Hpto _]".
+    iDestruct (hgh_lookup_foreign with "GCHGH Hpto") as %(?&_&?). iPureIntro. eauto.
+  }
+  destruct Helem2 as [m' Helem2].
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'), e' = WrSE (ExprV w') ∧ σ' = CState ρc mem).
   iSplit. { iPureIntro; econstructor; eauto. }

@@ -73,7 +73,7 @@ Section Proofs.
   Context `{!primitive_laws.heapG_ML Σ, !wrapperG Σ, !logrelG Σ}.
 
   Fixpoint is_zigzag (lst : list MLval) (v : MLval) : iProp Σ :=
-    ∃ γ w, ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign (#C w)
+    ∃ γ w, ⌜v = #(LitForeign γ)⌝ ∗ γ ↦foreign[Mut] (#C w)
            ∗ match lst with
              | nil => ⌜w = LitNull⌝
              | (v1::vr) => ∃ (a:addr) lv1 lv2 Vlst, ⌜w = a⌝ ∗ a ↦roots lv1 ∗ lv1 ~~ v1
@@ -216,7 +216,7 @@ Section Proofs.
     iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
@@ -242,7 +242,7 @@ Section Proofs.
     iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
@@ -268,7 +268,7 @@ Section Proofs.
     iIntros (s ws Φ) "H". iNamed "H". iNamedProto "Hproto".
     iSplit; first done.
     destruct lvs as [|lvhd [|??]]; try done.
-    all: cbn; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
+    all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(Hsimlst&Hsim)"; try done.
     destruct ws as [|wlst [|??]]; decompose_Forall.
     iDestruct "Htl" as  "(%γ&%ww&->&Hγfgn&%a&%lv1&%lv2&%Vlst&->&Ha0&#Hsim0&Ha1&#Hsim1&Hrec)".
     iDestruct "Hsimlst" as "->".
@@ -292,6 +292,7 @@ Section Proofs.
     iApply ("Return" with "HGC (Cont [$Hrec Hγfgn])"); [|done..].
     iExists _, _; iSplit; first done. iFrame "Hγfgn". done.
   Qed.
+
   End InPsi.
 
   Definition zigzag_spec_ML : protocol ML_lang.val Σ :=

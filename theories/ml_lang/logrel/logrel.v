@@ -33,7 +33,7 @@ Notation na_tok := (na_own logrel_nais ⊤).
 
 Section logrel.
   Context `{SI: indexT}.
-  Context {Σ : gFunctors}. 
+  Context {Σ : gFunctors}.
   Context `{!heapG_ML Σ, !invG Σ, !logrelG Σ}.
   Notation D := (persistent_predO val (iPropI Σ)).
   Implicit Types τi : D.
@@ -57,6 +57,8 @@ Section logrel.
   Definition interp_unit : listO D -n> D := λne Δ, PersPred (λ w, ⌜w = #LitUnit⌝)%I.
   Definition interp_nat : listO D -n> D :=
     λne Δ, PersPred (λ w, ⌜∃ (n:Z), w = # n⌝)%I.
+  Definition interp_boxednat : listO D -n> D :=
+    λne Δ, PersPred (λ w, ⌜∃ (n:Z), w = # (LitBoxedInt n)⌝)%I.
   Definition interp_bool : listO D -n> D :=
     λne Δ, PersPred (λ w, ⌜∃ (b:bool), w = # b⌝)%I.
 
@@ -109,7 +111,7 @@ Section logrel.
     intros interp n Δ1 Δ2 HΔ; apply fixpoint_ne => τi w. solve_proper.
   Qed.
 
-  Program Definition interp_array_inv_L γ (l : loc) : iPropO Σ := 
+  Program Definition interp_array_inv_L γ (l : loc) : iPropO Σ :=
     (∃ vs, l ↦∗ vs ∗ ghost_var γ (1/2) vs)%I.
   Program Definition interp_array_inv_R γ : D -n> iPropO Σ := λne τi,
     (∃ vs, ([∗ list] v∈vs, τi v) ∗ ghost_var γ (1/2) vs)%I.
@@ -126,6 +128,7 @@ Section logrel.
     match τ return _ with
     | TUnit => interp_unit
     | TNat => interp_nat
+    | TBoxedNat => interp_boxednat
     | TBool => interp_bool
     | TProd τ1 τ2 => interp_prod (interp τ1) (interp τ2)
     | TSum τ1 τ2 => interp_sum (interp τ1) (interp τ2)

@@ -4,6 +4,7 @@ From transfinite.base_logic.lib Require Import ghost_map ghost_var gen_heap gset
 From iris.proofmode Require Import proofmode.
 From melocoton Require Import named_props iris_extra.
 From melocoton.ml_lang Require Import lang.
+From melocoton.c_interface Require Import defs.
 From melocoton.interop Require Export basics.
 
 Class wrapperBasicsGpre `{SI: indexT} Σ := WrapperBasicsGpre {
@@ -445,39 +446,45 @@ Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
 
 (* Foreign block points-to *)
 
-Definition lstore_own_foreign γ dq (v : option word) : iProp Σ :=
-  lstore_own_mut γ dq (Bforeign v).
+Definition lstore_own_foreign γ dq mut v : iProp Σ :=
+  lstore_own_elem γ dq (Bforeign (mut, v)) ∗
+  match mut with
+  | Mut   => γ ~ℓ~/
+  | Immut => True
+  end.
 
-Notation "γ ↦foreignO{ dq } a" := (lstore_own_foreign γ dq a)%I
-  (at level 20, format "γ  ↦foreignO{ dq }  a") : bi_scope.
-Notation "γ ↦foreignO a" := (γ ↦foreignO{DfracOwn 1} a)%I
-  (at level 20, format "γ  ↦foreignO  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ]{ dq } a" := (lstore_own_foreign γ dq mut a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]{ dq }  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ] a" := (γ ↦foreignO[mut]{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]  a") : bi_scope.
 
 (* Lifting of ~ℓ~ at the level of ML values *)
 
-Fixpoint block_sim (v : val) (l : lval) : iProp Σ := match v with
-  | ML_lang.LitV (ML_lang.LitInt x) => ⌜l = (Lint x)⌝
-  | ML_lang.LitV (ML_lang.LitBool b) => ⌜l = (Lint (if b then 1 else 0))⌝
-  | ML_lang.LitV ML_lang.LitUnit => ⌜l = (Lint 0)⌝
-  | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜l = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
-  | ML_lang.LitV (ML_lang.LitForeign γ) => ⌜l = (Lloc γ)⌝
+Fixpoint block_sim (v : val) (lv : lval) : iProp Σ := match v with
+  | ML_lang.LitV (ML_lang.LitInt x) => ⌜lv = (Lint x)⌝
+  | ML_lang.LitV (ML_lang.LitBool b) => ⌜lv = (Lint (if b then 1 else 0))⌝
+  | ML_lang.LitV ML_lang.LitUnit => ⌜lv = (Lint 0)⌝
+  | ML_lang.LitV (ML_lang.LitBoxedInt i) => ∃ γ,
+      ⌜lv = (Lloc γ)⌝ ∗ γ ↦foreignO[Immut] (Some (C_intf.LitV (C_intf.LitInt i)))
+  | ML_lang.LitV (ML_lang.LitLoc ℓ) => ∃ γ, ⌜lv = (Lloc γ)⌝ ∗ γ ~ℓ~ ℓ
+  | ML_lang.LitV (ML_lang.LitForeign γ) => ⌜lv = (Lloc γ)⌝
   | ML_lang.PairV v1 v2 => ∃ γ lv1 lv2,
-      ⌜l = (Lloc γ)⌝ ∗
+      ⌜lv = (Lloc γ)⌝ ∗
       γ ↦imm (TagDefault, [lv1;lv2]) ∗
       block_sim v1 lv1 ∗ block_sim v2 lv2
-  | ML_lang.InjLV v => ∃ γ lv,
-      ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv]) ∗ block_sim v lv
-  | ML_lang.InjRV v => ∃ γ lv,
-      ⌜l = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv]) ∗ block_sim v lv
+  | ML_lang.InjLV v => ∃ γ lv',
+      ⌜lv = (Lloc γ)⌝ ∗ γ ↦imm (TagDefault, [lv']) ∗ block_sim v lv'
+  | ML_lang.InjRV v => ∃ γ lv',
+      ⌜lv = (Lloc γ)⌝ ∗ γ ↦imm (TagInjRV, [lv']) ∗ block_sim v lv'
   | ML_lang.RecV f x e => ∃ γ,
-      ⌜l = Lloc γ⌝ ∗ γ ↦clos (f, x, e)
+      ⌜lv = Lloc γ⌝ ∗ γ ↦clos (f, x, e)
 end.
 
 Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
 
 Global Instance block_sim_pers v l : Persistent (l ~~ v).
 Proof using.
-  induction v as [[x|b| | |]| | | |] in l|-*; cbn; unshelve eapply (_).
+  induction v as [[x|b| | | |]| | | |] in l|-*; cbn; unshelve eapply (_).
 Qed.
 
 Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=
@@ -498,7 +505,21 @@ Lemma block_sim_of_auth (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map) (σM
 Proof using.
   iIntros (Hfreeze Hstorebl Hstore Hdisj H) "Hχ Hζ".
   iDestruct (lstore_own_auth_get_immut_all with "Hζ") as "#Hζimm".
-  iInduction H as [] "IH" forall "Hζ Hχ"; cbn; try done.
+  iInduction H as [] "IH" forall "Hζ Hχ"; try (cbn; done).
+  1: { iExists γ; iSplit; first done.
+    iPoseProof (lstore_own_auth_get_immut
+      ζvirt γ (Bforeign (Immut, Some (defs.C_intf.LitV (defs.C_intf.LitInt x))))
+      with "Hζ")
+      as "Himm";
+      try eauto.
+    1: { simplify_eq. apply lookup_union_Some in H as [|]; eauto.
+         destruct Hstorebl as [_ Hstorebl2].
+         specialize (Hstorebl2 γ) as [Hstorebl2 _].
+         destruct Hstorebl2 as (ℓ & Vs & Hχ & Hσml); [by eapply elem_of_dom_2|].
+         efeed specialize Hstore; eauto; [eapply lookup_union_Some; by eauto|].
+         inversion Hstore. }
+    iSplit; try eauto.
+    by iPoseProof (lstore_own_immut_to_elem with "Himm") as "Himm". }
   1: iExists γ; iSplit; first done.
   1: by iApply (lloc_own_auth_get_pub with "Hχ").
   1: iExists γ, lv1, lv2; iSplit; first done; iSplit.
@@ -551,8 +572,12 @@ Lemma block_sim_auth_is_val  (ζfreeze ζσ ζvirt : lstore) (χvirt : lloc_map)
   ⌜is_val χvirt ζfreeze v b⌝.
 Proof using.
   iIntros (Hfreeze Hstorebl Hstore Hdis) "Hχ Hζ Hsim".
-  iInduction v as [[x|bo| | |]| | | |] "IH" forall (b); cbn.
+  iInduction v as [[x|bo| | | n |]| | | |] "IH" forall (b).
   all: try (iPure "Hsim" as Hsim; subst; iPureIntro; try econstructor; done).
+  1: { iDestruct "Hsim" as "(%γ & -> & [Hsim _])".
+    iPoseProof (lstore_own_elem_to_immut with "Hsim") as "Hsim"; first done.
+    iPoseProof (lstore_own_immut_of with "Hζ Hsim") as "[%H1 %H2]".
+    iPureIntro. econstructor. by simplify_map_eq. }
   1: {iDestruct "Hsim" as "(%γ & -> & Hsim)".
       iPoseProof (lloc_own_pub_of with "Hχ Hsim") as "%HH".
       iPureIntro. econstructor. done. }
@@ -620,14 +645,14 @@ Notation "γ ↦imm b" := (γ ↦vblk[I]{DfracOwn 1} b)%I
 Notation "γ ↦clos ( f , x , e )" := (lstore_own_immut γ (Bclosure f x e))%I
   (at level 20, format "γ  ↦clos  ( f ,  x ,  e )") : bi_scope.
 
-Notation "γ ↦foreignO{ dq } a" := (lstore_own_foreign γ dq a)%I
-  (at level 20, format "γ  ↦foreignO{ dq }  a") : bi_scope.
-Notation "γ ↦foreignO a" := (γ ↦foreignO{DfracOwn 1} a)%I
-  (at level 20, format "γ  ↦foreignO  a") : bi_scope.
-Notation "γ ↦foreign{ dq } a" := (γ ↦foreignO{ dq } (Some a))%I
-  (at level 20, format "γ  ↦foreign{ dq }  a") : bi_scope.
-Notation "γ ↦foreign a" := (γ ↦foreign{DfracOwn 1} a)%I
-  (at level 20, format "γ  ↦foreign  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ]{ dq } a" := (lstore_own_foreign γ dq mut a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]{ dq }  a") : bi_scope.
+Notation "γ ↦foreignO[ mut ] a" := (γ ↦foreignO[mut]{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreignO[ mut ]  a") : bi_scope.
+Notation "γ ↦foreign[ mut ]{ dq } a" := (γ ↦foreignO[ mut ]{ dq } (Some a))%I
+  (at level 20, format "γ  ↦foreign[ mut ]{ dq }  a") : bi_scope.
+Notation "γ ↦foreign[ mut ] a" := (γ ↦foreign[ mut ]{DfracOwn 1} a)%I
+  (at level 20, format "γ  ↦foreign[ mut ]  a") : bi_scope.
 
 Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperG_γroots_map]{dq} w)%I
   (at level 20, format "γ  ↦roots{ dq }  w") : bi_scope.
