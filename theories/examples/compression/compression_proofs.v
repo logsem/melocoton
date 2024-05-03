@@ -160,9 +160,7 @@ Proof using Hp.
       iSplit; first done.
       repeat iSplit; try iPureIntro. 5: cbn; iFrame.
       - do 4 (cbn in *; case_match; try (exfalso; by eapply Hnn); simplify_eq; try congruence).
-      - cbn. do 2 f_equal. rewrite -Hlen.
-        replace (Z.of_nat (S (S (length vov)))) with (2 + (length vov))%Z by lia.
-        by done.
+      - cbn. do 3 f_equal. lia.
       - done.
       - cbn. rewrite Hlen. done.
       - rewrite !loc_add_0. iFrame "Hℓou0 Hℓin1". iSplitL "HℓouR".
