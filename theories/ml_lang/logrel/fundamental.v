@@ -50,7 +50,8 @@ Section typed_interp.
 
   Lemma sem_typed_boxednat P Γ (n:Z) : ⊢ P ;; Γ ⊨ #(LitBoxedInt n) : TBoxedNat.
   Proof.
-    iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_outcome; [|iExists _]; eauto.
+    iIntros (Δ vs) "!# #HΓ #HP /= Htok".
+    iApply wp_outcome; [|iFrame "Htok"; iExists _]; eauto.
   Qed.
 
   Lemma sem_typed_bool P Γ (b:bool) : ⊢ P ;; Γ ⊨ # b : TBool.
