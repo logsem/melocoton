@@ -43,7 +43,7 @@ Definition buffy_max_len_spec : protocol val Σ := (λ s vv Φ,
   ∃ (n:nat),
     "->" ∷ ⌜s = buffy_max_len_name⌝
   ∗ "->" ∷ ⌜vv = [ #n ]⌝
-  ∗ "Hcont" ∷ ▷ Φ # (buffer_max_len n))%I.
+  ∗ "Hcont" ∷ ▷ Φ (OVal #(buffer_max_len n)))%I.
 Definition buffy_compress_spec_ok : protocol val Σ := (λ s vv Φ,
   ∃ (ℓin ℓout ℓlen : loc) vin bin vspace,
     "->" ∷ ⌜s = buffy_compress_name⌝
@@ -61,7 +61,7 @@ Definition buffy_compress_spec_ok : protocol val Σ := (λ s vv Φ,
       -∗ ℓout I↦C∗ (vout ++ vrest)
       -∗ ℓin  I↦C∗ vin
       -∗ ℓlen ↦C  #(length vout)
-      -∗ Φ #0))%I.
+      -∗ Φ (OVal #0)))%I.
 
 Definition buffy_compress_spec_fail : protocol val Σ := (λ s vv Φ,
   ∃ (ℓlen:loc) (z:Z) (nlen:nat) vv1 vv2,
@@ -70,7 +70,7 @@ Definition buffy_compress_spec_fail : protocol val Σ := (λ s vv Φ,
   ∗ "%Hlen" ∷ ⌜z < buffer_max_len (nlen)⌝%Z
   ∗ "Hℓlen" ∷ ℓlen ↦C #z
   ∗ "HCont" ∷ ▷ (ℓlen ↦C #z
-      -∗ Φ #1))%I.
+      -∗ Φ (OVal #1)))%I.
 
 Definition buffy_library_spec : protocol val Σ :=
   buffy_max_len_spec ⊔ buffy_compress_spec_ok ⊔ buffy_compress_spec_fail.

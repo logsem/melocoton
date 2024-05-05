@@ -34,7 +34,7 @@ Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 Context (p : lang_prog C_lang).
 Context (Hp : buffy_env ⊆ p).
-Context (Ψ : (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ)).
+Context (Ψ : (string -d> list val -d> (outcome val -d> iPropO Σ) -d> iPropO Σ)).
 
 Lemma buffy_max_len_correct :
     Ψ ||- p :: buffy_max_len_spec.
@@ -61,7 +61,7 @@ Lemma buffy_compress_rec_spec ℓin ℓout vin bin vspace :
     {{ v', ∃ bout vout vrest voverwritten,
              ⌜isBuffer vout bout⌝
            ∗ ⌜bout = compress_buffer bin⌝
-           ∗ ⌜v' = #(length vout)⌝
+           ∗ ⌜v' = OVal #(length vout)⌝
            ∗ ⌜vspace = voverwritten ++ vrest⌝
            ∗ ⌜length voverwritten = length vout⌝
            ∗ ℓout I↦C∗ (vout ++ vrest)
@@ -117,7 +117,7 @@ Proof using Hp.
       iSplit; first done. iFrame.
       repeat iSplit; try iPureIntro.
       - done.
-      - cbn. do 2 f_equal. lia.
+      - cbn. do 3 f_equal. lia.
       - done.
       - cbn. by rewrite Hlen.
       - unfold array. iApply (big_sepL_wand with "HℓinR").
@@ -126,7 +126,7 @@ Proof using Hp.
     }
   }
   { wp_bind (if: _ then _ else #0)%CE.
-    iApply (wp_wand _ _ _ (λ v, ⌜v = #0⌝ ∗ ℓin ↦C #bfst ∗ (ℓin +ₗ 1) ↦C #bsnd)%I with "[Hℓin0 Hℓin1]").
+    iApply (wp_wand _ _ _ (λ v, ⌜v = OVal #0⌝ ∗ ℓin ↦C #bfst ∗ (ℓin +ₗ 1) ↦C #bsnd)%I with "[Hℓin0 Hℓin1]").
     { wp_apply (wp_load with "Hℓin0"); iIntros "Hℓin0"; wp_pures.
       rewrite bool_decide_decide. destruct decide.
       { wp_pures.
@@ -160,7 +160,7 @@ Proof using Hp.
       iSplit; first done.
       repeat iSplit; try iPureIntro. 5: cbn; iFrame.
       - do 4 (cbn in *; case_match; try (exfalso; by eapply Hnn); simplify_eq; try congruence).
-      - cbn. do 2 f_equal. repeat case_match; cbn in *; lia.
+      - cbn. do 3 f_equal. lia.
       - done.
       - cbn. rewrite Hlen. done.
       - rewrite !loc_add_0. iFrame "Hℓou0 Hℓin1". iSplitL "HℓouR".

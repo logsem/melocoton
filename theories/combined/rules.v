@@ -41,7 +41,7 @@ Lemma combined_correct
 :
   Ψ on prim_names ⊑ ⊥ →
   dom p ## prim_names →
-  (⊢ P -∗ WP e at ⟨ ∅ , Ψ ⟩ {{ k, ⌜∃ x, k = (ML_lang.LitV (ML_lang.LitInt x)) ∧ Pret x⌝ }}) →
+  (⊢ P -∗ WP e at ⟨ ∅ , Ψ ⟩ {{ k, ⌜∃ x, k = OVal (ML_lang.LitV (ML_lang.LitInt x)) ∧ Pret x⌝ }}) →
   prims_proto Ψ ||- p :: wrap_proto Ψ →
   ⊥ |- combined_prog e p :: main_proto Pret P.
 Proof.

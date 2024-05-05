@@ -28,7 +28,7 @@ Section typed_interp.
     iIntros "He Hcont Htok". iApply wp_bind.
     iApply (wp_wand with "[He Htok]").
     { iSpecialize ("He" with "Htok"). done. }
-    cbn. iIntros (v) "[Hv Htok]".
+    cbn. iIntros (o) "((%v&->&Hv)&Htok)".
     iSpecialize ("Hcont" with "Hv Htok"). done.
   Qed.
 
@@ -37,20 +37,27 @@ Section typed_interp.
   Proof.
     iIntros (? Δ vs) "!# #HΓ #HP"; simpl.
     iDestruct (interp_env_Some_l with "HΓ") as (v) "[% ?]"; first done.
-    rewrite H0. iIntros "Htok". iApply wp_value; eauto.
+    rewrite H0. iIntros "Htok". iApply wp_outcome; eauto.
   Qed.
 
   Lemma sem_typed_unit P Γ : ⊢ P ;; Γ ⊨ # LitUnit : TUnit.
-  Proof. iIntros (Δ vs) "!# #HΓ #HP Htok". iApply wp_value; eauto. Qed.
+  Proof. iIntros (Δ vs) "!# #HΓ #HP Htok". iApply wp_outcome; eauto. Qed.
 
   Lemma sem_typed_nat P Γ (n:Z) : ⊢ P ;; Γ ⊨ # n : TNat.
-  Proof. iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_value; eauto. Qed.
+  Proof.
+    iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_outcome; [|iFrame; iExists _]; eauto.
+  Qed.
 
   Lemma sem_typed_boxednat P Γ (n:Z) : ⊢ P ;; Γ ⊨ #(LitBoxedInt n) : TBoxedNat.
-  Proof. iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_value; eauto. Qed.
+  Proof.
+    iIntros (Δ vs) "!# #HΓ #HP /= Htok".
+    iApply wp_outcome; [|iFrame "Htok"; iExists _]; eauto.
+  Qed.
 
   Lemma sem_typed_bool P Γ (b:bool) : ⊢ P ;; Γ ⊨ # b : TBool.
-  Proof. iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_value; eauto. Qed.
+  Proof.
+    iIntros (Δ vs) "!# #HΓ #HP /= Htok". iApply wp_outcome; [|iFrame; iExists _]; eauto.
+  Qed.
 
   Lemma sem_typed_natish_binop P Γ op e1 e2 t :
     binop_arithmetic op = true →
@@ -65,12 +72,12 @@ Section typed_interp.
     destruct Ht; iDestruct "Hv" as (n) "%"; iDestruct "Hw" as (n') "%"; simplify_eq/=.
     - assert (exists (nr:Z), bin_op_eval op (# (LitInt n')) (# (LitInt n)) = Some (# (LitInt nr))) as [nr Hnr].
       1: { destruct op. 1-10: by eexists. all: cbn in Hop; done. }
-      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
-      iFrame. by iExists _.
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_outcome; first done.
+      iFrame. iExists _; iSplit; eauto.
     - assert (exists (nr:Z), bin_op_eval op (# (LitBoxedInt n')) (# (LitBoxedInt n)) = Some (# (LitBoxedInt nr))) as [nr Hnr].
       1: { destruct op. 1-10: by eexists. all: cbn in Hop; done. }
-      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
-      iFrame. by iExists _.
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_outcome; first done.
+      iFrame. iExists _; iSplit; eauto.
   Qed.
 
   Lemma sem_typed_natish_binop_bool P Γ op e1 e2 t :
@@ -88,14 +95,14 @@ Section typed_interp.
       1: { destruct op. 1-10,13: cbn in Hop; done.
            all: unfold bin_op_eval; destruct decide; simplify_eq.
            all: cbn; destruct bool_decide; by eexists. }
-      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
-      iFrame. by iExists _.
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_outcome; first done.
+      iFrame. iExists _; iSplit; eauto.
     - assert (exists (r:bool), bin_op_eval op (# (LitBoxedInt n')) (# (LitBoxedInt n)) = Some (#r)) as [b Hb].
       1: { destruct op. 1-10,13: cbn in Hop; done.
            all: unfold bin_op_eval; destruct decide; simplify_eq.
            all: cbn; destruct bool_decide; by eexists. }
-      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
-      iFrame. by iExists _.
+      iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_outcome; first done.
+      iFrame. iExists _; iSplit; eauto.
   Qed.
 
   Lemma sem_typed_bool_binop P Γ op e1 e2 :
@@ -112,8 +119,8 @@ Section typed_interp.
     1: { destruct op. all: cbn in Hop; try done.
          all: unfold bin_op_eval; destruct decide; simplify_eq.
          all: by eexists. }
-    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; first done.
-    iFrame. by iExists _.
+    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_outcome; first done.
+    iFrame. iExists _; eauto.
   Qed.
 
   Lemma sem_typed_eq P Γ τ e1 e2 :
@@ -129,8 +136,8 @@ Section typed_interp.
     2,3: iDestruct "Hv" as (v1) "%"; iDestruct "Hw" as (v2) "%"; simplify_eq/=.
     4: iDestruct "Hv" as (v1 γ1) "(%&#H1L&#H1R)"; iDestruct "Hw" as (v2 γ2) "(%&#H2L&#H2R)"; simplify_eq/=.
     all: iApply wp_pure_step_later; first try eauto.
-    all: iIntros "!>"; iApply wp_value; first done.
-    all: iFrame; by iExists _.
+    all: iIntros "!>"; iApply wp_outcome; first done.
+    all: iFrame; iExists _; eauto.
   Qed.
 
   Lemma sem_typed_pair P Γ e1 e2 τ1 τ2 : P ;; Γ ⊨ e1 : τ1 -∗ P ;; Γ ⊨ e2 : τ2 -∗ P ;; Γ ⊨ Pair e1 e2 : TProd τ1 τ2.
@@ -141,7 +148,7 @@ Section typed_interp.
     iApply (interp_expr_bind [PairLCtx _]); first by iApply "IH1".
     iIntros (w) "#Hw/= Htok".
     iApply wp_pure_step_later; first done. iIntros "!>".
-    iApply wp_value; simpl; eauto; iFrame; eauto.
+    iApply wp_outcome; simpl; eauto; iFrame; iExists _; iSplit; eauto.
   Qed.
 
   Lemma sem_typed_fst P Γ e τ1 τ2 : P ;; Γ ⊨ e : TProd τ1 τ2 -∗ P ;; Γ ⊨ Fst e : τ1.
@@ -151,7 +158,7 @@ Section typed_interp.
     iIntros (v) "#Hv /=".
     iDestruct "Hv" as (w1 w2) "#[% [H2 H3]]"; subst.
     iIntros "Htok".
-    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; eauto.
+    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_outcome; eauto.
   Qed.
 
   Lemma sem_typed_snd P Γ e τ1 τ2 : P ;; Γ ⊨ e : TProd τ1 τ2 -∗ P ;; Γ ⊨ Snd e : τ2.
@@ -161,7 +168,7 @@ Section typed_interp.
     iIntros (v) "#Hv /=".
     iDestruct "Hv" as (w1 w2) "#[% [H2 H3]]"; subst.
     iIntros "Htok".
-    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_value; eauto.
+    iApply wp_pure_step_later; [done|]; iIntros "!>". iApply wp_outcome; eauto.
   Qed.
 
   Lemma sem_typed_injl P Γ e τ1 τ2 : P ;; Γ ⊨ e : τ1 -∗ P ;; Γ ⊨ InjL e : (TSum τ1 τ2).
@@ -171,7 +178,7 @@ Section typed_interp.
     iIntros (v) "#Hv /=".
     iIntros "Htok".
     iApply wp_pure_step_later; first done. iIntros "!>".
-    iApply wp_value; simpl; eauto.
+    iApply wp_outcome; simpl; [done|iFrame; iExists _]; eauto.
   Qed.
 
   Lemma sem_typed_injr P Γ e τ1 τ2 : P ;; Γ ⊨ e : τ2 -∗ P ;; Γ ⊨ InjR e : TSum τ1 τ2.
@@ -181,7 +188,7 @@ Section typed_interp.
     iIntros (v) "#Hv /=".
     iIntros "Htok".
     iApply wp_pure_step_later; first done. iIntros "!>".
-    iApply wp_value; simpl; eauto.
+    iApply wp_outcome; simpl; [done|iFrame; iExists _]; eauto.
   Qed.
 
   Lemma sem_typed_case P Γ e0 e1 e2 τ1 τ2 τ3 :
@@ -198,7 +205,7 @@ Section typed_interp.
       iApply wp_pure_step_later; auto 1 using to_of_val; asimpl. iIntros "!>".
       iPoseProof ("IH2" $! Δ vs with "HΓ HP") as "IH".
       iApply (interp_expr_bind [AppLCtx _]); first (by iApply "IH"); last iFrame.
-      iIntros (v) "#(%&%&%&_&Hv)". by iApply "Hv".
+      iIntros (v) "#(%&%&%&->&H)". cbn. by iApply "H".
     + iIntros "Htok".
       iApply wp_pure_step_later; auto 1 using to_of_val; asimpl. iIntros "!>".
       iPoseProof ("IH3" $! Δ vs with "HΓ HP") as "IH".
@@ -229,13 +236,15 @@ Section typed_interp.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP Htok"; simpl.
     iApply wp_pure_step_later; first done; iIntros "!>".
-    iApply wp_value; first done. iFrame "Htok". iLöb as "IHL". cbn.
+    iApply wp_outcome; first done. iFrame.
+    iExists _. iSplit; eauto.
+    iLöb as "IHL". cbn.
     iExists _, _, _. iSplit; first done.
     iIntros "!> %v #Hv Htok".
     iApply wp_pure_step_later; first done; iIntros "!>".
     rewrite (binder_delete_binder_delete f x) /env_subst -(subst_all_binder_insert_2).
     iApply ("IH" $! Δ with "[HΓ] HP"); last done.
-    iApply (interp_env_binder_insert_2 with "[IHL] [-]"); first iApply "IHL".
+    iApply (interp_env_binder_insert_2 with "[IHL] [-]"); first iApply "IHL". 
     iApply (interp_env_binder_insert_2 with "Hv HΓ").
   Qed.
 
@@ -253,7 +262,8 @@ Section typed_interp.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP /= Htok".
     iApply wp_pure_step_later; first done; iIntros "!>".
-    iApply wp_value; first done. cbn. iFrame "Htok".
+    iApply wp_outcome; first done. cbn. iFrame "Htok".
+    iExists _; iSplit; eauto.
     iModIntro; iIntros (τi) "Htok".
     iApply wp_pure_step_later; first done. iIntros "!>". cbn.
     iApply "IH"; last done. 1: by iApply interp_env_ren.
@@ -267,15 +277,18 @@ Section typed_interp.
     iIntros (v) "#Hv /= Htok".
     iApply wp_wand_r; iSplitL;
       [iApply ("Hv" $! (⟦ τ' ⟧ Δ)); last done; iPureIntro; apply _|]; cbn.
-    iIntros (w) "[? $]". by iApply interp_subst.
+    iIntros (w) "((%vo&->&?)&$)".
+    iExists _; iSplit; eauto.
+    by iApply interp_subst.
   Qed.
 
   Lemma sem_typed_pack P Γ e τ τ' : P ;; Γ ⊨ e : τ.[τ'/] -∗ P ;; Γ ⊨ Pack e : TExist τ.
   Proof.
     iIntros "#IH" (Δ vs) "!# #HΓ #HP /= Htok".
     iApply (wp_wand with "[Htok]"); first by iApply "IH".
-    iIntros (v) "[#Hv $] /=".
+    iIntros (o) "((%v&->&H)&$)".
     rewrite -interp_subst.
+    iExists _; iSplit; eauto.
     iExists (interp _ _ Δ), _; iSplit; done.
   Qed.
 
@@ -287,8 +300,9 @@ Section typed_interp.
     iIntros "#IH1 #IH2" (Δ vs) "!# #HΓ #HP /=".
     iApply (interp_expr_bind [AppRCtx _]); first by iApply "IH1". cbn.
     iIntros (v) "#(%τi & %vv & -> & Hv) /= Htok".
-    iApply (wp_bind [AppLCtx _]); first iApply (wp_wand _ _ _ (λ v, ⌜v = (λ: x, env_subst (delete_binder vs x) e2)%MLV⌝)%I).
-    1: iApply wp_pure_step_later; first done; iIntros "!>". 1: iApply wp_value; first done; iPureIntro; done.
+    iApply (wp_bind [AppLCtx _]);
+    first iApply (wp_wand _ _ _ (λ v, ⌜v = OVal (λ: x, env_subst (delete_binder vs x) e2)%MLV⌝)%I).
+    1: iApply wp_pure_step_later; first done; iIntros "!>". 1: iApply wp_outcome; first done; iPureIntro; done.
     iIntros (?) "->". cbn.
     iApply wp_pure_step_later; first done. iIntros "!>". cbn.
     rewrite -subst_all_binder_insert.
@@ -297,7 +311,8 @@ Section typed_interp.
       1: iApply interp_env_binder_insert_2; first iApply "Hv".
       1: iApply interp_env_ren; done.
       1: iApply interp_prog_env_ren; done. }
-    iIntros (u) "[Hu $]".
+    iIntros (o) "((%v&->&H)&$)".
+    iExists _. iSplit; eauto.
     iApply (interp_weaken _ [] [_]); done.
   Qed.
 
@@ -308,7 +323,8 @@ Section typed_interp.
     iIntros (v) "#Hv /= Htok".
     iApply wp_pure_step_later; first done; iIntros "!>"; cbn.
     rewrite lookup_singleton.
-    iApply wp_value; first done.
+    iApply wp_outcome; first done.
+    iFrame. iExists _. iSplit; eauto.
     rewrite /= -interp_subst fixpoint_interp_rec1_eq /=.
     iFrame. iModIntro; eauto.
   Qed.
@@ -322,7 +338,9 @@ Section typed_interp.
     change (fixpoint _) with (⟦ TRec τ ⟧ Δ); simpl.
     iDestruct "Hv" as (w) "#[% Hw]"; subst. iIntros "Htok".
     iApply wp_pure_step_later; cbn; auto using to_of_val. rewrite lookup_singleton.
-    iIntros "!>". iApply wp_value; first done. iFrame. by iApply interp_subst.
+    iIntros "!>". iApply wp_outcome; first done. iFrame.
+    iExists _; iSplit; eauto.
+    by iApply interp_subst.
   Qed.
 
   Lemma sem_typed_alloc P Γ e1 e2 τ :
@@ -345,7 +363,7 @@ Section typed_interp.
       rewrite Qp.half_half.
       iMod (na_inv_alloc _ with "[HγL]") as "#HL"; last first.
       1: iMod (na_inv_alloc _ _ (nroot .@ "timeless" .@ l) with "[Hl HγR]") as "#HR"; last first.
-      - iModIntro. cbn. iExists γ, l. iFrame "HR". iFrame "HL". done.
+      - iModIntro. cbn. iExists _. iSplit; eauto.
       - iNext. iExists _. iFrame.
       - iNext. iExists _. iFrame "HγL".
         iApply big_sepL_forall. by iIntros (? ? (-> & _)%lookup_replicate). }
@@ -376,7 +394,8 @@ Section typed_interp.
       { iNext. iExists _. iFrame "Htyp ∗". }
       iMod ("HcloseL" with "[HγL Hvs $Htok]") as "$".
       { iNext. iExists _. iFrame. }
-      iModIntro. by iApply (big_sepL_lookup with "Htyp"). }
+      iModIntro. iExists _; iSplit; eauto.
+      by iApply (big_sepL_lookup with "Htyp"). }
     { iApply (wp_loadN_oob with "Hvs"); first lia. by iIntros "!>" (?) "?". }
   Qed.
 
@@ -409,7 +428,7 @@ Section typed_interp.
         iApply "H". iApply "Hv3". }
       iMod ("HcloseL" with "[HγL Hvv $Htok]") as "$".
       { iNext. iExists _. iFrame. }
-      done. }
+      iExists _. done. }
     { iApply (wp_storeN_oob with "Hvv"); first lia. by iIntros "!>" (?) "?". }
   Qed.
 
@@ -426,7 +445,7 @@ Section typed_interp.
       iIntros "Htok". rewrite !app_nil_r in HPs|-*.
       iApply "HP". iExists _, _.
       iSplit; first done. iFrame "Htok H1".
-      iIntros (v) "$ $".
+      iIntros (v) "Hf Hn". iFrame. iExists _; eauto.
     - eapply Forall2_cons_inv_l in H2 as (τ&tl2'&Heτ&H2&->).
       cbn. iPoseProof Heτ as "Heτ"; clear Heτ.
       iApply (interp_expr_bind [ExternCtx s vl1 _]); first by iApply "Heτ".
@@ -519,7 +538,7 @@ Section typed_interp.
     wp_pure _.
     1: split; first done; cbn; by rewrite Hargs.
     iPoseProof (fundamental _ _ _ _ Htye $! Δ args with "Hmap IHL Htok") as "H".
-    iApply (wp_wand with "H"). iIntros (v) "(Hv&Htok)". iApply ("HCont" with "Hv Htok").
+    iApply (wp_wand with "H"). iIntros (o) "((%v&->&Hv)&Htok)". iApply ("HCont" with "Hv Htok").
   Qed.
 
   Theorem fundamental_empty_ctx : ⊢ ∀ Δ, ⟦ ∅ ⟧* Δ ∅.

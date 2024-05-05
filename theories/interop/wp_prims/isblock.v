@@ -34,7 +34,7 @@ Proof using.
   iSplit. { iPureIntro; edestruct lv; try (econstructor; eauto; fail). }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done.
+  iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   destruct lv; iApply ("Cont").
   all: rewrite /GC /named.

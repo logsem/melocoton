@@ -193,7 +193,7 @@ Section ML_Example.
     (Fst (Extern "caml_gmtime" [ (Val #(LitBoxedInt 0))%MLE ])).
 
   Lemma ML_prog_correct_axiomatic :
-    ⊢ WP gmtime_client at ⟨∅, caml_gmtime_spec⟩ {{ v, ⌜∃x : Z, v = #x⌝}}.
+    ⊢ WP gmtime_client at ⟨∅, caml_gmtime_spec⟩ {{ v, ⌜∃x : Z, v = OVal #x⌝}}.
   Proof.
     unfold gmtime_client. wp_pures. wp_extern.
     iModIntro. cbn. iSplit; first done. iExists _.

@@ -95,7 +95,7 @@ Section Proofs.
       iIntros "Hℓi". wp_pures.
       wp_apply (load_from_root with "[$HGC $HℓF]").
       iIntros (wγF) "(HℓF&HGC&%HwγF)".
-      wp_apply (wp_load with "Hℓi").
+      cbn; wp_apply (wp_load with "Hℓi").
       iIntros "Hℓi".
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (wi) "(HGC&%Hwi)".
@@ -103,13 +103,14 @@ Section Proofs.
       { cbn. iSplit; first done.
         iNext. by iApply ("HWP" with "[] [] HΨ"). } cbn.
       cbn.
-      iIntros (θ' vret lvret wret) "(HGC&(%zret&->&HΦz&HΨframe&HBuffer)&->&%Hzrep)".
-      wp_apply (wp_val2int with "HGC"); [done..|].
+      iIntros (θ' vret lvret wret) "(HGC&(%zret&%Ho&HΦz&HΨframe&HBuffer)&Hv&%Hzrep)".
+      inversion Ho. subst. cbn. iRevert "Hv". iIntros "%Hv". subst.
+      wp_apply (wp_val2int with "HGC"); try done.
       iIntros "HGC".
       iDestruct "HBuffer" as "(%ℓML0&%&%&%Heq&HℓbufML&Hbuf)". simplify_eq. unfold named.
       iNamed "Hbuf".
       assert (∃ (ni:nat), Z.of_nat ni = i) as (ni&<-) by (exists (Z.to_nat i); lia).
-      wp_apply (wp_store_offset with "Hℓbuf").
+      cbn. wp_apply (wp_store_offset with "Hℓbuf").
       1: rewrite map_length; lia.
       iIntros "Hℓbuf". erewrite (map_insert (Some zret)); [|done|lia].
 
@@ -142,7 +143,7 @@ Section Proofs.
       iIntros (vγbuf wγbuf) "(HGC&HℓbufML&%Heq&%Hvwγbuf)". change (Z.to_nat 0) with 0 in Heq. cbn in Heq. simplify_eq.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC".
-      wp_apply (wp_load with "Hℓi").
+      cbn; wp_apply (wp_load with "Hℓi").
       iIntros "Hℓi". do 2 wp_pure _.
       wp_bind (If _ _ _).
       iApply (wp_wand _ _ _ (λ _, _ ∗ γref ↦mut (TagDefault, [Lint (max used0 (Z.to_nat (ni+1)))%Z]))%I with "[HGC Hℓi Hℓbf HℓbufML]").
@@ -154,7 +155,7 @@ Section Proofs.
           iIntros (wbf2) "(Hℓbf&HGC&%Hwbf2)".
           wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
           iIntros (vγref2 wγref2) "(HGC&_&%Heq&%Hvwγref2)". cbv in Heq. simplify_eq.
-          wp_apply (wp_load with "Hℓi").
+          cbn; wp_apply (wp_load with "Hℓi").
           iIntros "Hℓi". wp_pure _.
           wp_apply (wp_int2val with "HGC"); [done..|].
           iIntros (vnp1) "(HGC&%Hnp1)".
@@ -163,7 +164,7 @@ Section Proofs.
           rewrite max_r; last lia. change (Z.to_nat 0) with 0; cbn.
           rewrite Z2Nat.id; last lia. done. }
       }
-      iIntros (vv) "((HGC&Hℓi&Hℓbf)&HℓbufML)". wp_pure _.
+      iIntros (vv) "((HGC&Hℓi&Hℓbf)&HℓbufML)". cbn. destruct vv. wp_pure _.
       wp_apply (wp_load with "Hℓi"). iIntros "Hℓi". wp_pure _.
       wp_apply (wp_store with "Hℓi"). iIntros "Hℓi". wp_pure _.
       iMod (mut_to_ml _ [ #ML (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
@@ -184,7 +185,7 @@ Section Proofs.
       - iPureIntro; lia.
     }
     iIntros (vvv) "(%θ' & HℓF & Hℓbf & HGC & HΨ & Hℓi)".
-    wp_pure _.
+    destruct vvv. wp_pure _.
     wp_apply (wp_free with "Hℓi"). iIntros "_".
     wp_pure _.
     wp_apply (wp_int2val with "HGC"); [done..|].

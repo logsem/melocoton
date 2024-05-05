@@ -21,7 +21,7 @@ Definition call_inc : ML_lang.expr :=
 
 Definition IncrementSpec := (λ s v Φ,
   ⌜s = "inc"⌝ ∗ ∃ l, ⌜v = [ #(LitLoc l) ]⌝ ∗
-  ∃ (z:Z), (l ↦M #z) ∗ ((l ↦M #(z+1)) -∗ Φ #()))%I.
+  ∃ (z:Z), (l ↦M #z) ∗ ((l ↦M #(z+1)) -∗ Φ (OVal #())))%I.
 
 Definition inc_impl (l : ML_lang.expr) : ML_lang.expr := let: "k" := ! l + #1 in l <- "k";; #().
 Definition inc_func := MlFun [BNamed "l"] (inc_impl "l").
@@ -30,7 +30,7 @@ Definition AxiomEnv : prog_environ ML_lang Σ :=
   ⟨ ∅, IncrementSpec ⟩.
 
 Lemma prog_correct
- : ⊢ (WP call_inc at AxiomEnv {{v, ⌜v = #42⌝}})%I.
+ : ⊢ (WP call_inc at AxiomEnv {{v, ⌜v = OVal #42⌝}})%I.
 Proof.
   iStartProof. unfold call_inc.
   wp_pures. unfold Z.add.
@@ -49,7 +49,7 @@ Definition SpecifiedEnv : prog_environ ML_lang Σ :=
   ⟨ {[ "inc" := inc_func ]}, ⊥ ⟩.
 
 Lemma inc_correct l (z:Z)
- : ⊢ l ↦M #z -∗ WP inc_impl (#l) at SpecifiedEnv {{v, l ↦M #(z+1) ∗ ⌜v = #()⌝}}%I.
+ : ⊢ l ↦M #z -∗ WP inc_impl (#l) at SpecifiedEnv {{v, l ↦M #(z+1) ∗ ⌜v = OVal #()⌝}}%I.
 Proof.
   iStartProof. iIntros "Hz". unfold inc_impl.
   wp_pures.
@@ -91,7 +91,7 @@ Proof. split.
 Qed.
 
 Lemma link_executions
- : ⊢ (WP call_inc at SpecifiedEnv {{v, ⌜v = #42⌝}})%I.
+ : ⊢ (WP call_inc at SpecifiedEnv {{v, ⌜v = OVal #42⌝}})%I.
 Proof.
   iApply (wp_link_execs _ _ _ _ _ $! _ _ 0).
   cbn. iApply wp_proto_mono. 2: iApply prog_correct.
@@ -106,7 +106,7 @@ Section adequacy.
   Local Definition e := call_inc.
   Local Definition σ : state ML_lang := ∅.
   Local Definition p : lang_prog ML_lang := {[ "inc" := inc_func ]}.
-  Local Definition Φpure (σ : state ML_lang) v := v = #42.
+  Local Definition Φpure (σ : state ML_lang) v := v = OVal #42.
 
   Definition exampleΣ {SI: indexT} : gFunctors :=
     #[invΣ; heapΣ_ML].

@@ -42,6 +42,17 @@ Definition to_val (e : expr) : option word :=
   | _ => None
   end.
 
+Definition of_outcome (o : outcome word) : expr :=
+  match o with
+  | OVal w =>  WrE (ExprV w) []
+  end.
+
+Definition to_outcome (e : expr) : option (outcome word) :=
+  match e with
+  | WrE (ExprV w) [] => Some (OVal w)
+  | _ => None
+  end.
+
 Definition is_call e f vs C := e = WrE (ExprCall f vs) C.
 Definition to_call f vs := WrE (ExprCall f vs) [].
 
@@ -485,8 +496,8 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     prim_step_mrel p (WrE (RunPrimitive (Pmain e) []) K, CState (WrapstateC ∅ ∅ ∅ ∅) mem) X
 
   (** Terminate execution with NB on values *)
-  | ValStopS v σ X :
-    prim_step_mrel p (WrE (ExprV v) [], σ) X.
+  | ValStopS o σ X :
+    prim_step_mrel p (of_outcome o, σ) X.
 
 Program Definition prim_step (P : prog) : umrel (expr * state) :=
   {| mrel := prim_step_mrel P |}.
@@ -508,7 +519,7 @@ Next Obligation.
 Qed.
 
 Lemma mlanguage_mixin :
-  MlanguageMixin (val:=word) of_val to_val to_call is_call [] comp_ectx fill
+  MlanguageMixin (val:=word) of_outcome to_outcome to_call is_call [] comp_ectx fill
     apply_func prim_step.
 Proof using.
   constructor.
@@ -518,13 +529,14 @@ Proof using.
   - intros p v σ. eapply ValStopS.
   - intros p e fname vs K σ X ->. rewrite /apply_func; split.
     + inversion 1; simplify_map_eq. naive_solver.
+      destruct o; cbn in H1; congruence.
     + intros (?&?&?&?&?); eapply ExprCallS; simplify_eq; eauto.
   - by intros e [v Hv] f vs K ->.
   - by intros e K1 K2 s vv ->.
   - intros. reflexivity.
   - by intros * ->.
   - intros *. inversion 1; eauto.
-  - intros [] K [v Hv]. rewrite /to_val /fill in Hv.
+  - intros [] K [v Hv]. rewrite /to_outcome /fill in Hv.
     repeat case_match; try congruence.
     apply app_eq_nil in H0 as (->&->); done.
   - intros [] K1 K2.
@@ -539,12 +551,16 @@ Proof using.
       intros. eexists (WrE _ _); eauto.
     + eapply CallbackS; eauto. eexists (WrE _ _); eauto.
     + eapply MainS; eauto. eexists (WrE _ _); eauto.
+    + rewrite -H1 in Hnv. destruct o; cbn in Hnv; congruence.
   - intros p [[]] σ X; cbn.
     + destruct k; try done; intros _.
       inversion 1; simplify_eq. eauto.
+      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq; eauto.
+      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq; eauto.
       apply c_prim_step_no_NB in H5 as (?&?&?&?); eauto.
+      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq.
       * destruct H5 as (?&?&?). eauto.
       * apply ml_to_c_no_NB in H6 as (?&?&?&?); eauto.
@@ -552,6 +568,7 @@ Proof using.
         apply ml_to_c_no_NB in H5 as (ws&?&?&?&?).
         simplify_list_eq. destruct ws as [|? []]; simplify_list_eq.
         eauto.
+      * destruct o; cbn in H1; congruence.
 Qed.
 
 End wrappersem.

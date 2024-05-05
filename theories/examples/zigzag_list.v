@@ -285,7 +285,7 @@ Section Proofs.
     do 2 wp_pure _.
     wp_apply (wp_load with "Ha1"). iIntros "Ha1".
     wp_pures.
-    wp_apply (wp_free_array _ _ _ [_; _] with "[Ha0 Ha1]").
+    wp_apply (wp_free_array _ _ [_; _] with "[Ha0 Ha1]").
     { iNext. cbn. rewrite !loc_add_0. iFrame. }
     iIntros "_". wp_pures. iModIntro.
     iApply "Cont2".

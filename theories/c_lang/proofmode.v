@@ -50,11 +50,11 @@ Lemma tac_wp_pure {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ Δ' s E K e1 e2 φ n �
 
 
 Lemma tac_wp_value_nofupd {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E Φ v :
-  envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
-Proof. rewrite envs_entails_unseal=> ->. by apply wp_value. Qed.
+  envs_entails Δ (Φ (OVal v)) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
+Proof. rewrite envs_entails_unseal=> ->. by apply wp_outcome. Qed.
 
-Lemma tac_wp_value {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E (Φ : val → iPropI Σ) v :
-  envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
+Lemma tac_wp_value {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E (Φ : outcome val → iPropI Σ) v :
+  envs_entails Δ (|={E}=> Φ (OVal v)) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 
 (** Simplify the goal if it is [WP] of a value.
@@ -180,8 +180,8 @@ Tactic Notation "wp_progwp" :=
 
 
 Lemma tac_wp_bind {SI:indexT} `{!heapG_C Σ, !invG Σ} K Δ s E Φ e f :
-  f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
-  envs_entails Δ (WP e @ s; E {{ v, WP f (Val v) @ s; E {{ Φ }} }})%I →
+  f = (λ o, fill K (lang.C_lang.of_outcome o)) → (* as an eta expanded hypothesis so that we can `simpl` it *)
+  envs_entails Δ (WP e @ s; E {{ o, WP f o @ s; E {{ Φ }} }})%I →
   envs_entails Δ (WP fill K e @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> -> ->. by apply: wp_bind. Qed.
 
@@ -205,22 +205,22 @@ Section heap.
 Context {SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
 Implicit Types Δ : envs (uPredI (iResUR Σ)).
 Implicit Types v : val.
 Implicit Types z : Z.
 
 
-Lemma tac_wp_Malloc Δ Δ' s E j K n Φ :
+Lemma tac_wp_Malloc Δ Δ' s j K n Φ :
   (0 < n)%Z →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   (∀ l,
     match envs_app false (Esnoc Enil j (array l (DfracOwn 1) (replicate (Z.to_nat n) None))) Δ' with
     | Some Δ'' =>
-       envs_entails Δ'' (WP fill K (Val $ LitV $ LitLoc l) @ s; E {{ Φ }})
+       envs_entails Δ'' (WP fill K (Val $ LitV $ LitLoc l) at s {{ Φ }})
     | None => False
     end) →
-  envs_entails Δ (WP fill K (Malloc (Val $ LitV $ LitInt n)) @ s; E {{ Φ }}).
+  envs_entails Δ (WP fill K (Malloc (Val $ LitV $ LitInt n)) at s {{ Φ }}).
 Proof.
   rewrite envs_entails_unseal=> ? ? HΔ.
   rewrite -wp_bind. eapply wand_apply; first exact: wp_Malloc.
@@ -232,12 +232,12 @@ Proof.
   by rewrite right_id wand_elim_r.
 Qed.
 
-Lemma tac_wp_free Δ Δ' s E i K l (v:option val) Φ :
+Lemma tac_wp_free Δ Δ' s i K l (v:option val) Φ :
   envs_lookup i Δ = Some (false, (l I↦C v))%I →
   MaybeIntoLaterNEnvs 1 (envs_delete false i false Δ) Δ' →
   (let Δ'' := (Δ') in
-   envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})) →
-  envs_entails Δ (WP fill K (Free (LitV l) (Val (LitV (LitInt 1)))) @ s; E {{ Φ }}).
+   envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) at s {{ Φ }})) →
+  envs_entails Δ (WP fill K (Free (LitV l) (Val (LitV (LitInt 1)))) at s {{ Φ }}).
 Proof.
   rewrite envs_entails_unseal=> Hlk ? Hfin.
   rewrite -wp_bind. eapply wand_apply; first apply wp_free.
@@ -344,7 +344,7 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let process_array _ :=
         first
-          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_Malloc _ _ _ _ Htmp K))
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_Malloc _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
         [idtac|tc_solve
          |finish ()]
@@ -367,7 +367,7 @@ Tactic Notation "wp_free" :=
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     first
-      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ _ K));
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_free _ _ _ _ K));
         [solve_mapsto ()
         |tc_solve
         |pm_reduce; wp_finish] (*

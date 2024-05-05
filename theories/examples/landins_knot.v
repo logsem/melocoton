@@ -94,11 +94,11 @@ Section ML_code.
   Lemma knot_code_spec p (f : val) :
     tie_knot_spec_ML p.(penv_proto) ⊑ p.(penv_proto) →
     p.(penv_prog) = ∅ →
-    ⊢ WP knot_code f at p {{ rc, ∃ b1 b2 e, ⌜rc = RecV b1 b2 e⌝ ∗
+    ⊢ WP knot_code f at p {{ o, ∃ rc b1 b2 e, ⌜o = OVal rc⌝ ∗ ⌜rc = RecV b1 b2 e⌝ ∗
     □ (∀ Φ Ψ,
-      □ (∀ rec : val, (∃ b1 b2 e, ⌜rec = RecV b1 b2 e⌝) -∗ □ (∀ v : val, Ψ v -∗ na_tok -∗ WP rec v at p {{ v, Φ v ∗ na_tok }}) -∗
-         ∀ v : val, Ψ v -∗ na_tok -∗ WP f rec v at p {{ v, Φ v ∗ na_tok }}) -∗
-      ∀ (v : val), Ψ v -∗ na_tok -∗ WP (rc : val) v at p {{ v, Φ v ∗ na_tok }} )
+      □ (∀ rec : val, (∃ b1 b2 e, ⌜rec = RecV b1 b2 e⌝) -∗ □ (∀ v : val, Ψ v -∗ na_tok -∗ WP rec v at p {{ o, Φ o ∗ na_tok }}) -∗
+         ∀ v : val, Ψ v -∗ na_tok -∗ WP f rec v at p {{ o, Φ o ∗ na_tok }}) -∗
+      ∀ (v : val), Ψ v -∗ na_tok -∗ WP (rc : val) v at p {{ o, Φ o ∗ na_tok }} )
     }}.
   Proof.
     intros Hproto ?. destruct p. simplify_eq/=. unfold knot_code. wp_pures.
@@ -108,7 +108,7 @@ Section ML_code.
     iIntros "Hl". wp_pures.
     iMod (na_inv_alloc logrel.logrel_nais _ (nroot .@ "knot") with "[Hl]") as "#HL".
     { iNext. iExact "Hl". }
-    iExists _, _, _; iModIntro; iSplit; first done.
+    iExists _, _, _, _; iModIntro; repeat iSplit; try done.
     iIntros "!>" (Φ Ψ) "#Hf". iIntros (v) "HΨ Htok". wp_pures.
     iLöb as "IH" forall (v).
     wp_extern.
@@ -121,7 +121,7 @@ Section ML_code.
     - iApply ("Hf" with "[] [] HΨ Htok"). 1: by do 3 iExists _.
       iIntros "!>" (v') "HΨ Htok". wp_pures.
       iApply ("IH" with "HΨ Htok").
-    - iIntros (v') "Hv'". wp_pures. by iModIntro.
+    - iIntros (v') "H". destruct v'. cbn. wp_pures. by iModIntro.
   Qed.
 
 
@@ -135,18 +135,23 @@ Section ML_code.
       (TArrow (TArrow (TArrow τ1 τ2) (TArrow τ1 τ2)) (TArrow τ1 τ2)).
   Proof.
     intros ??. iIntros "!>" (Δ vs) "HΔ Hvs".
-    iIntros "?". simpl. wp_pures. iModIntro. iFrame. do 3 iExists _; iSplit; first done.
+    iIntros "?". simpl. wp_pures. iModIntro. iFrame.
+    iExists _. iSplit; first done.
+    do 3 iExists _; iSplit; first done.
     iIntros "!>" (f) "#(%bb1&%bb2&%ee1&%Heqf&Hf) Htok".
     iApply (wp_wand (val:=val)). { by iApply knot_code_spec. }
-    iIntros (rc) "#(%b1&%b2&%ee&%Heq&Hrc)". iFrame. do 3 iExists _; iSplit; first done.
+    iIntros (rc) "#(%b1&%b2&%ee&%Heq&(%Hrc&Hb&Hrc))". iFrame.
+    iExists _; iSplit; first done.
+    do 3 iExists _; iSplit; first done.
     iIntros "!>" (v) "#Hv Htok".
-    iApply ("Hrc" $! ((⟦ τ2 ⟧ p) Δ) ((⟦ τ1 ⟧ p) Δ) with "[] [//] Htok").
+    iApply ("Hrc" $! (λ o, ∃ v0 : MLval, ⌜o = OVal v0⌝ ∗ (⟦ τ2 ⟧ p) Δ v0)%I ((⟦ τ1 ⟧ p) Δ) with "[] [//] Htok").
     iIntros "!>" (rec) "(%br1&%br2&%er&->) #Hx".
     iIntros (v') "#Hv' Htok".
     wp_bind (App f _).
     iApply (wp_wand (val:=val) with "[Htok] []").
-    { iApply "Hf"; [|done]. iExists _, _, _. iSplit; first done. iIntros "!>" (?) "#? Htok". by iApply "Hx". }
-    iIntros (?) "[#(%&%&%&_&Hwp') Htok]".
+    { iApply "Hf"; [|done]. iExists _, _, _. iSplit; first done. iIntros "!>" (?) "#? Htok".
+      by iApply "Hx". }
+    iIntros (o). iIntros "H". iDestruct "H" as "((%v0&->&#(%&%&%&_&Hwp'))&Htok)".
     by iApply ("Hwp'").
   Qed.
 

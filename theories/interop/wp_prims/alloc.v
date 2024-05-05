@@ -65,7 +65,7 @@ Proof using.
 
   do 3 iModIntro. iFrame. cbn -[wrap_prog].
   iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done.
+  iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! θC' γ with "[-]"); try done.
   iFrame. iSplit; last by eauto.

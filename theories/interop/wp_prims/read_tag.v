@@ -37,7 +37,7 @@ Proof using.
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done.
+  iApply wp_outcome; first done.
   iApply "Hcont". iFrame. rewrite Heqt.
   iApply ("Cont" with "[- $Hpto]").
   rewrite /GC /named. iExists _, _, _, _, _. iFrame.

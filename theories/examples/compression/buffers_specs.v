@@ -109,7 +109,7 @@ Section Specs.
       "%Hb1" ∷ ⌜(0 < z)%Z⌝
     ∗ "->" ∷ ⌜s = buf_alloc_name⌝
     ∗ "->" ∷ ⌜vv = [ #z ]⌝
-    ∗ "HCont" ∷ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ Φ v).
+    ∗ "HCont" ∷ ▷ (∀ v ℓbuf, isBufferRecordML v ℓbuf (buf_alloc_res_buffer z) (Z.to_nat z) -∗ Φ (OVal v)).
 
   Definition buf_alloc1_spec idx vnew Pbold cap (b : list (option Z)) : iProp Σ :=
     ∃ bold (capold:nat) , ⌜b = <[ Z.to_nat idx := Some vnew ]> bold⌝ ∗ ⌜cap = max capold (Z.to_nat (idx+1))⌝ ∗ Pbold capold bold.
@@ -124,18 +124,18 @@ Section Specs.
           isBufferRecordML vbuf ℓbuf (buf_alloc1_spec z vnew (Pb z)) cap ==∗ Ψ (z+1)%Z)
     ∗ "#HWP" ∷ (□ ▷ ∀ z, ⌜i ≤ z⌝%Z -∗ ⌜z ≤ j⌝%Z -∗ Ψ z -∗ 
               WP (RecV b1 b2 F) #z at ⟨ ∅, protoCB ⟩
-              {{res, ∃ (znew:Z), ⌜res = #znew⌝ ∗ Φz z znew ∗ Ψframe (z+1)%Z
+              {{res, ∃ (znew:Z), ⌜res = OVal #znew⌝ ∗ Φz z znew ∗ Ψframe (z+1)%Z
                                ∗ isBufferRecordML vbuf ℓbuf (Pb (z)%Z) cap}})
     ∗ "Hframe" ∷ Ψframe i
     ∗ "Hrecord" ∷ isBufferRecordML vbuf ℓbuf (Pb i) cap
     ∗ "HMergeInitial" ∷ (Ψframe i ∗ isBufferRecordML vbuf ℓbuf (Pb i) cap ==∗ Ψ i)
-    ∗ "HCont" ∷ ▷ (Ψ (j+1)%Z -∗ Φ #()).
+    ∗ "HCont" ∷ ▷ (Ψ (j+1)%Z -∗ Φ (OVal #())).
 
   Definition wrap_max_len_spec_ML s vv Φ : iProp Σ :=
     ∃ (n:nat),
       "->" ∷ ⌜s = wrap_max_len_name⌝
     ∗ "->" ∷ ⌜vv = [ #n ]⌝
-    ∗ "HCont" ∷ ▷ Φ #(buffer_max_len n).
+    ∗ "HCont" ∷ ▷ Φ (OVal #(buffer_max_len n)).
 
   Definition wrap_compress_spec_ML s vv Φ : iProp Σ :=
     ∃ v1 v2 ℓ1 ℓ2 (vcompress:buffer) vrest1 Pb1 Pb2 cap1 cap2,
@@ -148,7 +148,7 @@ Section Specs.
                    -∗ isBufferRecordML v2 ℓ2 (λ z vb, ∃ vov vrest zold, ⌜vb = map Some (compress_buffer vcompress) ++ vrest⌝  
                                                       ∗ ⌜length (compress_buffer vcompress) = z⌝ ∗ ⌜length vov = z⌝
                                                       ∗ Pb2 zold (vov ++ vrest)) cap2
-                   -∗ Φ #true).
+                   -∗ Φ (OVal #true)).
 
   Definition buf_free_spec_ML s vv Φ : iProp Σ :=
     ∃ v ℓ Pb cap,
@@ -157,7 +157,7 @@ Section Specs.
     ∗ "Hbuf" ∷ isBufferRecordML v ℓ Pb cap
     ∗ "HCont" ∷ ▷   ( ∀ (ℓML:loc) γfgn, ⌜v = (# ℓML, (# cap, # (LitForeign γfgn)))%MLV⌝ -∗
                                          ℓML ↦M #(-1) -∗
-                                         γfgn ↦foreign[Mut] (#C LitNull) -∗ Φ #()).
+                                         γfgn ↦foreign[Mut] (#C LitNull) -∗ Φ (OVal #())).
 
   Definition buf_get_spec_ML s vv Φ : iProp Σ :=
     ∃ v ℓ Pb cap (idx:nat) (res:Z),
@@ -166,7 +166,7 @@ Section Specs.
     ∗ "Hbuf" ∷ isBufferRecordML v ℓ (λ a b, Pb a b ∗ ⌜b !! idx = Some (Some res)⌝) cap
     ∗ "%Hcap" ∷ ⌜idx < cap⌝
     ∗ "HCont" ∷ ▷ (isBufferRecordML v ℓ (λ a b, Pb a b ∗ ⌜b !! idx = Some (Some res)⌝) cap -∗
-                          Φ (#res)).
+                          Φ (OVal #res)).
 
   Definition buf_library_spec_ML_pre : (protocol ML_lang.val Σ) -d> (protocol ML_lang.val Σ) := λ (protoCB : (protocol ML_lang.val Σ)),
     buf_alloc_spec_ML ⊔ buf_update_spec_ML protoCB ⊔ buf_free_spec_ML ⊔ wrap_compress_spec_ML ⊔ wrap_max_len_spec_ML ⊔ buf_get_spec_ML.

@@ -20,7 +20,8 @@ Context {SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 Context {p:prog_environ C_lang Σ}.
 Implicit Types P Q : iProp Σ.
-Implicit Types Φ Ψ : val → iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
+Implicit Types Ψ : val → iProp Σ.
 Implicit Types efs : list expr.
 Implicit Types σ : gmap loc heap_cell.
 Implicit Types v : val.
@@ -47,12 +48,12 @@ Proof.
 Qed.
 
 Lemma wp_lift_atomic_head_step {s E Φ} e1 :
-  to_val e1 = None →
+  to_outcome e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
     ⌜head_reducible (penv_prog s) e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜head_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
       state_interp σ2 ∗
-      from_option Φ False (to_val e2))
+      from_option Φ False (to_outcome e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
@@ -62,13 +63,13 @@ Proof.
   do 2 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
   iFrame.
-  destruct (to_val e') eqn:?; last by iExFalso.
-  iApply wp_value; first done. iApply "H2".
+  destruct (to_outcome e') eqn:?; last by iExFalso.
+  iApply wp_outcome; first done. iApply "H2".
 Qed.
 
-Lemma wp_Malloc_seq E n :
+Lemma wp_Malloc_seq n :
   (0 < n)%Z →
-  {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) @ p; E
+  {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) at p
   {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
@@ -82,8 +83,8 @@ Proof.
   by iApply heap_array_to_seq_mapsto.
 Qed.
 
-Lemma wp_free s E l (v:option val) :
-  {{{ ▷ l O↦C (Some v) }}} Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt 1) @ s; E
+Lemma wp_free s l (v:option val) :
+  {{{ ▷ l O↦C (Some v) }}} Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt 1) at s
   {{{ RET LitV LitUnit; True }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
@@ -98,8 +99,8 @@ Proof.
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_load s E l dq v :
-  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦C{dq} v }}}.
+Lemma wp_load s l dq v :
+  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) at s {{{ RET v; l ↦C{dq} v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
@@ -109,8 +110,8 @@ Proof.
   by iApply "HΦ".
 Qed.
 
-Lemma wp_store s E l (v':option val) v :
-  {{{ ▷ l O↦C Some v' }}} Store (Val $ LitV $ LitLoc l) (Val v) @ s; E
+Lemma wp_store s l (v':option val) v :
+  {{{ ▷ l O↦C Some v' }}} Store (Val $ LitV $ LitLoc l) (Val v) at s
   {{{ RET LitV LitUnit; l ↦C v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.

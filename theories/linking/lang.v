@@ -15,9 +15,9 @@ Section Linking.
     (Λ1.(func) + Λ2.(func)).
 
   Inductive simple_expr : Type :=
-  (** The linked module produces a value
-     (following one of the underlying modules producing a value) *)
-  | ExprV (v : val)
+  (** The linked module produces a outcome
+     (following one of the underlying modules producing a outcome) *)
+  | ExprO (o : outcome val)
   (** Function call (outgoing or incoming) *)
   | ExprCall (fn_name : string) (args : list val)
   (** Executing the body of a function, one step after the call *)
@@ -49,10 +49,18 @@ Section Linking.
     | LinkSplitSt pubσ privσ1 privσ2 :
       split_state (St pubσ privσ1 privσ2) pubσ (privσ1, privσ2).
 
-  Definition of_val (v:val) : expr := LkE (ExprV v) [].
-  Definition to_val (e:expr) : option val := match e with
-    LkE (ExprV v) [] => Some v
-  | _ => None end.
+  Definition of_outcome (o:outcome val) : expr := LkE (ExprO o) [].
+  Definition to_outcome (e:expr) : option (outcome val) :=
+    match e with
+    | LkE (ExprO o) [] => Some o
+    | _ => None
+    end.
+
+  Definition of_val (v:val) : expr := LkE (ExprO (OVal v)) [].
+  Definition to_val (e:expr) : option val :=
+    match e with
+    | LkE (ExprO (OVal v)) [] => Some v
+    | _ => None end.
 
   Definition comp_ectx (K1 K2 : ectx) : ectx :=
     K2 ++ K1.
@@ -90,14 +98,14 @@ Section Linking.
   Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (** Internal step of an underlying module. *)
   | Step1S e1 C σ1 privσ2 (X1 X : _ → Prop) :
-    mlanguage.to_val e1 = None →
+    mlanguage.to_outcome e1 = None →
     mlanguage.prim_step (proj1_prog p) (e1, σ1) X1 →
     (∀ e1' σ1',
       X1 (e1', σ1') →
       X (LkE (Expr1 e1') C, St1 σ1' privσ2)) →
     prim_step_mrel p (LkE (Expr1 e1) C, St1 σ1 privσ2) X
   | Step2S e2 C σ2 privσ1 (X2 X : _ → Prop) :
-    mlanguage.to_val e2 = None →
+    mlanguage.to_outcome e2 = None →
     mlanguage.prim_step (proj2_prog p) (e2, σ2) X2 →
     (∀ e2' σ2',
        X2 (e2', σ2') →
@@ -119,19 +127,19 @@ Section Linking.
     X (LkE (ExprCall fn_name arg) (inr k2 :: C), St pubσ privσ1 privσ2) →
     prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
   (** Producing a value when execution is finished *)
-  | Val1S e1 C σ1 v pubσ privσ1 privσ2 X :
-    mlanguage.to_val e1 = Some v →
+  | Out1S e1 C σ1 o pubσ privσ1 privσ2 X :
+    mlanguage.to_outcome e1 = Some o →
     (* Splitting the state is angelic, the underlying language can choose a concrete splitting. *)
     (* If no such splitting exists, we have UB *)
     mlanguage.split_state σ1 pubσ privσ1 →
-    X (LkE (ExprV v) C, St pubσ privσ1 privσ2) →
+    X (LkE (ExprO o) C, St pubσ privσ1 privσ2) →
     prim_step_mrel p (LkE (Expr1 e1) C, St1 σ1 privσ2) X
-  | Val2S e2 C σ2 v pubσ privσ1 privσ2 X :
-    mlanguage.to_val e2 = Some v →
+  | Out2S e2 C σ2 o pubσ privσ1 privσ2 X :
+    mlanguage.to_outcome e2 = Some o →
     (* Splitting the state is angelic, the underlying language can choose a concrete splitting. *)
     (* If no such splitting exists, we have UB *)
     mlanguage.split_state σ2 pubσ privσ2 →
-    X (LkE (ExprV v) C, St pubσ privσ1 privσ2) →
+    X (LkE (ExprO o) C, St pubσ privσ1 privσ2) →
     prim_step_mrel p (LkE (Expr2 e2) C, St2 privσ1 σ2) X
   (** Entering a function. Change the view of the heap in the process.
      Merging the state is angelic. *)
@@ -144,14 +152,14 @@ Section Linking.
     X (LkE (Expr2 e2) C, St2 privσ1 σ2) →
     prim_step_mrel p (LkE (RunBody (inr e2)) C, St pubσ privσ1 privσ2) X
   (** Continuing execution by returning a value to its caller. *)
-  | Ret1S v k1 C σ1 pubσ privσ1 privσ2 X :
+  | Ret1S o k1 C σ1 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ1 pubσ privσ1 →
-    X (LkE (Expr1 (mlanguage.fill k1 (mlanguage.of_val Λ1 v))) C, St1 σ1 privσ2) →
-    prim_step_mrel p (LkE (ExprV v) (inl k1 :: C), St pubσ privσ1 privσ2) X
-  | Ret2S v k2 C σ2 pubσ privσ1 privσ2 X :
+    X (LkE (Expr1 (mlanguage.fill k1 (mlanguage.of_outcome Λ1 o))) C, St1 σ1 privσ2) →
+    prim_step_mrel p (LkE (ExprO o) (inl k1 :: C), St pubσ privσ1 privσ2) X
+  | Ret2S o k2 C σ2 pubσ privσ1 privσ2 X :
     mlanguage.split_state σ2 pubσ privσ2 →
-    X (LkE (Expr2 (mlanguage.fill k2 (mlanguage.of_val Λ2 v))) C, St2 privσ1 σ2) →
-    prim_step_mrel p (LkE (ExprV v) (inr k2 :: C), St pubσ privσ1 privσ2) X
+    X (LkE (Expr2 (mlanguage.fill k2 (mlanguage.of_outcome Λ2 o))) C, St2 privσ1 σ2) →
+    prim_step_mrel p (LkE (ExprO o) (inr k2 :: C), St pubσ privσ1 privσ2) X
   (** Resolve an internal call to a module function *)
   | CallS fn_name fn arg e σ C X :
     p !! fn_name = Some fn →
@@ -159,21 +167,21 @@ Section Linking.
     X (fill C e, σ) →
     prim_step_mrel p (LkE (ExprCall fn_name arg) C, σ) X
   (** Terminate execution with NB on values *)
-  | ValStopS v σ X :
-    prim_step_mrel p (LkE (ExprV v) [], σ) X.
+  | ValStopS o σ X :
+    prim_step_mrel p (LkE (ExprO o) [], σ) X.
 
   Program Definition prim_step (p : prog) : umrel (expr * state) :=
     {| mrel := prim_step_mrel p |}.
   Next Obligation.
     intros p. intros [[se k] σ] X Y Hstep HXY. inversion Hstep; subst;
       [ eapply Step1S | eapply Step2S | eapply MakeCall1S | eapply MakeCall2S
-      | eapply Val1S | eapply Val2S | eapply RunBody1S | eapply RunBody2S
+      | eapply Out1S | eapply Out2S | eapply RunBody1S | eapply RunBody2S
       | eapply Ret1S | eapply Ret2S | eapply CallS | eapply ValStopS ];
       eauto; naive_solver.
   Qed.
 
   Lemma mlanguage_mixin :
-    MlanguageMixin (val:=val) of_val to_val to_call is_call [] comp_ectx fill
+    MlanguageMixin (val:=val) of_outcome to_outcome to_call is_call [] comp_ectx fill
       apply_func prim_step.
   Proof using.
     constructor.
@@ -199,8 +207,8 @@ Section Linking.
           unfold fill; by eauto. }
       { eapply MakeCall2S; eauto; eexists (LkE _ _); split; eauto;
           unfold fill; by eauto. }
-      { eapply Val1S; eauto. eexists (LkE _ _). split; eauto. }
-      { eapply Val2S; eauto. eexists (LkE _ _). split; eauto. }
+      { eapply Out1S; eauto. eexists (LkE _ _). split; eauto. }
+      { eapply Out2S; eauto. eexists (LkE _ _). split; eauto. }
       1,2: econstructor; eauto; eexists (LkE _ _); split; eauto. (* RunBodyS *)
       1,2: econstructor; eauto; eexists (LkE _ _); split; eauto. (* RetS *)
       eapply CallS; eauto. exists (fill eK e). split; auto.
@@ -217,7 +225,7 @@ Section Linking.
 End Linking.
 End Link.
 
-Arguments Link.ExprV {_ _ _} _.
+Arguments Link.ExprO {_ _ _} _.
 Arguments Link.ExprCall {_ _ _} _ _.
 Arguments Link.RunBody {_ _ _} _.
 Arguments Link.Expr1 {_ _ _} _.

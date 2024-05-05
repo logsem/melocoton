@@ -6,8 +6,8 @@ From melocoton Require Export language_commons.
 Section language_mixin.
   Context {expr val func ectx state : Type}.
 
-  Context (of_val : val → expr).
-  Context (to_val : expr → option val).
+  Context (of_outcome : outcome val → expr).
+  Context (to_outcome : expr → option (outcome val)).
 
   Context (of_call : string → list val → expr).
   Context (is_call : expr → string → list val → ectx → Prop).
@@ -23,12 +23,12 @@ Section language_mixin.
   Context (prim_step : mixin_prog → expr → state → expr → state → Prop).
 
   Record LanguageMixin := {
-    mixin_to_of_val c : to_val (of_val c) = Some c;
-    mixin_of_to_val e c : to_val e = Some c → of_val c = e;
+    mixin_to_of_outcome o : to_outcome (of_outcome o) = Some o;
+    mixin_of_to_outcome e o : to_outcome e = Some o → of_outcome o = e;
 
     (** Reduction behavior of the special classes of expressions *)
-    mixin_val_prim_step p v σ1 e2 σ2 :
-      prim_step p (of_val v) σ1 e2 σ2 → False;
+    mixin_outcome_prim_step p o σ1 e2 σ2 :
+      prim_step p (of_outcome o) σ1 e2 σ2 → False;
     mixin_call_prim_step p f vs K e σ1 e' σ2 :
       is_call e f vs K →
       prim_step p e σ1 e' σ2 ↔
@@ -44,7 +44,7 @@ Section language_mixin.
       prim_step p1 e σ e' σ' →
       prim_step p2 e σ e' σ';
 
-    mixin_is_val_not_call e : is_Some (to_val e) → (∀ f vs K, ¬ is_call e f vs K);
+    mixin_is_outcome_not_call e : is_Some (to_outcome e) → (∀ f vs K, ¬ is_call e f vs K);
     mixin_is_call_in_ctx e K1 K2 fn vs :
       is_call e fn vs K2 → is_call (fill K1 e) fn vs (comp_ectx K1 K2);
     mixin_of_call_is_call fn vs : is_call (of_call fn vs) fn vs empty_ectx;
@@ -53,7 +53,9 @@ Section language_mixin.
       is_call (of_call fn vs) fn' vs' K →
       fn' = fn ∧ vs' = vs ∧ K = empty_ectx;
 
-    mixin_fill_val e K : is_Some (to_val (fill K e)) → is_Some (to_val e);
+    mixin_fill_outcome e K :
+      is_Some (to_outcome (fill K e)) →
+      to_outcome (fill K e) = to_outcome e;
     mixin_fill_comp e K1 K2 :
       fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_fill_empty e :
@@ -64,7 +66,7 @@ Section language_mixin.
       prim_step p e σ e' σ' →
       prim_step p (fill K e) σ (fill K e') σ';
     mixin_fill_step_inv p K e1' σ1 e2 σ2 :
-      to_val e1' = None → prim_step p (fill K e1') σ1 e2 σ2 →
+      to_outcome e1' = None → prim_step p (fill K e1') σ1 e2 σ2 →
       ∃ e2', e2 = fill K e2' ∧ prim_step p e1' σ1 e2' σ2;
   }.
 End language_mixin.
@@ -77,8 +79,8 @@ Structure language {val : Type} := Language {
   ectx : Type;
   state : Type;
 
-  of_val : val → expr;
-  to_val : expr → option val;
+  of_outcome : outcome val → expr;
+  to_outcome : expr → option (outcome val);
   of_call : string → list val → expr;
   is_call : expr → string → list val → ectx → Prop;
 
@@ -89,8 +91,8 @@ Structure language {val : Type} := Language {
   prim_step : mixin_prog func → expr → state → expr → state → Prop;
 
   language_mixin :
-    LanguageMixin of_val to_val of_call is_call  empty_ectx comp_ectx fill
-      apply_func prim_step
+    LanguageMixin of_outcome to_outcome of_call is_call 
+        empty_ectx comp_ectx fill apply_func prim_step
 }.
 
 Declare Scope expr_scope.
@@ -98,8 +100,8 @@ Bind Scope expr_scope with expr.
 
 Arguments language : clear implicits.
 Arguments Language {_ expr _ _ _ _ _ _ _ _ _ _ apply_func prim_step}.
-Arguments of_val {_} _ _.
-Arguments to_val {_ _} _.
+Arguments of_outcome {_} _ _.
+Arguments to_outcome {_ _} _.
 Arguments of_call {_} _ _.
 Arguments is_call {_ _}.
 Arguments empty_ectx {_ _}.
@@ -121,10 +123,45 @@ Section language.
   Implicit Types K : ectx Λ.
   Implicit Types p : prog Λ.
 
+  Lemma to_of_outcome o : to_outcome (of_outcome Λ o) = Some o.
+  Proof. apply language_mixin. Qed.
+  Lemma of_to_outcome e o : to_outcome e = Some o → of_outcome Λ o = e.
+  Proof. apply language_mixin. Qed.
+
+  Definition of_val Λ v := of_outcome Λ (OVal v).
+  Definition to_val e : option val :=
+    match to_outcome e with
+    | Some (OVal v) => Some v
+    | _ => None
+    end.
+
+  Lemma of_outcome_of_val v : of_outcome Λ (OVal v) = of_val Λ v.
+  Proof. easy. Qed.
+  Lemma to_outcome_of_val v : to_outcome (of_val Λ v) = Some (OVal v).
+  Proof. rewrite /of_val to_of_outcome //. Qed.
+
   Lemma to_of_val v : to_val (of_val Λ v) = Some v.
-  Proof. apply language_mixin. Qed.
+  Proof. rewrite /to_val to_of_outcome //. Qed.
   Lemma of_to_val e v : to_val e = Some v → of_val Λ v = e.
-  Proof. apply language_mixin. Qed.
+  Proof.
+    unfold to_val, of_val.
+    destruct (to_outcome e) eqn:Heq; try destruct o; try congruence.
+    inversion 1; subst. now apply of_to_outcome in Heq. 
+  Qed.
+
+  Lemma val_in_outcome e:
+    is_Some (to_val e) → is_Some (to_outcome e).
+  Proof.
+    unfold to_val. destruct (to_outcome e); inversion 1;
+    try destruct o; auto. congruence.
+  Qed.
+
+  Lemma to_val_to_outcome e v:
+    to_val e = Some v → to_outcome e = Some (OVal v).
+  Proof.
+    unfold to_val. destruct (to_outcome e); inversion 1.
+    destruct o; congruence.
+  Qed.
 
   Lemma of_val_inj v1 v2 : of_val Λ v1 = of_val Λ v2 → v1 = v2.
   Proof.
@@ -132,9 +169,13 @@ Section language.
     rewrite <- !to_of_val. rewrite H. done.
   Qed.
 
+  Lemma outcome_prim_step p o σ1 e2 σ2 :
+    prim_step p (of_outcome Λ o) σ1 e2 σ2 → False.
+  Proof. apply language_mixin. Qed.
   Lemma val_prim_step p v σ1 e2 σ2 :
     prim_step p (of_val Λ v) σ1 e2 σ2 → False.
-  Proof. apply language_mixin. Qed.
+  Proof. unfold of_val. apply outcome_prim_step. Qed.
+
   Lemma call_prim_step p fn vs K e σ1 e' σ2 :
     is_call e fn vs K →
     prim_step p e σ1 e' σ2 ↔
@@ -150,8 +191,10 @@ Section language.
     prim_step p2 e σ e' σ'.
   Proof. apply language_mixin. Qed.
 
-  Lemma is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C).
+  Lemma is_outcome_not_call e : is_Some (to_outcome e) → (∀ f vs C, ¬ is_call e f vs C).
   Proof. apply language_mixin. Qed.
+  Lemma is_val_not_call e : is_Some (to_val e) → (∀ f vs C, ¬ is_call e f vs C).
+  Proof. intros Hv. apply is_outcome_not_call. now apply val_in_outcome. Qed.
   Lemma is_val_not_call_2 e f vs C : is_call e f vs C → to_val e = None.
   Proof.
     intros H; destruct (to_val e) eqn:Heq; try done.
@@ -172,8 +215,40 @@ Section language.
     fn' = fn ∧ vs' = vs ∧ K = empty_ectx.
   Proof. apply language_mixin. Qed.
 
-  Lemma fill_val e K : is_Some (to_val (fill K e)) → is_Some (to_val e).
+  Lemma fill_outcome K e:
+    is_Some (to_outcome (fill K e)) → to_outcome (fill K e) = to_outcome e.
   Proof. apply language_mixin. Qed.
+
+  Lemma fill_outcome_2 e K : is_Some (to_outcome (fill K e)) → is_Some (to_outcome e).
+  Proof.
+    intros H. assert (is_Some (to_outcome (fill K e))) as [x Heq] by done.
+    apply fill_outcome in H. rewrite Heq in H; done.
+  Qed.
+
+  Lemma fill_outcome_3 K e o : fill K e = of_outcome Λ o → is_Some (to_outcome e).
+  Proof.
+    intros HH. eapply (fill_outcome_2 _ K).
+    exists o. rewrite HH to_of_outcome //.
+  Qed.
+
+  Lemma fill_not_outcome e K : to_outcome e = None → to_outcome (fill K e) = None.
+  Proof.
+    intros Heq; destruct (to_outcome (fill K e)) as [v|] eqn:Heq2; last done.
+    eapply mk_is_Some in Heq2. apply fill_outcome_2 in Heq2. rewrite Heq in Heq2.
+    by destruct Heq2.
+  Qed.
+
+  Lemma fill_val e K : is_Some (to_val (fill K e)) → is_Some (to_val e).
+  Proof.
+    intros H. destruct H. unfold to_val in H.
+    assert (∃ v, to_outcome (fill K e) = Some (OVal v)) as [v Heq].
+    { destruct (to_outcome (fill K e)); try congruence.
+      destruct o; eauto; congruence. }
+    assert (Heq': is_Some (to_outcome (fill K e))) by eauto.
+    rewrite fill_outcome in Heq; try done.
+    unfold to_val; rewrite Heq; auto.
+  Qed.
+
   Lemma fill_val_2 K e v : fill K e = of_val Λ v → is_Some (to_val e).
   Proof. intros HH. eapply (fill_val _ K). rewrite HH to_of_val//. Qed.
 
@@ -191,6 +266,13 @@ Section language.
     fill empty_ectx e = e.
   Proof. apply language_mixin. Qed.
 
+  Lemma outcome_stuck p e σ e' σ' : prim_step p e σ e' σ' → to_outcome e = None.
+  Proof.
+    intros Hstep. destruct (to_outcome e) eqn:HH; eauto; subst.
+    apply of_to_outcome in HH; subst.
+    by apply (outcome_prim_step p o) in Hstep.
+  Qed.
+
   Lemma val_stuck p e σ e' σ' : prim_step p e σ e' σ' → to_val e = None.
   Proof.
     intros Hstep. destruct (to_val e) eqn:HH; eauto. apply of_to_val in HH; subst.
@@ -204,6 +286,9 @@ Section language.
 
   Definition reducible (p : prog Λ) (e : expr Λ) (σ : state Λ) :=
     ∃ e' σ', prim_step p e σ e' σ'.
+
+  Lemma reducible_not_outcome p e σ : reducible p e σ → to_outcome e = None.
+  Proof. intros (?&?&?); eauto using outcome_stuck. Qed.
 
   Lemma reducible_not_val p e σ : reducible p e σ → to_val e = None.
   Proof. intros (?&?&?); eauto using val_stuck. Qed.
@@ -227,7 +312,7 @@ Section language.
   Qed.
 
   Lemma fill_step_inv K p e1' σ1 e2 σ2 :
-    to_val e1' = None → prim_step p (fill K e1') σ1 e2 σ2 →
+    to_outcome e1' = None → prim_step p (fill K e1') σ1 e2 σ2 →
     ∃ e2', e2 = fill K e2' ∧ prim_step p e1' σ1 e2' σ2.
   Proof. apply language_mixin. Qed.
 
@@ -235,9 +320,10 @@ Section language.
     rtc_refl e σ : rtc_step p e σ e σ
   | rtc_plus e σ e' σ' ex σx : prim_step p e σ e' σ' → rtc_step p e' σ' ex σx → rtc_step p e σ ex σx.
 
-  Definition safe p (e : expr Λ) (σ : state Λ) (Φ : val → Prop) := match to_val e with
-    Some v => Φ v
-  | None => reducible p e σ end.
+  Definition safe p (e : expr Λ) (σ : state Λ) (Φ : (outcome val) → Prop) :=
+    match to_outcome e with
+    | Some v => Φ v
+    | None => reducible p e σ end.
 
   Record pure_step (p : language.prog Λ) (e1 e2 : expr Λ) := {
     pure_step_safe σ1 : reducible p e1 σ1;

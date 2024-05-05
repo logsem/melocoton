@@ -48,7 +48,7 @@ Proof using.
   1: iExists w; iFrame; done.
   iClear "HR".
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
-  iApply wp_value; first done.
+  iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame "Hres".
   repeat iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.

@@ -193,7 +193,7 @@ Section Proofs.
       wp_apply (wp_callback with "[$HGC $Hlv2 Hna]"); [done..| |].
       { iSplit; first iApply "Hlv1".
         iNext. iApply ("Hcall" with "Hv1 Hna"). }
-      iIntros (θ' vret lvret wret) "(HGC & (_&Hna) & _)".
+      iIntros (θ' vret lvret wret) "(HGC & ((%v&Hv&->)&Hna) & _)".
       wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
@@ -247,7 +247,7 @@ Section Proofs.
     - iIntros (v) "(HGC&HInv)".
       iMod ("Hclose2" with "[$Hna HInv]") as "Hna".
       { iNext. by iLeft. }
-      wp_pures.
+      destruct v; wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
       iApply ("Return" with "HGC (Cont Hna) [//] [//]").
@@ -322,8 +322,11 @@ Section Proofs.
     ⊢ log_typed (p:=p) P Γ ML_wrapper ML_type.
   Proof.
     intros ??. iIntros "!>" (Δ vs) "#HΔ #Hvs".
-    iIntros "?". wp_pures. iModIntro. iFrame. iIntros "!>" (τ) "Htok".
+    iIntros "?". wp_pures. iModIntro. iFrame.
+    iExists _; iSplit; first done.
+    iIntros "!>" (τ) "Htok".
     wp_pures. iModIntro. iFrame "Htok".
+    iExists _; iSplit; first done.
     iExists (box_interp p.(penv_proto) (λne _, τ)%I Δ), _.
     iSplit; first done.
     iExists _, _; iSplit; first done; iSplit.
@@ -337,8 +340,9 @@ Section Proofs.
       iSplit; first done.
       iFrame "Htok Hv".
       iIntros "!> %vr [Htok #Hbox]".
-      wp_pures. iModIntro. iFrame "Htok Hbox".
-    - iModIntro; iFrame; iExists _, _, _; iSplit; first done.
+      wp_pures. iModIntro. iFrame. iExists _; iSplit; first done. iFrame "Hbox".
+    - iModIntro; iFrame; iExists _; iSplit; first done.
+      iExists _, _, _; iSplit; first done.
       iIntros (v2) "!> #Hv2 Htok". wp_pures.
       wp_extern. 1: rewrite H1; done.
       iModIntro. iApply H0. iLeft. iRight.
@@ -347,8 +351,9 @@ Section Proofs.
       iSplit; first done.
       iFrame "Hv Hv2 Htok".
       iIntros "!> Htok".
-      wp_pures. iModIntro. iFrame "Htok". done.
-    - iModIntro; iFrame; iExists _, _, _; iSplit; first done.
+      wp_pures. iModIntro. iFrame "Htok"; iExists _; iSplit; done.
+    - iModIntro; iFrame; iExists _; iSplit; first done.
+      iExists _, _, _; iSplit; first done.
       iIntros (v2) "!> #Hv2 Htok". wp_pures.
       wp_extern. 1: rewrite H1; done.
       iModIntro. iApply H0. iRight.
@@ -358,7 +363,7 @@ Section Proofs.
       iSplitL. { iFrame "Htok". destruct p as [p1 p2]. cbn in H1. subst p1.
                  iFrame "Hv Hv2". }
       iIntros "!> Htok".
-      wp_pures. iModIntro. iFrame "Htok". done.
+      wp_pures. iModIntro. iFrame "Htok"; iExists _; iSplit; done.
   Qed.
 
   Definition box_client_1 : ML_lang.expr := λ: "box_abs",
@@ -394,7 +399,7 @@ End Proofs.
 Lemma box_client_1_adequacy : 
 umrel.trace (mlanguage.prim_step (combined_prog box_client box_prog))
   (LkCall "main" [], adequacy.σ_init)
-  (λ '(e, σ), ∃ x, mlanguage.to_val e = Some (code_int x) ∧ True).
+  (λ '(e, σ), ∃ x, mlanguage.to_outcome e = Some (OVal (code_int x)) ∧ True).
 Proof.
   eapply typed_adequacy_trace.
   intros Σ Hffi. split_and!.

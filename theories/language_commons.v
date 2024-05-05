@@ -7,44 +7,44 @@ From iris.prelude Require Import options.
 From iris.bi Require Import weakestpre.
 From melocoton Require Export named_props.
 
-(** Classifying expressions into values and calls. *)
+Inductive outcome (val: Type) :=
+| OVal (v : val)
+(* | OExn (v : val) *)
+.
 
-Inductive mixin_expr_class {val} :=
-| ExprVal (v : val) : mixin_expr_class
-| ExprCall (fn_name : string) (arg : list val) : mixin_expr_class.
+Arguments OVal {_} _.
+(* Arguments OExn {_} _. *)
 
 (** Weakestpre notations *)
 
 Notation "'WP' e 'at' s {{ Φ } }" := (wp s ⊤ e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e 'at' s {{ v , Q } }" := (wp s ⊤ e%E (λ v, Q))
+Notation "'WP' e 'at' s {{ o , Q } }" := (wp s ⊤ e%E (λ o, Q))
   (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/'  'at'  s '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+   format "'[hv' 'WP'  e  '/'  'at'  s '/' {{  '[' o ,  '/' Q  ']' } } ']'") : bi_scope.
 
 
 Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
   (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
     (at level 20, x closed binder, y closed binder,
      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
 
 Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }})%I
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }})%I
     (at level 20,
      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
 
 
-
 Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
 Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
-
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
 
 (** Protocols *)
 
 Notation protocol val Σ :=
-  (string -d> list val -d> (val -d> iPropO Σ) -d> iPropO Σ).
+  (string -d> list val -d> (outcome val -d> iPropO Σ) -d> iPropO Σ).
 
 Section Protocols.
 Context {SI:indexT}.
@@ -211,25 +211,25 @@ Notation "Ψ 'on' fns" := (proto_on Ψ fns) (at level 10).
 
 Notation "'!!' x .. y '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)) ..))%I
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)) ..))%I
   (at level 20, x closed binder, y closed binder, u closed binder, v closed binder,
    format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)))%I
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)))%I
   (at level 20, u closed binder, v closed binder,
    format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' x .. y '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (Q -∗ Φ pat)) ..))%I
+    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))) ..))%I
   (at level 20, x closed binder, y closed binder,
    format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (Q -∗ Φ pat)))%I
+    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))))%I
   (at level 20,
    format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
 

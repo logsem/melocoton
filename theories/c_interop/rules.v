@@ -61,7 +61,7 @@ Proof.
   iModIntro. cbn. iApply Hproto.
   rewrite /int2val_proto /named. iSplit; first done. iExists _, _.
   iSplit; first done. iFrame. iIntros "!>" (?) "[HGC %]".
-  iApply wp_value; eauto. iApply "Cont"; eauto.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto.
 Qed.
 
 Lemma wp_val2int p Ψ θ (w:word) (x : Z) :
@@ -70,7 +70,7 @@ Lemma wp_val2int p Ψ θ (w:word) (x : Z) :
   repr_lval θ (Lint x) w →
   {{{ GC θ }}}
     (call: &"val2int" with (Val w))%CE at ⟨p, Ψ⟩
-  {{{ RET (#x); GC θ }}}.
+  {{{ RET #x; GC θ }}}.
 Proof.
   iIntros (Hp Hproto Hrepr Φ) "HGC Cont".
   wp_pures. wp_extern; first done.
@@ -78,7 +78,7 @@ Proof.
   rewrite /val2int_proto /named. iSplit; first done.
   iExists _, _, _. iFrame.
   do 2 (iSplit; first by eauto). iIntros "!> HGC".
-  iApply wp_value; eauto. iApply "Cont"; eauto.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto.
 Qed.
 
 Lemma wp_registerroot p Ψ θ v w a :
@@ -87,7 +87,7 @@ Lemma wp_registerroot p Ψ θ v w a :
   repr_lval θ v w →
   {{{ GC θ ∗ a ↦C w }}}
     (call: &"registerroot" with (Val (# a)))%CE at ⟨p, Ψ⟩
-  {{{ RET (# 0); GC θ ∗ a ↦roots v }}}.
+  {{{ RET # 0; GC θ ∗ a ↦roots v }}}.
 Proof.
   iIntros (Hp Hproto Hrepr Φ) "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
@@ -95,7 +95,7 @@ Proof.
   rewrite /registerroot_proto /named. iSplit; first done.
   iExists _, _, _, _. iFrame.
   do 2 (iSplit; first by eauto). iIntros "!> [? ?]".
-  iApply wp_value; eauto. iApply "Cont"; eauto. iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 
 Lemma wp_unregisterroot p Ψ θ v a :
@@ -103,7 +103,7 @@ Lemma wp_unregisterroot p Ψ θ v a :
   unregisterroot_proto ⊑ Ψ →
   {{{ GC θ ∗ a ↦roots v }}}
     (call: &"unregisterroot" with (Val (# a)))%CE at ⟨p, Ψ⟩
-  {{{ w, RET (# 0); GC θ ∗ a ↦C w ∗ ⌜repr_lval θ v w⌝ }}}.
+  {{{ w, RET # 0; GC θ ∗ a ↦C w ∗ ⌜repr_lval θ v w⌝ }}}.
 Proof.
   iIntros (Hp Hproto Φ) "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
@@ -111,7 +111,7 @@ Proof.
   rewrite /unregisterroot_proto /named. iSplit; first done.
   iExists _, _, _. iFrame.
   iSplit; first by eauto. iIntros "!>" (?) "(? & ? & %)".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_modify p Ψ θ γ w mut tg vs v' w' i :
@@ -123,7 +123,7 @@ Lemma wp_modify p Ψ θ γ w mut tg vs v' w' i :
   (0 ≤ i < length vs)%Z →
   {{{ GC θ ∗ γ ↦vblk[mut] (tg, vs) }}}
     (call: &"modify" with (Val w, Val (# i), Val w'))%CE at ⟨p, Ψ⟩
-  {{{ RET (# 0); GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) }}}.
+  {{{ RET #0; GC θ ∗ γ ↦vblk[mut] (tg, <[Z.to_nat i:=v']> vs) }}}.
 Proof.
   intros Hp Hproto **. iIntros "(HGC & Hpto) Cont".
   wp_pures. wp_extern; first done.
@@ -131,7 +131,7 @@ Proof.
   rewrite /modify_proto /named. iSplit; first done.
   do 9 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!> [? ?]".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_readfield p Ψ θ γ w m dq tg vs i :
@@ -152,7 +152,7 @@ Proof.
   rewrite /readfield_proto /named. iSplit; first done.
   do 8 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ?) "[? ?]".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_isblock p Ψ θ lv w :
@@ -231,7 +231,7 @@ Proof.
   do 6 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!> [HGC Hpto]".
   cbn.
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_alloc tg p Ψ θ tgnum sz :
@@ -251,7 +251,7 @@ Proof.
   rewrite /alloc_proto /named. iSplit; first done.
   do 3 iExists _. iFrame. subst.
   do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ?) "(? & ? & %)".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_alloc_foreign p Ψ θ :
@@ -269,7 +269,7 @@ Proof.
   rewrite /alloc_foreign_proto /named. iSplit; first done.
   do 1 iExists _. iFrame.
   iSplit; first by eauto. iIntros "!>" (? ? ?) "(? & ? & %)".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_write_foreign p Ψ θ w γ ao a' :
@@ -286,7 +286,7 @@ Proof.
   rewrite /write_foreign_proto /named. iSplit; first done.
   do 5 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!> [? ?]".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_read_foreign p Ψ θ w γ a m dq :
@@ -303,7 +303,7 @@ Proof.
   rewrite /read_foreign_proto /named. iSplit; first done.
   do 6 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!> [? ?]".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_callback p ΨML Ψ θ w γ f x e lv' w' v' Φ :
@@ -319,7 +319,7 @@ Lemma wp_callback p ΨML Ψ θ w γ f x e lv' w' v' Φ :
     (call: &"callback" with (Val w, Val w'))%CE at ⟨p, Ψ⟩
   {{{ θ' vret lvret wret, RET wret;
         GC θ' ∗
-        Φ vret ∗
+        Φ (OVal vret) ∗
         lvret ~~ vret ∗
         ⌜repr_lval θ' lvret wret⌝ }}}.
 Proof.
@@ -329,7 +329,7 @@ Proof.
   rewrite /callback_proto /named. iSplit; first done.
   do 10 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "(? & ? & ? & %)".
-  iApply wp_value; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
 Lemma wp_main p Ψ Φ P :
@@ -337,7 +337,7 @@ Lemma wp_main p Ψ Φ P :
   main_proto Φ P ⊑ Ψ →
   {{{ at_init ∗ P }}}
     (call: &"main" with ( ))%CE at ⟨p, Ψ⟩
-  {{{ x, RET (code_int x); ⌜Φ x⌝ }}}.
+  {{{ x, RET code_int x; ⌜Φ x⌝ }}}.
 Proof.
   intros Hp Hproto **. iIntros "(Hinit&HP) Cont".
   wp_pures. wp_extern; first done.
@@ -345,7 +345,7 @@ Proof.
   rewrite /main_proto /named. iSplit; first done.
   iSplit; first by eauto with lia. iFrame.
   iIntros "!>" (? ?).
-  iApply wp_value; eauto. iApply "Cont"; eauto.
+  iApply wp_outcome; eauto. iApply "Cont"; eauto.
 Qed.
 
 (* Macro Laws *)
@@ -376,7 +376,7 @@ Lemma wp_CAMLunregister1 (l:loc) lv p θ Ψ :
   unregisterroot_proto ⊑ Ψ →
   {{{ GC θ ∗ l ↦roots lv}}}
     (CAMLunregister1 (#l))%CE at ⟨p, Ψ⟩
-  {{{ RET (#0); GC θ }}}.
+  {{{ RET #0; GC θ }}}.
 Proof.
   iIntros (???) "Hin Cont".
   unfold CAMLunregister1.

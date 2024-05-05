@@ -60,14 +60,16 @@ Section Proofs.
 
     wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
     iIntros (vγref2 wγref2) "(HGC&_&%Heq1&%Hreprγref2)". cbv in Heq1; simplify_eq.
-    wp_apply (wp_int2val with "HGC"); [done..|].
+    cbn. wp_apply (wp_int2val with "HGC"); [done..|].
     iIntros (wnum) "(HGC&%Hreprm1)".
     wp_apply (wp_modify with "[$HGC $Hγusedref]"); [done..|].
     change (Z.to_nat 0) with 0. cbn.
     iIntros "(HGC&Hγusedref)". wp_pure _.
-    iApply (wp_post_mono with "[HGC]").
-    1: wp_apply (wp_int2val with "HGC"); [done..|iIntros (w) "?"; iAccu].
-    iIntros (w) "(HGC&%Hwunit)".
+    iApply (wp_post_mono _ _ _
+      (λ o, ∃ w, ⌜o = OVal w⌝ ∗ GC θ ∗ ⌜repr_lval θ (Lint 0) w⌝)%I with "[HGC]").
+    { wp_apply (wp_int2val with "HGC"); try done.
+      iIntros (w) "?". iExists w. iFrame. done. }
+    iIntros (o) "(%w&->&HGC&%Hwunit)".
     iMod (mut_to_ml _ [ #ML (-1)%Z ] _ with "[$HGC $Hγusedref]") as "(HGC&%ℓML'&Hγusedref&#Hsim')". 1: cbn; iFrame; done.
 
     iAssert (⌜ℓML' = ℓML⌝ ∧ ⌜γfgn = γ⌝)%I as "(-> & ->)".

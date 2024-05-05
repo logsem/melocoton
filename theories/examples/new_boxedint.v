@@ -111,7 +111,8 @@ Section ML_Example.
     (Extern "caml_new_boxedint" []).
 
   Lemma ML_prog_correct_axiomatic :
-    ⊢ WP new_boxedint_client at ⟨∅, caml_new_boxedint_spec⟩ {{ v, ⌜∃x : Z, v = #ML (LitBoxedInt x)⌝}}.
+    ⊢ WP new_boxedint_client at ⟨∅, caml_new_boxedint_spec⟩
+      {{ v, ⌜∃x : Z, v = OVal (#ML (LitBoxedInt x))⌝}}.
   Proof.
     unfold new_boxedint_client. wp_pures. wp_extern.
     iModIntro. cbn.

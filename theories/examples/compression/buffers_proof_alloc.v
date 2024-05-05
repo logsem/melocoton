@@ -40,7 +40,7 @@ Section Proofs.
     iIntros "(HGC&Hℓbk)". wp_pures.
     wp_apply (load_from_root with "[$HGC $Hℓbk]"); [done..|].
     iIntros (w) "(Hℓbk&HGC&%Hbk'1b)".
-    wp_apply (wp_val2int with "HGC"); [try done..|].
+    cbn. wp_apply (wp_val2int with "HGC"); [try done..|].
     1: by eapply repr_lval_lint.
     iIntros "HGC".
     wp_apply (wp_Malloc); [try done..|].
@@ -70,7 +70,7 @@ Section Proofs.
     wp_pure _.
     wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
     iIntros (wbf'4') "(Hℓbf&HGC&%Hbf'4')".
-    wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
+    cbn. wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
     iIntros (wbf2'4) "(Hℓbf2&HGC&%Hbf2'4)".
     wp_apply (wp_modify with "[$HGC $Hγbf]"); [done..|].
     iIntros "(HGC&Hγbf)".
@@ -84,7 +84,7 @@ Section Proofs.
 
     wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
     iIntros (wbf2'4'') "(Hℓbf2&HGC&%Hbf2'4'')".
-    wp_apply (load_from_root with "[$HGC $Hℓbk]"); [done..|].
+    cbn. wp_apply (load_from_root with "[$HGC $Hℓbk]"); [done..|].
     iIntros (wbk'4') "(Hℓbk&HGC&%Hbk'4')".
     wp_apply (wp_modify with "[$HGC $Hγbf2]"); [done..|].
     iIntros "(HGC&Hγbf2)".
