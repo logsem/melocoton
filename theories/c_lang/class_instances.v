@@ -52,11 +52,12 @@ Section pure_exec.
 
   Global Instance pure_funcall s va args res e :
     PureExec
-      ((p : gmap.gmap string function) !! s = Some (Fun args e) ∧ zip_args args va = Some res)
-      1 p (FunCall (Val $ LitV $ LitFunPtr s) (map Val va)) (subst_all res ∅ e).
+      ((p : gmap.gmap string function) !! s = Some (Fun args e)
+      ∧ apply_function (Fun args e) va = Some res)
+      1 p (FunCall (Val $ LitV $ LitFunPtr s) (map Val va)) res.
   Proof. solve_pure_exec; destruct H as [H1 H2].
-    1: econstructor; first done.
-    + unfold apply_function. rewrite H2. reflexivity.
-    + repeat split. destruct (zip_args args0 va) eqn:Heq; congruence.
+    - econstructor; first done. rewrite H2. reflexivity.
+    - simplify_eq. repeat split.
   Qed.
+
 End pure_exec.

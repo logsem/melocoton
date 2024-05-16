@@ -15,6 +15,7 @@ Notation SeqCtx e2 := (LetCtx BAnon e2) (only parsing).
 Notation Skip := (Seq (Val $ LitV LitUnit) (Val $ LitV LitUnit)).
 
 Notation "* e" := (Load e%CE) (at level 9, right associativity) : c_expr_scope.
+Notation "&: v" := (AdressOf v%CE) (at level 9, right associativity) : c_expr_scope.
 Notation "'malloc' '(' e ')'" := (Malloc e%CE) (at level 10) : c_expr_scope.
 Notation "'free' '(' e1 ',' e2 ')'" := (Free e1%CE e2%CE) (at level 10) : c_expr_scope.
 Notation "- e" := (UnOp NegOp e%CE) : c_expr_scope.

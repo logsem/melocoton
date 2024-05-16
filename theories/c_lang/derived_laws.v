@@ -28,7 +28,7 @@ Implicit Types sz off : nat.
 
 (** Allocation *)
 Lemma wp_Malloc s n :
-  (0 < n)%Z →
+  (0 ≤ n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) at s
   {{{ l, RET LitV (LitLoc l); l I↦C∗ replicate (Z.to_nat n) None }}}.
 Proof.
@@ -38,7 +38,7 @@ Proof.
 Qed.
 
 Lemma wp_Malloc_vec s n :
-  (0 < n)%Z →
+  (0 ≤ n)%Z →
   {{{ True }}}
     Malloc #n at s
   {{{ l, RET #l; l I↦C∗ vreplicate (Z.to_nat n) None }}}.

@@ -212,7 +212,7 @@ Implicit Types z : Z.
 
 
 Lemma tac_wp_Malloc Δ Δ' s j K n Φ :
-  (0 < n)%Z →
+  (0 ≤ n)%Z →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   (∀ l,
     match envs_app false (Esnoc Enil j (array l (DfracOwn 1) (replicate (Z.to_nat n) None))) Δ' with

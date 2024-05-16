@@ -32,6 +32,7 @@ Implicit Types l : loc.
 #[global] Instance twp'': Twp (iProp Σ) expr val stuckness := (@twp' (C_lang p) Σ _).
 *)
 
+(* TODO *)
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb
 induction directly, but this demonstrates that we can state the expected
 reasoning principle for recursive functions, without any visible ▷. *)
@@ -42,7 +43,7 @@ Lemma wp_rec_löb s E f e args Φ (Ψ : list val → iProp Σ) :
   ∀ vs res , Ψ vs -∗ ⌜zip_args args vs = Some res⌝ -∗ WP (FunCall ((&f)%V) (map Val vs)) @ s; E {{ Φ }}.
 Proof.
   iIntros "%Hp #Hrec". iLöb as "IH". iIntros (v res) "HΨ %Hres".
-  iApply lifting.wp_pure_step_later. 1: eauto.
+  iApply lifting.wp_pure_step_later. { 1: eauto.
   iIntros "!>". iApply ("Hrec" with "[] HΨ"). 2:done. iIntros "!>" (w res') "HΨ %Hres'".
   iApply ("IH" with "HΨ"). iPureIntro. apply Hres'.
 Qed.
@@ -68,7 +69,7 @@ Proof.
 Qed.
 
 Lemma wp_Malloc_seq n :
-  (0 < n)%Z →
+  (0 ≤ n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) at p
   {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
 Proof.
@@ -83,13 +84,13 @@ Proof.
   by iApply heap_array_to_seq_mapsto.
 Qed.
 
-Lemma wp_free s l (v:option val) :
+Lemma wp_free s l (v: option val) :
   {{{ ▷ l O↦C (Some v) }}} Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt 1) at s
   {{{ RET LitV LitUnit; True }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
-  iSplitR; first ( iPureIntro ).
+  iSplitR; first (iPureIntro).
   1: { do 2 eexists. econstructor.
        intros i H1 H2. exists v. rewrite <- HH. f_equal.
        destruct l; cbn. unfold loc_add. f_equal. cbn. lia. }
@@ -104,7 +105,7 @@ Lemma wp_load s l dq v :
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
-  iSplitR; first ( iPureIntro; eauto with head_step).
+  iSplitR; first (iPureIntro; eauto with head_step).
   iIntros (e2 σ2 Hstep); inv_head_step. iModIntro.
   iModIntro. iFrame. iIntros "HΦ". iModIntro.
   by iApply "HΦ".
@@ -138,6 +139,25 @@ Proof.
   iMod "Hcont".
   do 2 iModIntro. iFrame.
 Qed.
+
+Lemma wp_allocframe s f e v Q Q' l:
+  {{{ Q ∧ [∗ list] i ∈ seq 0 (size f), (l +ₗ (i : nat)) ↦C ? }}}
+      allocate_frame f e l at s
+  {{{ RET v; Q' }}} →
+  {{{ Q }}} AllocFrame f e at s {{{ RET v; Q' }}}.
+Proof.
+Admitted.
+(*   iIntros (Ha Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done. *)
+(*   iIntros (σ1) "Hσ". iModIntro. iSplit. *)
+(*   { iPureIntro. eexists _, _. econstructor. intros. admit. } *)
+(*   iIntros (e2 σ2 Hstep). inv_head_step. iModIntro. *)
+(*   iMod (gen_heap_alloc_big _ (heap_array _ (replicate (size f) Uninitialized)) with "Hσ") *)
+(*     as "(Hσ & Hl & Hm)". *)
+(*   { apply heap_array_map_disjoint. rewrite replicate_length; auto with lia. } *)
+(*   iModIntro. *)
+(*   by iApply heap_array_to_seq_mapsto. *)
+(*     inv_head_step. *)
+(* Admitted. *)
 
 Lemma wp_call (s:prog_environ C_lang Σ) n args body body' vv E Φ :
      ⌜penv_prog s !! n = Some (Fun args body)⌝
