@@ -40,7 +40,8 @@ Proof.
   cbn.
   iDestruct "Hsim" as "[He _ ]".
   wp_call_direct.
-  wp_apply (wp_allocframe); try eauto.
+  wp_apply (wp_allocframe). iIntros (l) "Hl".
+  unfold allocate_frame. cbn.
 
   (* Allocate result variable *)
   wp_apply (wp_alloc_foreign with "[$HGC]"); try eauto.

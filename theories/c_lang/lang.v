@@ -407,7 +407,7 @@ Fixpoint subst_all (gv : gmap string expr) (ga : gmap string expr) (e : expr) : 
       | None   => e
       | Some k => k
       end
-  | AllocFrame f e => AllocFrame f (subst_all gv ga e) (* TODO: Delete all from f in gv and ga ? *)
+  | AllocFrame f e => AllocFrame f (subst_all gv ga e)
   | Val _ => e
   | Let (BNamed s) e1 e2 =>
       Let (BNamed s) (subst_all gv ga e1) $ subst_all (delete s gv) (delete s ga) e2
@@ -640,6 +640,17 @@ Lemma alloc_fresh p n σ :
 Proof.
   intros.
   apply MallocS; first done.
+  intros. apply not_elem_of_dom.
+  by apply fresh_locs_fresh.
+Qed.
+
+Lemma alloc_fresh_frame p f e σ :
+  let l := fresh_locs (dom σ) in
+  head_step p (AllocFrame f e) σ
+            (allocate_frame f e l) (state_init_heap l (size f) Uninitialized σ).
+Proof.
+  intros.
+  apply AllocFrameS.
   intros. apply not_elem_of_dom.
   by apply fresh_locs_fresh.
 Qed.

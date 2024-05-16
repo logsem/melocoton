@@ -10,8 +10,6 @@ Lemma tac_wp_expr_eval `{SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E Φ e e' :
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
 
-
-
 Ltac solve_lookup_fixed := let rec go := match goal with
   [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (insert ?key ?val ?rem)]] =>
     (unify key needle; rewrite (@lookup_insert _ _ _ _ _ _ _ _ _ _ _ _ rem key val)) ||
@@ -125,7 +123,6 @@ Tactic Notation "wp_let" := wp_pure (Let _ _ _).
 Tactic Notation "wp_seq" := wp_let.
 Tactic Notation "wp_while" := wp_pure (While _ _).
 Tactic Notation "wp_call_direct" := wp_pure (FunCall _ _).
-
 
 (*
 Lemma tac_wp_call {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E Φ fn vv e1 :

@@ -67,3 +67,4 @@ Global Hint Extern 0 (head_reducible _ _ _) => eexists _, _; simpl : head_step.
 (* [simpl apply] is too stupid, so we need extern hints here. *)
 Global Hint Extern 1 (head_step _ _ _ _ _) => econstructor : head_step.
 Global Hint Extern 0 (head_step _ (Malloc _) _ _ _) => apply alloc_fresh : head_step.
+Global Hint Extern 0 (head_step _ (AllocFrame _ _) _ _ _) => apply alloc_fresh_frame : head_step.
