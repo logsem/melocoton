@@ -349,26 +349,28 @@ Proof.
 Qed.
 
 (* Macro Laws *)
-Lemma wp_CAMLlocal n e2 p Ψ Φ θ :
-  p !! "int2val" = None →
-  int2val_proto ⊑ Ψ →
-  p !! "registerroot" = None →
-  registerroot_proto ⊑ Ψ →
-  (⊢ GC θ -∗
-     (▷ ∀ (l : loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := Val #C l]} ∅ e2) at ⟨ p, Ψ ⟩ {{Φ}}) -∗
-     WP (CAMLlocal: n in e2)%CE at ⟨ p, Ψ ⟩ {{Φ}}%CE)%I.
-Proof.
-  iIntros (????) "HGC Cont". unfold CAMLlocal.
-  wp_apply wp_Malloc. 1-2: done. change (Z.to_nat 1) with 1. cbn.
-  iIntros (l) "(Hl&_)". rewrite loc_add_0.
-  wp_pures. wp_apply (wp_int2val with "[$]"); [try done..|].
-  iIntros (w) "(HGC&%Hrepr)".
-  wp_apply (wp_store with "Hl"). iIntros "Hl".
-  wp_pures.
-  wp_apply (wp_registerroot with "[$]"); [try done..|].
-  iIntros "(HGC&Hroot)". wp_pures.
-  iApply "Cont". iFrame.
-Qed.
+(* Lemma wp_CAMLlocal n e2 p Ψ Φ θ : *)
+(*   p !! "int2val" = None → *)
+(*   int2val_proto ⊑ Ψ → *)
+(*   p !! "registerroot" = None → *)
+(*   registerroot_proto ⊑ Ψ → *)
+(*   (⊢ GC θ -∗ *)
+(*      (▷ ∀ (l : loc), GC θ ∗ l ↦roots Lint 0 -∗ *)
+(*      WP (subst_all {[n := Val #C l]} ∅ e2) at ⟨ p, Ψ ⟩ {{Φ}}) -∗ *)
+(*      WP (CAMLlocal: n in e2)%CE at ⟨ p, Ψ ⟩ {{Φ}}%CE)%I. *)
+(* Proof. *)
+(*   iIntros (????) "HGC Cont". unfold CAMLlocal. *)
+(*   wp_apply (wp_int2val with "[$]"); try done. *)
+(*   iIntros (w) "(HGC&%Hrepr)". wp_pures. *)
+(*   wp_apply wp_Malloc. 1-2: done. change (Z.to_nat 1) with 1. cbn. *)
+(*   iIntros (l) "(Hl&_)". rewrite loc_add_0. *)
+(*   wp_pures. wp_apply (wp_int2val with "[$]"); [try done..|]. *)
+(*   wp_apply (wp_store with "Hl"). iIntros "Hl". *)
+(*   wp_pures. *)
+(*   wp_apply (wp_registerroot with "[$]"); [try done..|]. *)
+(*   iIntros "(HGC&Hroot)". wp_pures. *)
+(*   iApply "Cont". iFrame. *)
+(* Qed. *)
 
 Lemma wp_CAMLunregister1 (l:loc) lv p θ Ψ :
   p !! "unregisterroot" = None →
@@ -381,8 +383,7 @@ Proof.
   unfold CAMLunregister1.
   wp_apply (wp_unregisterroot with "Hin"); [done..|].
   iIntros (w) "(HGC&Hw&_)".
-  wp_pures. wp_apply (wp_free with "Hw").
-  iIntros "_". iApply "Cont". iApply "HGC".
+  iApply "Cont". iApply "HGC".
 Qed.
 
 End Laws.

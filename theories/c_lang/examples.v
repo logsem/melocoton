@@ -5,25 +5,28 @@ From melocoton.c_lang Require Import lang notation proofmode.
 From iris.prelude Require Import options.
 Import uPred.
 
-
 (** Heap tactics *)
 Section examples.
 Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
- 
-Fixpoint fib (n:nat) : nat := match n with
-  0 => 0
-| S n' => match n' with 
-      0 => 1
-    | S n'' => fib n' + fib n'' end end.
+
+Fixpoint fib (n:nat) : nat :=
+  match n with
+  | 0 => 0
+  | S n' =>
+    match n' with
+    | 0     => 1
+    | S n'' => fib n' + fib n''
+    end
+  end.
 
 Definition fib_prog name (x:expr) : expr :=
-(if: "x" < #2 
+(if: "x" < #2
  then "x"
  else (call: (&name) with ("x" - #1)) + (call: (&name) with ("x" - #2) )).
 
 Definition heap_example : expr :=
-  let: "x" := malloc (#2) in 
+  let: "x" := malloc (#2) in
  (call: &"store_it" with (("x" +ₗ #1), call: &"fib_left" with ( Val (#3) )) ;;
  ("x" +ₗ #0) <- #1337 ;;
   let: "y" := *("x" +ₗ #1) in
@@ -33,9 +36,6 @@ Definition heap_example : expr :=
 Definition fib_func name : function := Fun [BNamed "x"] (fib_prog name "x").
 Definition exampleProgram fname cname : gmap string function :=
   {[ fname := fib_func cname ]}.
-
-
-
 
 Definition FibSpec name := (λ (s:string) (v:list val) (Φ : (outcome val → iPropI Σ)),
   ⌜s = name⌝ ∗ ∃ z, ⌜v = [ #(LitInt z) ] ∧ (z >= 0)%Z⌝ ∗ Φ (OVal #(fib (Z.to_nat z))))%I.
@@ -51,7 +51,6 @@ Definition SimpleEnv : prog_environ C_lang Σ :=
   ⟨ exampleProgram "fib_impl" "fib_impl", StoreItSpec ⟩.
 
 Definition FinalSpec := (FibLeftSpec) ⊔ FibRightSpec.
-
 
 Definition LeftEnv : prog_environ C_lang Σ :=
   ⟨ exampleProgram "fib_left" "fib_right", (* function called fib_left calls fib_right *)
@@ -72,8 +71,14 @@ Proof.
   iStartProof.
   iLöb as "IH" forall (n).
   wp_pures.
+  (* XXX WP_ALLOCFRAME BEG *)
+  wp_apply (wp_allocframe).
+  iIntros (l) "_". unfold allocate_frame.
+  wp_pures. simpl. wp_pures.
+  (* XXX WP_ALLOCFRAME END *)
   destruct (bool_decide _) eqn:Heq.
-  - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
+  - wp_pures.
+    iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 ∨ n=1) as [-> | ->] by lia; done.
   - do 2 wp_pure _. apply bool_decide_eq_false in Heq. wp_bind (FunCall _ _).
     wp_apply wp_wand.
@@ -130,6 +135,11 @@ Proof.
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
   wp_pures.
+  (* XXX WP_ALLOCFRAME BEG *)
+  wp_apply (wp_allocframe).
+  iIntros (l) "_". unfold allocate_frame.
+  wp_pures. simpl. wp_pures.
+  (* XXX WP_ALLOCFRAME END *)
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".
@@ -149,7 +159,6 @@ Proof.
     by iApply "Hcont".
 Qed.
 
-
 Lemma fib_right_correct :
   (FibLeftSpec ⊔ StoreItSpec) ||- exampleProgram "fib_right" "fib_left" :: FibRightSpec.
 Proof.
@@ -160,6 +169,11 @@ Proof.
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
   wp_pures.
+  (* XXX WP_ALLOCFRAME BEG *)
+  wp_apply (wp_allocframe).
+  iIntros (l) "_". unfold allocate_frame.
+  wp_pures. simpl. wp_pures.
+  (* XXX WP_ALLOCFRAME END *)
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".
@@ -185,7 +199,7 @@ Proof.
   assert (
     ((<["fib_right":=fib_func "fib_left"]> (<["fib_left":=fib_func "fib_right"]> ∅)))
   = (union_with (λ _ _ : func C_lang, None) (exampleProgram "fib_left" "fib_right") (exampleProgram "fib_right" "fib_left"))) as Heq.
-  { apply map_eq_iff. intros i. 
+  { apply map_eq_iff. intros i.
     destruct (decide (i = "fib_right")) as [-> | Hno].
     1: done.
     destruct (decide (i = "fib_left")) as [-> | Hno2].

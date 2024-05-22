@@ -17,6 +17,27 @@ From stdpp Require Import fin_maps.
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
 
+Lemma simp_elem_empty : elements ((∅ : gset string) ∪ ∅) = elements (∅: gset string).
+Proof. reflexivity. Qed.
+
+Lemma simp_elem_empty_l (s : gset string) : elements (∅ ∪ s) = elements s.
+Proof. Admitted.
+
+Lemma simp_elem_empty_r (s : gset string) : elements (s ∪ ∅) = elements s.
+Proof. Admitted.
+
+Lemma simp_size_empty : size ((∅ : gset string) ∪ ∅) = size (∅: gset string).
+Proof. reflexivity. Qed.
+
+Lemma simp_size_empty_l (s : gset string) : size (∅ ∪ s) = size s.
+Proof. Admitted.
+
+Lemma simp_size_empty_r (s : gset string) : size (s ∪ ∅) = size s.
+Proof. Admitted.
+
+Lemma simp_elem : elements ({["e"]} : gset string) = ["e"].
+Proof. reflexivity. Qed.
+
 Definition caml_id : expr :=
   let: "e2" := &: "e" in
   "e".
@@ -40,8 +61,10 @@ Proof.
   cbn.
   iDestruct "Hsim" as "[He _ ]".
   wp_call_direct.
+
   wp_apply (wp_allocframe). iIntros (l) "Hl".
-  unfold allocate_frame. cbn.
+  unfold allocate_frame. 
+  rewrite simp_elem_empty_r. rewrite simp_size_empty_r. cbn. rewrite simp_elem. cbn.
 
   (* Allocate result variable *)
   wp_apply (wp_alloc_foreign with "[$HGC]"); try eauto.
@@ -60,4 +83,3 @@ Proof.
   - cbn. iExists γ. iSplit; try eauto.
   - eauto.
 Qed.
-

@@ -40,7 +40,7 @@ Definition is_even_proto : protocol val Σ :=
 
 Lemma wp_is_even (x:Z) :
   (0 ≤ x)%Z →
-  ⊢ WP subst "x" (#x) (is_even_code "x") at ⟨is_even_prog, is_odd_proto⟩
+  ⊢ WP subst_var "x" (#x) (is_even_code "x") at ⟨is_even_prog, is_odd_proto⟩
       {{ λ o, ⌜o = OVal #(Z.even x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
@@ -67,13 +67,8 @@ Qed.
 
 Lemma wp_is_odd (x:Z) :
   (0 ≤ x)%Z →
-<<<<<<< HEAD
-  ⊢ WP subst "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
-      {{ λ o, ⌜o = OVal #(Z.odd x)⌝ }}.
-=======
   ⊢ WP subst_var "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
-      {{ λ v, ⌜v = #(Z.odd x)⌝ }}.
->>>>>>> 6f3937f (First try at locals)
+      {{ λ o, ⌜o = OVal #(Z.odd x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
   rewrite /is_even_code /=. cbn; simplify_map_eq.
@@ -94,7 +89,7 @@ Proof.
   unfold progwp, is_odd_proto.
   iIntros (? ? ?) "H". iNamedProto "H". iSplit; first done.
   iIntros (?) "Hcont". wp_call_direct.
-  iApply wp_wand; first by iApply wp_is_odd. iIntros (? ->). 
+  iApply wp_wand; first by iApply wp_is_odd. iIntros (? ->).
   iApply "Hcont". by iApply "Cont".
 Qed.
 

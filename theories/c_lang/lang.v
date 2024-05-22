@@ -1,4 +1,4 @@
-From stdpp Require Export binders strings options.
+From stdpp Require Export binders strings stringmap options.
 From stdpp Require Import gmap finite.
 From iris.algebra Require Export ofe.
 From iris.heap_lang Require Export locations.
@@ -38,7 +38,7 @@ Inductive expr :=
   | Let (x : binder) (e1 e2 : expr)
   (* Local variables *)
   | AdressOf (x : string)
-  | AllocFrame (f : gset string) (e : expr)
+  | AllocFrame (f : stringset) (e : expr)
   (* Memory *)
   | Load (e : expr)
   | Store (e0 e1 : expr) (* e0 <- e1 *)
@@ -58,7 +58,7 @@ Definition expr_rect (P : expr → Type) :
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
   → (∀ x : string, P (AdressOf x))
-  → (∀ (f : gset string) (e : expr), P e → P (AllocFrame f e))
+  → (∀ (f : stringset) (e : expr), P e → P (AllocFrame f e))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -101,7 +101,7 @@ Definition expr_ind (P : expr → Prop) :
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
   → (∀ (x : string), P (AdressOf x))
-  → (∀ (f : gset string) (e : expr), P e → P (AllocFrame f e))
+  → (∀ (f : stringset) (e : expr), P e → P (AllocFrame f e))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -188,7 +188,7 @@ Definition expr_rec (P : expr → Set) :
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
   → (∀ (x : string), P (AdressOf x))
-  → (∀ (f : gset string) (e : expr), P e → P (AllocFrame f e))
+  → (∀ (f : stringset) (e : expr), P e → P (AllocFrame f e))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -302,7 +302,7 @@ Proof.
 Qed.
 
 Global Instance expr_countable : Countable expr.
-Proof. (* string + binder + un_op + bin_op + val + gset string *)
+Proof. (* string + binder + un_op + bin_op + val + stringset *)
  set (enc :=
    fix go e :=
      match e with
@@ -395,7 +395,7 @@ Proof. apply foldl_app. Qed.
 (** Substitution *)
 
 (* TODO: Some comment here detailing how this definition is dangerous *)
-Fixpoint subst_all (gv : gmap string expr) (ga : gmap string expr) (e : expr) : expr :=
+Fixpoint subst_all (gv : stringmap expr) (ga : stringmap expr) (e : expr) : expr :=
   match e with
   | Var x =>
       match gv !! x with
@@ -500,79 +500,88 @@ Definition asTruth (v:val) : bool := match v with
 (** Function calls, local variables *)
 
 (*
+  The following definitions make heavy use of lists instead of sets to make sure
+  they can be easily computed by cbn and similar tactics.
+*)
+
+Definition list_contains (l : list string) (x1 : string) :=
+  existsb (λ 'x2, String.eqb x1 x2) l.
+
+(*
  * Fails if :
  * - two variables share the same name
  * - a variable is used before it's declaration
  * - a frame allocation is already present
  *)
-Fixpoint stack_allocated (env : gset string) (e : expr) : option (gset string) :=
+Fixpoint stack_allocated (env : list string) (acc : option $ list string) (e : expr) : option $ list string :=
   match e with
-  | Val _ => Some ∅
-  | Var x => if decide (x ∈ env) then Some ∅ else None
-  | AdressOf x => if decide (x ∈ env) then Some {[ x ]} else None
+  | Val _ => acc
+  | Var x => if list_contains env x then acc else None
+  | AdressOf x =>
+      match acc with
+      | None     => None
+      | Some acc => if list_contains env x then Some (x :: acc) else None
+      end
   | AllocFrame f x => None
   | Let (BNamed x) e1 e2 =>
-      if decide (x ∈ env) then None else
-      hl1 ← stack_allocated env e1;
-      hl2 ← stack_allocated (env ∪ {[ x ]}) e2;
-      Some (hl1 ∪ hl2)
+      if list_contains env x then None else
+      stack_allocated (x :: env) (stack_allocated env acc e1) e2
   | Let BAnon e1 e2 | Store e1 e2 | Free e1 e2 | BinOp _ e1 e2 | While e1 e2 =>
-      hl1 ← stack_allocated env e1;
-      hl2 ← stack_allocated env e2;
-      Some (hl1 ∪ hl2)
-  | Load e | Malloc e | UnOp _ e => stack_allocated env e
-  | If e1 e2 e3   =>
-      hl1 ← stack_allocated env e1;
-      hl2 ← stack_allocated env e2;
-      hl3 ← stack_allocated env e3;
-      Some (hl1 ∪ hl2 ∪ hl3)
+      stack_allocated env (stack_allocated env acc e1) e2
+  | Load e | Malloc e | UnOp _ e => stack_allocated env acc e
+  | If e1 e2 e3 =>
+      stack_allocated env (stack_allocated env (stack_allocated env acc e1) e2) e3
   | FunCall ef ea =>
-      List.fold_left (fun acc e =>
-        hle  ← stack_allocated env e;
-        acc' ← acc;
-        Some (acc' ∪ hle))
-      ea (stack_allocated env ef)
+      List.fold_left (stack_allocated env) ea (stack_allocated env acc ef)
   end.
 
-(* Note that this way, a function where all arguments have the same name (say x), that returns x, returns the first argument *)
-Fixpoint zip_args (an : list binder) (av : list val) : option (gmap string expr) :=
+Fixpoint zip_args (an : list binder) (av : list val) (acc : list (string * expr)) : option (list (string * expr)) :=
   match an, av with
-  | nil, nil => Some ∅
-  | (BNamed ax::ar), (vx::vr) => option_map (<[ax:=Val vx]>) (zip_args ar vr)
-  | (BAnon::ar), (vx::vr) => zip_args ar vr
+  | nil, nil => Some acc
+  | (BNamed ax::ar), (vx::vr) => zip_args ar vr ((ax, Val vx) :: acc)
+  | (BAnon::ar), (vx::vr) => zip_args ar vr acc
   | _, _ => None
   end.
+
+Definition filter_frame (frame : list string) (args : list (string * expr)) :=
+  filter (λ '(x1, _), negb $ existsb (λ 'x2, String.eqb x1 x2) frame) args.
 
 Definition apply_function (f : function) (av : list val) :=
   match f with
   | Fun an e =>
-    match zip_args an av with
+    match zip_args an av [] with
     | Some args =>
-        match stack_allocated (dom args) e with
-        | Some frame =>
-            let args := filter (λ '(x, _), x ∉ frame) args in
-            Some (AllocFrame frame (subst_all args ∅ e))
-        | None => None
-        end
+      match stack_allocated (map fst args) (Some []) e with
+      | Some frame =>
+        let args      := filter_frame frame args in
+        let args_map  := list_to_map args  in
+        let frame_map := list_to_set frame in
+        Some (AllocFrame frame_map (subst_all args_map ∅ e))
+      | None => None
+      end
     | _ => None
     end
   end.
 
-Fixpoint local_location (f : list string) (l : loc) : gmap string expr :=
+Fixpoint local_location (f : list string) (l : loc) (acc : stringmap expr) : stringmap expr :=
   match f with
-  | nil     => ∅
-  | v :: f' => {[v:=Val $ LitV $ LitLoc l]} ∪ (local_location f' (l +ₗ 1))
+  | []      => acc
+  | v :: f' => local_location f' (l +ₗ 1) (acc ∪ {[v:=Val $ LitV $ LitLoc l]})
   end.
 
-Definition allocate_frame (f : gset string) (e : expr) (l : loc) :=
-  let ll := Val $ LitV $ LitLoc l in
-  let ga := local_location (elements f) l in
-  let gv := fmap Load ga in
-  Let "res" (subst_all ∅ ga e)
-  $ Let BAnon (Free ll (Val $ LitV $ LitInt $ size f))
-  $ Var "res".
+Definition allocate_frame (f : stringset) (e : expr) (l : loc) :=
+  let frame_size := length $ elements f in
+  (* Avoid free and malloc 0 *)
+  if frame_size =? 0 then e
+  else
+    let ll := Val $ LitV $ LitLoc l in
+    let ga := local_location (elements f) l ∅ in
+    let gv := fmap Load ga in
+    Let "res" (subst_all ∅ ga e)
+    $ Let BAnon (Free ll (Val $ LitV $ LitInt $ frame_size))
+    $ Var "res".
 
-Inductive head_step (p : gmap string function) : expr → c_state → expr → c_state → Prop :=
+Inductive head_step (p : stringmap function) : expr → c_state → expr → c_state → Prop :=
   | LetS x v1 e2 ee σ :
      ee = subst_var x (Val v1) e2 ->
      head_step p (Let x (Val v1) e2) σ ee σ
@@ -800,7 +809,7 @@ Proof.
     exists K''. rewrite /comp_ectx assoc //.
 Qed.
 
-Lemma call_head_step (p: gmap string function) f vs σ1 e2 σ2 :
+Lemma call_head_step (p: stringmap function) f vs σ1 e2 σ2 :
   head_step p (of_call f vs) σ1 e2 σ2 ↔
   ∃ (fn : function),
     p !! f = Some fn ∧ Some e2 = apply_function fn vs ∧ σ2 = σ1.

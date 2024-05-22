@@ -84,8 +84,11 @@ Section FFI_spec.
     iDestruct "Hsim" as "[Hγ _]".
     iDestruct "Hγ" as (γ) "[-> Hγ]".
     wp_call_direct.
+    wp_apply wp_allocframe. iIntros (l) "Hl".
+    unfold allocate_frame. cbn. wp_pures.
 
     (* Declare result variable *)
+wp_apply (wp_int2val with "[$]"); try done.
     wp_apply (wp_CAMLlocal with "HGC"); eauto. iIntros (ℓ) "(HGC&Hℓ)". wp_pures.
 
     (* Call stdlib gmtime *)
@@ -140,6 +143,8 @@ Section FFI_spec.
     wp_free. wp_pures.
 
     iMod (freeze_to_immut γ' _ θ' with "[$]") as "(HGC&#Hγ')".
+
+    wp_free.
 
     iModIntro.
     iApply "HΦ".

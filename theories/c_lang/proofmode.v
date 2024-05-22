@@ -14,13 +14,13 @@ Ltac solve_lookup_fixed := let rec go := match goal with
   [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (insert ?key ?val ?rem)]] =>
     (unify key needle; rewrite (@lookup_insert _ _ _ _ _ _ _ _ _ _ _ _ rem key val)) ||
     (rewrite (@lookup_insert_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle val); [go|first [congruence|done]])
-| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (delete ?key ?rem)]] => 
+| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (delete ?key ?rem)]] =>
       (unify key needle; rewrite (@lookup_delete _ _ _ _ _ _ _ _ _ _ _ _ rem key)) ||
       (rewrite (@lookup_delete_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle); [go|first [congruence|done]])
 | [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (singletonM ?key ?val)]] =>
     (unify key needle; rewrite (@lookup_singleton _ _ _ _ _ _ _ _ _ _ _ _ key val)) ||
     (rewrite (@lookup_singleton_ne _ _ _ _ _ _ _ _ _ _ _ _ key needle val); first [congruence|done])
-| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle ∅]] => 
+| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle ∅]] =>
     rewrite (@lookup_empty _ _  _ _ _ _ _ _ _ _ _ _ needle) end in repeat (progress (unfold subst_var; try go; cbn)).
 
 Tactic Notation "wp_expr_eval" tactic3(t) :=
@@ -132,7 +132,7 @@ Lemma tac_wp_call {SI:indexT} `{!heapG_C Σ, !invG Σ} Δ s E Φ fn vv e1 :
 Proof.
   intros ->.
   rewrite envs_entails_unseal=> Hyp. iIntros "H".
-  iApply (wp_call s fn vv E Φ). by iApply Hyp. 
+  iApply (wp_call s fn vv E Φ). by iApply Hyp.
 Qed.
 
 Tactic Notation "wp_call" :=
@@ -234,7 +234,7 @@ Lemma tac_wp_free Δ Δ' s i K l (v:option val) Φ :
   MaybeIntoLaterNEnvs 1 (envs_delete false i false Δ) Δ' →
   (let Δ'' := (Δ') in
    envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) at s {{ Φ }})) →
-  envs_entails Δ (WP fill K (Free (LitV l) (Val (LitV (LitInt 1)))) at s {{ Φ }}).
+  envs_entails Δ (WP fill K (Free (#C l) (#C 1)) at s {{ Φ }}).
 Proof.
   rewrite envs_entails_unseal=> Hlk ? Hfin.
   rewrite -wp_bind. eapply wand_apply; first apply wp_free.

@@ -2,14 +2,7 @@ From melocoton.c_interface Require Export notation.
 From melocoton.c_lang Require Export lang notation.
 From iris.prelude Require Import options.
 
-Definition CAMLlocal (n:string) (e : expr) : expr :=
-  (let: n := malloc (#1) in
-    (Var n <- (call: &"int2val" with (Val (#0))));;
-    (call: &"registerroot" with (Var n));; e).
 
-Notation "'CAMLlocal:' x 'in' e2" := (CAMLlocal x%string e2%CE)
-  (at level 200, x at level 1, e2 at level 200,
-   format "'[' 'CAMLlocal:'  x   'in'  '/' e2 ']'") : c_expr_scope.
 
 Notation "'Field' '(' x ',' y ')'" := (call: &"readfield" with (x%CE, y%CE))%CE
   (at level 70, x, y at level 69,
@@ -24,6 +17,8 @@ Notation "'Int_val' '(' x ')'" := (call: &"val2int" with (x%CE))%CE
 Notation "'Val_int' '(' x ')'" := (call: &"int2val" with (x%CE))%CE
   (at level 70, x at level 69,
   format "'Val_int' '(' x ')'") : c_expr_scope.
+
+Definition Val_unit := Val_int (#C 0)%CE.
 
 Notation "'BoxedInt_val' '(' x ')'" := (call: &"read_foreign" with (x%CE))%CE
   (at level 70, x at level 69,
@@ -42,7 +37,19 @@ Notation "'caml_alloc' '(' len ',' tag ')'" := (call: &"alloc" with (tag%CE, len
 Notation "'caml_alloc_custom' '(' ')'" := (call: &"alloc_foreign" with ( ))%CE
   (at level 70,
   format "'caml_alloc_custom' '(' ')'") : c_expr_scope.
-(* XXX maybe make this list-based? *)
-Definition CAMLunregister1 ek := (call: &"unregisterroot" with ( ek ) ;; free (ek%CE, #1))%CE.
-Notation "'CAMLreturn:' x 'unregistering' '[' e1 , .. , en ']'" := (let: "!Hret" := x%CE in (Seq (CAMLunregister1 e1%CE) .. (Seq (CAMLunregister1 en%CE) "!Hret"%CE) ..))%CE.
 
+(* XXX maybe make this list-based? *)
+Definition CAMLunregister1 ek :=
+  (call: &"unregisterroot" with (&: ek))%CE.
+
+Notation "'CAMLreturn:' x 'unregistering' '[' e1 , .. , en ']'" :=
+  (let: "!Hret" := x%CE in
+  (Seq (CAMLunregister1 e1%CE) .. (Seq (CAMLunregister1 en%CE) "!Hret"%CE) ..))%CE.
+
+Definition CAMLlocal (n:string) (e : expr) : expr :=
+  (let: n := Val_unit in
+  (call: &"registerroot" with (Var n));; e).
+
+Notation "'CAMLlocal:' x 'in' e2" := (CAMLlocal x%string e2%CE)
+  (at level 200, x at level 1, e2 at level 200,
+   format "'[' 'CAMLlocal:'  x  'in'  '/' e2 ']'") : c_expr_scope.
