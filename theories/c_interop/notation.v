@@ -40,7 +40,7 @@ Notation "'caml_alloc_custom' '(' ')'" := (call: &"alloc_foreign" with ( ))%CE
 
 (* XXX maybe make this list-based? *)
 Definition CAMLunregister1 ek :=
-  (call: &"unregisterroot" with (&: ek))%CE.
+  (call: &"unregisterroot" with (ek))%CE.
 
 Notation "'CAMLreturn:' x 'unregistering' '[' e1 , .. , en ']'" :=
   (let: "!Hret" := x%CE in
@@ -48,7 +48,7 @@ Notation "'CAMLreturn:' x 'unregistering' '[' e1 , .. , en ']'" :=
 
 Definition CAMLlocal (n:string) (e : expr) : expr :=
   (let: n := Val_unit in
-  (call: &"registerroot" with (Var n));; e).
+  (call: &"registerroot" with (&: n));; e).
 
 Notation "'CAMLlocal:' x 'in' e2" := (CAMLlocal x%string e2%CE)
   (at level 200, x at level 1, e2 at level 200,

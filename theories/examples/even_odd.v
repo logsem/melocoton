@@ -60,7 +60,9 @@ Lemma is_even_correct : is_odd_proto ||- is_even_prog :: is_even_proto.
 Proof.
   unfold progwp, is_even_proto.
   iIntros (? ? ?) "H". iNamedProto "H". iSplit; first done.
-  iIntros (?) "Hcont". wp_call_direct.
+  iIntros (?) "Hcont".
+  wp_call_direct.
+  wp_allocframe.
   iApply wp_wand; first by iApply wp_is_even. iIntros (? ->).
   iApply "Hcont". by iApply "Cont".
 Qed.

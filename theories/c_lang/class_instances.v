@@ -47,7 +47,7 @@ Section pure_exec.
   Proof. solve_pure_exec. Qed.
 
   Global Instance pure_let x v1 e2 :
-    PureExec True 1 p (Let x (Val v1) e2) (subst_var x (Val v1) e2).
+    PureExec True 1 p (Let x (Val v1) e2) (subst x v1 e2).
   Proof. solve_pure_exec. Qed.
 
   Global Instance pure_funcall s va args res e :

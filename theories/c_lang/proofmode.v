@@ -21,7 +21,7 @@ Ltac solve_lookup_fixed := let rec go := match goal with
     (unify key needle; rewrite (@lookup_singleton _ _ _ _ _ _ _ _ _ _ _ _ key val)) ||
     (rewrite (@lookup_singleton_ne _ _ _ _ _ _ _ _ _ _ _ _ key needle val); first [congruence|done])
 | [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle ∅]] =>
-    rewrite (@lookup_empty _ _  _ _ _ _ _ _ _ _ _ _ needle) end in repeat (progress (unfold subst_var; try go; cbn)).
+    rewrite (@lookup_empty _ _  _ _ _ _ _ _ _ _ _ _ needle) end in repeat (progress (unfold subst; try go; cbn)).
 
 Tactic Notation "wp_expr_eval" tactic3(t) :=
   iStartProof;
@@ -409,3 +409,9 @@ Tactic Notation "wp_store" :=
   | _ => fail "wp_store: not a 'wp'"
   end.
 *)
+
+(* Tactic Notation "wp_allocframe" ident(fp) := *)
+(*   wp_pures; *)
+(*   wp_apply (wp_allocframe); *)
+(*   iIntros (fp) "Hfp"; unfold allocate_frame; *)
+(*   wp_pures; simpl; wp_pures. *)

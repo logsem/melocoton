@@ -88,7 +88,7 @@ Section FFI_spec.
     unfold allocate_frame. cbn. wp_pures.
 
     (* Declare result variable *)
-wp_apply (wp_int2val with "[$]"); try done.
+    wp_apply (wp_int2val with "[$]"); try done.
     wp_apply (wp_CAMLlocal with "HGC"); eauto. iIntros (ℓ) "(HGC&Hℓ)". wp_pures.
 
     (* Call stdlib gmtime *)

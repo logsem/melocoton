@@ -38,7 +38,7 @@ Inductive expr :=
   | Let (x : binder) (e1 e2 : expr)
   (* Local variables *)
   | AdressOf (x : string)
-  | AllocFrame (f : stringset) (e : expr)
+  | AllocFrame (f : list string) (e : expr)
   (* Memory *)
   | Load (e : expr)
   | Store (e0 e1 : expr) (* e0 <- e1 *)
@@ -58,7 +58,7 @@ Definition expr_rect (P : expr → Type) :
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
   → (∀ x : string, P (AdressOf x))
-  → (∀ (f : stringset) (e : expr), P e → P (AllocFrame f e))
+  → (∀ (f : list string) (e : expr), P e → P (AllocFrame f e))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -101,7 +101,7 @@ Definition expr_ind (P : expr → Prop) :
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
   → (∀ (x : string), P (AdressOf x))
-  → (∀ (f : stringset) (e : expr), P e → P (AllocFrame f e))
+  → (∀ (f : list string) (e : expr), P e → P (AllocFrame f e))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -188,7 +188,7 @@ Definition expr_rec (P : expr → Set) :
   → (∀ x : string, P (Var x))
   → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
   → (∀ (x : string), P (AdressOf x))
-  → (∀ (f : stringset) (e : expr), P e → P (AllocFrame f e))
+  → (∀ (f : list string) (e : expr), P e → P (AllocFrame f e))
   → (∀ e : expr, P e → P (Load e))
   → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
   → (∀ e1 : expr, P e1 → P (Malloc e1))
@@ -394,45 +394,32 @@ Proof. apply foldl_app. Qed.
 
 (** Substitution *)
 
-(* TODO: Some comment here detailing how this definition is dangerous *)
-Fixpoint subst_all (gv : stringmap expr) (ga : stringmap expr) (e : expr) : expr :=
+Fixpoint subst_all (g : stringmap val) (e : expr) : expr :=
   match e with
   | Var x =>
-      match gv !! x with
+      match g !! x with
       | None   => e
-      | Some k => k
+      | Some k => Val k
       end
-  | AdressOf x =>
-      match ga !! x with
-      | None   => e
-      | Some k => k
-      end
-  | AllocFrame f e => AllocFrame f (subst_all gv ga e)
-  | Val _ => e
+  | AllocFrame f e => AllocFrame f (subst_all g e)
+  | Val _ | AdressOf _ => e
   | Let (BNamed s) e1 e2 =>
-      Let (BNamed s) (subst_all gv ga e1) $ subst_all (delete s gv) (delete s ga) e2
-  | Let (BAnon) e1 e2 => Let (BAnon) (subst_all gv ga e1) $ subst_all gv ga e2
-  | Load e => Load (subst_all gv ga e)
-  | Store e1 e2 => Store (subst_all gv ga e1) (subst_all gv ga e2)
-  | Malloc e => Malloc (subst_all gv ga e)
-  | Free e1 e2 => Free (subst_all gv ga e1) (subst_all gv ga e2)
-  | UnOp op e => UnOp op (subst_all gv ga e)
-  | BinOp op e1 e2 => BinOp op (subst_all gv ga e1) (subst_all gv ga e2)
-  | If e0 e1 e2 => If (subst_all gv ga e0) (subst_all gv ga e1) (subst_all gv ga e2)
-  | While e1 e2 => While (subst_all gv ga e1) (subst_all gv ga e2)
-  | FunCall ef ea => FunCall (subst_all gv ga ef) (map (subst_all gv ga) ea)
+      Let (BNamed s) (subst_all g e1) (subst_all (delete s g) e2)
+  | Let BAnon e1 e2 => Let BAnon (subst_all g e1) (subst_all g e2)
+  | Load e => Load (subst_all g e)
+  | Store e1 e2 => Store (subst_all g e1) (subst_all g e2)
+  | Malloc e => Malloc (subst_all g e)
+  | Free e1 e2 => Free (subst_all g e1) (subst_all g e2)
+  | UnOp op e => UnOp op (subst_all g e)
+  | BinOp op e1 e2 => BinOp op (subst_all g e1) (subst_all g e2)
+  | If e0 e1 e2 => If (subst_all g e0) (subst_all g e1) (subst_all g e2)
+  | While e1 e2 => While (subst_all g e1) (subst_all g e2)
+  | FunCall ef ea => FunCall (subst_all g ef) (map (subst_all g) ea)
   end.
 
-(* e [x <- ex] *)
-Definition subst_var (x : binder) (ex : expr) (e : expr) : expr :=
+Definition subst (x : binder) (v : val) (e : expr) : expr :=
   match x with
-  | BNamed x => subst_all {[x:=ex]} ∅ e
-  | BAnon    => e
-  end.
-
-Definition subst_adr (x : binder) (ex : expr) (e : expr) : expr :=
-  match x with
-  | BNamed x => subst_all ∅ {[x:=ex]} e
+  | BNamed x => subst_all {[x := v]} e
   | BAnon    => e
   end.
 
@@ -507,6 +494,35 @@ Definition asTruth (v:val) : bool := match v with
 Definition list_contains (l : list string) (x1 : string) :=
   existsb (λ 'x2, String.eqb x1 x2) l.
 
+Definition add_unique (x : string) (l : list string) :=
+  if list_contains l x then l else x :: l.
+
+Fixpoint subst_frame (g : stringmap loc) (e : expr) : expr :=
+  match e with
+  | Var x =>
+      match g !! x with
+      | None   => e
+      | Some l => Load $ Val $ LitV $ LitLoc l
+      end
+  | AdressOf x =>
+      match g !! x with
+      | None   => e
+      | Some l => Val $ LitV $ LitLoc l
+      end
+  | AllocFrame f e => AllocFrame f (subst_frame g e)
+  | Val _ => e
+  | Let b e1 e2 => Let b (subst_frame g e1) (subst_frame g e2)
+  | Load e => Load (subst_frame g e)
+  | Store e1 e2 => Store (subst_frame g e1) (subst_frame g e2)
+  | Malloc e => Malloc (subst_frame g e)
+  | Free e1 e2 => Free (subst_frame g e1) (subst_frame g e2)
+  | UnOp op e => UnOp op (subst_frame g e)
+  | BinOp op e1 e2 => BinOp op (subst_frame g e1) (subst_frame g e2)
+  | If e0 e1 e2 => If (subst_frame g e0) (subst_frame g e1) (subst_frame g e2)
+  | While e1 e2 => While (subst_frame g e1) (subst_frame g e2)
+  | FunCall ef ea => FunCall (subst_frame g ef) (map (subst_frame g) ea)
+  end.
+
 (*
  * Fails if :
  * - two variables share the same name
@@ -520,7 +536,7 @@ Fixpoint stack_allocated (env : list string) (acc : option $ list string) (e : e
   | AdressOf x =>
       match acc with
       | None     => None
-      | Some acc => if list_contains env x then Some (x :: acc) else None
+      | Some acc => if list_contains env x then Some (add_unique x acc) else None
       end
   | AllocFrame f x => None
   | Let (BNamed x) e1 e2 =>
@@ -535,15 +551,15 @@ Fixpoint stack_allocated (env : list string) (acc : option $ list string) (e : e
       List.fold_left (stack_allocated env) ea (stack_allocated env acc ef)
   end.
 
-Fixpoint zip_args (an : list binder) (av : list val) (acc : list (string * expr)) : option (list (string * expr)) :=
+Fixpoint zip_args (an : list binder) (av : list val) (acc : list (string * val)) : option (list (string * val)) :=
   match an, av with
   | nil, nil => Some acc
-  | (BNamed ax::ar), (vx::vr) => zip_args ar vr ((ax, Val vx) :: acc)
+  | (BNamed ax::ar), (vx::vr) => zip_args ar vr ((ax, vx) :: acc)
   | (BAnon::ar), (vx::vr) => zip_args ar vr acc
   | _, _ => None
   end.
 
-Definition filter_frame (frame : list string) (args : list (string * expr)) :=
+Definition filter_frame (frame : list string) (args : list (string * val)) :=
   filter (λ '(x1, _), negb $ existsb (λ 'x2, String.eqb x1 x2) frame) args.
 
 Definition apply_function (f : function) (av : list val) :=
@@ -554,36 +570,34 @@ Definition apply_function (f : function) (av : list val) :=
       match stack_allocated (map fst args) (Some []) e with
       | Some frame =>
         let args      := filter_frame frame args in
-        let args_map  := list_to_map args  in
-        let frame_map := list_to_set frame in
-        Some (AllocFrame frame_map (subst_all args_map ∅ e))
+        let args_map  := list_to_map args in
+        Some (AllocFrame frame (subst_all args_map e))
       | None => None
       end
     | _ => None
     end
   end.
 
-Fixpoint local_location (f : list string) (l : loc) (acc : stringmap expr) : stringmap expr :=
+Fixpoint local_location (f : list string) (l : loc) (acc : list (string * loc)) : list (string * loc) :=
   match f with
   | []      => acc
-  | v :: f' => local_location f' (l +ₗ 1) (acc ∪ {[v:=Val $ LitV $ LitLoc l]})
+  | v :: f' => local_location f' (l +ₗ 1) ((v, l) :: acc)
   end.
 
-Definition allocate_frame (f : stringset) (e : expr) (l : loc) :=
-  let frame_size := length $ elements f in
+Definition allocate_frame (f : list string) (e : expr) (l : loc) :=
+  let frame_size := length f in
   (* Avoid free and malloc 0 *)
   if frame_size =? 0 then e
   else
-    let ll := Val $ LitV $ LitLoc l in
-    let ga := local_location (elements f) l ∅ in
-    let gv := fmap Load ga in
-    Let "res" (subst_all ∅ ga e)
-    $ Let BAnon (Free ll (Val $ LitV $ LitInt $ frame_size))
+    let ll := local_location f l [] in
+    let g  := list_to_map ll in
+    Let "res" (subst_frame g e)
+    $ Let BAnon (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt $ frame_size))
     $ Var "res".
 
 Inductive head_step (p : stringmap function) : expr → c_state → expr → c_state → Prop :=
   | LetS x v1 e2 ee σ :
-     ee = subst_var x (Val v1) e2 ->
+     ee = subst x v1 e2 ->
      head_step p (Let x (Val v1) e2) σ ee σ
   | LoadS l v σ :
      σ !! l = Some $ Storing v →
@@ -598,8 +612,8 @@ Inductive head_step (p : stringmap function) : expr → c_state → expr → c_s
      head_step p (Malloc (Val $ LitV $ LitInt n)) σ
                (Val $ LitV $ LitLoc l) (state_init_heap l n Uninitialized σ)
   | AllocFrameS f e σ l :
-     (∀ i, (0 ≤ i)%Z → (i < size f)%Z → σ !! (l +ₗ i) = None) →
-     head_step p (AllocFrame f e) σ (allocate_frame f e l) (state_init_heap l (size f) Uninitialized σ)
+     (∀ i, (0 ≤ i)%Z → (i < length f)%Z → σ !! (l +ₗ i) = None) →
+     head_step p (AllocFrame f e) σ (allocate_frame f e l) (state_init_heap l (length f) Uninitialized σ)
   | FreeS l n σ :
      (∀ i, (0 ≤ i)%Z → (i < n)%Z → ∃ v, σ !! (l +ₗ i) = Some $ Some v) →
      head_step p (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt n)) σ
@@ -656,7 +670,7 @@ Qed.
 Lemma alloc_fresh_frame p f e σ :
   let l := fresh_locs (dom σ) in
   head_step p (AllocFrame f e) σ
-            (allocate_frame f e l) (state_init_heap l (size f) Uninitialized σ).
+            (allocate_frame f e l) (state_init_heap l (length f) Uninitialized σ).
 Proof.
   intros.
   apply AllocFrameS.

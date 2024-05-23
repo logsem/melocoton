@@ -70,12 +70,7 @@ Lemma fib_prog_correct' (n:nat)
 Proof.
   iStartProof.
   iLöb as "IH" forall (n).
-  wp_pures.
-  (* XXX WP_ALLOCFRAME BEG *)
-  wp_apply (wp_allocframe).
-  iIntros (l) "_". unfold allocate_frame.
-  wp_pures. simpl. wp_pures.
-  (* XXX WP_ALLOCFRAME END *)
+  wp_allocframe.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures.
     iModIntro. apply bool_decide_eq_true in Heq.
@@ -134,12 +129,7 @@ Proof.
   iDestruct "H" as "(-> & H)". iDestruct "H" as (? (-> & ?)) "H".
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
-  wp_pures.
-  (* XXX WP_ALLOCFRAME BEG *)
-  wp_apply (wp_allocframe).
-  iIntros (l) "_". unfold allocate_frame.
-  wp_pures. simpl. wp_pures.
-  (* XXX WP_ALLOCFRAME END *)
+  wp_allocframe.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".
@@ -169,11 +159,7 @@ Proof.
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
   wp_pures.
-  (* XXX WP_ALLOCFRAME BEG *)
-  wp_apply (wp_allocframe).
-  iIntros (l) "_". unfold allocate_frame.
-  wp_pures. simpl. wp_pures.
-  (* XXX WP_ALLOCFRAME END *)
+  wp_allocframe.
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".

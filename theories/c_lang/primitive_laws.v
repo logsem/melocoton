@@ -140,14 +140,14 @@ Proof.
 Qed.
 
 Lemma wp_allocframe s f e E Φ :
-  (∀ l, l I↦C∗ replicate (size f) None -∗ WP (allocate_frame f e l) @ s ; E {{ Φ }})
+  (∀ l, l I↦C∗ replicate (length f) None -∗ WP (allocate_frame f e l) @ s ; E {{ Φ }})
   -∗ WP (AllocFrame f e) @ s ; E {{ Φ }}.
 Proof.
   iIntros "H".
   iApply wp_lift_head_step; first done.
-  iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct (size f); eauto with lia head_step).
+  iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct (length f); eauto with lia head_step).
   iIntros (e2 σ2 Hstep). inv_head_step. iModIntro.
-  iMod (gen_heap_alloc_big _ (heap_array _ (replicate (size f) Uninitialized)) with "Hσ")
+  iMod (gen_heap_alloc_big _ (heap_array _ (replicate (length f) Uninitialized)) with "Hσ")
     as "(Hσ & Hl & Hm)".
   { apply heap_array_map_disjoint. rewrite replicate_length; auto with lia. }
   iModIntro. iFrame. iSplitL "Hσ".

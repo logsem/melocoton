@@ -56,6 +56,7 @@ Proof.
   apply Forall2_cons_1 in Hrepr as [Hrepr _].
   cbn. iDestruct "Hsim" as "[Hsim _]".
   wp_call_direct.
+  wp_allocframe.
 
   wp_pures.
   wp_alloc rr as "H"; first done.
