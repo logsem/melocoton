@@ -47,19 +47,22 @@ Proof using.
 
   iExists (λ '(e', σ'), ∃ w ρc mem,
     ml_to_c_heap ρml σ ρc mem ∧
-    ml_to_c_val v w ρc ∧
-    e' = WrSE (ExprV w) ∧ σ' = CState ρc mem).
-  iSplit.
-  { iPureIntro. eapply ValS; try naive_solver. }
+    ml_to_c_outcome (OVal v) (OVal w) ρc ∧
+    e' = WrSE (ExprO (OVal w)) ∧ σ' = CState ρc mem).
+  iSplit. { iPureIntro. eapply OutS; try naive_solver.
+    intros * Hp (lv & Hval & Hrepr). inversion Hval; subst.
+    inversion Hrepr; subst. exists v0, ρc, mem.
+    split_and!; try naive_solver. unfold ml_to_c_outcome. now exists (OVal lv0). }
 
-  iIntros (? ? (w & ρc & mem & Hout & Hcore & -> & ->)).
-  destruct Hcore as [lv [Hv Hr]].
-  iMod ((wrap_interp_ml_to_c [v] [lv]) with "SI Hnb") 
-    as "(SI & Hb & HGC & ((Hsim & _) & %Hrepr))"; eauto.
+  iIntros (? ? (w & ρc & mem & Hout & Hrepr & -> & ->)).
+  iMod (wrap_interp_ml_to_c_out with "SI Hnb") as "(SI & Hb & HGC & H)";
+    first done; first done.
   do 3 iModIntro. iFrame "SI".
-  replace (WrSE (ExprV w)) with (of_outcome wrap_lang (OVal w)) by done. 
+  replace (WrSE (ExprO (OVal w))) with (of_outcome wrap_lang (OVal w)) by done.
   iApply weakestpre.wp_outcome'.
-  iExists _, _, _. iFrame. by inversion Hrepr; simplify_eq.
+  iDestruct "H" as "(% & Hls & %Hval)".
+  inversion Hval; subst.
+  iExists _, w, lv. iFrame. repeat iSplit; eauto.
 Qed.
 
 Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
@@ -147,16 +150,15 @@ Proof.
     iDestruct (SI_at_boundary_is_in_C with "Hst' Hb") as %(ρc'&mem'&->). simpl.
     iRight; iRight. iSplit; first done.
 
-    iDestruct ((wrap_interp_c_to_ml [wret] _ _ _ [vret] [lvret]) with "Hst' HGC Hb [Hsim]")
-      as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_out) "HH"; eauto.
-    1: iFrame; eauto.
+    iDestruct ((wrap_interp_c_to_ml_out (OVal wret) _ _ _ (OVal vret) (OVal lvret)) with "Hst' HGC Hb [Hsim]")
+      as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_out) "HH".
+    { constructor. eauto. }
+    { cbn. iFrame. }
     iExists (λ '(e2, σ2),
       e2 = WrSE (ExprML (language.fill K' (Val vret))) ∧
       σ2 = MLState ρml' σ').
     iSplit.
-    { iPureIntro. eapply RetS; eauto.
-      destruct Hc_to_ml_out as [lvs' [Hr Hi]]. inversion Hr; subst. eexists.
-      split; eauto. inversion Hi; eauto. }
+    { iPureIntro. eapply RetS; eauto. }
     iIntros (? ? (-> & ->)). iMod "HH" as "[Hst' Hnb]".
     do 3 iModIntro. iFrame "Hst'".
 

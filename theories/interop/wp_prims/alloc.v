@@ -49,7 +49,7 @@ Proof using.
     repr θC' roots_m privmem mem' ∧
     roots_are_live θC' roots_m ∧
     θC' !! γ = Some a ∧
-    e' = WrSE (ExprV #a) ∧
+    e' = WrSE (ExprO (OVal #a)) ∧
     σ' = CState {| χC := χC'; ζC := ζC'; θC := θC'; rootsC := rootsC ρc |} mem').
   iSplit. { iPureIntro. econstructor; naive_solver. }
   iIntros (? ? ? (γ & χC' & ζC' & θC' & a & mem' &

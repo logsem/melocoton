@@ -235,6 +235,15 @@ Proof.
       eapply map_union_subseteq_r, extended_to_trans; done.
 Qed.
 
+Lemma deserialize_ML_outcome χMLold ov :
+  lloc_map_inj χMLold
+  → ∃ χC ζimm lv,
+    extended_to χMLold ζimm χC
+  ∧ match ov with OVal v => is_val χC ζimm v lv end.
+Proof.
+  destruct ov as [v]; intros Hinj; now apply deserialize_ML_value.
+Qed.
+
 Lemma deserialize_ML_block χMLold vs :
   lloc_map_inj χMLold
 → ∃ χC ζimm blk,
@@ -427,6 +436,22 @@ Qed.
 End ChiZetaConstruction.
 
 Section ThetaConstruction.
+
+Lemma collect_dom_θ_v (θdom : gset lloc) (v : lval) :
+  exists θdom' : gset lloc,
+    ∀ γ, Lloc γ = v ∨ γ ∈ θdom ↔ γ ∈ θdom'.
+Proof.
+  destruct v.
+  - exists θdom. intros γ. split; intros H; last by eauto.
+    destruct H; done.
+  - exists (θdom ∪ {[ n ]}). intros γ. split.
+    + intros [Hc|H]; eapply elem_of_union.
+      1: right; eapply elem_of_singleton; congruence.
+      left; done.
+    + intros [H|H]%elem_of_union.
+      1: by right.
+      left. f_equal. now apply elem_of_singleton in H.
+Qed.
 
 Lemma collect_dom_θ_vs (θdom : gset lloc) (vs : list lval) :
   exists θdom' : gset lloc,

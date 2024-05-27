@@ -15,7 +15,7 @@ Local Notation prog := (gmap string prim).
 
 Inductive simple_expr : Type :=
   (** the wrapped module returns with a C value *)
-  | ExprV (w : word)
+  | ExprO (o : outcome word)
   (** A call to a C function, which can be either:
      - an outgoing call by the wrapped code to an external C function;
      - an incoming call to a runtime primitive, which will be implemented by the wrapper
@@ -34,22 +34,19 @@ Inductive expr : Type :=
 Definition apply_func (prm : prim) (args : list word) : option expr :=
   Some (WrE (RunPrimitive prm args) []).
 
-Definition of_val (w : word) : expr := WrE (ExprV w) [].
+Definition of_val (w : word) : expr := WrE (ExprO (OVal w)) [].
 
 Definition to_val (e : expr) : option word :=
   match e with
-  | WrE (ExprV w) [] => Some w
+  | WrE (ExprO (OVal w)) [] => Some w
   | _ => None
   end.
 
-Definition of_outcome (o : outcome word) : expr :=
-  match o with
-  | OVal w =>  WrE (ExprV w) []
-  end.
+Definition of_outcome (o : outcome word) : expr := WrE (ExprO o) [].
 
 Definition to_outcome (e : expr) : option (outcome word) :=
   match e with
-  | WrE (ExprV w) [] => Some (OVal w)
+  | WrE (ExprO o) [] => Some o
   | _ => None
   end.
 
@@ -140,6 +137,10 @@ Definition ml_to_c_vals
     (** Pick C-level words that are live and represent the arguments of the
         function. (repr_lval on a location entails that it is live.) *)
     Forall2 (repr_lval (θC ρc)) lvs ws.
+
+Definition ml_to_c_outcome
+  (ov : outcome val) (ow : outcome word) (ρc : wrapstateC) : Prop :=
+  ∃ olv, is_val_out (χC ρc) (ζC ρc) ov olv ∧ repr_lval_out (θC ρc) olv ow.
 
 Lemma ml_to_c_words_length vs ws ρml :
   ml_to_c_vals vs ws ρml →
@@ -241,6 +242,16 @@ Proof.
   split; eauto.
 Qed.
 
+Lemma ml_to_c_no_NB_outcome ov ρml σ :
+  check_ml_state ρml σ →
+  ∃ ow ρc mem, ml_to_c_heap ρml σ ρc mem ∧ ml_to_c_outcome ov ow ρc.
+Proof.
+  intros H. destruct ov;
+  apply (ml_to_c_no_NB_val v) in H as (w & ρc & mem & ? & (lv & Hval & Hrepr)).
+  { eexists (OVal w), ρc, mem; split; eauto; exists (OVal lv).
+    split; now econstructor. }
+Qed.
+
 (* Note: The "freezing step" does properly forbid freezing a
    mutable block that has already been passed to the outside world --- but
    seeing why is not obvious. I works through the combination of:
@@ -303,6 +314,14 @@ Definition c_to_ml_val
     (** Angelically pick an ML value v that correspond to the
        block-level value lv. *)
     is_val (χML ρml) ζ v lv.
+
+Definition c_to_ml_outcome
+  (ow : outcome word) (ρc : wrapstateC)
+  (ov : outcome val) (ρml : wrapstateML) (ζ : lstore)
+: Prop :=
+  ∃ olv,
+    repr_lval_out (θC ρc) olv ow ∧
+    is_val_out (χML ρml) ζ ov olv.
 
 Local Notation CLocV w := (C_intf.LitV (C_intf.LitLoc w)).
 Local Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
@@ -516,20 +535,20 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
        X (WrE (ExprCall fn_name ws) (k::K), CState ρc mem)) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
   (** Execution finishes with an ML value, translate it into a C value *)
-  | ValS eml K ρml σ v X :
-    language.language.to_val eml = Some v →
+  | OutS eml K ρml σ ov X :
+    language.to_outcome eml = Some ov →
     check_ml_state ρml σ →
-    (∀ w ρc mem,
+    (∀ ow ρc mem,
        ml_to_c_heap ρml σ ρc mem →
-       ml_to_c_val v w ρc →
-       X (WrE (ExprV w) K, CState ρc mem)) →
+       ml_to_c_outcome ov ow ρc →
+       X (WrE (ExprO ow) K, CState ρc mem)) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
   (** Given a C value (result of a C extcall), resume execution into ML code. *)
-  | RetS w ki ρc mem v ρml σ K X ζ:
+  | RetS ow ki ρc mem ov ρml σ K X ζ:
     c_to_ml_heap ρc mem ρml σ ζ →
-    c_to_ml_val w ρc v ρml ζ →
-    X (WrE (ExprML (language.fill ki (lang.ML_lang.of_val v))) K, MLState ρml σ) →
-    prim_step_mrel p (WrE (ExprV w) (ki::K), CState ρc mem) X
+    c_to_ml_outcome ow ρc ov ρml ζ →
+    X (WrE (ExprML (language.fill ki (lang.ML_lang.of_outcome ov))) K, MLState ρml σ) →
+    prim_step_mrel p (WrE (ExprO ow) (ki::K), CState ρc mem) X
   (** Administrative step for resolving a call to a primitive. *)
   | ExprCallS fn_name args ρ K prm X :
     p !! fn_name = Some prm →
@@ -538,7 +557,7 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
   (** Call to a primitive (except for callback/main, see next cases) *)
   | PrimS prm ws ρc mem K X :
     c_prim_step prm ws ρc mem (λ w ρc' mem',
-        X (WrE (ExprV w) K, CState ρc' mem')) →
+        X (WrE (ExprO (OVal w)) K, CState ρc' mem')) →
     prim_step_mrel p (WrE (RunPrimitive prm ws) K, CState ρc mem) X
   (** Call to the callback primitive *)
   | CallbackS K w w' ρc mem f x e v ρml σ X ζ:
@@ -564,7 +583,7 @@ Next Obligation.
   destruct H; [
     eapply StepMLS
   | eapply MakeCallS
-  | eapply ValS
+  | eapply OutS
   | eapply RetS
   | eapply ExprCallS
   | eapply PrimS
@@ -587,7 +606,6 @@ Proof using.
   - intros p v σ. eapply ValStopS.
   - intros p e fname vs K σ X ->. rewrite /apply_func; split.
     + inversion 1; simplify_map_eq. naive_solver.
-      destruct o; cbn in H1; congruence.
     + intros (?&?&?&?&?); eapply ExprCallS; simplify_eq; eauto.
   - by intros e [v Hv] f vs K ->.
   - by intros e K1 K2 s vv ->.
@@ -609,21 +627,16 @@ Proof using.
       intros. eexists (WrE _ _); eauto.
     + eapply CallbackS; eauto. eexists (WrE _ _); eauto.
     + eapply MainS; eauto. eexists (WrE _ _); eauto.
-    + rewrite -H1 in Hnv. destruct o; cbn in Hnv; congruence.
   - intros p [[]] σ X; cbn.
     + destruct k; try done; intros _.
       inversion 1; simplify_eq. eauto.
-      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq; eauto.
-      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq; eauto.
-      * apply c_prim_step_no_NB in H5 as (?&?&?&?); eauto.
-      * destruct o; cbn in H1; congruence.
+      apply c_prim_step_no_NB in H5 as (?&?&?&?); eauto.
     + intros _. inversion 1; simplify_eq.
       * destruct H5 as (?&?&?). eauto.
       * apply (ml_to_c_no_NB vs) in H6 as (?&?&?&?&?); eauto.
-      * apply (ml_to_c_no_NB_val v) in H5 as (?&?&?&?&?); eauto.
-      * destruct o; cbn in H1; congruence.
+      * apply (ml_to_c_no_NB_outcome ov) in H5 as (?&?&?&?&?); eauto.
 Qed.
 
 End wrappersem.
