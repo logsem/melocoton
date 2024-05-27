@@ -28,8 +28,8 @@ Import mlanguage.
 Lemma wp_to_outcome (pe : progenv.prog_environ wrap_lang Σ) (o : outcome MLval):
   not_at_boundary
  -∗ WP (WrSE (ExprML (language.of_outcome ML_lang o))) at pe {{ ret,
-   ∃ θ' olv, GC θ' ∗ ⌜repr_lval_out θ' olv ret⌝ ∗ olv ~~ₒ o ∗
-      at_boundary wrap_lang }}.
+   ∃ θ' olv, GC θ' ∗ ⌜repr_lval_out θ' olv ret⌝ ∗
+             olv ~~ₒ o ∗ at_boundary wrap_lang }}.
 Proof using.
   iIntros "Hnb".
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
