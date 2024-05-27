@@ -30,7 +30,7 @@ Definition add_one_ml_spec : protocol ML_lang.val Σ :=
   !! (x:Z)
     {{ True }}
       "add_one" with [ (#ML x) ]
-    {{ RET (#ML(x + 1)); True }}.
+    {{ RETV (#ML(x + 1)); True }}.
 
 Definition add_one_code (x : expr) : expr :=
   let: "r" := Int_val(x) in
@@ -57,9 +57,10 @@ Proof.
   iIntros "HGC". wp_pures.
 
   wp_apply (wp_int2val with "HGC"); auto.
-  iIntros (w) "(HGC&Hr)".
+  iIntros (w) "(HGC&%Hr)".
 
-  iApply "HΦ". iApply ("Return" with "HGC [Cont] []"); eauto.
+  iApply "HΦ".
+  iApply ("Return" $! _ _ (OVal (Lint (x + 1))) with "HGC [Cont] []"); eauto.
   - by iApply "Cont".
   - cbn. done.
 Qed.

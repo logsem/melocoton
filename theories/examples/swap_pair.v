@@ -42,7 +42,7 @@ Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
 Definition swap_pair_prog : lang_prog C_lang := {[ "swap_pair" := swap_pair_func ]}.
 
 Definition swap_pair_ml_spec : protocol ML_lang.val Σ :=
-  !! v1 v2 {{ True }} "swap_pair" with [ (v1, v2)%MLV ] {{ RET (v2, v1)%MLV; True }}.
+  !! v1 v2 {{ True }} "swap_pair" with [ (v1, v2)%MLV ] {{ RETV (v2, v1)%MLV; True }}.
 
 Lemma swap_pair_correct :
   prims_proto swap_pair_ml_spec ||- swap_pair_prog :: wrap_proto swap_pair_ml_spec.
@@ -126,7 +126,8 @@ Proof.
   (* Finish, convert the new points-to to an immutable pointsto *)
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
 
-  iModIntro. iApply "HΦ". iApply ("Return" with "HGC [Cont] [] []").
+  iModIntro. iApply "HΦ".
+  iApply ("Return" $! θ' _ (OVal (Lloc γnew)) with "HGC [Cont] [] []").
   - by iApply "Cont".
   - cbn. do 3 iExists _. iFrame "Hnew Hlv1 Hlv2". done.
   - done.

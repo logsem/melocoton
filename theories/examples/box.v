@@ -89,7 +89,7 @@ Section Proofs.
     !! interp Δ v
     {{ "#Hv" ∷ interp Δ v ∗ "Hna" ∷ na_tok }}
       "box_create" with [v]
-    {{ vr, RET vr; na_tok ∗ box_interp Ψ interp Δ vr }}.
+    {{ vr, RETV vr; na_tok ∗ box_interp Ψ interp Δ vr }}.
 
   Definition box_update_spec_ML : protocol ML_lang.val Σ :=
     !! interp Δ vn vb
@@ -99,7 +99,7 @@ Section Proofs.
        "#Hbox" ∷ ▷ box_interp Ψ interp Δ vb
     }}
       "box_update" with [vn; vb]
-    {{ RET #(); na_tok }}.
+    {{ RETV #(); na_tok }}.
 
   Definition box_listen_spec_ML : protocol ML_lang.val Σ :=
     !! interp Δ vl vb
@@ -109,7 +109,7 @@ Section Proofs.
        "Hna" ∷ na_tok
     }}
       "box_listen" with [vl; vb]
-    {{ RET #(); na_tok }}.
+    {{ RETV #(); na_tok }}.
 
   Import melocoton.c_lang.primitive_laws melocoton.c_lang.proofmode.
 
@@ -145,7 +145,8 @@ Section Proofs.
     iMod (na_inv_alloc logrel_nais _ _ (box_invariant_2 ℓ (interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ)) with "[Hℓ0]") as "#Hinv2".
     { iNext. iRight. iFrame. }
     iMod (freeze_foreign_to_immut γ θ1 _ with "[$]") as "(HGC&#Hγfgn)".
-    iModIntro. iApply "Cont2". iApply ("Return" $! θ1 (#(LitForeign γ)) with "HGC [-] [] []").
+    iModIntro. iApply "Cont2".
+    iApply ("Return" $! θ1 (OVal #(LitForeign γ)) (OVal (Lloc γ)) with "HGC [-] [] []").
     2,3: done.
     iApply "Cont". iFrame "Hna". iExists γ, ℓ.
     iSplit; first done. 
@@ -193,11 +194,12 @@ Section Proofs.
       wp_apply (wp_callback with "[$HGC $Hlv2 Hna]"); [done..| |].
       { iSplit; first iApply "Hlv1".
         iNext. iApply ("Hcall" with "Hv1 Hna"). }
-      iIntros (θ' vret lvret wret) "(HGC & ((%v&Hv&->)&Hna) & _)".
+      iIntros (θ' vret lvret wret) "(HGC & ((%v&->&->)&Hna) & (H & %Hrepr))".
+      destruct lvret. cbn. inversion Hrepr.
       wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
     - wp_apply (wp_load with "Hℓ0"). iIntros "Hℓ0".
       wp_pures.
       iMod ("Hclose2" with "[$Hna Hℓ0]") as "Hna".
@@ -206,7 +208,7 @@ Section Proofs.
       { iNext. iExists _, _. iFrame "Hℓ1 Hvn Hsimvn". }
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
   Qed.
 
   Lemma box_listen_correct :
@@ -250,7 +252,7 @@ Section Proofs.
       destruct v; wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
   Qed.
 
   End InPsi.

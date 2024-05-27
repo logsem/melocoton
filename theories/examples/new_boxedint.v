@@ -36,7 +36,7 @@ Section FFI_spec.
       {{ True }}
         "caml_new_boxedint" with []
       {{
-        RET((#ML (LitBoxedInt 0))%MLV);
+        RETV ((#ML (LitBoxedInt 0))%MLV);
         True
       }}.
 
@@ -65,7 +65,7 @@ Section FFI_spec.
 
     iModIntro.
     iApply "HΦ".
-    iApply ("Return" with "[$HGC] [Cont] []").
+    iApply ("Return" $! _ _ (OVal (Lloc γ)) with "[$HGC] [Cont] []").
     - by iApply "Cont".
     - cbn. iExists γ. iSplit; try eauto.
     - eauto.

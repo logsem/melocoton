@@ -23,7 +23,7 @@ Section Proofs.
     {{{ GC θ }}}
          call: &buffers_specs.buf_alloc_name with (wcap)
       at ⟨buf_lib_prog, prims_proto Ψ⟩
-    {{{ w' θ' lv ℓ, RET w';
+    {{{ w' θ' lv ℓ, RETV w';
        GC θ' ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
        ⌜repr_lval θ' lv w'⌝ }}}%CE.
   Proof.
@@ -135,7 +135,7 @@ Section Proofs.
     iMod (bufToML with "HGC Hbuf") as "(HGC&%vv&Hbuffer&#Hsim)".
     iModIntro. iApply "HΦ".
      rewrite -(_: z = Z.to_nat z); last lia.
-    iApply ("Return" with "HGC (HCont Hbuffer) Hsim [//]").
+    iApply ("Return" $! θ' (OVal vv) (OVal lv) with "HGC (HCont Hbuffer) Hsim [//]").
   Qed.
 
 End Proofs.

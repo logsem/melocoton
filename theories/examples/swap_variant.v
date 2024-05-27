@@ -69,7 +69,7 @@ Definition swap_variant_ml_spec : protocol ML_lang.val Σ :=
   !! (v: MLval) r
       {{ ⌜swap_sum v = Some r⌝ }}
         "swap_variant" with [ v ]
-      {{ RET r; True }}.
+      {{ RETV r; True }}.
 
 Lemma swap_variant_correct :
   prims_proto swap_variant_ml_spec ||- swap_variant_prog :: wrap_proto swap_variant_ml_spec.
@@ -147,7 +147,8 @@ Proof.
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
   change (Z.to_nat 1) with 1; cbn.
 
-  iModIntro. iApply "HΦ". iApply ("Return" with "HGC [Cont] [ProtoPre]").
+  iModIntro. iApply "HΦ".
+  iApply ("Return" $! _ _ (OVal (Lloc γnew)) with "HGC [Cont] [ProtoPre]").
   - by iApply "Cont".
   - destruct v; iDestruct "ProtoPre" as "%Hptpair"; try done;
     cbn in *; simplify_eq;

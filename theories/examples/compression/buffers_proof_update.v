@@ -104,7 +104,8 @@ Section Proofs.
         iNext. by iApply ("HWP" with "[] [] HΨ"). } cbn.
       cbn.
       iIntros (θ' vret lvret wret) "(HGC&(%zret&%Ho&HΦz&HΨframe&HBuffer)&Hv&%Hzrep)".
-      inversion Ho. subst. cbn. iRevert "Hv". iIntros "%Hv". subst.
+      inversion Ho. subst. destruct lvret. inversion Hzrep; subst.
+      cbn. iRevert "Hv". iIntros "%Hv". subst.
       wp_apply (wp_val2int with "HGC"); try done.
       iIntros "HGC".
       iDestruct "HBuffer" as "(%ℓML0&%&%&%Heq&HℓbufML&Hbuf)". simplify_eq. unfold named.
@@ -195,7 +196,8 @@ Section Proofs.
     iIntros "HGC"; wp_pure _.
     wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbf]"); [done..|].
     iIntros "HGC"; wp_pure _.
-    iModIntro. iApply "HΦ". iApply ("Return" with "HGC (HCont HΨ) [//] [//]").
+    iModIntro. iApply "HΦ".
+    iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (HCont HΨ) [//] [//]").
   Qed.
 
 End Proofs.
