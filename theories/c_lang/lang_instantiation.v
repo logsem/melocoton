@@ -28,7 +28,8 @@ Proof. split.
   + done.
   + done.
   + apply lang.C_lang.is_call_of_call_inv.
-  + intros *. eapply lang.C_lang.fill_outcome.
+  + intros *. eapply lang.C_lang.fill_outcome_val.
+  + intros *. eapply lang.C_lang.fill_outcome2.
   + eapply lang.C_lang.fill_comp.
   + done.
   + eapply lang.C_lang.prim_step_fill.

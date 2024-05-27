@@ -75,6 +75,9 @@ Inductive expr :=
   | InjL (e : expr)
   | InjR (e : expr)
   | Case (e0 : expr) (e1 : expr) (e2 : expr)
+  (* Exception *)
+  | Raise (e : expr)
+  | Try (e r : expr)
   (* Heap *)
   | AllocN (e1 e2 : expr) (* array length (positive number), initial value *)
   | LoadN (e1 : expr) (e2 : expr) (* location, offset *)
@@ -108,11 +111,13 @@ Definition expr_ind (P : expr → Prop)
   (f9 : ∀ e : expr, P e → P (InjL e)) (f10 : ∀ e : expr, P e → P (InjR e))
   (f11 : ∀ e0 : expr,
            P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (Case e0 e1 e2))
-  (f12 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (AllocN e1 e2))
-  (f14 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (LoadN e1 e2))
-  (f15 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → ∀ e3 : expr, P e3 → P (StoreN e1 e2 e3))
-  (f16 : ∀ e : expr, P e → P (Length e))
-  (f17 : ∀ (s : string) (ea : list expr), Forall P ea → P (Extern s ea))
+  (f12 : ∀ e : expr, P e → P (Raise e))
+  (f13 : ∀ e : expr, P e → ∀ r : expr, P r → P (Try e r))
+  (f14 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (AllocN e1 e2))
+  (f15 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (LoadN e1 e2))
+  (f16 : ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → ∀ e3 : expr, P e3 → P (StoreN e1 e2 e3))
+  (f17 : ∀ e : expr, P e → P (Length e))
+  (f18 : ∀ (s : string) (ea : list expr), Forall P ea → P (Extern s ea))
   :=
   fix F (e : expr) : P e :=
     match e as e0 return (P e0) with
@@ -129,11 +134,13 @@ Definition expr_ind (P : expr → Prop)
     | InjL e0 => f9 e0 (F e0)
     | InjR e0 => f10 e0 (F e0)
     | Case e0 e1 e2 => f11 e0 (F e0) e1 (F e1) e2 (F e2)
-    | AllocN e1 e2 => f12 e1 (F e1) e2 (F e2)
-    | LoadN e0 e1 => f14 e0 (F e0) e1 (F e1)
-    | StoreN e1 e2 e3 => f15 e1 (F e1) e2 (F e2) e3 (F e3)
-    | Length e => f16 e (F e)
-    | Extern s ea => f17 s ea (Forall_true P ea F)
+    | Raise e => f12 e (F e)
+    | Try e r => f13 e (F e) r (F r)
+    | AllocN e1 e2 => f14 e1 (F e1) e2 (F e2)
+    | LoadN e0 e1 => f15 e0 (F e0) e1 (F e1)
+    | StoreN e1 e2 e3 => f16 e1 (F e1) e2 (F e2) e3 (F e3)
+    | Length e => f17 e (F e)
+    | Extern s ea => f18 s ea (Forall_true P ea F)
     end.
 
 Set Elimination Schemes.
@@ -159,18 +166,23 @@ Proof. destruct e; inversion 1; done. Qed.
 Local Definition of_outcome (o : outcome val) :=
   match o with
   | OVal v => Val v
+  | OExn v => Raise (Val v)
   end.
 
 Local Definition to_outcome (e : expr) :=
   match e with
   | Val v => Some (OVal v)
+  | Raise (Val v) => Some (OExn v)
   | _ => None
   end.
 
 Local Lemma to_of_outcome o : to_outcome (of_outcome o) = Some o.
 Proof. destruct o; try done. Qed.
 Local Lemma of_to_outcome e o : to_outcome e = Some o → of_outcome o = e.
-Proof. destruct e; inversion 1; try done. Qed.
+Proof. destruct e; inversion 1; try done. destruct e; inversion H1; try done. Qed.
+
+Lemma comp_val_in_out e : to_outcome e = None → to_val e = None.
+Proof. destruct e; eauto. cbn. congruence. Qed.
 
 (** Helpers to define the semantics of equality on values [EqOp].
 
@@ -309,6 +321,8 @@ Proof.
      | InjR e, InjR e' => cast_if (decide (e = e'))
      | Case e0 e1 e2, Case e0' e1' e2' =>
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | Raise e, Raise e' => cast_if (decide (e = e'))
+     | Try e r, Try e' r' => cast_if_and (decide (e = e')) (decide (r = r'))
      | AllocN e1 e2, AllocN e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | LoadN e1 e2, LoadN e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
@@ -362,6 +376,8 @@ Proof.
      | InjR e, InjR e' => cast_if (decide (e = e'))
      | Case e0 e1 e2, Case e0' e1' e2' =>
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | Raise e, Raise e' => cast_if (decide (e = e'))
+     | Try e r, Try e' r' => cast_if_and (decide (e = e')) (decide (r = r'))
      | AllocN e1 e2, AllocN e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | LoadN e1 e2, LoadN e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
@@ -446,7 +462,9 @@ Proof.
      | InjL e => GenNode 9 [go e]
      | InjR e => GenNode 10 [go e]
      | Case e0 e1 e2 => GenNode 11 [go e0; go e1; go e2]
-     | AllocN e1 e2 => GenNode 13 [go e1; go e2]
+     | Raise e => GenNode 12 [go e]
+     | Try e r => GenNode 13 [go e; go r]
+     | AllocN e1 e2 => GenNode 14 [go e1; go e2]
      | LoadN e1 e2 => GenNode 15 [go e1; go e2]
      | StoreN e1 e2 e3 => GenNode 16 [go e1; go e2; go e3]
      | Length e => GenNode 17 [go e]
@@ -478,7 +496,9 @@ Proof.
      | GenNode 9 [e] => InjL (go e)
      | GenNode 10 [e] => InjR (go e)
      | GenNode 11 [e0; e1; e2] => Case (go e0) (go e1) (go e2)
-     | GenNode 13 [e1; e2] => AllocN (go e1) (go e2)
+     | GenNode 12 [e] => Raise (go e)
+     | GenNode 13 [e; r] => Try (go e) (go r)
+     | GenNode 14 [e1; e2] => AllocN (go e1) (go e2)
      | GenNode 15 [e1; e2] => LoadN (go e1) (go e2)
      | GenNode 16 [e1; e2; e3] => StoreN (go e1) (go e2) (go e3)
      | GenNode 17 [e] => Length (go e)
@@ -497,7 +517,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | |]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | |]; simpl; f_equal;
      [exact (gov v)|try done..].
    unfold map; by induction ea as [|ex er ->]; simpl; f_equal.
  - destruct v; by f_equal.
@@ -530,6 +550,8 @@ Inductive ectx_item :=
   | InjLCtx
   | InjRCtx
   | CaseCtx (e1 : expr) (e2 : expr)
+  | RaiseCtx
+  | TryCtx (r : expr)
   | AllocNLCtx (v2 : val)
   | AllocNRCtx (e1 : expr)
   | LoadNLCtx (v2 : val)
@@ -555,6 +577,8 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | InjLCtx => InjL e
   | InjRCtx => InjR e
   | CaseCtx e1 e2 => Case e e1 e2
+  | RaiseCtx => Raise e
+  | TryCtx r => Try e r
   | AllocNLCtx v2 => AllocN e (Val v2)
   | AllocNRCtx e1 => AllocN e1 e
   | LoadNLCtx v2 => LoadN e (Val v2)
@@ -567,6 +591,12 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   end.
 
 Notation delete_binder g b := (binder_delete b g).
+
+Definition is_try Ki :=
+  match Ki with
+  | TryCtx _ => true
+  | _ => false
+  end.
 
 Definition ectx := list ectx_item.
 Definition fill (K : ectx) (e : expr) : expr := foldl (flip fill_item) e K.
@@ -592,6 +622,8 @@ Fixpoint subst_all (g : gmap string val) (e : expr)  : expr :=
   | InjL e => InjL (subst_all g e)
   | InjR e => InjR (subst_all g e)
   | Case e0 e1 e2 => Case (subst_all g e0) (subst_all g e1) (subst_all g e2)
+  | Raise e => Raise (subst_all g e)
+  | Try e r => Try (subst_all g e) (subst_all g r)
   | AllocN e1 e2 => AllocN (subst_all g e1) (subst_all g e2)
   | LoadN e1 e2 => LoadN (subst_all g e1) (subst_all g e2)
   | StoreN e1 e2 e3 => StoreN (subst_all g e1) (subst_all g e2) (subst_all g e3)
@@ -701,6 +733,8 @@ Inductive head_step (p : gmap string ml_function) : expr → state → expr → 
      head_step p (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
   | CaseRS v e1 e2 σ :
      head_step p (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
+  | TryS v r σ :
+      head_step p (Try (Val v) r) σ (Val v) σ
   | AllocNS n v σ l :
      (0 ≤ n)%Z →
      l ∉ dom σ →
@@ -744,9 +778,15 @@ Definition head_reducible (p : gmap _ _) (e : expr) (σ : state) :=
   ∃ e' σ', head_step p e σ e' σ'.
 
 Inductive prim_step p : expr → state → expr → state → Prop :=
-  Prim_step K e1 e2 σ1 σ2 e1' e2' :
+  | Prim_step K e1 e2 σ1 σ2 e1' e2' :
     e1 = fill K e1' → e2 = fill K e2' →
-    head_step p e1' σ1 e2' σ2 → prim_step p e1 σ1 e2 σ2.
+    head_step p e1' σ1 e2' σ2 → prim_step p e1 σ1 e2 σ2
+  | Prim_step_raise K Ki e1 e2 σ1 σ2 v :
+      e1 = fill (Ki :: K) (Raise (Val v)) → e2 = fill K (Raise (Val v)) →
+      ¬is_try Ki → prim_step p e1 σ1 e2 σ2
+  | Prim_step_try K e1 e2 σ1 σ2 r v :
+      e1 = fill (TryCtx r :: K) (Raise (Val v)) → e2 = fill K (App r (Val v)) →
+      prim_step p e1 σ1 e2 σ2.
 
 (** External calls *)
 
@@ -784,10 +824,24 @@ Proof.
   rewrite !fill_comp_item. by intros ?%IH%fill_item_inj.
 Qed.
 
+Lemma val_head_stuck p e1 σ1 e2 σ2 :
+  head_step p e1 σ1 e2 σ2 → to_val e1 = None.
+Proof.
+  inversion 1; simplify_eq; try done.
+Qed.
+
 Lemma outcome_head_stuck p e1 σ1 e2 σ2 :
   head_step p e1 σ1 e2 σ2 → to_outcome e1 = None.
 Proof.
   inversion 1; simplify_eq; try done.
+Qed.
+
+Lemma head_ctx_item_step_val p Ki e σ1 e2 σ2 :
+  head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_val e).
+Proof.
+  revert e2. induction Ki; try by (inversion_clear 1; simplify_option_eq; eauto).
+  intros e2. inversion 1; subst. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
+  apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
 Qed.
 
 Lemma head_ctx_item_step_outcome p Ki e σ1 e2 σ2 :
@@ -798,13 +852,13 @@ Proof.
   apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
 Qed.
 
-Lemma fill_item_no_outcome_inj Ki1 Ki2 e1 e2 :
-  to_outcome e1 = None → to_outcome e2 = None →
+Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
+  to_val e1 = None → to_val e2 = None →
   fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
 Proof.
   revert Ki1. induction Ki2; intros Ki1; induction Ki1; try naive_solver eauto with f_equal.
   - intros H1 H2 H3. cbn in H3. injection H3. intros H4 ->.
-    edestruct (list_eq_sliced _ _ _ _ _ _ (fun x => is_Some (to_outcome x)) H4) as (Heq & -> & ->).
+    edestruct (list_eq_sliced _ _ _ _ _ _ (fun x => is_Some (to_val x)) H4) as (Heq & -> & ->).
     + by intros k [k' [<- Hk']]%in_map_iff.
     + by intros k [k' [<- Hk']]%in_map_iff.
     + by rewrite H1.
@@ -812,43 +866,78 @@ Proof.
     + f_equal. apply (map_inj Val). 2:easy. congruence.
 Qed.
 
+Lemma fill_item_no_outcome_inj Ki1 Ki2 e1 e2 :
+  to_outcome e1 = None → to_outcome e2 = None →
+  fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
+Proof.
+  intros Ho1 Ho2 Hf. eapply fill_item_no_val_inj;
+  eauto; now apply comp_val_in_out.
+Qed.
+
 Lemma prim_step_inv p e1 e2 σ1 σ2 :
   prim_step p e1 σ1 e2 σ2 →
-  ∃ K e1' e2', e1 = fill K e1' ∧ e2 = fill K e2' ∧ head_step p e1' σ1 e2' σ2.
-Proof. inversion 1; subst; do 3 eexists; eauto. Qed.
+  (∃ K e1' e2', e1 = fill K e1' ∧ e2 = fill K e2' ∧ head_step p e1' σ1 e2' σ2) ∨
+  (∃ K Ki v, e1 = fill (Ki :: K) (Raise (Val v)) ∧
+             e2 = fill K (Raise (Val v)) ∧ ¬ is_try Ki) ∨
+  (∃ K r v, e1 = fill (TryCtx r :: K) (Raise (Val v)) ∧
+            e2 = fill K (App r (Val v))).
+Proof.
+  inversion 1; subst.
+  { left; do 3 eexists; eauto. }
+  { right; left; do 5 eexists; eauto. }
+  { repeat right; do 5 eexists; eauto. }
+Qed.
 
 Lemma head_prim_step p e1 σ1 e2 σ2 :
   head_step p e1 σ1 e2 σ2 → prim_step p e1 σ1 e2 σ2.
 Proof. apply Prim_step with []; by rewrite ?fill_empty. Qed.
 
-Local Lemma fill_outcome (K : list ectx_item) (e: expr) :
-  is_Some (to_outcome (fill K e)) → to_outcome (fill K e) = to_outcome e.
+Local Lemma fill_outcome_val (K : list ectx_item) (e: expr) :
+  (∃v, to_outcome (fill K e) = Some (OVal v)) → to_outcome (fill K e) = to_outcome e.
 Proof.
   intros [v Hv]. revert v Hv. induction K as [|k1 K] using rev_ind; intros v Hv.
   1: done.
   rewrite fill_app in Hv.
   destruct k1; cbn in Hv; try congruence.
+  rewrite fill_app. simpl. destruct (fill K e); try congruence.
 Qed.
 
-Lemma fill_outcome2 (K : list ectx_item) (e: expr) :
+Lemma fill_val (K : list ectx_item) (e: expr) :
+  is_Some (to_val (fill K e)) → is_Some (to_val e).
+Proof.
+  intros Hv. revert Hv. induction K as [|k1 K] using rev_ind; intros Hv.
+  1: done.
+  rewrite fill_app in Hv.
+  destruct k1; cbn in Hv; destruct Hv; try congruence.
+Qed.
+
+Local Lemma fill_val_2 (K : list ectx_item) (e: expr) v :
+  fill K e = Val v → is_Some (to_val e).
+Proof. intros HH. eapply (fill_val K). rewrite HH//. Qed.
+
+Lemma fill_outcome (K : list ectx_item) (e: expr) :
   is_Some (to_outcome (fill K e)) → is_Some (to_outcome e).
 Proof.
-  intros H. assert (is_Some (to_outcome (fill K e))) as [x Heq] by done.
-  apply fill_outcome in H. rewrite Heq in H; done.
+  intros Hv. revert Hv. induction K as [|k1 K] using rev_ind; intros Hv.
+  1: done.
+  rewrite fill_app in Hv.
+  destruct k1; cbn in Hv; destruct Hv; try congruence.
+  apply IHK. destruct (fill K e); cbn; try congruence.
+  eexists; eauto.
 Qed.
 
 Local Lemma fill_outcome_3 (K : list ectx_item) (e: expr) o :
-  fill K e = (of_outcome o) → is_Some (to_outcome e).
+  fill K e = of_outcome o → is_Some (to_outcome e).
 Proof.
-  intros HH. eapply (fill_outcome2 K).
+  intros HH. eapply (fill_outcome K).
   rewrite HH//. exists o. now apply to_of_outcome.
 Qed.
 
 Lemma to_outcome_of_call fn vs : to_outcome (of_call fn vs) = None.
 Proof. rewrite /to_outcome /of_call //. Qed.
 
-Local Lemma fill_call e K fn vs :
-  fill K e = of_call fn vs → K = [] ∨ is_Some (to_outcome e).
+Local Lemma fill_call_val e K fn vs :
+  fill K e = of_call fn vs → K = [] ∨ is_Some (to_val e).
 Proof.
   revert e. destruct K as [|k1 K] using rev_ind; intros *; cbn; first by left.
   rewrite fill_app/=.
@@ -856,12 +945,35 @@ Proof.
   rewrite /of_call /=. inversion 1; subst.
   assert (In (fill K e) (map Val vs)) as [vv [Hvv' Hvv]]%in_map_iff.
   { rewrite -H2; apply in_app_iff; right; now left. }
-  right. now apply (fill_outcome_3 K e (OVal vv)).
+  right. symmetry in Hvv'. now apply fill_val_2 in Hvv'.
+Qed.
+
+Local Lemma fill_call e K fn vs :
+  fill K e = of_call fn vs → K = [] ∨ is_Some (to_outcome e).
+Proof.
+  intros H. apply fill_call_val in H as [H | H]; eauto.
+  right. destruct e; destruct H as [v' H]; simpl in *; try congruence.
+  eauto.
+Qed.
+
+Lemma fill_raise e K v : fill K e = Raise (Val v) → K = [] ∨ is_Some (to_outcome e).
+Proof.
+  revert e. destruct K as [|Ki K] using rev_ind; intros *; cbn; first by left.
+  rewrite fill_app/=.
+  destruct Ki; (try by inversion 1).
+  cbn. inversion 1. right.
+  now apply (fill_outcome_3 K e (OVal v)).
 Qed.
 
 Local Lemma fill_comp e K1 K2 :
   fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e.
 Proof. rewrite /fill /comp_ectx foldl_app//. Qed.
+
+Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
+Proof.
+  intros HH. destruct (to_val (fill K e)) eqn:Heq; try done.
+  destruct (fill_val K e); try done. congruence.
+Qed.
 
 Lemma fill_not_outcome K e : to_outcome e = None → to_outcome (fill K e) = None.
 Proof.
@@ -872,46 +984,90 @@ Qed.
 Local Lemma outcome_prim_step p o σ1 e2 σ2:
   prim_step p (of_outcome o) σ1 e2 σ2 → False.
 Proof.
-  inversion 1; subst. symmetry in H0.
-  eapply outcome_head_stuck in H2.
-  apply fill_outcome_3 in H0; destruct H0; congruence.
+  inversion 1; subst; symmetry in H0.
+  { eapply outcome_head_stuck in H2.
+    apply fill_outcome_3 in H0; destruct H0; congruence. }
+  1: destruct Ki.
+  all:(simpl in H0; apply fill_outcome_3 in H0;
+       simpl in H0; destruct H0; congruence).
 Qed.
 
-Lemma head_ctx_step_outcome' p K e σ1 e2 σ2 :
-  head_step p (fill K e) σ1 e2 σ2 → K = [] ∨ is_Some (to_outcome e).
+Lemma head_ctx_step_val p K e σ1 e2 σ2 :
+  head_step p (fill K e) σ1 e2 σ2 → K = [] ∨ is_Some (to_val e).
 Proof.
   destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
   rewrite fill_app /=.
-  intros [v' ?]%head_ctx_item_step_outcome%fill_outcome2. right. exists v'.
+  intros [v' ?]%head_ctx_item_step_val%fill_val. right. exists v'.
   by repeat (case_match; simplify_eq).
 Qed.
 
 Lemma head_ctx_step_outcome p K e σ1 e2 σ2 :
   head_step p (fill K e) σ1 e2 σ2 → K = [] ∨ is_Some (to_outcome e).
 Proof.
-  intros [?|[v Hv]]%head_ctx_step_outcome'; first by left. right.
-  rewrite Hv. eauto.
+  destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
+  rewrite fill_app /=.
+  intros [v' ?]%head_ctx_item_step_outcome%fill_outcome. right. exists v'.
+  by repeat (case_match; simplify_eq).
 Qed.
 
-Lemma step_by_outcome : ∀ p K' K_redex e1' e1_redex σ1 e2 σ2,
-  fill K' e1' = fill K_redex e1_redex →
-  to_outcome e1' = None →
-  head_step p e1_redex σ1 e2 σ2 →
-  ∃ K'', K_redex = comp_ectx K' K''.
+Lemma fill_prefix_val : ∀ K K' e1 e1',
+  fill K e1 = fill K' e1' →
+  to_val e1 = None →
+  to_val e1' = None →
+  ∃ K'', K' = comp_ectx K K'' ∨ K = comp_ectx K' K''.
 Proof.
-  intros p.
-    intros K K' e1 e1' σ1 e2 σ2 Hfill Hred Hstep; revert K' Hfill.
-    induction K as [|Ki K IH] using rev_ind=> /= K' Hfill; eauto using app_nil_r.
-    destruct K' as [|Ki' K' _] using @rev_ind; simplify_eq/=.
-    { rewrite fill_app in Hstep. apply head_ctx_item_step_outcome in Hstep.
-      apply fill_outcome2 in Hstep. destruct Hstep as [? Hstep]. congruence. }
-    rewrite !fill_app /= in Hfill.
-    assert (Ki = Ki') as ->.
-    { eapply fill_item_no_outcome_inj, Hfill.
-      2: by eapply fill_not_outcome, outcome_head_stuck.
-      eapply fill_not_outcome. by destruct e1. }
-    simplify_eq. destruct (IH K') as [K'' ->]; auto.
-    exists K''. rewrite /comp_ectx assoc //.
+  intros * Hfill Hred Hredr; revert K' Hfill.
+  induction K as [|Ki K IH] using rev_ind=> /= K' Hfill; eauto using app_nil_r.
+  destruct K' as [|Ki' K' _] using @rev_ind; simplify_eq/=.
+  { rewrite fill_app in Hredr. eexists. rewrite /comp_ectx app_nil_r; eauto. }
+  rewrite !fill_app /= in Hfill.
+  assert (Ki = Ki') as ->.
+  { eapply fill_item_no_val_inj, Hfill; now apply fill_not_val. }
+  simplify_eq. destruct (IH K') as [K'' [-> | ->]]; auto;
+  rewrite /comp_ectx -app_assoc; eauto.
+Qed.
+
+Lemma fill_prefix : ∀ K K' e1 e1',
+  fill K e1 = fill K' e1' →
+  to_outcome e1 = None →
+  to_outcome e1' = None →
+  ∃ K'', K' = comp_ectx K K'' ∨ K = comp_ectx K' K''.
+Proof.
+  intros * Hfill Hv1 Hv2. eapply (fill_prefix_val); eauto;
+  now apply comp_val_in_out.
+Qed.
+
+Lemma step_by_outcome  : ∀ p K K' e1 e1' σ1 e2 σ2,
+  fill K e1 = fill K' e1' →
+  to_outcome e1 = None →
+  head_step p e1' σ1 e2 σ2 →
+  ∃ K'', K' = comp_ectx K K''.
+Proof.
+  intros * Hfill Hval Hstep.
+  assert (to_outcome e1' = None) as Hval'.
+  { eapply outcome_head_stuck; eapply Hstep. }
+  destruct (fill_prefix K K' e1 e1' Hfill Hval Hval') as [K'' [-> | ->]]; eauto.
+  rewrite -fill_comp in Hfill. apply fill_inj in Hfill; subst.
+  apply head_ctx_step_outcome in Hstep as [-> | [x Htv]].
+  - now exists [].
+  - now rewrite Htv in Hval.
+Qed.
+
+Lemma fill_call_raise fn vs K K' v :
+  ¬ fill K (of_call fn vs) = fill K' (Raise (Val v)).
+Proof.
+  intros * Hctx.
+  assert (to_val (Extern fn (map Val vs)) = None ∧
+          to_val (Raise (Val v)) = None ) as [Hve Hvr] by eauto.
+  destruct (fill_prefix_val K K' _ _ Hctx Hve Hvr) as [K'' [Heq | Heq]];
+  rewrite Heq in Hctx; rewrite -fill_comp in Hctx; apply fill_inj in Hctx.
+  - symmetry in Hctx.
+    destruct (fill_call_val (Raise (Val v)) K'' fn vs Hctx) as [->|Hval].
+    + rewrite /of_call /= in Hctx. congruence.
+    + destruct Hval as [x Hval]. congruence.
+  - destruct (fill_raise (of_call fn vs) K'' v Hctx) as [->|Hval].
+    + rewrite /of_call /= in Hctx. congruence.
+    + unfold of_call in Hval. destruct Hval as [x Hval]. now cbn in Hval.
 Qed.
 
 Lemma call_head_step (p: gmap string ml_function) f vs σ1 e2 σ2 :
@@ -929,14 +1085,17 @@ Lemma prim_step_call_inv (p: gmap _ _) K f vs e' σ σ' :
   prim_step p (fill K (of_call f vs)) σ e' σ' →
   ∃ er fn, Some er = apply_function fn vs ∧ p !! f = Some fn ∧ e' = fill K er ∧ σ' = σ.
 Proof.
-  intros (K' & e1 & e2 & Hctx & -> & Hstep)%prim_step_inv.
-  eapply step_by_outcome in Hstep as H'; eauto.
-  destruct H' as [K'' Hctx']; subst K'.
-  rewrite -fill_comp in Hctx. eapply fill_inj in Hctx.
-  destruct (fill_call e1 K'' f vs) as [->|Ho]; auto.
-  - cbn in *; subst. apply call_head_step in Hstep as (?&?&?&?); simplify_eq.
-    do 2 eexists. split_and!; eauto.
-  - eapply outcome_head_stuck in Hstep. destruct Ho; congruence.
+  intros [(K' & e1 & e2 & Hctx & -> & Hstep) |
+         [(K' & Ki & v  & Hctx & -> & _) |
+          (K' & r  & v  & Hctx & Hf)]]%prim_step_inv;
+  try now apply fill_call_raise in Hctx.
+  { eapply step_by_outcome in Hstep as H'; eauto.
+    destruct H' as [K'' ->].
+    rewrite -fill_comp in Hctx. eapply fill_inj in Hctx.
+    destruct (fill_call e1 K'' f vs) as [->|Ho]; eauto.
+    - cbn in *; subst. apply call_head_step in Hstep as (?&?&?&?); simplify_eq.
+      do 2 eexists. split_and!; eauto.
+    - eapply outcome_head_stuck in Hstep. destruct Ho; congruence. }
 Qed.
 
 Local Lemma call_prim_step (p: gmap _ _) f vs K e σ1 e' σ2 :
@@ -954,12 +1113,17 @@ Qed.
 Local Lemma is_outcome_not_call e :
   is_Some (to_outcome e) → (∀ f vs C, ¬ is_call e f vs C).
 Proof.
-  destruct e; try by inversion 1. cbn. intros _ *.
-  unfold is_call. intros H.
-  assert (of_outcome (OVal v) = Val v) as He by easy.
-  rewrite -He in H. symmetry in H.
-  apply fill_outcome_3 in H. rewrite to_outcome_of_call in H.
-  now destruct H.
+  destruct e; try by inversion 1. all: intros Hs *;
+  unfold is_call; intros H.
+  { assert (of_outcome (OVal v) = Val v) as He by easy.
+    rewrite -He in H. symmetry in H.
+    apply fill_outcome_3 in H. rewrite to_outcome_of_call in H.
+    now destruct H. }
+  { destruct Hs as [x Hs]. cbn in Hs. destruct e; try congruence.
+    assert (of_outcome (OExn v) = Raise (Val v)) as He by easy.
+    rewrite -He in H. symmetry in H.
+    apply fill_outcome_3 in H. rewrite to_outcome_of_call in H.
+    now destruct H. }
 Qed.
 
 Local Lemma is_call_in_cont e K1 K2 fn vs :
@@ -982,8 +1146,10 @@ Local Lemma prim_step_fill p K e σ e' σ' :
   prim_step p e σ e' σ' →
   prim_step p (fill K e) σ (fill K e') σ'.
 Proof.
-  intros (K' & e1' & e2' & -> & -> & ?) % prim_step_inv.
-  rewrite !fill_comp. by econstructor.
+  intros [(K' & e1 & e2 & -> & -> & ?) |
+         [(K' & Ki & v  & -> & -> & ?) |
+          (K' & r  & v  & -> & ->)]]%prim_step_inv;
+  rewrite !fill_comp; by econstructor.
 Qed.
 
 Local Lemma fill_step_inv K p e1' σ1 e2 σ2 :
@@ -991,10 +1157,34 @@ Local Lemma fill_step_inv K p e1' σ1 e2 σ2 :
   ∃ e2', e2 = fill K e2' ∧ prim_step p e1' σ1 e2' σ2.
 Proof.
   intros H1. inversion 1; simplify_eq.
-  destruct (step_by_outcome _ _ _ _ _ _ _ _ H0 H1 H3) as (K'' & ->).
-  rewrite <- fill_comp in *.
-  apply fill_inj in H0; simplify_eq. eexists. split; eauto.
-  by econstructor.
+  { destruct (step_by_outcome _ _ _ _ _ _ _ _ H0 H1 H3) as (K'' & ->).
+    rewrite <- fill_comp in *.
+    apply fill_inj in H0; simplify_eq. eexists. split; eauto.
+    by econstructor. }
+  { assert (to_val e1' = None ∧ to_val (Raise (Val v)) = None ) as [Hve Hvr]
+    by (split; eauto; now apply comp_val_in_out).
+    destruct (fill_prefix_val K _ _ _ H0 Hve Hvr) as [K'' [Heq | Heq]];
+    rewrite Heq in H0; rewrite -fill_comp in H0; apply fill_inj in H0.
+    - unfold comp_ectx in Heq. destruct K''.
+      + cbn in *. subst. cbn in H1; congruence.
+      + simpl in Heq. inversion Heq. rewrite fill_app.
+        exists (fill K'' (Raise (Val v))).
+        split; eauto. subst. eapply Prim_step_raise; eauto.
+    - destruct (fill_raise e1' K'' v H0) as [Hs | Hs].
+      + subst; cbn in *; subst. cbn in *; congruence.
+      + destruct Hs as [o Hs]; subst; congruence. }
+  { assert (to_val e1' = None ∧ to_val (Raise (Val v)) = None ) as [Hve Hvr]
+    by (split; eauto; now apply comp_val_in_out).
+    destruct (fill_prefix_val K _ _ _ H0 Hve Hvr) as [K'' [Heq | Heq]];
+    rewrite Heq in H0; rewrite -fill_comp in H0; apply fill_inj in H0.
+    - unfold comp_ectx in Heq. destruct K''.
+      + cbn in *. subst. cbn in *; congruence.
+      + simpl in Heq. inversion Heq. rewrite fill_app.
+        exists (fill K'' (App r (Val v))).
+        split; eauto. subst. eapply Prim_step_try; eauto.
+    - destruct (fill_raise e1' K'' v H0) as [Hs | Hs].
+      + subst; cbn in *; subst. cbn in *; congruence.
+      + destruct Hs as [o Hs]; subst; congruence. }
 Qed.
 
 Local Lemma head_reducible_prim_step_ctx p K e1 σ1 e2 σ2 :
@@ -1002,14 +1192,43 @@ Local Lemma head_reducible_prim_step_ctx p K e1 σ1 e2 σ2 :
   prim_step p (fill K e1) σ1 e2 σ2 →
   ∃ e2', e2 = fill K e2' ∧ head_step p e1 σ1 e2' σ2.
 Proof.
-  intros (e2''&σ2''&HhstepK) (K' & e1' & e2' & HKe1 & -> & Hstep) % prim_step_inv.
-  edestruct (step_by_outcome p K) as [K'' ?];
+  intros (e2''&σ2''&HhstepK)
+         [(K' & e1' & e2' & HKe1 & -> & Hstep) |
+         [(K' & Ki  & v   & HKe1 & -> & Ht) |
+          (K' & r   & v   & HKe1 & ->)]]%prim_step_inv.
+  { edestruct (step_by_outcome p K) as [K'' ?];
     eauto using outcome_head_stuck; simplify_eq/=.
-  rewrite -fill_comp in HKe1; simplify_eq.
-  exists (fill K'' e2'). rewrite fill_comp; split; first done.
-  apply head_ctx_step_outcome in HhstepK as [?|[v ?]]; simplify_eq.
-  - by rewrite //=.
-  - apply outcome_head_stuck in Hstep; simplify_eq.
+    rewrite -fill_comp in HKe1; simplify_eq.
+    exists (fill K'' e2'). rewrite fill_comp; split; first done.
+    apply head_ctx_step_outcome in HhstepK as [?|[v ?]]; simplify_eq.
+    - by rewrite //=.
+    - apply outcome_head_stuck in Hstep; simplify_eq. }
+  { edestruct (fill_prefix_val _ _ _ _ HKe1);
+    eauto using val_head_stuck; simplify_eq/=.
+    destruct H as [Heq | Heq].
+    - rewrite -fill_comp_item in HKe1. rewrite Heq in HKe1.
+      rewrite fill_app in HKe1. apply fill_inj in HKe1. subst.
+      assert (x = [] ∨ is_Some (to_val (Raise (Val v)))) as [-> | [o Ho]]
+      by (eapply head_ctx_step_val; apply HhstepK); simpl in *; try congruence.
+      inversion HhstepK.
+    - subst. rewrite fill_app in HKe1. simpl in *.
+      apply fill_inj, fill_item_inj in HKe1.
+      destruct (fill_raise e1 x v HKe1) as [-> | [o Ho]]; simpl in *; subst.
+      + inversion HhstepK.
+      + apply outcome_head_stuck in HhstepK. subst; congruence. }
+  { edestruct (fill_prefix_val _ _ _ _ HKe1);
+    eauto using val_head_stuck.
+    destruct H as [Heq | Heq].
+    - rewrite Heq in HKe1.
+      rewrite fill_app in HKe1. apply fill_inj in HKe1. subst.
+      assert (x = [] ∨ is_Some (to_val (Raise (Val v)))) as [-> | [o Ho]]
+      by (eapply head_ctx_step_val; apply HhstepK); simpl in *; try congruence.
+      inversion HhstepK.
+    - subst. rewrite fill_app in HKe1. simpl in *.
+      apply fill_inj in HKe1. inversion HKe1.
+      destruct (fill_raise e1 x v H0) as [-> | [o Ho]]; simpl in *; subst.
+      + inversion HhstepK.
+      + apply outcome_head_stuck in HhstepK. subst; congruence. }
 Qed.
 
 Lemma head_reducible_prim_step p e1 σ1 e2 σ2 :
@@ -1049,7 +1268,7 @@ Lemma unmap_val_map le lv : unmap_val le = Some lv → map Val lv = le.
 Proof.
   induction le in lv|-*.
   - intros H. injection H. intros <-. easy.
-  - cbn. destruct a. 2-18:congruence.
+  - cbn. destruct a. 2-20:congruence.
     destruct (unmap_val le) eqn:Heq. 2:congruence.
     intros H. injection H. intros <-. cbn. f_equal. now apply IHle.
 Qed.
@@ -1058,7 +1277,10 @@ Local Lemma prim_step_call_dec p e σ e' σ' :
   prim_step p e σ e' σ' →
   (∃ fn vs K, is_call e fn vs K) ∨ (∀ fn vs K, ¬ is_call e fn vs K).
 Proof.
-  intros (K & e1' & e2' & ? & ? & Hstep)%prim_step_inv; subst.
+  intros [(K' & e1' & e2' & HKe1 & -> & Hstep) |
+         [(K' & Ki  & v   & HKe1 & -> & Ht) |
+          (K' & r   & v   & HKe1 & ->)]]%prim_step_inv; subst;
+  try (right; intros fn vs K Hcall%eq_sym; now apply fill_call_raise in Hcall).
   destruct (to_outcome e1') eqn:Hval.
   { exfalso. apply outcome_head_stuck in Hstep. congruence. }
 
@@ -1066,18 +1288,18 @@ Proof.
   { assert (∃ fn vs, e1' = of_call fn vs) as (fn' & vs' & ?).
     { unfold to_call_head in Hcall. repeat case_match; simplify_eq.
       eapply unmap_val_map in H0. subst; eauto. } subst.
-    apply call_head_step in Hstep as (?&?&?&?); simplify_eq.
-    unfold is_call. eauto. }
+      apply call_head_step in Hstep as (?&?&?&?); simplify_eq.
+      unfold is_call. eauto. }
 
   right. unfold is_call, of_call.
-  intros fn vs K' Hcall'%eq_sym.
+  intros fn vs K'' Hcall'%eq_sym.
   pose proof Hcall' as Hcall''.
   eapply step_by_outcome in Hcall'' as (?&?); eauto; subst.
   rewrite -fill_comp in Hcall'. apply fill_inj in Hcall'.
   symmetry in Hcall'. pose proof Hcall' as Hcall''.
   apply fill_call in Hcall'' as [|]; cbn in *; subst.
   - cbn in Hcall'; subst. rewrite /= map_unmap_val // in Hcall.
-  - destruct H; congruence.
+  - destruct H; congruence. 
 Qed.
 
 Local Lemma prim_step_no_call p1 p2 e σ e' σ' :
@@ -1085,11 +1307,17 @@ Local Lemma prim_step_no_call p1 p2 e σ e' σ' :
   prim_step p1 e σ e' σ' →
   prim_step p2 e σ e' σ'.
 Proof.
-  intros Hncall (K & e1' & e2' & ? & ? & Hstep)%prim_step_inv; subst.
-  inversion Hstep; subst.
-  all: try repeat (econstructor; eauto).
-  exfalso. eapply Hncall. done.
+  intros Hncall.
+  intros [(K' & e1' & e2' & HKe1 & -> & Hstep) |
+         [(K' & Ki  & v   & HKe1 & -> & Ht) |
+          (K' & r   & v   & HKe1 & ->)]]%prim_step_inv; subst.
+  { inversion Hstep; subst.
+    all: try repeat (econstructor; eauto).
+    exfalso. eapply Hncall. done. }
+  { apply (Prim_step_raise p2 K' Ki _ _ _ _ v); eauto. }
+  { apply (Prim_step_try p2 K' _ _ _ _ r v); eauto. }
 Qed.
+(* Qed. *)
 
 End ML_lang.
 Export ML_lang.

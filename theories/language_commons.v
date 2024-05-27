@@ -9,11 +9,11 @@ From melocoton Require Export named_props.
 
 Inductive outcome (val: Type) :=
 | OVal (v : val)
-(* | OExn (v : val) *)
+| OExn (v : val)
 .
 
 Arguments OVal {_} _.
-(* Arguments OExn {_} _. *)
+Arguments OExn {_} _.
 
 (** Weakestpre notations *)
 

@@ -53,9 +53,11 @@ Section language_mixin.
       is_call (of_call fn vs) fn' vs' K →
       fn' = fn ∧ vs' = vs ∧ K = empty_ectx;
 
-    mixin_fill_outcome e K :
-      is_Some (to_outcome (fill K e)) →
+    mixin_fill_outcome_val e K:
+      (∃v, to_outcome (fill K e) = Some (OVal v)) →
       to_outcome (fill K e) = to_outcome e;
+    mixin_fill_outcome e K :
+      is_Some (to_outcome (fill K e)) → is_Some (to_outcome e);
     mixin_fill_comp e K1 K2 :
       fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_fill_empty e :
@@ -215,26 +217,24 @@ Section language.
     fn' = fn ∧ vs' = vs ∧ K = empty_ectx.
   Proof. apply language_mixin. Qed.
 
-  Lemma fill_outcome K e:
-    is_Some (to_outcome (fill K e)) → to_outcome (fill K e) = to_outcome e.
+  Lemma fill_outcome_val K e:
+    (∃ v, to_outcome (fill K e) = Some (OVal v)) →
+    to_outcome (fill K e) = to_outcome e.
   Proof. apply language_mixin. Qed.
 
-  Lemma fill_outcome_2 e K : is_Some (to_outcome (fill K e)) → is_Some (to_outcome e).
-  Proof.
-    intros H. assert (is_Some (to_outcome (fill K e))) as [x Heq] by done.
-    apply fill_outcome in H. rewrite Heq in H; done.
-  Qed.
+  Lemma fill_outcome e K : is_Some (to_outcome (fill K e)) → is_Some (to_outcome e).
+  Proof. apply language_mixin. Qed.
 
-  Lemma fill_outcome_3 K e o : fill K e = of_outcome Λ o → is_Some (to_outcome e).
+  Lemma fill_outcome_2 K e o : fill K e = of_outcome Λ o → is_Some (to_outcome e).
   Proof.
-    intros HH. eapply (fill_outcome_2 _ K).
+    intros HH. eapply (fill_outcome _ K).
     exists o. rewrite HH to_of_outcome //.
   Qed.
 
   Lemma fill_not_outcome e K : to_outcome e = None → to_outcome (fill K e) = None.
   Proof.
     intros Heq; destruct (to_outcome (fill K e)) as [v|] eqn:Heq2; last done.
-    eapply mk_is_Some in Heq2. apply fill_outcome_2 in Heq2. rewrite Heq in Heq2.
+    eapply mk_is_Some in Heq2. apply fill_outcome in Heq2. rewrite Heq in Heq2.
     by destruct Heq2.
   Qed.
 
@@ -245,8 +245,11 @@ Section language.
     { destruct (to_outcome (fill K e)); try congruence.
       destruct o; eauto; congruence. }
     assert (Heq': is_Some (to_outcome (fill K e))) by eauto.
-    rewrite fill_outcome in Heq; try done.
-    unfold to_val; rewrite Heq; auto.
+    apply fill_outcome in Heq'; unfold to_val.
+    rewrite Heq in H.
+    assert (to_outcome e = Some (OVal v)) as ->.
+    { rewrite -(fill_outcome_val K); try exists v; done. }
+    exists v; done.
   Qed.
 
   Lemma fill_val_2 K e v : fill K e = of_val Λ v → is_Some (to_val e).

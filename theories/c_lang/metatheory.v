@@ -248,8 +248,8 @@ Fixpoint free_vars (e : expr) : stringset :=
 Lemma free_vars_closed e X : free_vars e ⊆ X → is_closed_expr X e.
 Proof.
   induction e in X|-*; intros Hfree; cbn.
-  3: destruct x; cbn.
-  1-3,5-12: set_solver.
+  4: destruct x; cbn.
+  1-4,6-12: set_solver. 2: set_solver.
   - cbn in Hfree. apply andb_prop_intro; split. 2: set_solver.
     apply IHe2. apply union_subseteq in Hfree.
     destruct Hfree as [H1 _].
@@ -274,6 +274,7 @@ Proof.
   induction e in H,g1,g2|-*.
   - easy.
   - cbn. rewrite (H x). 2:set_solver. easy.
+  - easy.
   - cbn. destruct x.
     + erewrite IHe1, IHe2. 1:reflexivity.
       all: intros x Hx; apply H; cbn; set_solver.
@@ -318,6 +319,7 @@ Proof.
     + cbn. apply set_eq. intros k. split; last set_solver.
       intros ->%elem_of_singleton. apply elem_of_difference. split; first set_solver.
       intros [? ?]%elem_of_dom. congruence.
+  - cbn. set_solver.
   - destruct x.
     + cbn. rewrite IHe1. rewrite IHe2. set_solver.
     + cbn. rewrite IHe1. rewrite IHe2. set_solver.

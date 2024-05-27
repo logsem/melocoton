@@ -199,6 +199,11 @@ Section Linking.
     - intros *. unfold is_call, to_call. inversion 1; eauto.
     - intros [] K [v Hv]; cbn in Hv. repeat case_match; simplify_eq.
       apply app_eq_nil in H0 as [-> ->]. done.
+    - intros [] K. intros H. destruct K; cbn in *.
+      { destruct H as [o H]. destruct se; try congruence.
+        destruct k; cbn in *; try congruence; eauto. }
+      { destruct se; try congruence. destruct H as [x H].
+        destruct k; cbn in *; try congruence. }
     - intros [] K1 K2. rewrite /= app_assoc //.
     - intros [? ?]. rewrite /= app_nil_r //.
     - intros p C [es eK] σ X Hnv. inversion 1; simplify_eq.

@@ -32,6 +32,8 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
      is_closed_expr X e1 && is_closed_expr X e2
   | If e0 e1 e2 | Case e0 e1 e2 | StoreN e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
+  | Raise e => is_closed_expr X e
+  | Try e r => is_closed_expr X e && is_closed_expr X r
   | Extern _ ea => forallb (is_closed_expr X) ea
   end
 with is_closed_val (v : val) : bool :=

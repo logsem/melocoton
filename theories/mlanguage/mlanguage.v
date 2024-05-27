@@ -46,9 +46,11 @@ Section mlanguage_mixin.
       is_call (to_call fn vs) fn' vs' K →
       fn' = fn ∧ vs' = vs ∧ K = empty_ectx;
 
-    mixin_resume_outcome e K :
-      is_Some (to_outcome (fill K e)) →
+    mixin_fill_outcome_val e K:
+      (∃v, to_outcome (fill K e) = Some (OVal v)) →
       to_outcome (fill K e) = to_outcome e;
+    mixin_fill_outcome e K :
+      is_Some (to_outcome (fill K e)) → is_Some (to_outcome e);
     mixin_resume_compose e K1 K2 :
       fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_resume_empty e :
@@ -196,20 +198,17 @@ Section mlanguage.
     fn' = fn ∧ vs' = vs ∧ K = empty_ectx.
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma resume_outcome e K :
-    is_Some (to_outcome (fill K e)) → to_outcome (fill K e) = to_outcome e.
+  Lemma resume_outcome_val e K :
+    (∃v, to_outcome (fill K e) = Some (OVal v)) → to_outcome (fill K e) = to_outcome e.
   Proof. apply mlanguage_mixin. Qed.
 
-  Lemma resume_outcome_2 e K : is_Some (to_outcome (fill K e)) → is_Some (to_outcome e).
-  Proof.
-    intros H. assert (is_Some (to_outcome (fill K e))) as [x Heq] by done.
-    apply resume_outcome in H. rewrite Heq in H; done.
-  Qed.
+  Lemma resume_outcome e K : is_Some (to_outcome (fill K e)) → is_Some (to_outcome e).
+  Proof. apply mlanguage_mixin. Qed.
 
   Lemma resume_not_outcome e K : to_outcome e = None → to_outcome (fill K e) = None.
   Proof.
     intros Heq; destruct (to_outcome (fill K e)) as [v|] eqn:Heq2; last done.
-    eapply mk_is_Some in Heq2. apply resume_outcome_2 in Heq2; rewrite Heq in Heq2.
+    eapply mk_is_Some in Heq2. apply resume_outcome in Heq2; rewrite Heq in Heq2.
     by destruct Heq2.
   Qed.
 

@@ -57,7 +57,8 @@ Section ToMlang.
     - eapply of_call_is_call.
     - eapply is_call_of_call.
     - eapply is_call_of_call_inv.
-    - intros e K H. apply fill_outcome, H.
+    - intros e K H. apply fill_outcome_val, H.
+    - eapply fill_outcome.
     - eapply fill_comp.
     - eapply fill_empty.
     - intros p C e σ X Hnv. inversion 1; simplify_eq. econstructor.

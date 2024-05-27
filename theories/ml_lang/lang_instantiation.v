@@ -26,6 +26,7 @@ Proof. split; try easy.
   + apply lang.ML_lang.is_outcome_not_call.
   + apply lang.ML_lang.is_call_in_cont.
   + apply lang.ML_lang.is_call_of_call_inv.
+  + intros *. eapply lang.ML_lang.fill_outcome_val.
   + intros *. eapply lang.ML_lang.fill_outcome.
   + eapply lang.ML_lang.fill_comp.
   + eapply lang.ML_lang.prim_step_fill.
