@@ -25,10 +25,10 @@ Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
     "Hproto" ∷ Ψ f vs Φ' ∗
     "Return" ∷ (∀ θ' vret lvret wret,
       GC θ' -∗
-      Φ' (OVal vret) -∗
-      lvret ~~ vret -∗
-      ⌜repr_lval θ' lvret wret⌝ -∗
-      Φ (OVal wret))
+      Φ' vret -∗
+      lvret ~~ₒ vret -∗
+      ⌜repr_lval_out θ' lvret wret⌝ -∗
+      Φ wret)
 )%I.
 
 Lemma wrap_proto_mono Ψ Ψ' : Ψ ⊑ Ψ' → wrap_proto Ψ ⊑ wrap_proto Ψ'.
@@ -183,9 +183,8 @@ Definition callback_proto (Ψ : ML_proto) : C_proto :=
      "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) at ⟨∅, Ψ⟩ {{ Φ' }}
   }}
     "callback" with [ w; w' ]
-  {{ θ' vret lvret wret, RETV wret;
-     GC θ' ∗ Φ' (OVal vret) ∗ lvret ~~ vret ∗ ⌜repr_lval θ' lvret wret⌝
-  }}.
+  {{ θ' ov olv ow, RET ow;
+     GC θ' ∗ Φ' ov ∗ olv ~~ₒ ov ∗ ⌜repr_lval_out θ' olv ow⌝ }}.
 
 Definition main_proto (Φ' : Z → Prop) (Pinit : iProp Σ) : C_proto :=
   !! {{ "Hat_init" ∷ at_init ∗ "Hinitial_resources" ∷ Pinit }}

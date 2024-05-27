@@ -147,7 +147,8 @@ Proof.
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
   change (Z.to_nat 1) with 1; cbn.
 
-  iModIntro. iApply "HΦ". iApply ("Return" with "HGC [Cont] [ProtoPre]").
+  iModIntro. iApply "HΦ".
+  iApply ("Return" $! _ _ (OVal (Lloc γnew)) with "HGC [Cont] [ProtoPre]").
   - by iApply "Cont".
   - destruct v; iDestruct "ProtoPre" as "%Hptpair"; try done;
     cbn in *; simplify_eq;

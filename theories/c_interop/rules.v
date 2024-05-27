@@ -10,7 +10,7 @@ From iris.prelude Require Import options.
 (* Derived WP rules for C<->ML interop.
 
    These follow from the generic rules of the wrapper (in interop/) that work
-   for any language obeying the C interface (c_interface/) -- specialized to our
+r  for any language obeying the C interface (c_interface/) -- specialized to our
    concrete C language (c_lang/). *)
 
 Section Laws.
@@ -317,11 +317,11 @@ Lemma wp_callback p ΨML Ψ θ w γ f x e lv' w' v' Φ :
       (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) at ⟨∅, ΨML⟩ {{ Φ }})
   }}}
     (call: &"callback" with (Val w, Val w'))%CE at ⟨p, Ψ⟩
-  {{{ θ' vret lvret wret, RETV wret;
+  {{{ θ' vret lvret wret, RET wret;
         GC θ' ∗
-        Φ (OVal vret) ∗
-        lvret ~~ vret ∗
-        ⌜repr_lval θ' lvret wret⌝ }}}.
+        Φ vret ∗
+        lvret ~~ₒ vret ∗
+        ⌜repr_lval_out θ' lvret wret⌝ }}}.
 Proof.
   intros Hp Hproto **. iIntros "(? & ? & ? & ?) Cont".
   wp_pures. wp_extern; first done.
@@ -329,7 +329,8 @@ Proof.
   rewrite /callback_proto /named. iSplit; first done.
   do 10 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "(? & ? & ? & %)".
-  iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
+  iApply wp_outcome; first apply to_of_outcome.
+  iApply "Cont"; by iFrame.
 Qed.
 
 Lemma wp_main p Ψ Φ P :
