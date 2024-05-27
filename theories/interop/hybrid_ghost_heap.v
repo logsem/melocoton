@@ -56,6 +56,16 @@ Proof using.
   inversion Hstorel; subst vs0 bb. eauto.
 Qed.
 
+Lemma block_sim_of_auth' χ ζfreeze σ ζ v lv :
+  lstore_hybrid_repr χ ζfreeze σ ζ →
+  is_val χ ζfreeze v lv →
+  lloc_own_auth χ -∗
+  lstore_own_auth ζ -∗
+  lv ~~ v.
+Proof using.
+  intros (?&?&?&?&?) ?. eapply block_sim_of_auth ; eauto.
+Qed.
+
 Lemma block_sim_arr_of_auth' χ ζfreeze σ ζ vs lvs :
   lstore_hybrid_repr χ ζfreeze σ ζ →
   Forall2 (is_val χ ζfreeze) vs lvs →
@@ -64,6 +74,16 @@ Lemma block_sim_arr_of_auth' χ ζfreeze σ ζ vs lvs :
   lvs ~~∗ vs.
 Proof using.
   intros (?&?&?&?&?) ?. eapply block_sim_arr_of_auth; eauto.
+Qed.
+
+Lemma block_sim_auth_is_val' χ ζfreeze σ ζ lv v :
+  lstore_hybrid_repr χ ζfreeze σ ζ →
+  lloc_own_auth χ -∗
+  lstore_own_auth ζ -∗
+  lv ~~ v -∗
+  ⌜is_val χ ζfreeze v lv⌝.
+Proof using.
+  intros (?&->&?&?&?). iApply block_sim_auth_is_val; eauto.
 Qed.
 
 Lemma block_sim_arr_auth_is_val' χ ζfreeze σ ζ lvs vs :
@@ -230,17 +250,26 @@ Proof using.
   iExists γ. by iApply lloc_own_auth_get_pub.
 Qed.
 
-Lemma hgh_block_sim_is_val χ ζ vs lvs :
-  HGH χ None ζ -∗
-  lvs ~~∗ vs -∗
-  ⌜Forall2 (is_val χ ζ) vs lvs⌝.
+Lemma hgh_block_sim_of_val χ ζ σ v lv :
+  is_val χ ζ v lv →
+  HGH χ (Some σ) ζ -∗
+  lv ~~ v.
 Proof using.
-  iNamed 1. iIntros "Hsim". iNamed "HGHσo".
-  iDestruct (block_sim_arr_auth_is_val' with "HGHχ HGHζ Hsim") as %?; eauto.
-  apply lstore_hybrid_repr_refl.
+  intros Hvs. iNamed 1. iNamed "HGHσo".
+  iApply (block_sim_of_auth' with "HGHχ HGHζ"); eauto.
+  eapply is_val_freeze; eauto. eapply is_val_expose_llocs; eauto.
 Qed.
 
-Lemma hgh_block_sim_of χ ζ σ vs lvs :
+Lemma hgh_block_sim_of_out χ ζ σ ov olv :
+  is_val_out χ ζ ov olv →
+  HGH χ (Some σ) ζ -∗
+  olv ~~ₒ ov.
+Proof using.
+  intros Hvs. iIntros "HG".
+  inversion Hvs. cbn. iApply (hgh_block_sim_of_val); eauto.
+Qed.
+
+Lemma hgh_block_sim_of_vals χ ζ σ vs lvs :
   Forall2 (is_val χ ζ) vs lvs →
   HGH χ (Some σ) ζ -∗
   lvs ~~∗ vs.
@@ -249,6 +278,36 @@ Proof using.
   iApply (block_sim_arr_of_auth' with "HGHχ HGHζ"); eauto.
   eapply Forall2_impl; first done. intros ? ? ?.
   eapply is_val_freeze; eauto. eapply is_val_expose_llocs; eauto.
+Qed.
+
+Lemma hgh_block_sim_is_val χ ζ v lv :
+  HGH χ None ζ -∗
+  lv ~~ v -∗
+  ⌜is_val χ ζ v lv⌝.
+Proof using.
+  iNamed 1. iIntros "Hsim". iNamed "HGHσo".
+  iDestruct (block_sim_auth_is_val' with "HGHχ HGHζ Hsim") as %?; eauto.
+  apply lstore_hybrid_repr_refl.
+Qed.
+
+Lemma hgh_block_sim_is_out χ ζ ov olv :
+  HGH χ None ζ -∗
+  olv ~~ₒ ov -∗
+  ⌜is_val_out χ ζ ov olv⌝.
+Proof using.
+  iIntros "HG Hsim". destruct olv, ov. cbn.
+  iDestruct (hgh_block_sim_is_val with "HG Hsim") as %Hval.
+  iPureIntro. now econstructor.
+Qed.
+
+Lemma hgh_block_sim_is_vals χ ζ vs lvs :
+  HGH χ None ζ -∗
+  lvs ~~∗ vs -∗
+  ⌜Forall2 (is_val χ ζ) vs lvs⌝.
+Proof using.
+  iNamed 1. iIntros "Hsim". iNamed "HGHσo".
+  iDestruct (block_sim_arr_auth_is_val' with "HGHχ HGHζ Hsim") as %?; eauto.
+  apply lstore_hybrid_repr_refl.
 Qed.
 
 Local Lemma interp_ML_discarded_locs_pub χpub (σ:store) :

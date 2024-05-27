@@ -42,7 +42,7 @@ Proof using.
        2: constructor; by eapply elem_of_list_lookup_2. eauto. }
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iExists (λ '(e', σ'), e' = WrSE (ExprV w') ∧ σ' = CState ρc mem).
+  iExists (λ '(e', σ'), e' = WrSE (ExprO (OVal w')) ∧ σ' = CState ρc mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }

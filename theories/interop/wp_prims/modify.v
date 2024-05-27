@@ -39,7 +39,7 @@ Proof using.
     by (constructor; lia).
 
   iExists (λ '(e', σ'),
-    e' = WrSE (ExprV #0) ∧
+    e' = WrSE (ExprO (OVal #0)) ∧
     σ' = CState {| χC := χC ρc; ζC := <[γ:=blk']> (ζC ρc); θC := θC ρc; rootsC := rootsC ρc |} mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.

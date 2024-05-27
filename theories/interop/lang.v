@@ -15,7 +15,7 @@ Local Notation prog := (gmap string prim).
 
 Inductive simple_expr : Type :=
   (** the wrapped module returns with a C value *)
-  | ExprV (w : word)
+  | ExprO (o : outcome word)
   (** A call to a C function, which can be either:
      - an outgoing call by the wrapped code to an external C function;
      - an incoming call to a runtime primitive, which will be implemented by the wrapper
@@ -34,22 +34,19 @@ Inductive expr : Type :=
 Definition apply_func (prm : prim) (args : list word) : option expr :=
   Some (WrE (RunPrimitive prm args) []).
 
-Definition of_val (w : word) : expr := WrE (ExprV w) [].
+Definition of_val (w : word) : expr := WrE (ExprO (OVal w)) [].
 
 Definition to_val (e : expr) : option word :=
   match e with
-  | WrE (ExprV w) [] => Some w
+  | WrE (ExprO (OVal w)) [] => Some w
   | _ => None
   end.
 
-Definition of_outcome (o : outcome word) : expr :=
-  match o with
-  | OVal w =>  WrE (ExprV w) []
-  end.
+Definition of_outcome (o : outcome word) : expr := WrE (ExprO o) [].
 
 Definition to_outcome (e : expr) : option (outcome word) :=
   match e with
-  | WrE (ExprV w) [] => Some (OVal w)
+  | WrE (ExprO o) [] => Some o
   | _ => None
   end.
 
@@ -79,11 +76,17 @@ Inductive split_state : state → public_state → private_state → Prop :=
 
 Implicit Types X : expr * state → Prop.
 
-Definition ml_to_c_core
-  (vs : list val) (ρml : wrapstateML) (σ : store)
-  (ws : list word) (ρc : wrapstateC) (mem : memory)
+Definition sanity_check (ρml : wrapstateML) (σ : store) :=
+  lloc_map_inj (χML ρml) ∧
+  dom (ζML ρml) ⊆ dom (χML ρml) ∧
+  dom (privmemML ρml) ## dom (rootsML ρml) ∧
+  map_Forall (λ _ ℓ, σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)).
+
+Definition ml_to_c_heap
+  (ρml : wrapstateML) (σ : store)
+  (ρc : wrapstateC) (mem : memory)
 : Prop :=
-  ∃ (ζσ ζnewimm : lstore) (lvs : list lval),
+  ∃ (ζσ ζnewimm : lstore),
     (** Demonically get a new extended map χC. New bindings in χC correspond to
        new locations in the ML heap (e.g. allocated by ML). *)
     lloc_map_mono (χML ρml) (χC ρc) ∧
@@ -109,101 +112,159 @@ Definition ml_to_c_core
        must represent the contents of σ. (This further constraints the demonic
        choice of ζσ and ζnewimm.) *)
     is_store (χC ρc) (ζC ρc) σ ∧
-    (** Demonically pick block-level values lvs that represent the arguments vs. *)
-    Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
     (** Demonically pick an addr_map θC satisfying the GC_correct property. *)
     GC_correct (ζC ρc) (θC ρc) ∧
     (** Rooted values must additionally be live in θC. *)
     roots_are_live (θC ρc) (rootsML ρml) ∧
-    (** Pick C-level words that are live and represent the arguments of the
-       function. (repr_lval on a location entails that it is live.) *)
-    Forall2 (repr_lval (θC ρc)) lvs ws ∧
     (** Pick C memory (mem) that represents the roots (through θC) + the
        remaining private C memory. *)
     rootsC ρc = dom (rootsML ρml) ∧
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem.
 
-Definition ml_to_c
-  (vs : list val) (ρml : wrapstateML) (σ : store)
-  (Y : list word → wrapstateC → memory → Prop)
-: Prop :=
-  lloc_map_inj (χML ρml) ∧
-  dom (ζML ρml) ⊆ dom (χML ρml) ∧
-  map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)) ∧
-  dom (privmemML ρml) ## dom (rootsML ρml) ∧
-  ∀ ws ρc mem,
-    ml_to_c_core vs ρml σ ws ρc mem →
-    Y ws ρc mem.
+Definition ml_to_c_val (v : val) (w : word) (ρc : wrapstateC) : Prop :=
+  ∃ (lv : lval),
+    is_val (χC ρc) (ζC ρc) v lv ∧
+    repr_lval (θC ρc) lv w.
 
-Lemma ml_to_c_words_length vs ρml σ Y :
-  ml_to_c vs ρml σ Y →
-  ml_to_c vs ρml σ (λ ws ρc mem, Y ws ρc mem ∧ length ws = length vs).
+Definition ml_to_c_vals
+  (vs : list val) (ws : list word) (ρc : wrapstateC) : Prop :=
+  ∃ (lvs : list lval),
+    Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
+    Forall2 (repr_lval (θC ρc)) lvs ws.
+
+Definition ml_to_c_outcome
+  (ov : outcome val) (ow : outcome word) (ρc : wrapstateC) : Prop :=
+  ∃ olv, is_val_out (χC ρc) (ζC ρc) ov olv ∧ repr_lval_out (θC ρc) olv ow.
+
+Lemma ml_to_c_words_length vs ws ρml :
+  ml_to_c_vals vs ws ρml →
+  length ws = length vs.
 Proof.
-  intros (?&?&?&?&HY). split_and!; eauto; [].
-  intros * (?&?&?&?). destruct_and!. split.
-  { eapply HY; unfold ml_to_c_core; naive_solver. }
+  intros * (?&(?&?)).
   repeat match goal with H : _ |- _ => apply Forall2_length in H end.
   lia.
 Qed.
 
-Lemma ml_to_c_no_NB vs ρml σ Y :
-  ml_to_c vs ρml σ Y →
-  ∃ ws ρc mem, Y ws ρc mem.
+Lemma ml_to_c_no_NB vs ρml σ :
+  sanity_check ρml σ →
+  ∃ ws ρc mem, ml_to_c_heap ρml σ ρc mem ∧ ml_to_c_vals vs ws ρc.
 Proof.
-  intros (Hχinj & Hζdom & Hpublocs & Hprivmem & HY).
-  destruct (deserialize_ML_heap_extra (ζML ρml) (χML ρml) σ) as (χ1 & ζσ & ζσimm & Hext & Hstorebl & Hdisj & Hstore).
-  1: done.
-  1: done.
-  1: done.
-  destruct (deserialize_ML_values χ1 vs) as (χ2 & ζimm & lvs & Hext2 & Hvs).
-  1: apply Hext.
+Admitted.
+(*   intros (Hχinj & Hζdom & Hpublocs & Hprivmem). *)
+(*   destruct (deserialize_ML_heap_extra (ζML ρml) (χML ρml) σ) as (χ1 & ζσ & ζσimm & Hext & Hstorebl & Hdisj & Hstore). *)
+(*   1-3: done. *)
+(*   destruct (deserialize_ML_values χ1 vs) as (χ2 & ζimm & lvs & Hext2 & Hvs). *)
+(*   1: apply Hext. *)
+(**)
+(*   assert (ζML ρml ∪ ζσ ∪ ζσimm ##ₘ ζimm) as Hdis1. *)
+(*   1: { eapply map_disjoint_dom. eapply disjoint_weaken. 1: eapply Hext2. 2: done. *)
+(*        rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset. *)
+(*        rewrite dom_union_L. eapply union_subseteq; split. *)
+(*        1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext. *)
+(*        intros γ Hγ. destruct Hstorebl as [_ HR]. apply HR in Hγ. destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. } *)
+(**)
+(*   pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC. *)
+(**)
+(*   destruct (collect_dom_θ_ζ ∅ ζC) as (θdom1 & Hθdom1). *)
+(*   destruct (collect_dom_θ_vs θdom1 lvs) as (θdom2 & Hθdom2). *)
+(*   destruct (collect_dom_θ_roots θdom2 (rootsML ρml)) as (θdom3 & Hθdom3). *)
+(*   destruct (injectivify_map θdom3) as (θC & Hdom & Hinj). *)
+(*   destruct (find_repr_lval_vs θC lvs) as (ws & Hws). *)
+(*   1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done. *)
+(*   assert (roots_are_live θC (rootsML ρml)) as Hrootslive. *)
+(*   1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. } *)
+(*   destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|]. *)
+(**)
+(*   eexists ws, (WrapstateC χ2 ζC θC _), mem. *)
+(*   eapply HY. *)
+(*   { exists lvs; split_and; cbn; try done. *)
+(*     eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono; last done; first done. *)
+(*     unfold ζC. rewrite !map_union_assoc. eapply map_union_subseteq_r. done. } *)
+(*   exists ζσ, (ζσimm ∪ ζimm). split_and!; try done; cbn. *)
+(*   { eapply extended_to_trans; done. } *)
+(*   { destruct Hstorebl as [HL HR]; split. *)
+(*     { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. } *)
+(*     { intros γ; destruct (HR γ) as [HRL HRH]; split. *)
+(*        1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); exists ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2. *)
+(*        intros (ℓ & Vs & H1 & H2). apply HRH. exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (γ2 & Hγ2). *)
+(*        enough (γ2 = γ) as -> by done. eapply Hext2. 2,3: done. eapply lookup_weaken; first done; eapply Hext2. } } *)
+(*   { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken. *)
+(*     1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. } *)
+(*   { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done. *)
+(*     eapply map_disjoint_dom, disjoint_weaken; first eapply map_disjoint_dom, Hdis1; try done. *)
+(*     erewrite ! dom_union_L; set_solver. } *)
+(*   { intros ℓ vs' γ b H1 H2 H3. unfold ζC in *. rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3. *)
+(*     apply lookup_union_Some_inv_l in H3. *)
+(*     2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence. *)
+(*     eapply is_heap_elt_weaken. 1: eapply Hstore; try done. *)
+(*     2: apply Hext2. *)
+(*     + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv]; first by eapply elem_of_dom_2. *)
+(*       rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done. *)
+(*     + eapply map_union_subseteq_l. } *)
+(*   { split; first done. subst θdom3. intros γ blk γ' _ H2 H3. *)
+(*     apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 2 eexists; done. } *)
+(* Qed. *)
 
-  assert (ζML ρml ∪ ζσ ∪ ζσimm ##ₘ ζimm) as Hdis1.
-  1: { eapply map_disjoint_dom. eapply disjoint_weaken. 1: eapply Hext2. 2: done.
-       rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset.
-       rewrite dom_union_L. eapply union_subseteq; split.
-       1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext.
-       intros γ Hγ. destruct Hstorebl as [_ HR]. apply HR in Hγ. destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. }
-
-  pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC.
-
-  destruct (collect_dom_θ_ζ ∅ ζC) as (θdom1 & Hθdom1).
-  destruct (collect_dom_θ_vs θdom1 lvs) as (θdom2 & Hθdom2).
-  destruct (collect_dom_θ_roots θdom2 (rootsML ρml)) as (θdom3 & Hθdom3).
-  destruct (injectivify_map θdom3) as (θC & Hdom & Hinj).
-  destruct (find_repr_lval_vs θC lvs) as (ws & Hws).
-  1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done.
-  assert (roots_are_live θC (rootsML ρml)) as Hrootslive.
-  1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. }
-  destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
-
-  eexists ws, (WrapstateC χ2 ζC θC _), mem. unfold ml_to_c; cbn.
-  eapply HY. exists ζσ, (ζσimm ∪ ζimm), lvs; split_and!; try done; cbn.
-  { eapply extended_to_trans; done. }
-  { destruct Hstorebl as [HL HR]; split.
-    { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. }
-    { intros γ; destruct (HR γ) as [HRL HRH]; split.
-       1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); exists ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2.
-       intros (ℓ & Vs & H1 & H2). apply HRH. exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (γ2 & Hγ2).
-       enough (γ2 = γ) as -> by done. eapply Hext2. 2,3: done. eapply lookup_weaken; first done; eapply Hext2. } }
-  { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken.
-    1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. }
-  { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.
-    eapply map_disjoint_dom, disjoint_weaken; first eapply map_disjoint_dom, Hdis1; try done.
-    erewrite ! dom_union_L; set_solver. }
-  { intros ℓ vs' γ b H1 H2 H3. unfold ζC in *. rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3.
-    apply lookup_union_Some_inv_l in H3.
-    2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence.
-    eapply is_heap_elt_weaken. 1: eapply Hstore; try done.
-    2: apply Hext2.
-    + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv]; first by eapply elem_of_dom_2.
-      rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done.
-    + eapply map_union_subseteq_l. }
-  { eapply Forall2_impl; first done. intros ? ? H; eapply is_val_mono; last done; first done.
-    unfold ζC. rewrite ! map_union_assoc. eapply map_union_subseteq_r. done. }
-  { split; first done. subst θdom3. intros γ blk γ' _ H2 H3.
-    apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 2 eexists; done. }
-Qed.
+Lemma ml_to_c_no_NB_outcome ov ρml σ :
+  sanity_check ρml σ →
+  ∃ ow ρc mem, ml_to_c_heap ρml σ ρc mem ∧ ml_to_c_outcome ov ow ρc.
+Proof.
+Admitted.
+(*   intros (Hχinj & Hζdom & Hpublocs & Hprivmem & HY). *)
+(*   destruct (deserialize_ML_heap_extra (ζML ρml) (χML ρml) σ) as (χ1 & ζσ & ζσimm & Hext & Hstorebl & Hdisj & Hstore). *)
+(*   1-3: done. *)
+(*   destruct (deserialize_ML_outcome χ1 ov) as (χ2 & ζimm & lv & Hext2 & Hvs). *)
+(*   1: apply Hext. *)
+(**)
+(*   assert (ζML ρml ∪ ζσ ∪ ζσimm ##ₘ ζimm) as Hdis1. *)
+(*   1: { eapply map_disjoint_dom. eapply disjoint_weaken. 1: eapply Hext2. 2: done. *)
+(*        rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset. *)
+(*        rewrite dom_union_L. eapply union_subseteq; split. *)
+(*        1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext. *)
+(*        intros γ Hγ. destruct Hstorebl as [_ HR]. apply HR in Hγ. destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. } *)
+(**)
+(*   pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC. *)
+(**)
+(*   destruct (collect_dom_θ_ζ ∅ ζC) as (θdom1 & Hθdom1). *)
+(*   destruct (collect_dom_θ_v θdom1 lv) as (θdom2 & Hθdom2). *)
+(*   destruct (collect_dom_θ_roots θdom2 (rootsML ρml)) as (θdom3 & Hθdom3). *)
+(*   destruct (injectivify_map θdom3) as (θC & Hdom & Hinj). *)
+(*   destruct (find_repr_lval_vv θC lv) as (ws & Hws). *)
+(*   1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done. *)
+(*   assert (roots_are_live θC (rootsML ρml)) as Hrootslive. *)
+(*   1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. } *)
+(*   destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|]. *)
+(**)
+(*   pose (match ov with OVal v => OVal ws end) as ow. *)
+(*   eexists ow, (WrapstateC χ2 ζC θC _), mem. *)
+(*   eapply HY. *)
+(*   { exists lv. destruct ov; cbn; split_and; cbn; try done. *)
+(*     eapply is_val_mono; last done; first done. *)
+(*     unfold ζC. rewrite !map_union_assoc. eapply map_union_subseteq_r. done. } *)
+(*   exists ζσ, (ζσimm ∪ ζimm). split_and!; try done; cbn. *)
+(*   { eapply extended_to_trans; done. } *)
+(*   { destruct Hstorebl as [HL HR]; split. *)
+(*     { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). exists γ. eapply lookup_weaken; first done. apply Hext2. } *)
+(*     { intros γ; destruct (HR γ) as [HRL HRH]; split. *)
+(*        1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); exists ℓ, Vs; split; try done; eapply lookup_weaken; first done; apply Hext2. *)
+(*        intros (ℓ & Vs & H1 & H2). apply HRH. exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. destruct (HL _ H2) as (γ2 & Hγ2). *)
+(*        enough (γ2 = γ) as -> by done. eapply Hext2. 2,3: done. eapply lookup_weaken; first done; eapply Hext2. } } *)
+(*   { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken. *)
+(*     1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. } *)
+(*   { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done. *)
+(*     eapply map_disjoint_dom, disjoint_weaken; first eapply map_disjoint_dom, Hdis1; try done. *)
+(*     erewrite ! dom_union_L; set_solver. } *)
+(*   { intros ℓ vs' γ b H1 H2 H3. unfold ζC in *. rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3. *)
+(*     apply lookup_union_Some_inv_l in H3. *)
+(*     2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence. *)
+(*     eapply is_heap_elt_weaken. 1: eapply Hstore; try done. *)
+(*     2: apply Hext2. *)
+(*     + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv]; first by eapply elem_of_dom_2. *)
+(*       rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done. *)
+(*     + eapply map_union_subseteq_l. } *)
+(*   { split; first done. subst θdom3. intros γ blk γ' _ H2 H3. *)
+(*     apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. right. left. do 2 eexists; done. } *)
+(* Qed. *)
 
 (* Note: The "freezing step" does properly forbid freezing a
    mutable block that has already been passed to the outside world --- but
@@ -217,11 +278,11 @@ Qed.
    - thus: trying to freeze a mutable block means breaking [is_store] unless
      we change back its address to private, which is not possible.
 *)
-Definition c_to_ml
-  (ws : list word) (ρc : wrapstateC) (mem : memory)
-  (vs : list val) (ρml : wrapstateML) (σ : store)
+Definition c_to_ml_heap
+  (ρc : wrapstateC) (mem : memory)
+  (ρml : wrapstateML) (σ : store) (ζ : lstore)
 : Prop :=
-  ∃ σ lvs vs ζ ζσ,
+  ∃ ζσ,
     (** Angelically allow freezing some blocks in (ζC ρc); the result is ζ.
        Freezing allows allocating a fresh block, mutating it, then changing
        it into an immutable block that represents an immutable ML value. *)
@@ -239,16 +300,27 @@ Definition c_to_ml
     is_store_blocks (χML ρml) σ ζσ ∧
     (** The contents of ζ must represent the new σ. *)
     is_store (χML ρml) ζ σ ∧
-    (** Angelically pick a block-level value lv that corresponds to the
-       C value w. *)
-    Forall2 (repr_lval (θC ρc)) lvs ws ∧
-    (** Angelically pick an ML value v that correspond to the
-       block-level value lv. *)
-    Forall2 (is_val (χML ρml) ζ) vs lvs ∧
     (** Split the C memory mem into the memory for the roots and the rest
        ("private" C memory). *)
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
     dom (rootsML ρml) = rootsC ρc.
+
+
+Definition c_to_ml_vals
+  (ws : list word) (ρc : wrapstateC)
+  (vs : list val) (ρml : wrapstateML) (ζ : lstore)
+: Prop :=
+  ∃ lvs,
+    Forall2 (repr_lval (θC ρc)) lvs ws ∧
+    Forall2 (is_val (χML ρml) ζ) vs lvs.
+
+Definition c_to_ml_outcome
+  (ow : outcome word) (ρc : wrapstateC)
+  (ov : outcome val) (ρml : wrapstateML) (ζ : lstore)
+: Prop :=
+  ∃ olv,
+    repr_lval_out (θC ρc) olv ow ∧
+    is_val_out (χML ρml) ζ ov olv.
 
 Local Notation CLocV w := (C_intf.LitV (C_intf.LitLoc w)).
 Local Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
@@ -452,27 +524,30 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
        X (WrE (ExprML eml') K, MLState ρml σ')) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
   (** External call of the ML code to a C function. *)
-  | MakeCallS eml K ρml fn_name vs k σ YC X :
+  | MakeCallS eml K ρml fn_name vs k σ X :
     is_ML_call eml fn_name vs k →
     p !! fn_name = None →
-    ml_to_c vs ρml σ YC →
+    sanity_check ρml σ →
     (∀ ws ρc mem,
-       YC ws ρc mem →
+       ml_to_c_heap ρml σ ρc mem →
+       ml_to_c_vals vs ws ρc →
        X (WrE (ExprCall fn_name ws) (k::K), CState ρc mem)) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
   (** Execution finishes with an ML value, translate it into a C value *)
-  | ValS eml K ρml σ v YC X :
-    language.language.to_val eml = Some v →
-    ml_to_c [v] ρml σ YC →
-    (∀ w ρc mem,
-       YC [w] ρc mem →
-       X (WrE (ExprV w) K, CState ρc mem)) →
+  | OutS eml K ρml σ ov X :
+    language.to_outcome eml = Some ov →
+    sanity_check ρml σ →
+    (∀ ow ρc mem,
+       ml_to_c_heap ρml σ ρc mem →
+       ml_to_c_outcome ov ow ρc →
+       X (WrE (ExprO ow) K, CState ρc mem)) →
     prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
   (** Given a C value (result of a C extcall), resume execution into ML code. *)
-  | RetS w ki ρc mem v ρml σ K X :
-    c_to_ml [w] ρc mem [v] ρml σ →
-    X (WrE (ExprML (language.fill ki (ML_lang.of_val v))) K, MLState ρml σ) →
-    prim_step_mrel p (WrE (ExprV w) (ki::K), CState ρc mem) X
+  | RetS ow ki ρc mem ov ρml σ K X ζ:
+    c_to_ml_heap ρc mem ρml σ ζ →
+    c_to_ml_outcome ow ρc ov ρml ζ →
+    X (WrE (ExprML (language.fill ki (lang.ML_lang.of_outcome ov))) K, MLState ρml σ) →
+    prim_step_mrel p (WrE (ExprO ow) (ki::K), CState ρc mem) X
   (** Administrative step for resolving a call to a primitive. *)
   | ExprCallS fn_name args ρ K prm X :
     p !! fn_name = Some prm →
@@ -481,11 +556,12 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
   (** Call to a primitive (except for callback/main, see next cases) *)
   | PrimS prm ws ρc mem K X :
     c_prim_step prm ws ρc mem (λ w ρc' mem',
-        X (WrE (ExprV w) K, CState ρc' mem')) →
+        X (WrE (ExprO (OVal w)) K, CState ρc' mem')) →
     prim_step_mrel p (WrE (RunPrimitive prm ws) K, CState ρc mem) X
   (** Call to the callback primitive *)
-  | CallbackS K w w' ρc mem f x e v ρml σ X :
-    c_to_ml [w; w'] ρc mem [RecV f x e; v] ρml σ →
+  | CallbackS K w w' ρc mem f x e v ρml σ X ζ:
+    c_to_ml_heap ρc mem ρml σ ζ →
+    c_to_ml_vals [w; w'] ρc [RecV f x e; v] ρml ζ →
     X (WrE (ExprML (App (Val (RecV f x e)) (Val v))) K,
         MLState ρml σ) →
     prim_step_mrel p (WrE (RunPrimitive Pcallback [w; w']) K, CState ρc mem) X
@@ -506,14 +582,14 @@ Next Obligation.
   destruct H; [
     eapply StepMLS
   | eapply MakeCallS
-  | eapply ValS
+  | eapply OutS
   | eapply RetS
   | eapply ExprCallS
   | eapply PrimS
   | eapply CallbackS
   | eapply MainS
   | eapply ValStopS
-  ]; unfold c_to_ml in *; eauto; [naive_solver..|].
+  ]; unfold c_to_ml_heap in *; eauto; [naive_solver..|].
   { (* PrimS case: need to perform inversion on c_prim_step *)
     inversion H; econstructor; eauto; naive_solver. }
 Qed.
@@ -529,7 +605,6 @@ Proof using.
   - intros p v σ. eapply ValStopS.
   - intros p e fname vs K σ X ->. rewrite /apply_func; split.
     + inversion 1; simplify_map_eq. naive_solver.
-      destruct o; cbn in H1; congruence.
     + intros (?&?&?&?&?); eapply ExprCallS; simplify_eq; eauto.
   - by intros e [v Hv] f vs K ->.
   - by intros e K1 K2 s vv ->.
@@ -551,24 +626,16 @@ Proof using.
       intros. eexists (WrE _ _); eauto.
     + eapply CallbackS; eauto. eexists (WrE _ _); eauto.
     + eapply MainS; eauto. eexists (WrE _ _); eauto.
-    + rewrite -H1 in Hnv. destruct o; cbn in Hnv; congruence.
   - intros p [[]] σ X; cbn.
     + destruct k; try done; intros _.
       inversion 1; simplify_eq. eauto.
-      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq; eauto.
-      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq; eauto.
       apply c_prim_step_no_NB in H5 as (?&?&?&?); eauto.
-      destruct o; cbn in H1; congruence.
     + intros _. inversion 1; simplify_eq.
       * destruct H5 as (?&?&?). eauto.
-      * apply ml_to_c_no_NB in H6 as (?&?&?&?); eauto.
-      * apply ml_to_c_words_length in H5.
-        apply ml_to_c_no_NB in H5 as (ws&?&?&?&?).
-        simplify_list_eq. destruct ws as [|? []]; simplify_list_eq.
-        eauto.
-      * destruct o; cbn in H1; congruence.
+      * apply (ml_to_c_no_NB vs) in H6 as (?&?&?&?&?); eauto.
+      * apply (ml_to_c_no_NB_outcome ov) in H5 as (?&?&?&?&?); eauto.
 Qed.
 
 End wrappersem.

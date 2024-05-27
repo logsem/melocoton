@@ -32,7 +32,7 @@ Proof using.
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
-    e' = WrSE (ExprV #0) ∧
+    e' = WrSE (ExprO (OVal #0)) ∧
     σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := rootsC ρc ∖ {[l]} |} mem).
   iSplit. { iPureIntro. econstructor; eauto. rewrite -H2. by eapply elem_of_dom_2. }
   iIntros (? ? ? (? & ?)); simplify_eq.
