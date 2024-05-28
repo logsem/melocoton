@@ -603,6 +603,9 @@ Proof using.
   - intros [] K [v Hv]. rewrite /to_outcome /fill in Hv.
     repeat case_match; try congruence.
     apply app_eq_nil in H0 as (->&->); done.
+  - intros e K [o Ho]. rewrite /to_outcome /fill in Ho.
+    repeat case_match; try congruence. inversion H; subst.
+    apply app_eq_nil in H5 as (->&->); done.
   - intros [] K1 K2.
     rewrite /fill /comp_ectx app_assoc //.
   - intros [? ?]. rewrite /= app_nil_r //.

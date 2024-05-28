@@ -271,8 +271,8 @@ Proof using.
   destruct lv.
   { iDestruct "Hsim" as "->". inversion Hrepr; simplify_eq.
     inversion H2; simplify_eq.
-    iApply "Hcont". iFrame. by iApply "Cont".
-  }
+    iApply "Hcont". iFrame. by iApply "Cont". }
+  { iDestruct "Hsim" as "%Hf". inversion Hf.  }
 Qed.
 
 Lemma wrap_correct emain Ψ (Φ : Z → Prop) P :

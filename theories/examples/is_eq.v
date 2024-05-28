@@ -92,8 +92,11 @@ Section C_specs.
        ⌜repr_lval θ (Lint (bool_to_Z (bool_decide (x = y)))) wret⌝ -∗
        Φ'' (OVal wret))%I with "[Return Cont HΦ]" as "Return". {
       iIntros "!>" (?) "??". iIntros (?).
-      iApply "HΦ". iApply ("Return" with "[$] [-] [] [//]").
-      { by iApply "Cont". } done.
+      iApply "HΦ".
+      iApply ("Return" $! _ _ (OVal (Lint (if bool_decide (x = y) then 1 else 0))) (OVal _) with "[$] [-] []").
+      { by iApply "Cont". }
+      { done. }
+      iPureIntro. constructor. done.
     }
     iLöb as "IH" forall (τ x lvx wx y lvy wy Φ'' Hτ H1 H2).
     wp_call_direct.

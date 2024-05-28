@@ -153,7 +153,7 @@ Proof.
   - destruct v; iDestruct "ProtoPre" as "%Hptpair"; try done;
     cbn in *; simplify_eq;
     cbn; iExists γnew, lvs; repeat (iSplit; try done).
-  - done.
+  - iPureIntro. now constructor.
 Qed.
 
 End C_prog.

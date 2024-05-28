@@ -266,7 +266,7 @@ Lemma hgh_block_sim_of_out χ ζ σ ov olv :
   olv ~~ₒ ov.
 Proof using.
   intros Hvs. iIntros "HG".
-  inversion Hvs. cbn. iApply (hgh_block_sim_of_val); eauto.
+  inversion Hvs; cbn; iApply (hgh_block_sim_of_val); eauto.
 Qed.
 
 Lemma hgh_block_sim_of_vals χ ζ σ vs lvs :
@@ -295,9 +295,10 @@ Lemma hgh_block_sim_is_out χ ζ ov olv :
   olv ~~ₒ ov -∗
   ⌜is_val_out χ ζ ov olv⌝.
 Proof using.
-  iIntros "HG Hsim". destruct olv, ov. cbn.
-  iDestruct (hgh_block_sim_is_val with "HG Hsim") as %Hval.
-  iPureIntro. now econstructor.
+  iIntros "HG Hsim". destruct olv, ov; cbn;
+  try (iDestruct "Hsim" as "%H"; inversion H);
+  try iDestruct (hgh_block_sim_is_val with "HG Hsim") as %Hval;
+  iPureIntro; try now econstructor.
 Qed.
 
 Lemma hgh_block_sim_is_vals χ ζ vs lvs :

@@ -137,10 +137,11 @@ Section Proofs.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
     iModIntro. iApply "Cont2".
-    iApply ("Return" with "HGC [Hγfgn Cont] []"); last done.
+    iApply ("Return" $! _ _ (OVal (Lloc γ)) with "HGC [Hγfgn Cont] []").
     { iApply "Cont". iExists _, _. iSplit; first done.
       iSplit; done. }
-    done.
+    { done. }
+    iPureIntro. now econstructor.
   Qed.
 
   Lemma zigzag_cons_correct :
@@ -171,10 +172,11 @@ Section Proofs.
     wp_apply (wp_write_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&Hγfgn)". wp_pures.
     iModIntro. iApply "Cont2".
-    iApply ("Return" with "HGC [-]"); last done.
+    iApply ("Return" $! _ _ (OVal (Lloc γ)) with "HGC [-]").
     { iApply "Cont". iExists _, _. iSplit; first done. iSplitL "Hγfgn"; first done.
       - iExists _,_,_,_. iSplit; first done. rewrite loc_add_0. iFrame. by iSplit. }
-    done.
+    { done. }
+    iPureIntro. now econstructor.
   Qed.
 
   Lemma zigzag_empty_correct :
@@ -196,18 +198,20 @@ Section Proofs.
       wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
       wp_pure _.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (w) "(HGC&%Hw)".
-      iApply "Cont2". iApply ("Return" with "HGC [-]"); last done.
+      iApply "Cont2". iApply ("Return" $! _ _ (OVal (Lint 1)) with "HGC [-]").
       { iApply "Cont". iExists _, _. iFrame "Hγfgn". by iPureIntro. }
-      done.
+      { done. }
+      iPureIntro. now econstructor.
     - iDestruct "HH" as "(%a&%lv1&%lv2&%Vlst&->&Hrest)".
       iDestruct "Hsimlst" as "->".
       wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|]. iIntros "(HGC&Hγfgn)".
       wp_pure _. 1: by destruct a.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (w) "(HGC&%Hw)".
-      iApply "Cont2". iApply ("Return" with "HGC [-]"); last done.
+      iApply "Cont2". iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [-]").
       { iApply "Cont". iExists _, _. iFrame "Hγfgn".
         iSplit; first done. iExists a,lv1,lv2,Vlst; iFrame. done. }
-      done.
+      { done. }
+      iPureIntro. now econstructor.
   Qed.
 
   Lemma zigzag_head_correct :
@@ -230,10 +234,11 @@ Section Proofs.
     wp_apply (load_from_root with "[$HGC $Ha0]").
     iIntros (whd) "(Ha0&HGC&%Hrepr)".
     iApply "Cont2".
-    iApply ("Return" with "HGC [-]"); last done.
+    iApply ("Return" $! _ _ (OVal lv1) with "HGC [-]").
     - iApply "Cont". iExists γ, _. iSplit; first done. iFrame "Hγfgn".
       iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done.
     - done.
+    - iPureIntro. now econstructor.
   Qed.
 
   Lemma zigzag_tail_correct :
@@ -254,12 +259,13 @@ Section Proofs.
     wp_apply (load_from_root with "[$HGC $Ha1]").
     iIntros (whd) "(Ha1&HGC&%Hrepr)".
     iApply "Cont2".
-    iApply ("Return" with "HGC [-]"); last done.
+    iApply ("Return" $! _ _ (OVal lv2) with "HGC [-]").
     - iApply "Cont". iFrame "Hrec".
       iIntros (tl') "Hrec".
       iExists γ, _. iSplit; first done. iFrame "Hγfgn".
       iExists a, lv1, lv2, Vlst. iFrame "Ha0 Ha1 Hsim0 Hsim1 Hrec". done.
     - done.
+    - iPureIntro. now constructor.
   Qed.
 
   Lemma zigzag_pop_correct :
@@ -289,8 +295,10 @@ Section Proofs.
     { iNext. cbn. rewrite !loc_add_0. iFrame. }
     iIntros "_". wp_pures. iModIntro.
     iApply "Cont2".
-    iApply ("Return" $! θ (OVal Vlst) (OVal lv2) with "HGC (Cont [$Hrec Hγfgn])"); [|done..].
-    iExists _, _; iSplit; first done. iFrame "Hγfgn". done.
+    iApply ("Return" $! θ (OVal Vlst) (OVal lv2) with "HGC (Cont [$Hrec Hγfgn])").
+    { iExists _, _; iSplit; first done. iFrame "Hγfgn". done. }
+    { done. }
+    iPureIntro. now constructor.
   Qed.
 
   End InPsi.

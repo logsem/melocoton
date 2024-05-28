@@ -68,7 +68,7 @@ Section FFI_spec.
     iApply ("Return" $! _ _ (OVal (Lloc γ)) with "[$HGC] [Cont] []").
     - by iApply "Cont".
     - cbn. iExists γ. iSplit; try eauto.
-    - eauto.
+    - iPureIntro. now econstructor.
 Qed.
 
 End FFI_spec.

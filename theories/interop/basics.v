@@ -271,7 +271,11 @@ Inductive repr_lval : addr_map → lval → C_intf.val → Prop :=
 Inductive repr_lval_out : addr_map → outcome lval → outcome C_intf.val → Prop :=
   | repr_lval_val θ lv v :
     repr_lval θ lv v →
-    repr_lval_out θ (OVal lv) (OVal v).
+    repr_lval_out θ (OVal lv) (OVal v)
+  | repr_lval_exn θ lv v :
+    repr_lval θ lv v →
+    repr_lval_out θ (OExn lv) (OExn v).
+
 
 Inductive repr_roots : addr_map → roots_map → memory → Prop :=
   | repr_roots_emp θ :
@@ -348,7 +352,10 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
 Inductive is_val_out : lloc_map → lstore → outcome val → outcome lval → Prop :=
   | is_val_out_val χ ζ v lv:
     is_val χ ζ v lv →
-    is_val_out χ ζ (OVal v) (OVal lv).
+    is_val_out χ ζ (OVal v) (OVal lv)
+  | is_val_out_exn χ ζ v lv:
+    is_val χ ζ v lv →
+    is_val_out χ ζ (OExn v) (OExn lv).
 
 (******************************************************************************)
 (** auxiliary definitions and lemmas *)
@@ -792,7 +799,7 @@ Lemma is_val_out_mono χ χL ζ ζL x y :
   is_val_out χ ζ x y →
   is_val_out χL ζL x y.
 Proof.
-  intros H1 H2; inversion 1; econstructor; eauto.
+  intros H1 H2; inversion 1; subst; econstructor; eauto;
   eapply is_val_mono; eauto.
 Qed.
 

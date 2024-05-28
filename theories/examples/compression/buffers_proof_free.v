@@ -86,8 +86,9 @@ Section Proofs.
     }
     iModIntro.
     iApply "HΦ".
-    iApply ("Return" $! _ (OVal (#ML ()))%MLV (OVal (Lint 0)) with "HGC [-] [//] [//]").
-    iApply ("HCont" with "[//] Hγusedref [$]").
+    iApply ("Return" $! _ (OVal (#ML ()))%MLV (OVal (Lint 0)) with "HGC [-] [//]").
+    { iApply ("HCont" with "[//] Hγusedref [$]"). }
+    iPureIntro. now constructor.
   Qed.
 
 End Proofs.

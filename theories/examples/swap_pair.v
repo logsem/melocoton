@@ -130,7 +130,7 @@ Proof.
   iApply ("Return" $! θ' _ (OVal (Lloc γnew)) with "HGC [Cont] [] []").
   - by iApply "Cont".
   - cbn. do 3 iExists _. iFrame "Hnew Hlv1 Hlv2". done.
-  - done.
+  - iPureIntro. now constructor.
 Qed.
 
 End C_prog.

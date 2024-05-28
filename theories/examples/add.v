@@ -63,6 +63,7 @@ Proof.
   iApply ("Return" $! _ _ (OVal (Lint (x + 1))) with "HGC [Cont] []"); eauto.
   - by iApply "Cont".
   - cbn. done.
+  - iPureIntro. now econstructor.
 Qed.
 
 End C_prog.

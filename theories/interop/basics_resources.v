@@ -490,13 +490,16 @@ Qed.
 Definition block_sim_out (ov : outcome val) (olv : outcome lval) : iProp Σ :=
   match ov, olv with
   | OVal v, OVal lv => block_sim v lv
+  | OExn v, OExn lv => block_sim v lv
+  | _, _ => ⌜False⌝
   end.
 
 Notation "olv  ~~ₒ  ov" := (block_sim_out ov olv) (at level 20).
 
 Global Instance block_sim_out_pers v l : Persistent (l ~~ₒ v).
 Proof using.
-  destruct v, l. cbn. apply block_sim_pers.
+  destruct v, l; cbn; try apply block_sim_pers; unfold Persistent;
+  now iIntros "%H".
 Qed.
 
 Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=

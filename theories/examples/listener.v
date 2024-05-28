@@ -151,11 +151,12 @@ Section Proofs.
     iMod (freeze_foreign_to_immut γ θ1 _ with "[$]") as "(HGC&#Hγfgn')".
     iModIntro. iApply "Cont2".
     iApply ("Return" $! θ1 (OVal #(LitForeign γ)) (OVal (Lloc γ)) with "HGC [-] [] []").
-    2,3: done.
-    iApply "Cont". iFrame "Hna". iExists γ, a.
-    iSplit; first done. iSplitL.
-    { iApply "Hγfgn'". }
-    iFrame "Hinv".
+    2: done.
+    { iApply "Cont". iFrame "Hna". iExists γ, a.
+      iSplit; first done. iSplitL.
+      { iApply "Hγfgn'". }
+      iFrame "Hinv". }
+    iPureIntro. now constructor.
   Qed.
 
   Lemma listener_notify_correct :
@@ -191,11 +192,14 @@ Section Proofs.
       wp_apply (wp_callback with "[$HGC $Hclos $Hsimvn Hinterp Hna]"); [try done..|].
       { iNext. by iApply "Hinterp". }
       iIntros (θ' vret lvret wret) "(HGC & ((%v&->&Hi)&Hna) & Hsimret & %)".
-      destruct lvret. cbn. inversion H2.
+      destruct lvret; cbn.
+      2: iDestruct "Hsimret" as "%F"; inversion F.
+      inversion H2.
       wp_pures. wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (?) "[HGC %HH]". inversion HH; simplify_eq.
       iApply "Cont2". cbn. iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna] [] []").
-      1: by iApply "Cont". 1,2: by iPureIntro.
+      1: by iApply "Cont". 2: iPureIntro; now constructor.
+      now cbn.
     - wp_apply (wp_load with "[$Hnull]"). iIntros "Hnull".
       wp_pures.
       iMod ("Hclose" with "[$Hna Hnull]") as "Hna".
@@ -204,7 +208,8 @@ Section Proofs.
       iIntros (?) "[HGC %HH]". inversion HH; simplify_eq.
       iApply "Cont2".
       iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna] [] []").
-      1: by iApply "Cont". 1,2: by iPureIntro.
+      1: by iApply "Cont". 1: done.
+      iPureIntro. now constructor.
   Qed.
 
   Local Opaque listener_interp.
@@ -242,7 +247,8 @@ Section Proofs.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
       iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
-      1: by iApply "Cont". 1,2: by iPureIntro.
+      1: by iApply "Cont". 1: done.
+      iPureIntro. now constructor.
     - wp_pures.
       wp_apply (wp_load with "Hnull"); iIntros "Hnull".
       wp_pures.
@@ -256,7 +262,8 @@ Section Proofs.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
       iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
-      1: by iApply "Cont". 1,2: by iPureIntro.
+      1: by iApply "Cont". 1: done.
+      iPureIntro. now econstructor.
   Qed.
 
   Lemma listener_unlisten_correct :
@@ -292,7 +299,8 @@ Section Proofs.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
       iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
-      1: by iApply "Cont". 1,2: by iPureIntro.
+      1: by iApply "Cont". 1: done.
+      iPureIntro. now econstructor.
     - wp_pures.
       wp_apply (wp_load with "Hnull"); iIntros "Hnull".
       wp_pures.
@@ -303,7 +311,8 @@ Section Proofs.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
       iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
-      1: by iApply "Cont". 1,2: by iPureIntro.
+      1: by iApply "Cont". 1: done.
+      iPureIntro. now econstructor.
   Qed.
 
   End InPsi.

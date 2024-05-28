@@ -147,11 +147,12 @@ Section Proofs.
     iMod (freeze_foreign_to_immut γ θ1 _ with "[$]") as "(HGC&#Hγfgn)".
     iModIntro. iApply "Cont2".
     iApply ("Return" $! θ1 (OVal #(LitForeign γ)) (OVal (Lloc γ)) with "HGC [-] [] []").
-    2,3: done.
-    iApply "Cont". iFrame "Hna". iExists γ, ℓ.
-    iSplit; first done. 
-    iSplitL; first done.
-    iFrame "Hinv1 Hinv2".
+    2: done.
+    { iApply "Cont". iFrame "Hna". iExists γ, ℓ.
+      iSplit; first done.
+      iSplitL; first done.
+      iFrame "Hinv1 Hinv2". }
+    iPureIntro. now constructor.
   Qed.
 
   Lemma box_update_correct :
@@ -195,11 +196,13 @@ Section Proofs.
       { iSplit; first iApply "Hlv1".
         iNext. iApply ("Hcall" with "Hv1 Hna"). }
       iIntros (θ' vret lvret wret) "(HGC & ((%v&->&->)&Hna) & (H & %Hrepr))".
-      destruct lvret. cbn. inversion Hrepr.
+      destruct lvret; cbn. 2: iDestruct "H" as "%F"; inversion F.
+      inversion Hrepr.
       wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//]").
+      iPureIntro. now constructor.
     - wp_apply (wp_load with "Hℓ0"). iIntros "Hℓ0".
       wp_pures.
       iMod ("Hclose2" with "[$Hna Hℓ0]") as "Hna".
@@ -208,7 +211,8 @@ Section Proofs.
       { iNext. iExists _, _. iFrame "Hℓ1 Hvn Hsimvn". }
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//]").
+      iPureIntro. now constructor.
   Qed.
 
   Lemma box_listen_correct :
@@ -229,7 +233,7 @@ Section Proofs.
     iIntros "(HGC&_)". iDestruct "HH" as "(HI2&Hna&Hclose2)".
     wp_pures.
     wp_bind (If _ _ _).
-    iApply (wp_wand _ _ _ (λ _, (GC θ ∗ ∃ lv v, ℓ ↦roots lv ∗ lv ~~ v ∗ interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ v))%I
+    iApply (wp_wand _ _ _ (λ o, (GC θ ∗ ∃ w lv v, ⌜o = OVal w⌝ ∗ ℓ ↦roots lv ∗ lv ~~ v ∗ interp_arrow ⟨ ∅ , Ψ ⟩ interp interp_unit Δ v))%I
             with "[HGC HI2]"); first iDestruct "HI2" as "[(%lv2&%v2&Hℓ0&#Hlv2&#(%b1&%b2&%ec&->&#Hcall))|Hℓ0]".
     - iDestruct "Hlv2" as (γcb ->) "Hlv2".
       wp_apply (load_from_root with "[$HGC $Hℓ0]").
@@ -238,21 +242,22 @@ Section Proofs.
       wp_pures.
       wp_apply (store_to_root with "[$HGC $Hℓ0]"); first done.
       iIntros "($&Hℓ0)".
-      iExists _, _. iFrame "Hℓ0 Hsimvl Hvl".
+      iExists _, _, _. now iFrame "Hℓ0 Hsimvl Hvl".
     - wp_apply (wp_load with "Hℓ0").
       iIntros "Hℓ0". wp_pures.
       wp_apply (wp_store with "Hℓ0").
       iIntros "Hℓ0". wp_pures.
       wp_apply (wp_registerroot with "[$HGC $Hℓ0]"); [done..|].
       iIntros "($&Hℓ0)".
-      iExists _, _. iFrame "Hℓ0 Hsimvl Hvl".
-    - iIntros (v) "(HGC&HInv)".
-      iMod ("Hclose2" with "[$Hna HInv]") as "Hna".
-      { iNext. by iLeft. }
-      destruct v; wp_pures.
-      wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
+      iExists _, _, _. now iFrame "Hℓ0 Hsimvl Hvl".
+    - iIntros (v) "(HGC&%w&%lv0&%v0&->&H)".
+      iMod ("Hclose2" with "[$Hna H]") as "Hna".
+      { iNext. iLeft. iExists _, _. iFrame. } cbn.
+      { wp_pures.
+        wp_apply (wp_int2val with "HGC"); [done..|].
+        iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
+        iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//]").
+        iPureIntro. now constructor. }
   Qed.
 
   End InPsi.
