@@ -33,7 +33,7 @@ Section Proofs.
     eapply Forall2_cons in Hrepr as (Hreprj&Hrepr).
     eapply Forall2_cons in Hrepr as (HreprF&Hrepr).
     eapply Forall2_cons in Hrepr as (Hreprbuf&_).
-    cbn. wp_call_direct.
+    wp_allocframe fp "Hfp".
     wp_apply (wp_CAMLlocal with "HGC"); [done..|].
     iIntros (ℓF) "(HGC&HℓF)"; wp_pures.
     wp_apply (store_to_root with "[$HGC $HℓF]"); [done..|].

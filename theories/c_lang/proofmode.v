@@ -207,7 +207,6 @@ Implicit Types Δ : envs (uPredI (iResUR Σ)).
 Implicit Types v : val.
 Implicit Types z : Z.
 
-
 Lemma tac_wp_Malloc Δ Δ' s j K n Φ :
   (0 ≤ n)%Z →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
@@ -293,6 +292,7 @@ Proof.
   rewrite right_id. by apply later_mono, sep_mono_r, wand_mono.
 Qed.
  *)
+
 End heap.
 
 (** The tactic [wp_apply_core lem tac_suc tac_fail] evaluates [lem] to a
@@ -410,8 +410,73 @@ Tactic Notation "wp_store" :=
   end.
 *)
 
-(* Tactic Notation "wp_allocframe" ident(fp) := *)
-(*   wp_pures; *)
-(*   wp_apply (wp_allocframe); *)
-(*   iIntros (fp) "Hfp"; unfold allocate_frame; *)
-(*   wp_pures; simpl; wp_pures. *)
+Section frame.
+
+Context {SI:indexT}.
+Context `{!heapG_C Σ, !invG Σ}.
+Implicit Types P Q : iProp Σ.
+Implicit Types Φ : outcome val → iProp Σ.
+Implicit Types Δ : envs (uPredI (iResUR Σ)).
+Implicit Types v : val.
+Implicit Types z : Z.
+
+Fixpoint zip_values (vs2 vs1 : list $ option val) : option $ list $ option val :=
+  match vs1, vs2 with
+  | _  :: vs1', Some v2 :: vs2' => vs ← zip_values vs2' vs1'; Some (Some v2 :: vs)
+  | v1 :: vs1', _       :: vs2' => vs ← zip_values vs2' vs1'; Some (     v1 :: vs)
+  | [], []  => Some []
+  |  _,  _  => None
+  end.
+
+Fixpoint store_array (l : loc) (a : list $ option val) :=
+  match a with
+  | []           => Val $ LitV $ LitUnit
+  | Some v :: a' =>
+      Let BAnon (Store (Val $ LitV $ LitLoc l) (Val $ v)) (store_array (l +ₗ 1) a')
+  | None :: a' => store_array (l +ₗ 1) a'
+  end.
+
+Lemma wp_store_array s l vs1 vs2 vs3 :
+   zip_values vs2 vs1 = Some vs3 →
+  {{{ ▷ l I↦C∗ vs1 }}} store_array l vs2 at s {{{ RET #C LitUnit; l I↦C∗ vs3 }}}%CE.
+Proof.
+  iInduction vs2 as [ | v vs2 ] "IH" forall(vs1 vs3 l);
+      iIntros (Hzip Φ) "H1 HΦ";
+      cbn.
+  - wp_pures. iModIntro. admit.
+  - destruct vs1 as [ | v1 vs1 ]; first discriminate Hzip.
+    destruct vs3 as [ | v3 vs3 ]. { admit. }
+    destruct v as [ v | ].
+    + pose 0 as off. replace (#C l) with (#C (l +ₗ off )). 2: by rewrite loc_add_0.
+      wp_apply (wp_store_offset with "H1"); first (cbn; lia).
+      iIntros "H1". wp_pures.
+      simpl.
+      iAssert (l I↦C Some v ∗ ((l +ₗ 1) I↦C∗ vs1))%I with "[H1]" as "[Hv H1]".
+        { cbn. rewrite loc_add_0. admit. }
+
+      iApply ("IH" $! vs1 vs3 (l +ₗ 1) with "[] [H1]"); eauto; first admit.
+      iNext. iIntros "H1".
+      iApply "HΦ".
+      admit.
+    + iAssert (l I↦C v1 ∗ ((l +ₗ 1) I↦C∗ vs1))%I with "[H1]" as "[Hv H1]".
+        { cbn. rewrite loc_add_0. admit. }
+
+      iApply ("IH" $! vs1 vs3 (l +ₗ 1) with "[] [H1]"); eauto; first admit.
+      iNext. iIntros "H1".
+      iApply "HΦ".
+
+      assert (v1 = v3) as ->. { admit. }
+      cbn.
+      iSplitL "Hv"; first by rewrite loc_add_0.
+Admitted.
+
+End frame.
+
+Tactic Notation "wp_allocframe" ident(fp) uconstr(Hfp) :=
+  wp_pures;
+  wp_apply (wp_allocframe);
+  iIntros (fp) Hfp; unfold allocate_frame;
+  cbn [length Nat.eqb];
+  ((wp_apply (wp_store_array with Hfp); first eauto; iIntros Hfp) || idtac);
+  wp_pures.
+

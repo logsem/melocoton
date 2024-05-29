@@ -132,7 +132,7 @@ Section Proofs.
     all: iEval (cbn) in "Hsim"; iDestruct "Hsim" as "(->&Hsim)"; try done.
     destruct ws as [|wv [|??]]; decompose_Forall.
     iIntros (Φ'') "Cont2".
-    wp_pure _.
+    wp_allocframe fp "_".
     wp_apply (wp_Malloc); [done..|].
     change (Z.to_nat 1) with 1. cbn.
     iIntros (a) "(Ha&_)".
@@ -172,6 +172,7 @@ Section Proofs.
     iDestruct "Hbox" as (γ a) "(->&#Hγfgn&#Hinv)".
     iDestruct "Hsimvb" as "->".
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
+    wp_allocframe fp "_".
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)". wp_pures.
     iDestruct "HH" as "([(%lv&%v&Ha&#Hsimvlv&#Hinterp)|Hnull]&Hna&Hclose)".
@@ -221,7 +222,9 @@ Section Proofs.
     iDestruct "Hbox" as (γ a) "(->&#Hγfgn&#Hinv)".
     iDestruct "Hsimvb" as "->".
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
+    wp_allocframe fp "_".
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
+
     iIntros "(HGC&_)".
     iDestruct "HH" as "([(%lvc&%vc&Ha&#Hsimvlvc&#Hinterp)|Hnull]&Hna&Hclose)".
     - iDestruct "Hinterp" as (b1 b2 e ->) "#Hinterp".
@@ -268,6 +271,7 @@ Section Proofs.
     iDestruct "Hbox" as (γ a) "(->&#Hγfgn&#Hinv)".
     iDestruct "Hsimvb" as "->".
     iMod (na_inv_acc_open with "Hinv Hna") as "HH". 1-2: solve_ndisj.
+    wp_allocframe fp "_".
     wp_apply (wp_read_foreign with "[$HGC $Hγfgn]"); [done..|].
     iIntros "(HGC&_)".
     iDestruct "HH" as "([(%lvc&%vc&Ha&#Hsimvlvc&#Hinterp)|Hnull]&Hna&Hclose)".

@@ -7,10 +7,27 @@ From melocoton.c_lang Require Import lang notation proofmode.
 Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
 
-Tactic Notation "wp_allocframe" ident(fp) uconstr(Hfp) :=
-  wp_pures;
-  wp_apply (wp_allocframe);
-  iIntros (fp) "Hfp"; unfold allocate_frame; cbn -[array]; wp_pures.
+Section Zero.
+
+  Definition times_two : expr :=
+    "e" + "e".
+
+  Definition times_two_prog : lang_prog C_lang :=
+    {[ "times_two" := Fun [BNamed "e"] times_two ]}.
+
+  Definition times_two_prog_spec : protocol val Σ :=
+    !! (n : Z) {{ True }} "times_two" with ([LitV n]) {{RET(#C (n + n)); True }}.
+
+  Lemma times_two_correct:
+    ||- times_two_prog :: times_two_prog_spec.
+  Proof.
+    iIntros (ψext x lvs ϕ) "H". iNamed "H". iSplit; first done.
+    iIntros (Φ') "HΦ". iNamed "H".
+    wp_allocframe fp "Hfp".
+    iModIntro. iApply "HΦ". by iApply "Cont".
+  Qed.
+
+End Zero.
 
 Section One.
 
@@ -28,7 +45,6 @@ Section One.
   Proof.
     iIntros (ψext x lvs ϕ) "H". iNamed "H". iSplit; first done.
     iIntros (Φ') "HΦ". iNamed "H".
-
     wp_allocframe fp "Hfp".
     wp_apply (wp_free_array with "Hfp").
     iIntros "_". wp_pures.
@@ -54,9 +70,12 @@ Section Two.
   Proof.
     iIntros (ψext x lvs ϕ) "H". iNamed "H". iSplit; first done.
     iIntros (Φ') "HΦ". iNamed "H".
-    wp_call_direct.
     wp_allocframe fp "Hfp".
-  Admitted.
+    wp_apply (wp_load_offset with "[Hfp]"); eauto; first cbn; eauto.
+    iIntros "Hfp". wp_pures.
+    wp_apply (wp_free_array with "Hfp"). iIntros "_". wp_pures.
+    iModIntro. iApply "HΦ". by iApply "Cont".
+  Qed.
 
 End Two.
 
@@ -85,9 +104,27 @@ Section Three.
   Proof.
     iIntros (ψext x lvs ϕ) "H". iNamed "H". iSplit; first done.
     iIntros (Φ') "HΦ". iNamed "H".
-    wp_call_direct.
     wp_allocframe fp "Hfp".
-    wp_apply (wp_load).
-  Admitted.
+
+    wp_apply (wp_load_offset with "Hfp"); first eauto.
+    iIntros "Hfp". wp_pures.
+
+    wp_allocframe fp2 "Hfp2".
+    simpl. wp_pures.
+
+    wp_apply (wp_load_offset with "Hfp"); first eauto.
+    iIntros "Hfp". wp_pures.
+
+    iDestruct "ProtoPre" as "->". wp_pures.
+    wp_apply (wp_store_offset with "Hfp"); first auto.
+    iIntros "Hfp". wp_pures.
+
+    wp_apply (wp_load_offset with "Hfp"); first auto.
+    iIntros "Hfp". wp_pures.
+
+    wp_apply (wp_free_array with "Hfp"). iIntros "_". wp_pures.
+
+    iModIntro. iApply "HΦ". rewrite Z.add_assoc. by iApply "Cont".
+  Qed.
 
 End Three.

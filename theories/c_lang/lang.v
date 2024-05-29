@@ -38,7 +38,7 @@ Inductive expr :=
   | Let (x : binder) (e1 e2 : expr)
   (* Local variables *)
   | AdressOf (x : string)
-  | AllocFrame (f : list string) (e : expr)
+  | AllocFrame (f : list (string * option val)) (e : expr)
   (* Memory *)
   | Load (e : expr)
   | Store (e0 e1 : expr) (* e0 <- e1 *)
@@ -54,20 +54,20 @@ Inductive expr :=
 Set Elimination Schemes.
 
 Definition expr_rect (P : expr → Type) :
-    (∀ v : val, P (Val v))
-  → (∀ x : string, P (Var x))
-  → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
-  → (∀ x : string, P (AdressOf x))
-  → (∀ (f : list string) (e : expr), P e → P (AllocFrame f e))
-  → (∀ e : expr, P e → P (Load e))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
-  → (∀ e1 : expr, P e1 → P (Malloc e1))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
-  → (∀ (op : un_op) (e : expr), P e → P (UnOp op e))
-  → (∀ (op : bin_op) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
-  → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
+    (∀ v, P (Val v))
+  → (∀ x, P (Var x))
+  → (∀ x e1, P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ x, P (AdressOf x))
+  → (∀ f e, P e → P (AllocFrame f e))
+  → (∀ e, P e → P (Load e))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
+  → (∀ e1, P e1 → P (Malloc e1))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
+  → (∀ op e, P e → P (UnOp op e))
+  → (∀ op e1, P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
+  → (∀ e0, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
   → ∀ e : expr, P e.
 Proof.
   refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 => _).
@@ -99,18 +99,18 @@ Defined.
 Definition expr_ind (P : expr → Prop) :
     (∀ v : val, P (Val v))
   → (∀ x : string, P (Var x))
-  → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
-  → (∀ (x : string), P (AdressOf x))
-  → (∀ (f : list string) (e : expr), P e → P (AllocFrame f e))
-  → (∀ e : expr, P e → P (Load e))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
-  → (∀ e1 : expr, P e1 → P (Malloc e1))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
-  → (∀ (op : un_op) (e : expr), P e → P (UnOp op e))
-  → (∀ (op : bin_op) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
-  → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
+  → (∀ x e1, P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ x, P (AdressOf x))
+  → (∀ f e, P e → P (AllocFrame f e))
+  → (∀ e, P e → P (Load e))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
+  → (∀ e1, P e1 → P (Malloc e1))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
+  → (∀ op e, P e → P (UnOp op e))
+  → (∀ op e1, P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
+  → (∀ e0, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
   → ∀ e : expr, P e.
 Proof.
   refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 => _).
@@ -139,25 +139,22 @@ Proof.
      end).
 Qed.
 
-(* TODO:
-   - Delete or fix ?
-*)
 Definition expr_val_ind (P : expr → Prop) (Pv : val → Prop):
-    (∀ v : val, P (Val v))
-  → (∀ x : string, P (Var x))
-  → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
-  → (∀ x : string, P (AdressOf x))
-  → (∀ (f : list string) (e : expr), P e → P (AllocFrame f e))
-  → (∀ e : expr, P e → P (Load e))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
-  → (∀ e1 : expr, P e1 → P (Malloc e1))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
-  → (∀ (op : un_op) (e : expr), P e → P (UnOp op e))
-  → (∀ (op : bin_op) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
-  → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
-  → ∀ e : expr, P e.
+    (∀ v, P (Val v))
+  → (∀ x, P (Var x))
+  → (∀ x e1, P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ x, P (AdressOf x))
+  → (∀ f e, P e → P (AllocFrame f e))
+  → (∀ e, P e → P (Load e))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
+  → (∀ e1, P e1 → P (Malloc e1))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
+  → (∀ op e, P e → P (UnOp op e))
+  → (∀ op e1, P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
+  → (∀ e0, P e0 → ∀ ee : list expr, (forall ei, In ei ee -> P ei) -> P (FunCall e0 ee))
+  → ∀ e, P e.
 Proof.
   refine (fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 => _).
   refine (fix IH e {struct e} : P e := _).
@@ -186,21 +183,21 @@ Proof.
 Qed.
 
 Definition expr_rec (P : expr → Set) :
-    (∀ v : val, P (Val v))
-  → (∀ x : string, P (Var x))
-  → (∀ (x : binder) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
-  → (∀ (x : string), P (AdressOf x))
-  → (∀ (f : list string) (e : expr), P e → P (AllocFrame f e))
-  → (∀ e : expr, P e → P (Load e))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
-  → (∀ e1 : expr, P e1 → P (Malloc e1))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
-  → (∀ (op : un_op) (e : expr), P e → P (UnOp op e))
-  → (∀ (op : bin_op) (e1 : expr), P e1 → ∀ e2 : expr, P e2 → P (BinOp op e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → ∀ e2 : expr, P e2 → P (If e0 e1 e2))
-  → (∀ e0 : expr, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
-  → (∀ e0 : expr, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
-  → ∀ e : expr, P e.
+    (∀ v, P (Val v))
+  → (∀ x, P (Var x))
+  → (∀ x e1, P e1 → ∀ e2 : expr, P e2 → P (Let x e1 e2))
+  → (∀ x, P (AdressOf x))
+  → (∀ f e, P e → P (AllocFrame f e))
+  → (∀ e, P e → P (Load e))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Store e0 e1))
+  → (∀ e1, P e1 → P (Malloc e1))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (Free e0 e1))
+  → (∀ op e, P e → P (UnOp op e))
+  → (∀ op e1, P e1 → ∀ e2, P e2 → P (BinOp op e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → ∀ e2, P e2 → P (If e0 e1 e2))
+  → (∀ e0, P e0 → ∀ e1 : expr, P e1 → P (While e0 e1))
+  → (∀ e0, P e0 → ∀ ee : list expr, (forall ei, In2 ei ee -> P ei) -> P (FunCall e0 ee))
+  → ∀ e, P e.
 Proof.
   apply expr_rect.
 Defined.
@@ -425,6 +422,132 @@ Definition subst (x : binder) (v : val) (e : expr) : expr :=
   | BAnon    => e
   end.
 
+(** Function calls, local variables *)
+
+(**
+  The following definitions make heavy use of inefficient lists instead of sets
+  to make sure they can be easily computed by cbn and similar tactics.
+*)
+
+Definition list_contains (l : list string) (x1 : string) :=
+  existsb (λ 'x2, String.eqb x1 x2) l.
+
+Definition add_unique (x : string) (l : list string) :=
+  if list_contains l x then l else x :: l.
+
+Fixpoint subst_frame (g : stringmap loc) (e : expr) : expr :=
+  match e with
+  | Var x =>
+      match g !! x with
+      | None   => e
+      | Some l => Load $ Val $ LitV $ LitLoc l
+      end
+  | AdressOf x =>
+      match g !! x with
+      | None   => e
+      | Some l => Val $ LitV $ LitLoc l
+      end
+  | AllocFrame f e => AllocFrame f (subst_frame g e)
+  | Val _ => e
+  | Let b e1 e2 => Let b (subst_frame g e1) (subst_frame g e2)
+  | Load e => Load (subst_frame g e)
+  | Store e1 e2 => Store (subst_frame g e1) (subst_frame g e2)
+  | Malloc e => Malloc (subst_frame g e)
+  | Free e1 e2 => Free (subst_frame g e1) (subst_frame g e2)
+  | UnOp op e => UnOp op (subst_frame g e)
+  | BinOp op e1 e2 => BinOp op (subst_frame g e1) (subst_frame g e2)
+  | If e0 e1 e2 => If (subst_frame g e0) (subst_frame g e1) (subst_frame g e2)
+  | While e1 e2 => While (subst_frame g e1) (subst_frame g e2)
+  | FunCall ef ea => FunCall (subst_frame g ef) (map (subst_frame g) ea)
+  end.
+
+(*
+ * Fails if either:
+ * - two variables share the same name
+ * - a variable is used before it's declaration
+ * - a frame allocation is already present
+ *)
+Fixpoint stack_allocated (env : list string) (acc : option $ list string) (e : expr) : option $ list string :=
+  match e with
+  | Val _ => acc
+  | Var x => if list_contains env x then acc else None
+  | AdressOf x =>
+      match acc with
+      | None     => None
+      | Some acc => if list_contains env x then Some (add_unique x acc) else None
+      end
+  | AllocFrame f x => None
+  | Let (BNamed x) e1 e2 =>
+      if list_contains env x then None else
+      stack_allocated (x :: env) (stack_allocated env acc e1) e2
+  | Let BAnon e1 e2 | Store e1 e2 | Free e1 e2 | BinOp _ e1 e2 | While e1 e2 =>
+      stack_allocated env (stack_allocated env acc e1) e2
+  | Load e | Malloc e | UnOp _ e => stack_allocated env acc e
+  | If e1 e2 e3 =>
+      stack_allocated env (stack_allocated env (stack_allocated env acc e1) e2) e3
+  | FunCall ef ea =>
+      List.fold_left (stack_allocated env) ea (stack_allocated env acc ef)
+  end.
+
+Fixpoint zip_args (an : list binder) (av : list val) (acc : list (string * val)) : option (list (string * val)) :=
+  match an, av with
+  | nil, nil => Some acc
+  | (BNamed ax::ar), (vx::vr) => zip_args ar vr ((ax, vx) :: acc)
+  | (BAnon::ar), (vx::vr) => zip_args ar vr acc
+  | _, _ => None
+  end.
+
+Definition filter_frame (frame : list string) (args : list (string * val)) :=
+  filter (λ '(x1, _), negb $ existsb (λ 'x2, String.eqb x1 x2) frame) args.
+
+Definition init_frame (frame : list string) (args : stringmap val) : list (string * option val) :=
+  map (λ x, (x, args !! x)) frame.
+
+Definition apply_function (f : function) (av : list val) :=
+  match f with
+  | Fun an e =>
+    match zip_args an av [] with
+    | Some args =>
+      match stack_allocated (map fst args) (Some []) e with
+      | Some frame =>
+        let direct_map := list_to_map (filter_frame frame args) in
+        let stack_map  := list_to_map args in
+        Some (AllocFrame (init_frame frame stack_map) (subst_all direct_map e))
+      | None => None
+      end
+    | _ => None
+    end
+  end.
+
+Fixpoint store_array (l : loc) (a : list $ option val) :=
+  match a with
+  | []           => Val $ LitV $ LitUnit
+  | Some v :: a' =>
+      Let BAnon (Store (Val $ LitV $ LitLoc l) (Val $ v)) (store_array (l +ₗ 1) a')
+  | None :: a' => store_array (l +ₗ 1) a'
+  end.
+
+Fixpoint local_location' (acc : list (string * loc)) (n : nat) (l : loc) (f : list string)
+  : list (string * loc) :=
+  match f with
+  | []      => acc
+  | x :: f' => local_location' ((x, l +ₗ n) :: acc) (n + 1) l f'
+  end.
+
+Definition local_location := local_location' [] 0.
+
+Definition allocate_frame (f : list (string * option val)) (e : expr) (l : loc) :=
+  let frame_size := length f in
+  if frame_size =? 0 then e
+  else
+    let ll := local_location l (map fst f) in
+    let sa := store_array l (map snd f) in
+    let g  := list_to_map ll in
+    Let BAnon sa
+    $ Let "res" (subst_frame g e)
+    $ Let BAnon (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt $ frame_size))
+    $ Var "res".
+
 (** The stepping relation *)
 Definition un_op_eval (op : un_op) (v : val) : option val :=
   match op, v with
@@ -485,117 +608,6 @@ Definition asTruth (v:val) : bool := match v with
   | LitV (LitLoc (Loc _)) => true
   | LitV (LitFunPtr p) => true
   | LitV (LitNull) => false end.
-
-(** Function calls, local variables *)
-
-(*
-  The following definitions make heavy use of lists instead of sets to make sure
-  they can be easily computed by cbn and similar tactics.
-*)
-
-Definition list_contains (l : list string) (x1 : string) :=
-  existsb (λ 'x2, String.eqb x1 x2) l.
-
-Definition add_unique (x : string) (l : list string) :=
-  if list_contains l x then l else x :: l.
-
-Fixpoint subst_frame (g : stringmap loc) (e : expr) : expr :=
-  match e with
-  | Var x =>
-      match g !! x with
-      | None   => e
-      | Some l => Load $ Val $ LitV $ LitLoc l
-      end
-  | AdressOf x =>
-      match g !! x with
-      | None   => e
-      | Some l => Val $ LitV $ LitLoc l
-      end
-  | AllocFrame f e => AllocFrame f (subst_frame g e)
-  | Val _ => e
-  | Let b e1 e2 => Let b (subst_frame g e1) (subst_frame g e2)
-  | Load e => Load (subst_frame g e)
-  | Store e1 e2 => Store (subst_frame g e1) (subst_frame g e2)
-  | Malloc e => Malloc (subst_frame g e)
-  | Free e1 e2 => Free (subst_frame g e1) (subst_frame g e2)
-  | UnOp op e => UnOp op (subst_frame g e)
-  | BinOp op e1 e2 => BinOp op (subst_frame g e1) (subst_frame g e2)
-  | If e0 e1 e2 => If (subst_frame g e0) (subst_frame g e1) (subst_frame g e2)
-  | While e1 e2 => While (subst_frame g e1) (subst_frame g e2)
-  | FunCall ef ea => FunCall (subst_frame g ef) (map (subst_frame g) ea)
-  end.
-
-(*
- * Fails if :
- * - two variables share the same name
- * - a variable is used before it's declaration
- * - a frame allocation is already present
- *)
-Fixpoint stack_allocated (env : list string) (acc : option $ list string) (e : expr) : option $ list string :=
-  match e with
-  | Val _ => acc
-  | Var x => if list_contains env x then acc else None
-  | AdressOf x =>
-      match acc with
-      | None     => None
-      | Some acc => if list_contains env x then Some (add_unique x acc) else None
-      end
-  | AllocFrame f x => None
-  | Let (BNamed x) e1 e2 =>
-      if list_contains env x then None else
-      stack_allocated (x :: env) (stack_allocated env acc e1) e2
-  | Let BAnon e1 e2 | Store e1 e2 | Free e1 e2 | BinOp _ e1 e2 | While e1 e2 =>
-      stack_allocated env (stack_allocated env acc e1) e2
-  | Load e | Malloc e | UnOp _ e => stack_allocated env acc e
-  | If e1 e2 e3 =>
-      stack_allocated env (stack_allocated env (stack_allocated env acc e1) e2) e3
-  | FunCall ef ea =>
-      List.fold_left (stack_allocated env) ea (stack_allocated env acc ef)
-  end.
-
-Fixpoint zip_args (an : list binder) (av : list val) (acc : list (string * val)) : option (list (string * val)) :=
-  match an, av with
-  | nil, nil => Some acc
-  | (BNamed ax::ar), (vx::vr) => zip_args ar vr ((ax, vx) :: acc)
-  | (BAnon::ar), (vx::vr) => zip_args ar vr acc
-  | _, _ => None
-  end.
-
-Definition filter_frame (frame : list string) (args : list (string * val)) :=
-  filter (λ '(x1, _), negb $ existsb (λ 'x2, String.eqb x1 x2) frame) args.
-
-Definition apply_function (f : function) (av : list val) :=
-  match f with
-  | Fun an e =>
-    match zip_args an av [] with
-    | Some args =>
-      match stack_allocated (map fst args) (Some []) e with
-      | Some frame =>
-        let args      := filter_frame frame args in
-        let args_map  := list_to_map args in
-        Some (AllocFrame frame (subst_all args_map e))
-      | None => None
-      end
-    | _ => None
-    end
-  end.
-
-Fixpoint local_location (f : list string) (l : loc) (acc : list (string * loc)) : list (string * loc) :=
-  match f with
-  | []      => acc
-  | v :: f' => local_location f' (l +ₗ 1) ((v, l) :: acc)
-  end.
-
-Definition allocate_frame (f : list string) (e : expr) (l : loc) :=
-  let frame_size := length f in
-  (* Avoid free and malloc 0 *)
-  if frame_size =? 0 then e
-  else
-    let ll := local_location f l [] in
-    let g  := list_to_map ll in
-    Let "res" (subst_frame g e)
-    $ Let BAnon (Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt $ frame_size))
-    $ Var "res".
 
 Inductive head_step (p : stringmap function) : expr → c_state → expr → c_state → Prop :=
   | LetS x v1 e2 ee σ :

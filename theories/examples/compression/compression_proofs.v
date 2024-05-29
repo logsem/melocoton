@@ -20,7 +20,7 @@ Definition buffy_compress_code (inbuf inlen outbuf outlenp:expr) := (
   if: *outlenp < call: &buffy_max_len_name with (inlen) then #1 else
     (outlenp <- call: &buffy_compress_rec_name with (inbuf, inlen, outbuf)) ;; #0 )%CE.
 
-Definition buffy_env : gmap string function := 
+Definition buffy_env : gmap string function :=
   <[buffy_max_len_name      := Fun [BNamed "len"] (buffy_max_len_code "len")]> (
   <[buffy_compress_rec_name := Fun [BNamed "inbuf"; BNamed "inlen"; BNamed "outbuf"] (buffy_compress_rec_code "inbuf" "inlen" "outbuf")]> (
   <[buffy_compress_name     := Fun [BNamed "inbuf"; BNamed "inlen"; BNamed "outbuf"; BNamed "outlenp"]
@@ -47,7 +47,7 @@ Proof using Hp.
   { cbn. eapply lookup_weaken; last done; done. }
   { done. }
   iNext.
-  wp_pures. iModIntro. unfold buffer_max_len.
+  wp_allocframe fp "_". iModIntro. unfold buffer_max_len.
   replace (Z.of_nat (Nat.mul 2 n)) with ((Z.mul n 2))%Z by lia.
   iApply "HΦ". iApply "Hcont".
 Qed.
@@ -71,7 +71,7 @@ Proof using Hp.
   iLöb as "IH" forall (ℓin ℓout vin bin vspace HBuffer Hlength).
   wp_pures. wp_pure _.
   1: split; first (eapply lookup_weaken, Hp); done.
-  wp_pures.
+  wp_allocframe fp "_".
   destruct bin as [|bfst bin].
   { cbn. rewrite bool_decide_decide. destruct decide; last lia.
     wp_pures. iModIntro.
@@ -166,7 +166,7 @@ Proof using Hp.
       - rewrite !loc_add_0. iFrame "Hℓou0 Hℓin1". iSplitL "HℓouR".
         + unfold array. iApply (big_sepL_wand with "HℓouR").
           iApply big_sepL_intro. iIntros "!> % % % H". rewrite loc_add_assoc.
-          replace (Z.of_nat (S (S k))) with (2 + k)%Z by lia. done. 
+          replace (Z.of_nat (S (S k))) with (2 + k)%Z by lia. done.
         + unfold array. iApply (big_sepL_wand with "HℓinR").
           iApply big_sepL_intro. iIntros "!> % % % H". rewrite loc_add_assoc.
            replace (Z.of_nat (S (S k))) with (1 + (S k))%Z by lia. done.
@@ -185,7 +185,7 @@ Proof using Hp.
   { cbn. eapply lookup_weaken; last done; done. }
   { done. }
   iNext.
-  wp_pures.
+  (* wp_allocframe fp "_". *)
   wp_apply (wp_load with "Hℓlen"); iIntros "Hℓlen".
   wp_progwp. 1: apply buffy_max_len_correct.
   iModIntro. iExists _; unfold named.

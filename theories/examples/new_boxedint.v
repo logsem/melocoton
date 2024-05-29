@@ -51,7 +51,7 @@ Section FFI_spec.
     destruct lvs as [|lv []]; try by (exfalso; eauto with lia); []. clear Hlen.
     destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
     cbn.
-    wp_call_direct.
+    wp_allocframe fp "_".
 
     (* Allocate result variable *)
     wp_apply (wp_alloc_foreign with "[$HGC]"); try eauto.

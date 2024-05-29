@@ -50,6 +50,7 @@ Section C_specs.
       iDestruct (lloc_own_pub_inj with "Hγ Hγ'") as "%".
       iPureIntro. naive_solver.
     }
+    wp_allocframe fp "_".
     wp_apply (wp_readfield with "[$HGC $Hl]"); [done..|].
     iIntros (? wfaux) "(HGC&Hl&%Heq&%Hγaux)"; cbv in Heq; simplify_eq. wp_pures.
     iMod (mut_to_ml _ [RecV _ _ _] with "[$HGC $Hl]") as "[HGC (%l'&Hl&#Hγ''')]".

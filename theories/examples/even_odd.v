@@ -21,7 +21,6 @@ Definition is_odd_code (x : string) : C_lang.expr :=
 Definition is_odd_prog : lang_prog C_lang :=
   {[ "is_odd" := Fun [BNamed "x"] (is_odd_code "x") ]}.
 
-
 Section specs.
 Context `{SI:indexT}.
 Context `{!heapG_C Σ, !invG Σ}.
@@ -40,7 +39,7 @@ Definition is_even_proto : protocol val Σ :=
 
 Lemma wp_is_even (x:Z) :
   (0 ≤ x)%Z →
-  ⊢ WP subst_var "x" (#x) (is_even_code "x") at ⟨is_even_prog, is_odd_proto⟩
+  ⊢ WP subst "x" (#x) (is_even_code "x") at ⟨is_even_prog, is_odd_proto⟩
       {{ λ o, ⌜o = OVal #(Z.even x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.
@@ -61,15 +60,14 @@ Proof.
   unfold progwp, is_even_proto.
   iIntros (? ? ?) "H". iNamedProto "H". iSplit; first done.
   iIntros (?) "Hcont".
-  wp_call_direct.
-  wp_allocframe.
+  wp_allocframe fp "_".
   iApply wp_wand; first by iApply wp_is_even. iIntros (? ->).
   iApply "Hcont". by iApply "Cont".
 Qed.
 
 Lemma wp_is_odd (x:Z) :
   (0 ≤ x)%Z →
-  ⊢ WP subst_var "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
+  ⊢ WP subst "x" (#x) (is_odd_code "x") at ⟨is_odd_prog, is_even_proto⟩
       {{ λ o, ⌜o = OVal #(Z.odd x)⌝ }}.
 Proof.
   iIntros (?). iStartProof.

@@ -70,7 +70,7 @@ Lemma fib_prog_correct' (n:nat)
 Proof.
   iStartProof.
   iLöb as "IH" forall (n).
-  wp_allocframe.
+  wp_allocframe fp "_".
   destruct (bool_decide _) eqn:Heq.
   - wp_pures.
     iModIntro. apply bool_decide_eq_true in Heq.
@@ -129,7 +129,7 @@ Proof.
   iDestruct "H" as "(-> & H)". iDestruct "H" as (? (-> & ?)) "H".
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
-  wp_allocframe.
+  wp_allocframe fp "_".
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".
@@ -158,8 +158,7 @@ Proof.
   iDestruct "H" as "(-> & H)". iDestruct "H" as (? (-> & ?)) "H".
   assert (exists n, Z.of_nat n = z) as [n <-].
   1: {exists (Z.to_nat z). lia. }
-  wp_pures.
-  wp_allocframe.
+  wp_allocframe fp "_".
   destruct (bool_decide _) eqn:Heq.
   - wp_pures. iModIntro. apply bool_decide_eq_true in Heq.
     assert (n=0 \/ n=1) as [-> | ->] by lia; by iApply "Hcont".

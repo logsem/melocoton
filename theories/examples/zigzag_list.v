@@ -129,8 +129,7 @@ Section Proofs.
     destruct lvs as [|??]; try done.
     destruct ws as [|??]; decompose_Forall.
     iIntros (Φ'') "Cont2".
-    wp_apply (wp_call _ _ _ _ nil);
-      [by unfold zigzag_prog; solve_lookup_fixed|done|].
+    wp_allocframe fp "_".
     wp_finish.
     wp_apply (wp_alloc_foreign with "HGC"); [done..|].
     iIntros (θ1 γ w) "(HGC&Hγfgn&%Hrepr)". wp_pure _.
@@ -313,5 +312,3 @@ Section Proofs.
   Qed.
 
 End Proofs.
-
-

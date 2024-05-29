@@ -30,7 +30,7 @@ Section Proofs.
     destruct ws as [|wb [|wl [|??]]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons_inv_l in Hrepr as (wγ&?&Hlγ&Hrepr&?); simplify_eq.
     eapply Forall2_cons_inv_l in Hrepr as (wi&?&Hli&Hrepr&?); simplify_eq.
-    cbn. wp_call_direct.
+    cbn. wp_allocframe fp "Hfp".
 
     iMod (bufToC with "HGC Hbuf Hsimb") as "(HGC&HBuf1&%&%&->)".
     iNamed "HBuf1". iNamed "Hbuf".

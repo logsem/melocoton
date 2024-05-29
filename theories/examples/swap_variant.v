@@ -82,7 +82,7 @@ Proof.
   destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
   apply Forall2_cons_1 in Hrepr as [Hrepr _].
   cbn. iDestruct "Hsim" as "(Hsim&_)".
-  wp_call_direct.
+  wp_allocframe fp "_".
 
   wp_alloc rr as "H"; first done.
   change (Z.to_nat 1) with 1. cbn. iDestruct "H" as "(H&_)". rewrite loc_add_0.
@@ -137,11 +137,6 @@ Proof.
   wp_apply (wp_unregisterroot with "[$HGC $Hr]"); [done..|].
   iIntros (wlv'') "(HGC & H & %Hrepr'')".
   repr_lval_inj. wp_pures.
-
-  (* free *)
-  iAssert (rr ↦C wlv')%I with "[H]" as "Hrr"; first done.
-  wp_apply (wp_free with "Hrr"). iIntros "_".
-  wp_pures.
 
   (* Finish, convert the new points-to to an immutable pointsto *)
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".

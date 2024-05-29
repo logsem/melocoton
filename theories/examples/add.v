@@ -50,13 +50,13 @@ Proof.
   destruct ws as [|w []]; try by (exfalso; apply Forall2_length in Hrepr; eauto with lia); [].
   apply Forall2_cons_1 in Hrepr as [Hrepr _].
   cbn. iDestruct "Hsim" as "[-> _]".
-  wp_call_direct.
+  wp_allocframe fp "_".
 
   inversion Hrepr; subst.
-  wp_apply (wp_val2int with "HGC"); auto.
+  wp_apply (wp_val2int with "HGC"); eauto.
   iIntros "HGC". wp_pures.
 
-  wp_apply (wp_int2val with "HGC"); auto.
+  wp_apply (wp_int2val with "HGC"); eauto.
   iIntros (w) "(HGC&Hr)".
 
   iApply "HΦ". iApply ("Return" with "HGC [Cont] []"); eauto.

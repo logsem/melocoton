@@ -58,8 +58,10 @@ Lemma wp_lift_head_step {s E Φ} e1 :
 Proof.
   iIntros (?) "H".
   iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1".
-  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. iSplitR; first (iPureIntro; by eapply head_prim_reducible).
-  iIntros (e' σ' Hstep%head_reducible_prim_step). 2: { destruct HH as (?&?&HH). do 2 eexists. done. }
+  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro.
+  iSplitR; first (iPureIntro; by eapply head_prim_reducible).
+  iIntros (e' σ' Hstep%head_reducible_prim_step).
+  2: { destruct HH as (?&?&HH). do 2 eexists. done. }
   do 2 iModIntro.
   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
   iFrame. iModIntro. done.
