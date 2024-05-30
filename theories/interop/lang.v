@@ -76,7 +76,7 @@ Inductive split_state : state → public_state → private_state → Prop :=
 
 Implicit Types X : expr * state → Prop.
 
-Definition sanity_check (ρml : wrapstateML) (σ : store) :=
+Definition check_ml_state (ρml : wrapstateML) (σ : store) :=
   lloc_map_inj (χML ρml) ∧
   dom (ζML ρml) ⊆ dom (χML ρml) ∧
   dom (privmemML ρml) ## dom (rootsML ρml) ∧
@@ -146,7 +146,7 @@ Proof.
 Qed.
 
 Lemma ml_to_c_no_NB vs ρml σ :
-  sanity_check ρml σ →
+  check_ml_state ρml σ →
   ∃ ws ρc mem, ml_to_c_heap ρml σ ρc mem ∧ ml_to_c_vals vs ws ρc.
 Proof.
 Admitted.
@@ -206,7 +206,7 @@ Admitted.
 (* Qed. *)
 
 Lemma ml_to_c_no_NB_outcome ov ρml σ :
-  sanity_check ρml σ →
+  check_ml_state ρml σ →
   ∃ ow ρc mem, ml_to_c_heap ρml σ ρc mem ∧ ml_to_c_outcome ov ow ρc.
 Proof.
 Admitted.
@@ -527,7 +527,7 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
   | MakeCallS eml K ρml fn_name vs k σ X :
     is_ML_call eml fn_name vs k →
     p !! fn_name = None →
-    sanity_check ρml σ →
+    check_ml_state ρml σ →
     (∀ ws ρc mem,
        ml_to_c_heap ρml σ ρc mem →
        ml_to_c_vals vs ws ρc →
@@ -536,7 +536,7 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
   (** Execution finishes with an ML value, translate it into a C value *)
   | OutS eml K ρml σ ov X :
     language.to_outcome eml = Some ov →
-    sanity_check ρml σ →
+    check_ml_state ρml σ →
     (∀ ow ρc mem,
        ml_to_c_heap ρml σ ρc mem →
        ml_to_c_outcome ov ow ρc →
