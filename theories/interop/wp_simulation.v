@@ -28,7 +28,7 @@ Import mlanguage.
 Lemma wp_to_outcome (pe : progenv.prog_environ wrap_lang Σ) (o : outcome MLval):
   not_at_boundary
  -∗ WP (WrSE (ExprML (language.of_outcome ML_lang o))) at pe {{ ret,
-   ∃ θ' ov olv, ⌜o = ov⌝ ∗ GC θ' ∗ ⌜repr_lval_out θ' olv ret⌝ ∗ olv ~~ₒ ov ∗
+   ∃ θ' olv, GC θ' ∗ ⌜repr_lval_out θ' olv ret⌝ ∗ olv ~~ₒ o ∗
       at_boundary wrap_lang }}.
 Proof using.
   iIntros "Hnb".
@@ -59,7 +59,7 @@ Proof using.
   do 3 iModIntro. iFrame "SI".
   iApply weakestpre.wp_outcome'.
   iDestruct "H" as "(% & Hls & %Hval)".
-  iExists _, o, olv. iFrame. repeat iSplit; eauto.
+  iExists _, olv. iFrame. repeat iSplit; eauto.
 Qed.
 
 Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
@@ -86,7 +86,8 @@ Proof.
       last first.
     { rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
       iApply ("Hwp" $! (MLState ρml σ)). iFrame. by iPureIntro. }
-    { cbn. iIntros (vv) "(%θ' & %w & %lv & -> & ? & ? & ? & ?)". iExists _, _, _. iFrame. }
+    { cbn. iIntros (vv) "(%θ' & %olv & HGC & %Hrep & Hval & ?)".
+      iExists _, _, _. iFrame. eauto. }
   (* extcall *)
   + iDestruct "HWP" as "(%fn_name & %vs & %K' & -> & %Hfn & >(%Ξ & Hσ & HT & Hr))".
     iAssert (⌜¬ is_prim_name fn_name⌝)%I with "[HT]" as "%Hnprim".
