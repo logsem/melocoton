@@ -428,46 +428,53 @@ Fixpoint zip_values (vs2 vs1 : list $ option val) : option $ list $ option val :
   |  _,  _  => None
   end.
 
-Fixpoint store_array (l : loc) (a : list $ option val) :=
-  match a with
-  | []           => Val $ LitV $ LitUnit
-  | Some v :: a' =>
-      Let BAnon (Store (Val $ LitV $ LitLoc l) (Val $ v)) (store_array (l +ₗ 1) a')
-  | None :: a' => store_array (l +ₗ 1) a'
-  end.
+Lemma zip_concat (v1 v2 v3 : option val) (vs1 vs2 vs3 : list $ option val) :
+  zip_values (v2 :: vs2) (v1 :: vs1) = Some (v3 :: vs3) →
+  zip_values vs2 vs1 = Some vs3.
+Proof.
+  intros. cbn in H.
+  destruct v2; destruct (zip_values vs2 vs1); cbn in H; try discriminate H;
+  by inversion H.
+Qed.
 
 Lemma wp_store_array s l vs1 vs2 vs3 :
    zip_values vs2 vs1 = Some vs3 →
-  {{{ ▷ l I↦C∗ vs1 }}} store_array l vs2 at s {{{ RET #C LitUnit; l I↦C∗ vs3 }}}%CE.
+  {{{ l I↦C∗ vs1 }}} store_array l vs2 at s {{{ RET #C LitUnit; l I↦C∗ vs3 }}}%CE.
 Proof.
   iInduction vs2 as [ | v vs2 ] "IH" forall(vs1 vs3 l);
       iIntros (Hzip Φ) "H1 HΦ";
       cbn.
   - wp_pures. iModIntro. admit.
   - destruct vs1 as [ | v1 vs1 ]; first discriminate Hzip.
-    destruct vs3 as [ | v3 vs3 ]. { admit. }
+    destruct vs3 as [ | v3 vs3 ].
+    { cbn in Hzip. destruct (zip_values vs2 vs1); destruct v; cbn in Hzip;
+      discriminate Hzip. }
     destruct v as [ v | ].
     + pose 0 as off. replace (#C l) with (#C (l +ₗ off )). 2: by rewrite loc_add_0.
       wp_apply (wp_store_offset with "H1"); first (cbn; lia).
-      iIntros "H1". wp_pures.
-      simpl.
+      iIntros "H1". wp_pures. simpl.
       iAssert (l I↦C Some v ∗ ((l +ₗ 1) I↦C∗ vs1))%I with "[H1]" as "[Hv H1]".
-        { cbn. rewrite loc_add_0. admit. }
-
-      iApply ("IH" $! vs1 vs3 (l +ₗ 1) with "[] [H1]"); eauto; first admit.
+      { by rewrite array_cons. }
+      iApply ("IH" $! vs1 vs3 (l +ₗ 1) with "[] [H1]"); eauto.
+      { iPureIntro. by eapply zip_concat. }
+      iNext. iIntros "H1". iApply "HΦ". rewrite array_cons.
+      iSplitL "Hv"; last done.
+      assert (Some v = v3) as Heq.
+      { cbn in Hzip.
+        destruct (zip_values vs2 vs1); cbn in Hzip; try discriminate Hzip.
+        by inversion Hzip. }
+      by rewrite Heq.
+    + repeat rewrite array_cons.
+      iDestruct "H1" as "[Hv1 Hvs1]".
+      iApply ("IH" $! vs1 vs3 (l +ₗ 1) with "[] [Hvs1]"); eauto.
+      { iPureIntro. by eapply zip_concat. }
       iNext. iIntros "H1".
       iApply "HΦ".
-      admit.
-    + iAssert (l I↦C v1 ∗ ((l +ₗ 1) I↦C∗ vs1))%I with "[H1]" as "[Hv H1]".
-        { cbn. rewrite loc_add_0. admit. }
-
-      iApply ("IH" $! vs1 vs3 (l +ₗ 1) with "[] [H1]"); eauto; first admit.
-      iNext. iIntros "H1".
-      iApply "HΦ".
-
-      assert (v1 = v3) as ->. { admit. }
-      cbn.
-      iSplitL "Hv"; first by rewrite loc_add_0.
+      assert (v1 = v3) as ->.
+      { cbn in Hzip.
+        destruct (zip_values vs2 vs1); cbn in Hzip; try discriminate Hzip.
+        by inversion Hzip. }
+      cbn. iSplitL "Hv1"; done.
 Admitted.
 
 End frame.
@@ -479,4 +486,3 @@ Tactic Notation "wp_allocframe" ident(fp) uconstr(Hfp) :=
   cbn [length Nat.eqb];
   ((wp_apply (wp_store_array with Hfp); first eauto; iIntros Hfp) || idtac);
   wp_pures.
-

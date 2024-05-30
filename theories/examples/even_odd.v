@@ -61,6 +61,8 @@ Proof.
   iIntros (? ? ?) "H". iNamedProto "H". iSplit; first done.
   iIntros (?) "Hcont".
   wp_allocframe fp "_".
+  pose (BinOp EqOp (#C x) (#C 0)) as nrtl.
+  replace (#C (bool_decide (x = 0))) with (nrtl).
   iApply wp_wand; first by iApply wp_is_even. iIntros (? ->).
   iApply "Hcont". by iApply "Cont".
 Qed.

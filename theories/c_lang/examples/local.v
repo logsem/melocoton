@@ -118,7 +118,6 @@ Section Three.
     iDestruct "ProtoPre" as "->". wp_pures.
     wp_apply (wp_store_offset with "Hfp"); first auto.
     iIntros "Hfp". wp_pures.
-
     wp_apply (wp_load_offset with "Hfp"); first auto.
     iIntros "Hfp". wp_pures.
 
@@ -128,3 +127,51 @@ Section Three.
   Qed.
 
 End Three.
+
+Section Four.
+
+  Definition plus_two : expr :=
+    let: "e" := #C 1 in
+    call: &"incr" with (&: "e");;
+    "e" + "x".
+
+  Definition plus_two_prog : lang_prog C_lang :=
+    {[
+      "incr"      := Fun [BNamed "p"] incr;
+      "plus_two"  := Fun [BNamed "x"] plus_two
+    ]}.
+
+  Definition plus_two_spec : protocol val Σ :=
+    !! x (n : Z) {{ ⌜x = #C n⌝ }} "plus_two" with [x] {{ RET (#C (n + 2)); True }}.
+
+  Lemma plus_two_correct:
+    ||- plus_two_prog :: plus_two_spec.
+  Proof.
+    iIntros (ψext x lvs ϕ) "H". iNamed "H". iSplit; first done.
+    iIntros (Φ') "HΦ". iNamed "H".
+    wp_allocframe fp "Hfp".
+
+    wp_apply (wp_store_offset with "Hfp"); first auto.
+    iIntros "Hfp". wp_pures.
+
+    wp_allocframe fp2 "Hfp2".
+    simpl. wp_pures.
+
+    wp_apply (wp_load_offset with "Hfp"); first eauto.
+    iIntros "Hfp". wp_pures.
+
+    wp_apply (wp_store_offset with "Hfp"); first auto.
+    iIntros "Hfp". wp_pures.
+
+    wp_apply (wp_load_offset with "Hfp"); first eauto.
+    iIntros "Hfp". wp_pures.
+
+    iDestruct "ProtoPre" as "->". wp_pures.
+    wp_apply (wp_free_array with "Hfp"). iIntros "_". wp_pures.
+
+    iModIntro. iApply "HΦ".
+    replace (1 + 1 + n)%Z with (n + 2)%Z by lia.
+    by iApply "Cont".
+  Qed.
+
+End Four.

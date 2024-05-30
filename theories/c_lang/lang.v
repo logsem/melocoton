@@ -449,7 +449,12 @@ Fixpoint subst_frame (g : stringmap loc) (e : expr) : expr :=
       end
   | AllocFrame f e => AllocFrame f (subst_frame g e)
   | Val _ => e
-  | Let b e1 e2 => Let b (subst_frame g e1) (subst_frame g e2)
+  | Let BAnon e1 e2 => Let BAnon (subst_frame g e1) (subst_frame g e2)
+  | Let (BNamed x) e1 e2 => 
+      match g !! x with
+      | None   => Let (BNamed x) (subst_frame g e1) (subst_frame g e2)
+      | Some l => Let BAnon (Store (Val $ LitV $ LitLoc l) (subst_frame g e1)) (subst_frame g e2)
+      end
   | Load e => Load (subst_frame g e)
   | Store e1 e2 => Store (subst_frame g e1) (subst_frame g e2)
   | Malloc e => Malloc (subst_frame g e)

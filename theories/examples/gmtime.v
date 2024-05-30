@@ -83,14 +83,17 @@ Section FFI_spec.
     cbn.
     iDestruct "Hsim" as "[Hγ _]".
     iDestruct "Hγ" as (γ) "[-> Hγ]".
-    wp_allocframe fp "_".
+    wp_allocframe fp "Hfp".
 
     (* Declare result variable *)
-    (* wp_apply (wp_int2val with "[$]"); first done; first admit. *)
-    (* iIntros (res) "[HGC %Hres]". wp_pures. *)
-    (* wp_apply (wp_registerroot with "[$]"). *)
-
-    (* wp_apply (wp_CAMLlocal with "HGC"); eauto. iIntros (ℓ) "(HGC&Hℓ)". wp_pures. *)
+    wp_apply (wp_int2val with "[$]"); first done; first admit. 
+    iIntros (res) "[HGC %Hres]". wp_pures.
+    wp_apply (wp_store_offset with "Hfp"); first auto.
+    iIntros "Hfp". wp_pures.
+    simpl. cbn. iDestruct "Hfp" as "[Hfp _]".
+    rewrite loc_add_0.
+    wp_apply (wp_registerroot with "[$]"); try eauto.
+    iIntros "[HGC Hfp]". wp_pures.
 
     (* Call stdlib gmtime *)
     wp_apply (wp_read_foreign with "[$HGC $Hγ]"); try eauto.
