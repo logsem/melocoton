@@ -120,7 +120,7 @@ Definition ml_to_c_core
     Forall2 (repr_lval (θC ρc)) lvs ws ∧
     (** Pick C memory (mem) that represents the roots (through θC) + the
        remaining private C memory. *)
-    rootsC ρc = dom (rootsML ρml) ∧
+    rootsC ρc = map dom (rootsML ρml) ∧
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem.
 
 Definition ml_to_c

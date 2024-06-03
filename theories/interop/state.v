@@ -19,7 +19,7 @@ Record wrapstateC : Type := WrapstateC {
      Changes when the GC runs and moves/deallocates blocks. *)
   θC : addr_map;
   (** addresses in C memory that are registered as roots *)
-  rootsC : gset addr;
+  rootsC : list $ gset addr;
 }.
 
 Record wrapstateML : Type := WrapstateML {
@@ -29,7 +29,7 @@ Record wrapstateML : Type := WrapstateML {
   ζML : lstore;
   (** C address → logical location tracked by the root registered at this
      address. *)
-  rootsML : roots_map;
+  rootsML : list $ roots_map;
   (** the remaining piece of C store not accessible from ML code *)
   privmemML : memory;
 }.

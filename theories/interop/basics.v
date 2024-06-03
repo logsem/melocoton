@@ -254,8 +254,11 @@ Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
     lval_in_block blk (Lloc γ') →
     γ' ∈ dom θ.
 
-Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
-  ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
+Definition roots_are_live' (θ : addr_map) (roots : roots_map) : Prop :=
+   ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
+
+Definition roots_are_live (θ : addr_map) (roots : list roots_map) : Prop :=
+  Forall (roots_are_live' θ) roots.
 
 (** C representation of block-level values, roots and memory *)
 
@@ -268,24 +271,22 @@ Inductive repr_lval : addr_map → lval → C_intf.val → Prop :=
     θ !! γ = Some a →
     repr_lval θ (Lloc γ) (C_intf.LitV (C_intf.LitLoc a)).
 
-Inductive repr_roots : addr_map → roots_map → memory → Prop :=
+Inductive repr_roots : addr_map → memory → roots_map → Prop :=
   | repr_roots_emp θ :
     repr_roots θ ∅ ∅
   | repr_roots_elem θ a v w roots mem :
-    repr_roots θ roots mem →
+    repr_roots θ mem roots →
     repr_lval θ v w →
     a ∉ dom roots →
     a ∉ dom (mem) →
-    repr_roots θ (<[ a := v ]> roots)
-                 (<[ a := Storing w ]> mem).
+    repr_roots θ (<[ a := Storing w ]> mem) (<[ a := v ]> roots).
 
-
-Definition repr_raw (θ : addr_map) (roots : roots_map) (privmem mem memr : memory) : Prop :=
-  repr_roots θ roots memr ∧
+Definition repr_raw (θ : addr_map) (roots : list roots_map) (privmem mem memr : memory) : Prop :=
+  Forall (repr_roots θ memr) roots  ∧
   privmem ##ₘ memr ∧
   mem = memr ∪ privmem.
 
-Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
+Definition repr (θ : addr_map) (roots : list roots_map) (privmem mem : memory) : Prop :=
   ∃ memr, repr_raw θ roots privmem mem memr.
 
 
@@ -1084,15 +1085,17 @@ Qed.
 (* The development is generic over the precise encoding of ints *)
 Opaque code_int.
 
-Lemma repr_mono θ θ' roots_m privmem mem : θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
+Lemma repr_mono θ θ' roots_m privmem mem :
+  θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
 Proof.
-  intros Helem (memr&(H1&H2)). exists memr. split; last done.
-  clear H2.
-  induction H1.
-  - econstructor.
-  - econstructor. 1: by eapply IHrepr_roots. 2-3: done.
-    by eapply repr_lval_mono.
-Qed.
+  (* intros Helem (memr&(H1&H2)). exists memr. split; last done. *)
+  (* clear H2. *)
+  (* induction H1 as [ | x l H IH IH' ]; first done. *)
+  (* econstructor; last exact IH'. *)
+  (* induction H; econstructor; try done. *)
+  (* 2: by eapply repr_lval_mono. *)
+  (* eapply IHrepr_roots; first done. *)
+Admitted.
 
 Lemma lval_in_vblock v m tg vs :
   lval_in_block (Bvblock (m, (tg, vs))) v ↔ v ∈ vs.
