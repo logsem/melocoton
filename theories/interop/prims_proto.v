@@ -172,6 +172,32 @@ Definition read_foreign_proto : C_proto :=
     "read_foreign" with [ w ]
   {{ RETV w'; GC θ ∗ γ ↦foreign[m]{dq} w' }}.
 
+Definition raise_proto : C_proto :=
+  !! w
+  {{ True  }}
+    "raise" with [ w ]
+  {{ RET (OExn w); True }}.
+
+Definition callback_exn_proto (Ψ : ML_proto) : C_proto :=
+  !! θ w γ w' lv' v' f x e Φ'
+  {{
+     "HGC" ∷ GC θ ∗
+     "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
+     "Hclos" ∷ γ ↦clos (f, x, e) ∗
+     "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
+     "Hsim'" ∷ lv' ~~ v' ∗
+     "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) at ⟨∅, Ψ⟩ {{ Φ' }}
+  }}
+    "callback_exn" with [ w; w' ]
+  {{ θ' res is_exn ret lret wret, RETV (C_intf.LitV (C_intf.LitLoc res));
+    GC θ' ∗
+    res ↦C∗ [ C_intf.LitV (C_intf.LitInt is_exn); wret ] ∗
+    lret ~~ ret ∗ ⌜repr_lval θ' lret wret⌝ ∗
+    if Z.eqb is_exn 0%Z
+    then Φ' (OVal ret)
+    else Φ' (OExn ret)
+  }}.
+
 Definition callback_proto (Ψ : ML_proto) : C_proto :=
   !! θ w γ w' lv' v' f x e Φ'
   {{
@@ -206,6 +232,8 @@ Definition prim_proto (p : prim) (Ψ : ML_proto) : C_proto :=
   | Pallocforeign => alloc_foreign_proto
   | Pwriteforeign => write_foreign_proto
   | Preadforeign => read_foreign_proto
+  | Praise => raise_proto
+  | Pcallbackexn => callback_exn_proto Ψ
   | Pcallback => callback_proto Ψ
   | Pmain _ => ⊥
   end.
@@ -217,11 +245,17 @@ Lemma proto_prim_mono Ψ1 Ψ2 : Ψ1 ⊑ Ψ2 →
   prims_proto Ψ1 ⊑ prims_proto Ψ2.
 Proof using.
   iIntros (HH s vv Φ) "H". iDestruct "H" as (p) "H". iExists p.
-  destruct p; try done. iNamedProto "H".
-  iSplit; first done. do 10 iExists _; unfold named.
-  iFrame. do 3 (iSplit; first done).
-  iNext. iApply (wp_strong_mono with "[-] []"). 1-2: done.
-  1: iFrame. by iIntros (v) "$".
+  destruct p; try done.
+  { iNamedProto "H".
+    iSplit; first done. do 10 iExists _; unfold named.
+    iFrame. do 3 (iSplit; first done).
+    iNext. iApply (wp_strong_mono with "[-] []"). 1-2: done.
+    1: iFrame. by iIntros (v) "$". }
+  { iNamedProto "H".
+    iSplit; first done. do 10 iExists _; unfold named.
+    iFrame. do 3 (iSplit; first done).
+    iNext. iApply (wp_strong_mono with "[-] []"). 1-2: done.
+    1: iFrame. by iIntros (v) "$". }
 Qed.
 
 Lemma prims_proto_except_prims Ψ :

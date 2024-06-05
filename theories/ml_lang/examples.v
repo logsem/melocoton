@@ -99,6 +99,30 @@ Proof.
   iLeft. iExists 1. cbn [nth_error]. iSplitR; done.
 Qed.
 
+Definition try_val : ML_lang.expr :=
+  try #1 + #1 with "_" => #1.
+
+Implicit Types Φ : outcome val → iProp Σ.
+
+Lemma try_val_proof
+ : ⊢ (WP try_val at AxiomEnv {{v, ⌜v = OVal #2⌝}})%I.
+Proof.
+  iStartProof. unfold try_val.
+  wp_pures. unfold Z.add. cbn.
+  wp_apply wp_try. wp_pures; eauto.
+Qed.
+
+Definition try_raise : ML_lang.expr :=
+  try raise (#1 + #1) with "v" => #1 + "v".
+
+Lemma try_raise_proof
+ : ⊢ (WP try_raise at AxiomEnv {{v, ⌜v = OVal #3⌝}})%I.
+Proof.
+  iStartProof. unfold try_raise. wp_pures.
+  wp_apply (wp_try). wp_pures. iModIntro.
+  wp_lam. wp_pures; eauto.
+Qed.
+
 End examples.
 
 Section adequacy.

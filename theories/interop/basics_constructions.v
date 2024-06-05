@@ -239,9 +239,9 @@ Lemma deserialize_ML_outcome χMLold ov :
   lloc_map_inj χMLold
   → ∃ χC ζimm lv,
     extended_to χMLold ζimm χC
-  ∧ match ov with OVal v => is_val χC ζimm v lv end.
+  ∧ match ov with OExn v | OVal v => is_val χC ζimm v lv end.
 Proof.
-  destruct ov as [v]; intros Hinj; now apply deserialize_ML_value.
+  destruct ov as [v | v]; intros Hinj; now apply deserialize_ML_value.
 Qed.
 
 Lemma deserialize_ML_block χMLold vs :

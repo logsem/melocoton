@@ -16,13 +16,13 @@ Ltac solve_lookup_fixed := let rec go := match goal with
   [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (insert ?key ?val ?rem)]] =>
     (unify key needle; rewrite (@lookup_insert _ _ _ _ _ _ _ _ _ _ _ _ rem key val)) ||
     (rewrite (@lookup_insert_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle val); [congruence|go])
-| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (delete ?key ?rem)]] => 
+| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (delete ?key ?rem)]] =>
       (unify key needle; rewrite (@lookup_delete _ _ _ _ _ _ _ _ _ _ _ _ rem key)) ||
       (rewrite (@lookup_delete_ne _ _ _ _ _ _ _ _ _ _ _ _ rem key needle); [go|congruence])
 | [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle (singletonM ?key ?val)]] =>
     (unify key needle; rewrite (@lookup_singleton _ _ _ _ _ _ _ _ _ _ _ _ key val)) ||
     (rewrite (@lookup_singleton_ne _ _ _ _ _ _ _ _ _ _ _ _ key needle val); congruence)
-| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle ∅]] => 
+| [ |- context[ @lookup _ _ (@gmap _ ?eqdec _ _) _ ?needle ∅]] =>
     rewrite (@lookup_empty _ _  _ _ _ _ _ _ _ _ _ _ needle) end in repeat (progress (unfold subst; try go; cbn)).
 
 Tactic Notation "wp_expr_eval" tactic3(t) :=
@@ -49,12 +49,12 @@ Lemma tac_wp_pure `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ Δ' s E K e1 e2 φ n
  Qed.
 
 
-Lemma tac_wp_value_nofupd `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ v :
-  envs_entails Δ (Φ (OVal v)) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
-Proof. rewrite envs_entails_unseal=> ->. by apply wp_outcome. Qed.
+Lemma tac_wp_outcome_nofupd `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ o :
+  envs_entails Δ (Φ o) → envs_entails Δ (WP (lang.ML_lang.of_outcome o) @ s; E {{ Φ }}).
+Proof. rewrite envs_entails_unseal=> ->. apply wp_outcome, to_of_outcome. Qed.
 
-Lemma tac_wp_value`{SI:indexT}  `{!heapG_ML Σ, !invG Σ} Δ s E (Φ : outcome val → iPropI Σ) v :
-  envs_entails Δ (|={E}=> Φ (OVal v)) → envs_entails Δ (WP (Val v) @ s; E {{ Φ }}).
+Lemma tac_wp_outcome`{SI:indexT}  `{!heapG_ML Σ, !invG Σ} Δ s E (Φ : outcome val → iPropI Σ) o :
+  envs_entails Δ (|={E}=> Φ o) → envs_entails Δ (WP (lang.ML_lang.of_outcome o) @ s; E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 
 (** Simplify the goal if it is [WP] of a value.
@@ -64,11 +64,17 @@ Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd'. Qed.
 Ltac wp_value_head :=
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E (Val _) (λ _, fupd ?E _ _)) =>
-      eapply tac_wp_value_nofupd
+      eapply (tac_wp_outcome_nofupd _ _ _ _ (OVal _))
   | |- envs_entails _ (wp ?s ?E (Val _) (λ _, wp _ ?E _ _)) =>
-      eapply tac_wp_value_nofupd
+      eapply (tac_wp_outcome_nofupd _ _ _ _ (OVal _))
   | |- envs_entails _ (wp ?s ?E (Val _) _) =>
-      eapply tac_wp_value
+      eapply (tac_wp_outcome _ _ _ _ (OVal _))
+  | |- envs_entails _ (wp ?s ?E (Raise _) (λ _, fupd ?E _ _)) =>
+      eapply (tac_wp_outcome_nofupd _ _ _ _ (OExn _))
+  | |- envs_entails _ (wp ?s ?E (Raise _) (λ _, wp _ ?E _ _)) =>
+      eapply (tac_wp_outcome_nofupd _ _ _ _ (OExn _))
+  | |- envs_entails _ (wp ?s ?E (Raise _) _) =>
+      eapply (tac_wp_outcome _ _ _ _ (OExn _))
   end.
 
 Ltac wp_finish :=
@@ -141,6 +147,7 @@ Tactic Notation "wp_seq" := wp_pure (Rec BAnon BAnon _); wp_lam.
 Tactic Notation "wp_proj" := wp_pure (Fst _) || wp_pure (Snd _).
 Tactic Notation "wp_case" := wp_pure (Case _ _ _).
 Tactic Notation "wp_match" := wp_case; wp_pure (Rec _ _ _); wp_lam.
+Tactic Notation "wp_raise" := wp_pure (Raise _).
 Tactic Notation "wp_inj" := wp_pure (InjL _) || wp_pure (InjR _).
 Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
@@ -153,7 +160,7 @@ Lemma tac_wp_call `{SI:indexT} `{!heapG_ML Σ, !invG Σ} Δ s E Φ fn vv e1 :
 Proof.
   intros ->.
   rewrite envs_entails_unseal=> Hyp. iIntros "H".
-  iApply (wp_call s fn vv E Φ). by iApply Hyp. 
+  iApply (wp_call s fn vv E Φ). by iApply Hyp.
 Qed.
 
 Tactic Notation "wp_call" :=
@@ -178,7 +185,7 @@ Tactic Notation "wp_extern" :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let e := eval simpl in e in
     let e := eval unfold lang.ML_lang.of_call in e in
-    reshape_expr e ltac:(fun K e' => match e' with Extern (?s) (map Val ?vv) => 
+    reshape_expr e ltac:(fun K e' => match e' with Extern (?s) (map Val ?vv) =>
       iApply (@wp_extern _ _ ML_lang _ _ _ K _ s vv); [try (iPureIntro; vm_compute; reflexivity) | ] end)
     || fail "wp_extern: expression not a call"
   | _ => fail "wp_extern: not a 'wp'"

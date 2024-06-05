@@ -7,7 +7,8 @@ Inductive prim :=
   | Pmodify | Preadfield | Pval2int | Pint2val
   | Pisblock | Pread_tag | Plength
   | Pallocforeign | Pwriteforeign | Preadforeign
-  | Pcallback
+  | Praise
+  | Pcallbackexn | Pcallback
   | Pmain (e : ML_lang.expr).
 
 Inductive is_prim : string → prim → Prop :=
@@ -24,6 +25,8 @@ Inductive is_prim : string → prim → Prop :=
   | allocforeign_is_prim : is_prim "alloc_foreign" Pallocforeign
   | writeforeign_is_prim : is_prim "write_foreign" Pwriteforeign
   | readforeign_is_prim : is_prim "read_foreign" Preadforeign
+  | raise_is_prim : is_prim "raise" Praise
+  | callback_exn_is_prim : is_prim "callback_exn" Pcallbackexn
   | callback_is_prim : is_prim "callback" Pcallback
   | main_is_prim e : is_prim "main" (Pmain e).
 
@@ -61,6 +64,8 @@ Proof.
   destruct (decide (s = "alloc_foreign")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "write_foreign")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "read_foreign")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "raise")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "callback_exn")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "callback")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "main")) as [->|]. left; eexists; constructor.
   right. by intros [? H]; inversion H.
@@ -82,6 +87,8 @@ Definition wrap_prog e : gmap string prim :=
       ("alloc_foreign", Pallocforeign);
       ("write_foreign", Pwriteforeign);
       ("read_foreign", Preadforeign);
+      ("raise", Praise);
+      ("callback_exn", Pcallbackexn);
       ("callback", Pcallback);
       ("main", Pmain e)
   ].

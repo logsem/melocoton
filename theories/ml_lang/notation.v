@@ -104,6 +104,12 @@ Notation "'rec:' f x := e" := (RecV f%binder x%binder e%MLE)
 Notation "'if:' e1 'then' e2 'else' e3" := (If e1%MLE e2%MLE e3%MLE)
   (at level 200, e1, e2, e3 at level 200) : ml_expr_scope.
 
+Notation "'raise' e" := (Raise e)
+  (at level 200, e at level 200) : ml_expr_scope.
+
+Notation "'try' e 'with' v '=>' r " := (Try e (RecV <> (BNamed v) r))
+  (at level 200, e at level 200) : ml_expr_scope.
+
 (** Derived notions, in order of declaration. The notations for let and seq
 are stated explicitly instead of relying on the Notations Let and Seq as
 defined above. This is needed because App is now a coercion, and these

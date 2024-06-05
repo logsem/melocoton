@@ -151,6 +151,25 @@ Proof.
   iApply wp_outcome; first done. iApply "H2".
 Qed.
 
+(* Lemma wp_lift_atomic_prim_step {s E Φ} e1 : *)
+(*   to_outcome e1 = None → *)
+(*   (∀ σ1, state_interp σ1 ={E}=∗ *)
+(*     ⌜reducible (penv_prog s) e1 σ1⌝ ∗ *)
+(*     ▷ ∀ e2 σ2 K, ⌜prim_step (penv_prog s) e1 σ1 (fill K e2) σ2⌝ ∗ ⌜K = []⌝ ={E}=∗ *)
+(*       state_interp σ2 ∗ *)
+(*       WP e2 @ s; E {{ Φ }}) *)
+(*   ⊢ WP e1 @ s; E {{ Φ }}. *)
+(* Proof. *)
+(*   iIntros (?) "H". *)
+(*   iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1". *)
+(*   iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. *)
+(*   iSplitR; eauto. *)
+(*   iIntros (e' σ' Hstep). *)
+(*   do 2 iModIntro. *)
+(*   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro. *)
+(*   iFrame. done. *)
+(* Qed. *)
+
 Lemma wp_allocN pe v n :
   (0 ≤ n)%Z →
   {{{ True }}} AllocN (Val $ LitV $ LitInt n) (Val v) at pe
@@ -243,6 +262,25 @@ Proof.
   rewrite (store_insert_offset _ _ _ vs); auto; [].
   iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl".
 Qed.
+
+Lemma wp_try E pe e r Φ :
+  WP e @ pe; E
+  {{ o, match o with
+        | OVal v => Φ o
+        | OExn v => WP App r (Val v) @ pe; E {{ Φ }}
+        end
+  }}
+  ⊢ WP (Try e r) @ pe; E {{ Φ }}.
+Proof.
+  iIntros "H". replace (Try e r) with (ML_lang.fill [TryCtx r] e) by done.
+  iApply wp_bind. iApply (wp_wand with "H").
+  iIntros (o) "H". destruct o.
+  { cbn. iApply wp_lift_atomic_head_step; eauto.
+    iIntros (σ1) "Hσ". iModIntro.
+    iSplit; first by eauto with head_step.
+    iIntros (v2 σ2 Hstep). inversion Hstep; subst. do 2 iModIntro. iFrame. }
+  cbn.
+Admitted.
 
 Lemma wp_storeN_oob pe l i vs w :
   (i < 0 ∨ length vs ≤ i)%Z →

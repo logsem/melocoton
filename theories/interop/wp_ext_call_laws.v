@@ -2,7 +2,7 @@ From melocoton.mlanguage Require Import weakestpre.
 From melocoton.interop.wp_prims Require Export
   alloc alloc_foreign int2val isblock length modify readfield
   read_foreign read_tag registerroot unregisterroot val2int
-  write_foreign.
+  write_foreign raise.
 
 Section Laws.
 
@@ -13,11 +13,12 @@ Context `{!invG Σ}.
 Context `{!wrapperG Σ}.
 
 Lemma base_prim_correct (p : prim) e Ψ :
+  p ≠ Pcallbackexn →
   p ≠ Pcallback →
   (∀ e, p ≠ Pmain e) →
   |- wrap_prog e :: prim_proto p Ψ.
 Proof using.
-  intros Hncb Hnmain.
+  intros Hncb Hncbexn Hnmain.
   (destruct p; try by congruence); unfold prim_proto.
   - apply alloc_correct.
   - apply registerroot_correct.
@@ -32,6 +33,7 @@ Proof using.
   - apply alloc_foreign_correct.
   - apply write_foreign_correct.
   - apply read_foreign_correct.
+  - apply raise_correct.
 Qed.
 
 End Laws.

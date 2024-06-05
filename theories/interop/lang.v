@@ -15,7 +15,9 @@ Local Notation prog := (gmap string prim).
 
 Inductive simple_expr : Type :=
   (** the wrapped module returns with a C value *)
-  | ExprO (o : outcome word)
+  | ExprO  (o : outcome word)
+  (* (** the wrapped module returns with a C catch value *) *)
+  | ExprOC (o : outcome word)
   (** A call to a C function, which can be either:
      - an outgoing call by the wrapped code to an external C function;
      - an incoming call to a runtime primitive, which will be implemented by the wrapper
@@ -24,9 +26,9 @@ Inductive simple_expr : Type :=
   (** Call to a builtin (primitive or main) *)
   | RunPrimitive (prm : prim) (args : list word)
   (** Execution of wrapped ML code *)
-  | ExprML (eml : ML_lang.expr).
+  | ExprML (eml : ML_lang.expr) (catch : bool).
 
-Definition ectx := list (language.ectx ML_lang).
+Definition ectx := list (language.ectx ML_lang * bool).
 
 Inductive expr : Type :=
   WrE (se: simple_expr) (k: ectx).
@@ -54,11 +56,11 @@ Definition is_call e f vs C := e = WrE (ExprCall f vs) C.
 Definition to_call f vs := WrE (ExprCall f vs) [].
 
 Definition comp_ectx (K1 K2 : ectx) : ectx :=
-  K2 ++ K1.
+  (K2 ++ K1).
 
 Definition fill (K : ectx) (e : expr) : expr :=
   let 'WrE se k := e in
-  WrE se (k ++ K).
+  WrE se (comp_ectx K k).
 
 (** state of the wrapper, which depends on whether we are yielding control to
     C or executing the wrapped ML program. *)
@@ -250,6 +252,8 @@ Proof.
   apply (ml_to_c_no_NB_val v) in H as (w & ρc & mem & ? & (lv & Hval & Hrepr)).
   { eexists (OVal w), ρc, mem; split; eauto; exists (OVal lv).
     split; now econstructor. }
+  { eexists (OExn w), ρc, mem; split; eauto; exists (OExn lv).
+    split; now econstructor. }
 Qed.
 
 (* Note: The "freezing step" does properly forbid freezing a
@@ -318,10 +322,10 @@ Local Notation CIntV x := (C_intf.LitV (C_intf.LitInt x)).
    program as external functions. The callback primitive is treated separately
    and has a dedicated case in [head_step_mrel] below. *)
 (* XXX naming issue: language interface prim_step vs this prim_step *)
-Implicit Types Y : word → wrapstateC → memory → Prop.
+Implicit Types Y : outcome word → wrapstateC → memory → Prop.
 Inductive c_prim_step :
   prim → list word → wrapstateC → memory →
-  (word → wrapstateC → memory → Prop) → Prop
+  (outcome word → wrapstateC → memory → Prop) → Prop
 :=
   | PrimAllocS ρc mem tgnum sz tg roots privmem Y :
     tgnum = vblock_tag_as_int tg →
@@ -338,17 +342,17 @@ Inductive c_prim_step :
       repr θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
-      Y (C_intf.LitV (C_intf.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
+      Y (OVal (C_intf.LitV (C_intf.LitLoc a))) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     c_prim_step Palloc [CIntV tgnum; CIntV sz] ρc mem Y
   | PrimRegisterrootS ρc mem a rootsC' Y :
     a ∉ rootsC ρc →
     rootsC' = {[ a ]} ∪ rootsC ρc →
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem →
+    Y (OVal (CIntV 0)) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem →
     c_prim_step Pregisterroot [CLocV a] ρc mem Y
   | PrimUnregisterrootS ρc mem a rootsC' Y :
     a ∈ rootsC ρc →
     rootsC' = rootsC ρc ∖ {[ a ]} →
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem →
+    Y (OVal (CIntV 0)) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem →
     c_prim_step Punregisterroot [CLocV a] ρc mem Y
   | PrimModifyS ρc mem w i w' γ lv blk ζC' blk' Y :
     (0 ≤ i)%Z →
@@ -357,7 +361,7 @@ Inductive c_prim_step :
     repr_lval (θC ρc) lv w' →
     modify_block blk (Z.to_nat i) lv blk' →
     ζC' = <[ γ := blk' ]> (ζC ρc) →
-    Y (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem →
+    Y (OVal (CIntV 0)) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem →
     c_prim_step Pmodify [w; CIntV i; w'] ρc mem Y
   | PrimReadfieldS ρc mem w i γ mut tag lvs lv w' Y :
     (0 ≤ i)%Z →
@@ -365,35 +369,35 @@ Inductive c_prim_step :
     (ζC ρc) !! γ = Some (Bvblock (mut, (tag, lvs))) →
     lvs !! (Z.to_nat i) = Some lv →
     repr_lval (θC ρc) lv w' →
-    Y w' ρc mem →
+    Y (OVal w') ρc mem →
     c_prim_step Preadfield [w; CIntV i] ρc mem Y
   | PrimIsblockTrueS ρc mem w γ Y :
     repr_lval (θC ρc) (Lloc γ) w →
-    Y (CIntV 1) ρc mem →
+    Y (OVal (CIntV 1)) ρc mem →
     c_prim_step Pisblock [w] ρc mem Y
   | PrimIsblockFalseS ρc mem w z Y :
     repr_lval (θC ρc) (Lint z) w →
-    Y (CIntV 0) ρc mem →
+    Y (OVal (CIntV 0)) ρc mem →
     c_prim_step Pisblock [w] ρc mem Y
   | PrimReadTagS ρc mem w γ bl tg tgnum Y :
     repr_lval (θC ρc) (Lloc γ) w →
     (ζC ρc) !! γ = Some bl →
     tg = block_tag bl →
     tgnum = tag_as_int tg →
-    Y (CIntV tgnum) ρc mem →
+    Y (OVal (CIntV tgnum)) ρc mem →
     c_prim_step Pread_tag [w] ρc mem Y
   | PrimLengthS ρc mem w γ mut tag lvs Y :
     repr_lval (θC ρc) (Lloc γ) w →
     (ζC ρc) !! γ = Some (Bvblock (mut, (tag, lvs))) →
-    Y (CIntV (length lvs)) ρc mem →
+    Y (OVal (CIntV (length lvs))) ρc mem →
     c_prim_step Plength [w] ρc mem Y
   | PrimVal2intS ρc mem w x Y :
     repr_lval (θC ρc) (Lint x) w →
-    Y (CIntV x) ρc mem →
+    Y (OVal (CIntV x)) ρc mem →
     c_prim_step Pval2int [w] ρc mem Y
   | PrimInt2valS ρc mem x w Y :
     repr_lval (θC ρc) (Lint x) w →
-    Y w ρc mem →
+    Y (OVal w) ρc mem →
     c_prim_step Pint2val [CIntV x] ρc mem Y
   | PrimAllocForeignS roots privmem ρc mem Y :
     dom roots = rootsC ρc →
@@ -408,19 +412,23 @@ Inductive c_prim_step :
       repr θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
-      Y (CLocV a) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
+      Y (OVal (CLocV a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     c_prim_step Pallocforeign [] ρc mem Y
   | PrimReadForeignS w γ mut aforeign ρc mem Y :
     repr_lval (θC ρc) (Lloc γ) w →
     (ζC ρc) !! γ = Some (Bforeign (mut, Some aforeign)) →
-    Y aforeign ρc mem →
+    Y (OVal aforeign) ρc mem →
     c_prim_step Preadforeign [w] ρc mem Y
   | PrimWriteForeignS w γ aforeigno aforeign' ζC' ρc mem Y :
     repr_lval (θC ρc) (Lloc γ) w →
     (ζC ρc) !! γ = Some (Bforeign (Mut, aforeigno)) →
     ζC' = <[ γ := Bforeign (Mut, Some aforeign') ]> (ζC ρc) →
-    Y (CIntV 0) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem →
-    c_prim_step Pwriteforeign [w; aforeign'] ρc mem Y.
+    Y (OVal (CIntV 0)) (WrapstateC (χC ρc) ζC' (θC ρc) (rootsC ρc)) mem →
+    c_prim_step Pwriteforeign [w; aforeign'] ρc mem Y
+  | RaiseS w ρc mem Y :
+    Y (OExn w) ρc mem  →
+    c_prim_step Praise [w] ρc mem Y.
+
 
 Lemma c_prim_step_covariant_in_Y prm ws ρc mem Y Y' :
   c_prim_step prm ws ρc mem Y →
@@ -500,9 +508,11 @@ Qed.
 Local Definition is_ML_call (e : ML_lang.expr) fn_name vs K :=
   e = language.fill K (of_call _ fn_name vs).
 
+Local Notation HVal v := (Some (Some v)).
+
 Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) → Prop :=
   (** Step in the underlying wrapped ML program. *)
-  | StepMLS eml K ρml σ X :
+  | StepMLS eml c K ρml σ X :
     (* We assume a closed ML expression: the "prog" collection of functions does
        not make too much sense at the ML level. Composition of ML "modules" is
        better modeled by composing expressions/evaluation contexts. *)
@@ -510,33 +520,46 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     reducible ∅ eml σ →
     (∀ eml' σ',
        language.language.prim_step ∅ eml σ eml' σ' →
-       X (WrE (ExprML eml') K, MLState ρml σ')) →
-    prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
+       X (WrE (ExprML eml' c) K, MLState ρml σ')) →
+    prim_step_mrel p (WrE (ExprML eml c) K, MLState ρml σ) X
   (** External call of the ML code to a C function. *)
-  | MakeCallS eml K ρml fn_name vs k σ X :
+  | MakeCallS eml c K ρml fn_name vs k σ X :
     is_ML_call eml fn_name vs k →
     p !! fn_name = None →
     check_ml_state ρml σ →
     (∀ ws ρc mem,
        ml_to_c_heap ρml σ ρc mem →
        ml_to_c_vals vs ws ρc →
-       X (WrE (ExprCall fn_name ws) (k::K), CState ρc mem)) →
-    prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
+       X (WrE (ExprCall fn_name ws) ((k, c)::K), CState ρc mem)) →
+    prim_step_mrel p (WrE (ExprML eml c) K, MLState ρml σ) X
   (** Execution finishes with an ML value, translate it into a C value *)
-  | OutS eml K ρml σ ov X :
+  | OutS eml (c : bool) K ρml σ ov X :
     language.to_outcome eml = Some ov →
     check_ml_state ρml σ →
     (∀ ow ρc mem,
        ml_to_c_heap ρml σ ρc mem →
        ml_to_c_outcome ov ow ρc →
-       X (WrE (ExprO ow) K, CState ρc mem)) →
-    prim_step_mrel p (WrE (ExprML eml) K, MLState ρml σ) X
+       if c
+       then X (WrE (ExprOC ow) K, CState ρc mem)
+       else X (WrE (ExprO  ow) K, CState ρc mem)) →
+    prim_step_mrel p (WrE (ExprML eml c) K, MLState ρml σ) X
   (** Given a C value (result of a C extcall), resume execution into ML code. *)
-  | RetS ow ki ρc mem ov ρml σ K X ζ:
+  | RetS ow ki c ρc mem ov ρml σ K X ζ:
     c_to_ml_heap ρc mem ρml σ ζ →
     c_to_ml_outcome ow ρc ov ρml ζ →
-    X (WrE (ExprML (language.fill ki (lang.ML_lang.of_outcome ov))) K, MLState ρml σ) →
-    prim_step_mrel p (WrE (ExprO ow) (ki::K), CState ρc mem) X
+    X (WrE (ExprML (language.fill ki (lang.ML_lang.of_outcome ov)) c) K, MLState ρml σ) →
+    prim_step_mrel p (WrE (ExprO ow) ((ki,c)::K), CState ρc mem) X
+  (** Given a C value (result of a C extcall), resume execution into ML code. *)
+  | RetCS ow ρc mem K X:
+    (∀ a (mem' : public_state),
+      mem !! a = None →
+      mem !! (a +ₗ 1) = None →
+      match ow with
+      | OVal v => mem' = heap_array a [HVal (CIntV 0); HVal v] ∪ mem
+      | OExn v => mem' = heap_array a [HVal (CIntV 1); HVal v] ∪ mem
+      end →
+      X (WrE (ExprO (OVal (CLocV a))) K, CState ρc mem')) →
+    prim_step_mrel p (WrE (ExprOC ow) K, CState ρc mem) X
   (** Administrative step for resolving a call to a primitive. *)
   | ExprCallS fn_name args ρ K prm X :
     p !! fn_name = Some prm →
@@ -544,20 +567,25 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
     prim_step_mrel p (WrE (ExprCall fn_name args) K, ρ) X
   (** Call to a primitive (except for callback/main, see next cases) *)
   | PrimS prm ws ρc mem K X :
-    c_prim_step prm ws ρc mem (λ w ρc' mem',
-        X (WrE (ExprO (OVal w)) K, CState ρc' mem')) →
+    c_prim_step prm ws ρc mem (λ ow ρc' mem',
+        X (WrE (ExprO ow) K, CState ρc' mem')) →
     prim_step_mrel p (WrE (RunPrimitive prm ws) K, CState ρc mem) X
   (** Call to the callback primitive *)
   | CallbackS K w w' ρc mem f x e v ρml σ X ζ:
     c_to_ml_heap ρc mem ρml σ ζ →
     c_to_ml_vals [w; w'] ρc [RecV f x e; v] ρml ζ →
-    X (WrE (ExprML (App (Val (RecV f x e)) (Val v))) K,
+    X (WrE (ExprML (App (Val (RecV f x e)) (Val v)) false) K,
         MLState ρml σ) →
     prim_step_mrel p (WrE (RunPrimitive Pcallback [w; w']) K, CState ρc mem) X
+  | CallbackexnS K w w' ρc mem f x e v ρml σ X ζ:
+    c_to_ml_heap ρc mem ρml σ ζ →
+    c_to_ml_vals [w; w'] ρc [RecV f x e; v] ρml ζ →
+    X (WrE (ExprML (App (Val (RecV f x e)) (Val v)) true) K, MLState ρml σ) →
+    prim_step_mrel p (WrE (RunPrimitive Pcallbackexn [w; w']) K, CState ρc mem) X
 
   (** Call to the main function *)
   | MainS e K mem X :
-    X (WrE (ExprML e) K, MLState (WrapstateML ∅ ∅ ∅ mem) ∅) →
+    X (WrE (ExprML e false) K, MLState (WrapstateML ∅ ∅ ∅ mem) ∅) →
     prim_step_mrel p (WrE (RunPrimitive (Pmain e) []) K, CState (WrapstateC ∅ ∅ ∅ ∅) mem) X
 
   (** Terminate execution with NB on values *)
@@ -573,12 +601,15 @@ Next Obligation.
   | eapply MakeCallS
   | eapply OutS
   | eapply RetS
+  | eapply RetCS
   | eapply ExprCallS
   | eapply PrimS
   | eapply CallbackS
+  | eapply CallbackexnS
   | eapply MainS
   | eapply ValStopS
-  ]; unfold c_to_ml_heap in *; eauto; [naive_solver..|].
+  ]; unfold c_to_ml_heap in *; eauto.
+  { intros * Hh Ho. destruct c; naive_solver. }
   { (* PrimS case: need to perform inversion on c_prim_step *)
     inversion H; econstructor; eauto; naive_solver. }
 Qed.
@@ -608,26 +639,44 @@ Proof using.
     apply app_eq_nil in H5 as (->&->); done.
   - intros [] K1 K2.
     rewrite /fill /comp_ectx app_assoc //.
-  - intros [? ?]. rewrite /= app_nil_r //.
+  - intros [? ?]. rewrite /= /comp_ectx app_nil_r //.
   - intros p C [es eK] σ X Hnv. inversion 1; simplify_eq.
     all: try (econstructor; eauto; naive_solver).
-    + econstructor; eauto. rewrite -/app. eexists (WrE _ _); eauto.
+    + eapply OutS; eauto. intros; unfold comp_ectx, fill.
+      destruct c; eexists _; cbn; split; eauto; cbn; unfold comp_ectx; eauto.
+    + unfold fill, comp_ectx; cbn. eapply RetS; eauto; eexists; split; eauto.
+      cbn; eauto.
+    + econstructor; eauto. intros.
+      eexists (WrE (ExprO (OVal (CLocV a))) _); split; eauto.
     + econstructor; eauto. eexists (WrE _ _); eauto.
     + econstructor; eauto.
       eapply c_prim_step_covariant_in_Y; eauto. cbn.
       intros. eexists (WrE _ _); eauto.
     + eapply CallbackS; eauto. eexists (WrE _ _); eauto.
+    + eapply CallbackexnS; eauto. eexists (WrE _ _); eauto.
     + eapply MainS; eauto. eexists (WrE _ _); eauto.
   - intros p [[]] σ X; cbn.
     + destruct k; try done; intros _.
       inversion 1; simplify_eq. eauto.
+    + intros _. inversion 1; simplify_eq.
+      pose (fresh_locs (dom mem)) as a.
+      pose (match o with OVal _ => 0 | OExn _ => 1 end) as is_exn.
+      pose (match o with OVal v | OExn v => v end) as ov.
+      assert (mem !! a = None ∧ mem !! (a +ₗ 1) = None) as [Ha Ha1].
+      { split; eapply not_elem_of_dom; unfold a.
+        - rewrite -(loc_add_0 (fresh_locs _)). eapply (fresh_locs_fresh). lia.
+        - eapply fresh_locs_fresh. lia. }
+      pose (heap_array a [HVal (CIntV is_exn); HVal ov] ∪ mem) as mem'.
+      eexists (WrE (ExprO (OVal (CLocV a))) k), (CState ρc mem').
+      destruct o; eapply H4; eauto.
     + intros _. inversion 1; simplify_eq; eauto.
     + intros _. inversion 1; simplify_eq; eauto.
       apply c_prim_step_no_NB in H5 as (?&?&?&?); eauto.
     + intros _. inversion 1; simplify_eq.
-      * destruct H5 as (?&?&?). eauto.
-      * apply (ml_to_c_no_NB vs) in H6 as (?&?&?&?&?); eauto.
-      * apply (ml_to_c_no_NB_outcome ov) in H5 as (?&?&?&?&?); eauto.
+      * destruct H6 as (?&?&?). eauto.
+      * apply (ml_to_c_no_NB vs) in H7 as (?&?&?&?&?); eauto.
+      * apply (ml_to_c_no_NB_outcome ov) in H6 as (?&?&?&?&?).
+        destruct catch; eauto.
 Qed.
 
 End wrappersem.

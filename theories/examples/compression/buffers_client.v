@@ -41,8 +41,6 @@ Section MLclient.
     let P := length (compress_buffer zz) < length zz
     in decide P.
 
-
-
   Lemma ML_client_spec ℓ dq (zz : buffer) :
     {{{ ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}
       ML_client_code #ℓ at ML_client_env
