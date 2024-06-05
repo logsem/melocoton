@@ -130,7 +130,7 @@ Definition ml_to_c
   lloc_map_inj (χML ρml) ∧
   dom (ζML ρml) ⊆ dom (χML ρml) ∧
   map_Forall (λ (_ : nat) (ℓ : loc), σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)) ∧
-  dom (privmemML ρml) ## dom (rootsML ρml) ∧
+  dom (privmemML ρml) ## dom_roots (rootsML ρml) ∧
   ∀ ws ρc mem,
     ml_to_c_core vs ρml σ ws ρc mem →
     Y ws ρc mem.
