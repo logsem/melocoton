@@ -151,24 +151,24 @@ Proof.
   iApply wp_outcome; first done. iApply "H2".
 Qed.
 
-(* Lemma wp_lift_atomic_prim_step {s E Φ} e1 : *)
-(*   to_outcome e1 = None → *)
-(*   (∀ σ1, state_interp σ1 ={E}=∗ *)
-(*     ⌜reducible (penv_prog s) e1 σ1⌝ ∗ *)
-(*     ▷ ∀ e2 σ2 K, ⌜prim_step (penv_prog s) e1 σ1 (fill K e2) σ2⌝ ∗ ⌜K = []⌝ ={E}=∗ *)
-(*       state_interp σ2 ∗ *)
-(*       WP e2 @ s; E {{ Φ }}) *)
-(*   ⊢ WP e1 @ s; E {{ Φ }}. *)
-(* Proof. *)
-(*   iIntros (?) "H". *)
-(*   iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1". *)
-(*   iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro. *)
-(*   iSplitR; eauto. *)
-(*   iIntros (e' σ' Hstep). *)
-(*   do 2 iModIntro. *)
-(*   iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro. *)
-(*   iFrame. done. *)
-(* Qed. *)
+Lemma wp_lift_atomic_prim_step {s E Φ} e1 :
+  to_outcome e1 = None →
+  (∀ σ1, state_interp σ1 ={E}=∗
+    ⌜reducible (penv_prog s) e1 σ1⌝ ∗
+    ▷ ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
+      state_interp σ2 ∗
+      WP e2 @ s; E {{ Φ }})
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (?) "H".
+  iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1".
+  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro.
+  iSplitR; eauto.
+  iIntros (e' σ' Hstep).
+  do 2 iModIntro.
+  iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
+  iFrame. done.
+Qed.
 
 Lemma wp_allocN pe v n :
   (0 ≤ n)%Z →
@@ -279,7 +279,22 @@ Proof.
     iIntros (σ1) "Hσ". iModIntro.
     iSplit; first by eauto with head_step.
     iIntros (v2 σ2 Hstep). inversion Hstep; subst. do 2 iModIntro. iFrame. }
-  cbn.
+  cbn. iApply wp_lift_atomic_prim_step; first done.
+  iIntros (σ1) "Hσ !>". iSplit.
+  { iPureIntro; eexists (App r v), _. eapply (Prim_step_try _ []); eauto. }
+  iIntros (v2 σ2 Hstep).
+  inversion Hstep; subst.
+  {  admit. }
+  { clear Hstep. assert (Ki = TryCtx r) as ->; last by exfalso.
+    admit. }
+  { do 2 iModIntro. iFrame.
+    assert (K = []) as ->.
+    { rewrite fill_comp_item in H; cbn in H.
+      replace (Try (raise: v) r) with (fill [] (Try (raise: v) r)) in * by eauto.
+      destruct (fill_prefix _ _ _ _ H) as [K' [H' | H']]; eauto.
+      { cbn in *; subst. admit. }
+      { destruct K'; eauto. cbn in H. inversion H'. } }
+    cbn in *. inversion H; subst. iFrame. }
 Admitted.
 
 Lemma wp_storeN_oob pe l i vs w :

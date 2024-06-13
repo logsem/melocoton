@@ -308,8 +308,12 @@ Lemma write_foreign_refines_prims_proto Ψ : write_foreign_proto ⊑ prims_proto
 Proof using. tac Pwriteforeign. Qed.
 Lemma read_foreign_refines_prims_proto Ψ : read_foreign_proto ⊑ prims_proto Ψ.
 Proof using. tac Preadforeign. Qed.
+Lemma raise_refines_prims_proto Ψ : raise_proto ⊑ prims_proto Ψ.
+Proof using. tac Praise. Qed.
 Lemma callback_refines_prims_proto Ψ : callback_proto Ψ ⊑ prims_proto Ψ.
 Proof using. tac Pcallback. Qed.
+Lemma callback_exn_refines_prims_proto Ψ : callback_exn_proto Ψ ⊑ prims_proto Ψ.
+Proof using. tac Pcallbackexn. Qed.
 
 End PrimsProto.
 
@@ -326,4 +330,6 @@ Global Hint Resolve alloc_refines_prims_proto : core.
 Global Hint Resolve alloc_foreign_refines_prims_proto : core.
 Global Hint Resolve write_foreign_refines_prims_proto : core.
 Global Hint Resolve read_foreign_refines_prims_proto : core.
+Global Hint Resolve raise_refines_prims_proto : core.
 Global Hint Resolve callback_refines_prims_proto : core.
+Global Hint Resolve callback_exn_refines_prims_proto : core.

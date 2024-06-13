@@ -122,8 +122,7 @@ Section ML_code.
       iIntros "!>" (v') "HΨ Htok". wp_pures.
       iApply ("IH" with "HΨ Htok").
     - iIntros (v') "H". destruct v'; cbn; wp_pures; try by iModIntro.
-  Admitted.
-  (* Qed. *)
+  Qed.
 
 
   Import melocoton.ml_lang.logrel.logrel melocoton.ml_lang.logrel.fundamental.

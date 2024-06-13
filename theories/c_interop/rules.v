@@ -306,6 +306,21 @@ Proof.
   iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
+Lemma wp_raise p Ψ w :
+  p !! "raise" = None →
+  raise_proto ⊑ Ψ →
+  {{{ True }}}
+    (call: &"raise" with (Val w))%CE at ⟨p, Ψ⟩
+  {{{ RET (OExn w); True }}}.
+Proof.
+  intros Hp Hproto **. iIntros "_ Cont".
+  wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /raise_proto /named. iSplit; first done.
+  iExists _. iSplit; eauto. iSplit; eauto. iIntros "_".
+  iApply wp_outcome; eauto. iApply "Cont"; eauto.
+Qed.
+
 Lemma wp_callback p ΨML Ψ θ w γ f x e lv' w' v' Φ :
   p !! "callback" = None →
   callback_proto ΨML ⊑ Ψ →
@@ -329,6 +344,36 @@ Proof.
   rewrite /callback_proto /named. iSplit; first done.
   do 10 iExists _. iFrame.
   do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "(? & ? & ? & %)".
+  iApply wp_outcome; first apply to_of_outcome.
+  iApply "Cont"; by iFrame.
+Qed.
+
+Lemma wp_callback_exn p ΨML Ψ θ w γ f x e lv' w' v' Φ :
+  p !! "callback_exn" = None →
+  callback_exn_proto ΨML ⊑ Ψ →
+  repr_lval θ (Lloc γ) w →
+  repr_lval θ lv' w' →
+  {{{ GC θ ∗
+      γ ↦clos (f, x, e) ∗
+      lv' ~~ v' ∗
+      (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) at ⟨∅, ΨML⟩ {{ Φ }})
+  }}}
+    (call: &"callback_exn" with (Val w, Val w'))%CE at ⟨p, Ψ⟩
+  {{{ θ' res is_exn ret lret wret, RETV (C_intf.LitV (C_intf.LitLoc res));
+        GC θ' ∗
+        res ↦C∗ [ C_intf.LitV (C_intf.LitInt is_exn); wret ] ∗
+        lret ~~ ret ∗ ⌜repr_lval θ' lret wret⌝ ∗
+        if Z.eqb is_exn 0%Z
+        then Φ (OVal ret)
+        else Φ (OExn ret) }}}.
+Proof.
+  intros Hp Hproto **. iIntros "(? & ? & ? & ?) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /callback_exn_proto /named. iSplit; first done.
+  do 10 iExists _. iSplit; eauto. iSplitR "Cont".
+  { iFrame. iSplit; eauto. }
+  iModIntro. iIntros (? ? ? ? ? ?) "(? & ? & ? & ?)".
   iApply wp_outcome; first apply to_of_outcome.
   iApply "Cont"; by iFrame.
 Qed.

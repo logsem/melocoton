@@ -100,7 +100,7 @@ Proof.
 Qed.
 
 Definition try_val : ML_lang.expr :=
-  try #1 + #1 with "_" => #1.
+  try: #1 + #1 with: "_" => #1.
 
 Implicit Types Φ : outcome val → iProp Σ.
 
@@ -113,7 +113,7 @@ Proof.
 Qed.
 
 Definition try_raise : ML_lang.expr :=
-  try raise (#1 + #1) with "v" => #1 + "v".
+  try: raise: (#1 + #1) with: "v" => #1 + "v".
 
 Lemma try_raise_proof
  : ⊢ (WP try_raise at AxiomEnv {{v, ⌜v = OVal #3⌝}})%I.

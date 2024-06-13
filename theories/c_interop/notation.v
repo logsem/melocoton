@@ -29,6 +29,17 @@ Notation "'BoxedInt_val' '(' x ')'" := (call: &"read_foreign" with (x%CE))%CE
   (at level 70, x at level 69,
   format "'BoxedInt_val' '(' x ')'") : c_expr_scope.
 
+Notation "'Callback' '(' f ',' x ')'" := (call: &"callback" with (f%CE, x%CE))%CE
+  (at level 70, x at level 69,
+  format "'Callback' '(' f ',' x ')'") : c_expr_scope.
+Notation "'Callback_exn' '(' f ',' x ')'" := (call: &"callback_exn" with (f%CE, x%CE))%CE
+  (at level 70, x at level 69,
+  format "'Callback_exn' '(' f ',' x ')'") : c_expr_scope.
+
+Notation "'Raise' '(' x ')'" := (call: &"raise" with (x%CE))%CE
+  (at level 70, x at level 69,
+  format "'Raise' '(' x ')'") : c_expr_scope.
+
 Notation "'Custom_contents' '(' x ')'" := (call: &"read_foreign" with (x%CE))%CE
   (at level 70, x at level 69,
   format "'Custom_contents' '(' x ')'") : c_expr_scope.

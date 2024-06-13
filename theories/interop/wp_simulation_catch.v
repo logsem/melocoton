@@ -148,11 +148,8 @@ Proof.
     { rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
       iApply ("Hwp" $! (MLState ρml σ)). iFrame. by iPureIntro. }
     { iIntros (vv) "(%θ' & %exn & %lv & %a & %w & -> & Ha & HGC & H & ?)".
-      destruct o.
-      { iExists θ', a, _, _, _, _. iFrame.
-        iDestruct "H" as "(-> & %Hr & Hb)". iFrame; iSplit; eauto.  }
-      { iExists θ', a, _, _, _, _. iFrame.
-        iDestruct "H" as "(-> & %Hr & Hb)". iFrame; iSplit; eauto.  } }
+      destruct o; iExists θ', a, _, v, lv, w; iFrame;
+      iDestruct "H" as "(-> & %Hr & Hb)"; iFrame; iSplit; eauto. }
   (* extcall *)
   + iDestruct "HWP" as "(%fn_name & %vs & %K' & %H & %Hfn & >(%Ξ & Hσ & HT & Hr))".
     iAssert (⌜¬ is_prim_name fn_name⌝)%I with "[HT]" as "%Hnprim".
