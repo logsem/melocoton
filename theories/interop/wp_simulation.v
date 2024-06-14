@@ -53,12 +53,12 @@ Proof using.
   { iPureIntro. eapply ValS; try naive_solver. }
 
   iIntros (? ? (w & ρc & mem & Hout & Hcore & -> & ->)).
-  iMod ((wrap_interp_ml_to_c [v]) with "SI Hnb") as "(SI & Hb & HGC & (%lvs & Hsim & %Hrepr))"; eauto.
-  { destruct Hcore as [lv [Hv Hr]]; eauto. }
+  destruct Hcore as [lv [Hv Hr]].
+  iMod ((wrap_interp_ml_to_c [v] [lv]) with "SI Hnb") 
+    as "(SI & Hb & HGC & ((Hsim & _) & %Hrepr))"; eauto.
   do 3 iModIntro. iFrame "SI".
   replace (WrSE (ExprV w)) with (of_outcome wrap_lang (OVal w)) by done. 
   iApply weakestpre.wp_outcome'.
-  iDestruct (big_sepL2_cons_inv_l with "Hsim") as "(% & % & -> & Hsim & _)".
   iExists _, _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
@@ -115,9 +115,8 @@ Proof.
       { split_and!; eauto. }
       { intros * Hep (lvs & ? & ?). do 4 eexists. split_and!; eauto. } }
     iIntros (? ? (ws & ρc & mem & lvs & ? & ? & Hcore & -> & ->)).
-    iMod (wrap_interp_ml_to_c with "[- Hnb Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lv & #Hblk & %))";
-      first done.
-    { exists lvs; split_and; eauto.  }
+    iMod ((wrap_interp_ml_to_c vs lvs) with "[- Hnb Hr HT] Hnb")
+      as "(Hσ & Hb & HGC & (#Hblk & %))"; eauto.
     { rewrite /wrap_state_interp /ML_state_interp /named.
       iSplitL "Hσ"; first by iFrame. by iFrame. }
     do 3 iModIntro. iFrame "Hσ".

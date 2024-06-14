@@ -72,19 +72,20 @@ Proof using.
   destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
 Qed.
 
-Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
+Lemma wrap_interp_ml_to_c vs lvs ρml σ ws ρc mem :
   ml_to_c_heap ρml σ ρc mem →
-  (∃ lvs, Forall2 (repr_lval (θC ρc)) lvs ws ∧ Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs) →
+  (Forall2 (repr_lval (θC ρc)) lvs ws ∧
+   Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs) →
   wrap_state_interp (Wrap.MLState ρml σ) -∗
   not_at_boundary
   ==∗
   wrap_state_interp (Wrap.CState ρc mem) ∗
   at_boundary wrap_lang ∗
   GC (θC ρc) ∗
-  (∃ lvs, lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
+  lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝.
 Proof using.
   iIntros (Hml_to_c H) "Hst Hb".
-  destruct H as (lv & Hval & Hrepre).
+  destruct H as (Hval & Hrepre).
   destruct Hml_to_c as (ζσ & ζnewimm & HH).
   destruct HH as (Hmono & Hblocks & Hprivblocks & HζC & Hζdisj &
                     Hstore & ? & ? & Hroots & ?).
@@ -108,13 +109,13 @@ Proof using.
     { eapply is_store_blocks_lstore_dom_sub; eauto. }
     { eapply is_private_blocks_dom_sub; eauto. } }
   iMod (set_to_some with "HσCv GCrootspto") as "(HσCv & GCrootspto)"; first done.
-  iDestruct (hgh_block_sim_of _ _ _ vs lv with "GCHGH") as "#Hsim"; first eassumption.
+  iDestruct (hgh_block_sim_of _ _ _ vs lvs with "GCHGH") as "#Hsim"; first eassumption.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. } iSplit.
   { rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
-  { iExists _; by iFrame "Hsim". }
+  { by iFrame "Hsim". }
 Qed.
 
 End BoundaryLaws.
