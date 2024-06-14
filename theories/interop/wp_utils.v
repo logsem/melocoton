@@ -33,8 +33,9 @@ Import mlanguage.
 
 Section RootsRepr.
 
-(* We can decompose mem, the C heap, into a privmem, which is everything but the roots, and a memr, which are just the rooted cells *)
-Lemma make_repr θ roots_m mem : 
+(* We can decompose mem, the C heap, into a privmem, which is everything but the
+   roots, and a memr, which are just the rooted cells *)
+Lemma make_repr θ roots_m mem :
     roots_are_live θ roots_m
  -> map_Forall (λ k v, ∃ w , mem !! k = Some (Storing w) ∧ repr_lval θ v w) roots_m
  -> ∃ privmem, repr θ roots_m privmem mem.
@@ -108,7 +109,7 @@ Proof.
     + rewrite lookup_insert_ne. 2: done. apply IHrepr_roots. done.
 Qed.
 
-Lemma repr_dom_eq θ mem roots_1 roots_2 p1 p2 m1 m2 : 
+Lemma repr_dom_eq θ mem roots_1 roots_2 p1 p2 m1 m2 :
    dom roots_1 = dom roots_2
  → gmap_inj θ
  → repr_raw θ roots_1 p1 mem m1
@@ -122,7 +123,7 @@ Proof.
     + eapply elem_of_dom_2 in Heq as Hdom. eapply lookup_union_Some_l in Heq.
       erewrite <- Hu1 in Heq. erewrite <- Heq. erewrite Hu2.
       rewrite Hr2 in Hdom.
-      eapply lookup_union_l. apply elem_of_dom in Hdom as [vv Hvv]. 
+      eapply lookup_union_l. apply elem_of_dom in Hdom as [vv Hvv].
       eapply map_disjoint_Some_l. 1: done. apply Hvv.
     + symmetry. eapply not_elem_of_dom. rewrite <- Hr2. by eapply not_elem_of_dom. }
   assert (p1 = p2) as ->.

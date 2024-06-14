@@ -47,13 +47,14 @@ Definition preGCtok : iProp Σ :=
     "GCζ" ∷ ghost_var wrapperG_γζ (1/2) (∅:lstore)
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) (∅:lloc_map)
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
-  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (∅:gset addr)
+  (* FIXME *)
+  (* ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (∅ : list $ gset addr) *)
   ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCML" ∷ state_interp (∅ : language.language.state ML_lang)
   ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval).
 
-Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : gset addr) : iProp Σ :=
+Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : list $ gset addr) : iProp Σ :=
   ∃ (at_init : bool),
     "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
@@ -63,26 +64,27 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots :
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) at_init
   ∗ "Hinit" ∷ if at_init then preGCtok else True.
 
-Definition GC_remnant (ζ : lstore) (χ : lloc_map) (roots_m : roots_map) : iProp Σ :=
+Definition GC_remnant (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) : iProp Σ :=
    "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
  ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
  ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
  ∗ "GCHGH" ∷ HGH χ None ζ
  ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
- ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots_m)
- ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (roots_m : gmap loc lval)
- ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom roots_m), a O↦C None).
+ ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (map dom roots_m)
+ ∗ "GCrootsm" ∷ ([∗ list] roots ∈ roots_m, ghost_map_auth wrapperG_γroots_map 1 roots)
+ ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom_roots roots_m), a O↦C None).
 
-Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : roots_map) (memC : memory) : iProp Σ :=
+Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : list roots_map) (memC : memory) : iProp Σ :=
     "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperG_γθ (1/2) (∅ : addr_map)
   ∗ "SIGCrem" ∷ GC_remnant ζ χ roots
-  ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots)
+  (* ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots *)
   ∗ "SIbound" ∷ ghost_var wrapperG_γat_boundary (1/2) false
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) false
-  ∗ "HσCv" ∷ gen_heap_interp (memC ∪ (fmap (fun k => None) roots))
-  ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom roots⌝.
+  (* FIXME *)
+  (* ∗ "HσCv" ∷ gen_heap_interp (memC ∪ (fmap (fun k => None) roots)) *)
+  ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom_roots roots⌝.
 
 Definition private_state_interp : wrapstateC → iProp Σ :=
   (λ ρc, C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc))%I.
@@ -94,7 +96,7 @@ Definition wrap_state_interp (σ : Wrap.state) : iProp Σ :=
       "SIC" ∷ private_state_interp ρc
   | Wrap.MLState ρml σ =>
       "HσML" ∷ state_interp (σ:language.language.state ML_lang) ∗
-      "SIML"             ∷ ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml)
+      "SIML" ∷ ML_state_interp (ζML ρml) (χML ρml) (rootsML ρml) (privmemML ρml)
 end.
 
 Global Program Instance wrapG :
@@ -149,6 +151,7 @@ Qed.
 
 End WrapperWP.
 
+(* FIXME *)
 Ltac SI_GC_agree :=
   iDestruct (ghost_var_agree with "GCζ SIζ") as %?;
   iDestruct (ghost_var_agree with "GCχ SIχ") as %?;

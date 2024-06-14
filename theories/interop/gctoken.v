@@ -23,7 +23,7 @@ From melocoton.interop Require Import basics_resources hybrid_ghost_heap.
  *)
 
 Class wrapperGCtokGpre `{SI: indexT} Σ := WrapperGCtokGpre {
-  wrapperG_locsetG :> ghost_varG Σ (gsetUR loc);
+  wrapperG_locsetG :> ghost_varG Σ (leibnizO (list $ gset addr));
   wrapperG_addrmapG :> ghost_varG Σ (leibnizO addr_map);
   wrapperG_var_lstoreG :> ghost_varG Σ lstore;
   wrapperG_var_lloc_mapG :> ghost_varG Σ lloc_map;
@@ -41,7 +41,7 @@ Class wrapperGCtokG `{SI: indexT} Σ := WrapperGCtokG {
 }.
 
 Definition wrapperGCtokΣ {SI: indexT} : gFunctors :=
-  #[ghost_varΣ (gsetUR loc); ghost_varΣ (leibnizO addr_map);
+  #[ghost_varΣ (leibnizO (list $ gset addr)); ghost_varΣ (leibnizO addr_map);
     ghost_varΣ lstore; ghost_varΣ lloc_map; ghost_varΣ (leibnizO bool)].
 
 Global Instance subG_wrapperGCtokGpre `{SI: indexT} Σ :
@@ -56,16 +56,18 @@ Context `{!wrapperGCtokG Σ}.
 
 Definition GC (θ : addr_map) : iProp Σ :=
   ∃ (ζ : lstore) (χ : lloc_map) (σMLvirt : store)
-    (roots_s : gset addr) (roots_m : gmap addr lval),
+    (roots_s : list $ gset addr) (roots_m : list roots_map) (roots_frame : list gname),
     "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) θ
   ∗ "GCHGH" ∷ HGH χ (Some σMLvirt) ζ
   ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
   ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
-  ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
-  ∗ "GCrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
-  ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
+  ∗ "GCrf"    ∷ ghost_var wrapperG_γroots_frame (1/2) roots_frame
+  ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_frame; roots_m, ghost_map_auth f (1/2) r)
+  ∗ "GCrootspto" ∷ ([∗ list] roots ∈ roots_m,
+                   ([∗ map] a ↦ v ∈ roots, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝))
+  ∗ "%Hrootsdom" ∷ ⌜map dom roots_m = roots_s⌝
   ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
   ∗ "%HGCOK" ∷ ⌜GC_correct ζ θ⌝.
 

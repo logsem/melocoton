@@ -12,6 +12,7 @@ Class wrapperBasicsGpre `{SI: indexT} Σ := WrapperBasicsGpre {
   wrapperG_addr_lvalG :> ghost_mapG Σ addr lval;
   wrapperG_lloc_mapG :> ghost_mapG Σ lloc lloc_visibility;
   wrapperG_lloc_map_bijG :> gset_bijG Σ lloc loc;
+  wrapperG_locsetG :> ghost_varG Σ (leibnizO (list gname));
 }.
 
 Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
@@ -20,10 +21,12 @@ Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
   wrapperG_γχvirt : gname;
   wrapperG_γχbij : gname;
   wrapperG_γroots_map : gname;
+  wrapperG_γroots_frame : gname;
 }.
 
 Definition wrapperBasicsΣ {SI: indexT} : gFunctors :=
   #[ghost_mapΣ lloc block; ghost_mapΣ addr lval;
+    ghost_varΣ (leibnizO (list gname));
     ghost_mapΣ lloc lloc_visibility; gset_bijΣ lloc loc].
 
 Global Instance subG_wrapperBasicsGpre `{SI: indexT} Σ :
@@ -458,6 +461,20 @@ Notation "γ ↦foreignO[ mut ]{ dq } a" := (lstore_own_foreign γ dq mut a)%I
 Notation "γ ↦foreignO[ mut ] a" := (γ ↦foreignO[mut]{DfracOwn 1} a)%I
   (at level 20, format "γ  ↦foreignO[ mut ]  a") : bi_scope.
 
+(* Roots *)
+
+Definition loc_own_root (γ : loc) (f : gname) (dq : dfrac) w : iProp Σ :=
+  γ ↪[f]{dq} w.
+
+Definition current_fc (fc : list gname) : iProp Σ :=
+  ghost_var wrapperG_γroots_frame (1/2) fc.
+
+Definition local_roots (f : gname) (roots : gset addr) : iProp Σ :=
+  ∃ roots_m, ghost_map_auth f (1/2) roots_m ∗ ⌜dom roots_m = roots⌝.
+
+Definition fresh_frame (f : gname) (fc : list gname) : Prop :=
+  Forall (λ f', f ≠ f') fc.
+
 (* Lifting of ~ℓ~ at the level of ML values *)
 
 Fixpoint block_sim (v : val) (lv : lval) : iProp Σ := match v with
@@ -666,6 +683,11 @@ Notation "γ ↦foreign[ mut ]{ dq } a" := (γ ↦foreignO[ mut ]{ dq } (Some a)
   (at level 20, format "γ  ↦foreign[ mut ]{ dq }  a") : bi_scope.
 Notation "γ ↦foreign[ mut ] a" := (γ ↦foreign[ mut ]{DfracOwn 1} a)%I
   (at level 20, format "γ  ↦foreign[ mut ]  a") : bi_scope.
+
+Notation "γ ↦roots[ f ]{ dq } w" := (loc_own_root γ f dq w)%I
+  (at level 20, format "γ  ↦roots[ f ]{ dq }  w") : bi_scope.
+Notation "γ ↦roots[ f ] w" := (γ ↦roots[f]{DfracOwn 1} w)%I
+  (at level 20, format "γ  ↦roots[ f ]  w") : bi_scope.
 
 Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperG_γroots_map]{dq} w)%I
   (at level 20, format "γ  ↦roots{ dq }  w") : bi_scope.

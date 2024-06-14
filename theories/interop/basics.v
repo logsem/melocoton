@@ -168,6 +168,8 @@ Implicit Type θ : addr_map.
    and keeping alive *)
 Notation roots_map := (gmap addr lval).
 
+Definition dom_roots (roots : list roots_map) :=
+  List.fold_left (fun acc r => acc ∪ (dom r)) roots ∅.
 
 (** lloc_map injectivity: lloc_maps are always injective wrt public locs and
    foreign ids
@@ -254,8 +256,11 @@ Definition GC_correct (ζ : lstore) (θ : addr_map) : Prop :=
     lval_in_block blk (Lloc γ') →
     γ' ∈ dom θ.
 
-Definition roots_are_live (θ : addr_map) (roots : roots_map) : Prop :=
-  ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
+Definition roots_are_live' (θ : addr_map) (roots : roots_map) : Prop :=
+   ∀ a γ, roots !! a = Some (Lloc γ) → γ ∈ dom θ.
+
+Definition roots_are_live (θ : addr_map) (roots : list roots_map) : Prop :=
+  Forall (roots_are_live' θ) roots.
 
 (** C representation of block-level values, roots and memory *)
 
@@ -273,26 +278,25 @@ Inductive repr_lval_out : addr_map → outcome lval → outcome C_intf.val → P
     repr_lval θ lv v →
     repr_lval_out θ (OVal lv) (OVal v).
 
-Inductive repr_roots : addr_map → roots_map → memory → Prop :=
+Inductive repr_roots : addr_map → memory → list roots_map → Prop :=
   | repr_roots_emp θ :
-    repr_roots θ ∅ ∅
-  | repr_roots_elem θ a v w roots mem :
-    repr_roots θ roots mem →
+    repr_roots θ ∅ [∅]
+  | repr_roots_push θ mem roots :
+    repr_roots θ mem roots → repr_roots θ mem (∅ :: roots)
+  | repr_roots_extend θ a v w roots_hd roots_tl mem :
+    repr_roots θ mem (roots_hd :: roots_tl) →
     repr_lval θ v w →
-    a ∉ dom roots →
-    a ∉ dom (mem) →
-    repr_roots θ (<[ a := v ]> roots)
-                 (<[ a := Storing w ]> mem).
+    a ∉ dom mem →
+    Forall (λ roots, a ∉ dom roots) (roots_hd :: roots_tl) →
+    repr_roots θ (<[ a := Storing w ]> mem) (<[ a := v ]> roots_hd :: roots_tl).
 
-
-Definition repr_raw (θ : addr_map) (roots : roots_map) (privmem mem memr : memory) : Prop :=
-  repr_roots θ roots memr ∧
+Definition repr_raw (θ : addr_map) (roots : list roots_map) (privmem mem memr : memory) : Prop :=
+  repr_roots θ memr roots ∧
   privmem ##ₘ memr ∧
   mem = memr ∪ privmem.
 
-Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
+Definition repr (θ : addr_map) (roots : list roots_map) (privmem mem : memory) : Prop :=
   ∃ memr, repr_raw θ roots privmem mem memr.
-
 
 (** Block-level representation of ML values and store *)
 Inductive is_val : lloc_map → lstore → val → lval → Prop :=
@@ -1061,12 +1065,13 @@ Proof.
   eapply H2; eauto. by constructor.
 Qed.
 
-Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.
+Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom_roots b.
 Proof.
-  induction 1.
-  + by do 2 rewrite dom_empty_L.
-  + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots.
-Qed.
+(*   induction 1. *)
+(*   + by do 2 rewrite dom_empty_L. *)
+(*   + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots. *)
+(* Qed. *)
+Admitted.
 
 Lemma code_int_inj z1 z2 : code_int z1 = code_int z2 → z1 = z2.
 Proof.
@@ -1102,15 +1107,17 @@ Qed.
 (* The development is generic over the precise encoding of ints *)
 Opaque code_int.
 
-Lemma repr_mono θ θ' roots_m privmem mem : θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
+Lemma repr_mono θ θ' roots_m privmem mem :
+  θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
 Proof.
-  intros Helem (memr&(H1&H2)). exists memr. split; last done.
-  clear H2.
-  induction H1.
-  - econstructor.
-  - econstructor. 1: by eapply IHrepr_roots. 2-3: done.
-    by eapply repr_lval_mono.
-Qed.
+(*   intros Helem (memr&(H1&H2)). exists memr. split; last done. *)
+(*   clear H2. *)
+(*   induction H1. *)
+(*   - econstructor. *)
+(*   - econstructor. 1: by eapply IHrepr_roots. 2-3: done. *)
+(*     by eapply repr_lval_mono. *)
+(* Qed. *)
+Admitted.
 
 Lemma lval_in_vblock v m tg vs :
   lval_in_block (Bvblock (m, (tg, vs))) v ↔ v ∈ vs.

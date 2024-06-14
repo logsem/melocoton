@@ -28,7 +28,7 @@ multi-language), starting from `interop/basics.v`.
 
 - `v`, `vs`: ML value, list of values (have type `val`)
 - `ℓ`: ML location (has type `loc`)
-- `σ`: ML state/heap (has type `store`) 
+- `σ`: ML state/heap (has type `store`)
 
 #### C
 
@@ -58,7 +58,7 @@ updated...)
 
 (see also the [Iris naming conventions](https://gitlab.mpi-sws.org/iris/iris/-/blob/master/docs/proof_guide.md#naming-conventions-for-variablesargumentshypotheses))
 
-- `P`, `Q`: Iris assertions (of type `iProp ?Σ`) 
+- `P`, `Q`: Iris assertions (of type `iProp ?Σ`)
 - `Φ`: post-condition or general Iris predicate (of type `?A → iProp ?Σ`)
 - `E`: mask of fancy update or WP
 - `Σ`: global camera functor management (of type `gFunctors`)

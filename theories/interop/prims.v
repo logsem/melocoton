@@ -3,7 +3,9 @@ From stdpp Require Import base strings gmap.
 From melocoton.ml_lang Require Import lang.
 
 Inductive prim :=
-  | Palloc | Pregisterroot | Punregisterroot
+  | Palloc
+  | Pregisterroot | Punregisterroot 
+  | Pinitlocalroot | Pregisterlocalroot | Punregisterlocalroot
   | Pmodify | Preadfield | Pval2int | Pint2val
   | Pisblock | Pread_tag | Plength
   | Pallocforeign | Pwriteforeign | Preadforeign
@@ -14,6 +16,9 @@ Inductive is_prim : string → prim → Prop :=
   | alloc_is_prim : is_prim "alloc" Palloc
   | registerroot_is_prim : is_prim "registerroot" Pregisterroot
   | unregisterroot_is_prim : is_prim "unregisterroot" Punregisterroot
+  | initlocalroot_is_prim : is_prim "initlocalroot" Pinitlocalroot
+  | registerlocalroot_is_prim : is_prim "registerlocalroot" Pregisterlocalroot
+  | unregisterlocalroot_is_prim : is_prim "unregisterlocalroot" Punregisterlocalroot
   | modify_is_prim : is_prim "modify" Pmodify
   | readfield_is_prim : is_prim "readfield" Preadfield
   | val2int_is_prim : is_prim "val2int" Pval2int
@@ -51,6 +56,9 @@ Proof.
   destruct (decide (s = "alloc")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "registerroot")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "unregisterroot")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "initlocalroot")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "registerlocalroot")) as [->|]. left; eexists; constructor.
+  destruct (decide (s = "unregisterlocalroot")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "modify")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "readfield")) as [->|]. left; eexists; constructor.
   destruct (decide (s = "val2int")) as [->|]. left; eexists; constructor.
@@ -72,6 +80,9 @@ Definition wrap_prog e : gmap string prim :=
       ("alloc", Palloc);
       ("registerroot", Pregisterroot);
       ("unregisterroot", Punregisterroot);
+      ("initlocalroot", Pinitlocalroot);
+      ("registerlocalroot", Pregisterlocalroot);
+      ("unregisterlocalroot", Punregisterlocalroot);
       ("modify", Pmodify);
       ("readfield", Preadfield);
       ("val2int", Pval2int);

@@ -79,7 +79,7 @@ Implicit Types X : expr * state → Prop.
 Definition check_ml_state (ρml : wrapstateML) (σ : store) :=
   lloc_map_inj (χML ρml) ∧
   dom (ζML ρml) ⊆ dom (χML ρml) ∧
-  dom (privmemML ρml) ## dom (rootsML ρml) ∧
+  Forall (λ roots, dom (privmemML ρml) ## dom roots) (rootsML ρml) ∧
   map_Forall (λ _ ℓ, σ !! ℓ = Some None) (pub_locs_in_lstore (χML ρml) (ζML ρml)).
 
 Definition ml_to_c_heap
@@ -118,7 +118,7 @@ Definition ml_to_c_heap
     roots_are_live (θC ρc) (rootsML ρml) ∧
     (** Pick C memory (mem) that represents the roots (through θC) + the
        remaining private C memory. *)
-    rootsC ρc = dom (rootsML ρml) ∧
+    rootsC ρc = map dom (rootsML ρml) ∧
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem.
 
 Definition ml_to_c_val (v : val) (w : word) (ρc : wrapstateC) : Prop :=
@@ -149,73 +149,74 @@ Lemma ml_to_c_no_NB vs ρml σ :
   check_ml_state ρml σ →
   ∃ ws ρc mem, ml_to_c_heap ρml σ ρc mem ∧ ml_to_c_vals vs ws ρc.
 Proof.
-  intros (Hχinj & Hζdom & Hpublocs & Hprivmem).
-  destruct (deserialize_ML_heap_extra (ζML ρml) (χML ρml) σ)
-        as (χ1 & ζσ & ζσimm & Hext & Hstorebl & Hdisj & Hstore).
-  1-3: done.
-  destruct (deserialize_ML_values χ1 vs) as (χ2 & ζimm & lvs & Hext2 & Hvs).
-  1: apply Hext.
-
-  assert (ζML ρml ∪ ζσ ∪ ζσimm ##ₘ ζimm) as Hdis1.
-  1: { eapply map_disjoint_dom. eapply disjoint_weaken. 1: eapply Hext2. 2: done.
-       rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset.
-       rewrite dom_union_L. eapply union_subseteq; split.
-       1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext.
-       intros γ Hγ.
-       destruct Hstorebl as [_ HR]. apply HR in Hγ.
-       destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. }
-
-  pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC.
-
-  destruct (collect_dom_θ_ζ ∅ ζC) as (θdom1 & Hθdom1).
-  destruct (collect_dom_θ_vs θdom1 lvs) as (θdom2 & Hθdom2).
-  destruct (collect_dom_θ_roots θdom2 (rootsML ρml)) as (θdom3 & Hθdom3).
-  destruct (injectivify_map θdom3) as (θC & Hdom & Hinj).
-  destruct (find_repr_lval_vs θC lvs) as (ws & Hws).
-  1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done.
-  assert (roots_are_live θC (rootsML ρml)) as Hrootslive.
-  1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. }
-  destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
-
-  eexists ws, (WrapstateC χ2 ζC θC _), mem. split.
-  { unfold ml_to_c_heap; eexists _, _; split_and!; try done; cbn.
-    { eapply extended_to_trans; done. }
-    { destruct Hstorebl as [HL HR]; split.
-      { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ).
-        exists γ. eapply lookup_weaken; first done. apply Hext2. }
-      { intros γ; destruct (HR γ) as [HRL HRH]; split.
-         1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2);
-            exists ℓ, Vs; split; try done; eapply lookup_weaken;
-            first done; apply Hext2.
-         intros (ℓ & Vs & H1 & H2). apply HRH.
-         exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2.
-         destruct (HL _ H2) as (γ2 & Hγ2).
-         enough (γ2 = γ) as -> by done. eapply Hext2. 2,3: done.
-         eapply lookup_weaken; first done; eapply Hext2. } }
-    { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken.
-      1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. }
-    { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done.
-      eapply map_disjoint_dom, disjoint_weaken;
-      first eapply map_disjoint_dom, Hdis1; try done.
-      erewrite ! dom_union_L; set_solver. }
-    { intros ℓ vs' γ b H1 H2 H3. unfold ζC in *.
-      rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3.
-      apply lookup_union_Some_inv_l in H3.
-      2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence.
-      eapply is_heap_elt_weaken. 1: eapply Hstore; try done.
-      2: apply Hext2.
-      + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv];
-        first by eapply elem_of_dom_2.
-        rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done.
-      + eapply map_union_subseteq_l. }
-    { split; first done. subst θdom3. intros γ blk γ' _ H2 H3.
-      apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1.
-      right. left. do 2 eexists; done. } }
-  { exists lvs; cbn; split; try done.
-    eapply Forall2_impl; first done. intros * Hval;
-    eapply is_val_mono; first done; last done.
-    unfold ζC. rewrite ! map_union_assoc. eapply map_union_subseteq_r. done. }
-Qed.
+(*   intros (Hχinj & Hζdom & Hpublocs & Hprivmem). *)
+(*   destruct (deserialize_ML_heap_extra (ζML ρml) (χML ρml) σ) *)
+(*         as (χ1 & ζσ & ζσimm & Hext & Hstorebl & Hdisj & Hstore). *)
+(*   1-3: done. *)
+(*   destruct (deserialize_ML_values χ1 vs) as (χ2 & ζimm & lvs & Hext2 & Hvs). *)
+(*   1: apply Hext. *)
+(**)
+(*   assert (ζML ρml ∪ ζσ ∪ ζσimm ##ₘ ζimm) as Hdis1. *)
+(*   1: { eapply map_disjoint_dom. eapply disjoint_weaken. 1: eapply Hext2. 2: done. *)
+(*        rewrite dom_union_L. eapply union_subseteq. split. 2: by eapply extended_to_dom_subset. *)
+(*        rewrite dom_union_L. eapply union_subseteq; split. *)
+(*        1: etransitivity; first by eapply elem_of_subseteq. 1: eapply subseteq_dom, Hext. *)
+(*        intros γ Hγ. *)
+(*        destruct Hstorebl as [_ HR]. apply HR in Hγ. *)
+(*        destruct Hγ as (ℓ & ? & HH & _); by eapply elem_of_dom_2. } *)
+(**)
+(*   pose (ζML ρml ∪ ζσ ∪ (ζσimm ∪ ζimm)) as ζC. *)
+(**)
+(*   destruct (collect_dom_θ_ζ ∅ ζC) as (θdom1 & Hθdom1). *)
+(*   destruct (collect_dom_θ_vs θdom1 lvs) as (θdom2 & Hθdom2). *)
+(*   destruct (collect_dom_θ_roots θdom2 (rootsML ρml)) as (θdom3 & Hθdom3). *)
+(*   destruct (injectivify_map θdom3) as (θC & Hdom & Hinj). *)
+(*   destruct (find_repr_lval_vs θC lvs) as (ws & Hws). *)
+(*   1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done. *)
+(*   assert (roots_are_live θC (rootsML ρml)) as Hrootslive. *)
+(*   1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. } *)
+(*   destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|]. *)
+(**)
+(*   eexists ws, (WrapstateC χ2 ζC θC _), mem. split. *)
+(*   { unfold ml_to_c_heap; eexists _, _; split_and!; try done; cbn. *)
+(*     { eapply extended_to_trans; done. } *)
+(*     { destruct Hstorebl as [HL HR]; split. *)
+(*       { intros ℓ  Hℓ. destruct (HL ℓ Hℓ) as (γ & Hγ). *)
+(*         exists γ. eapply lookup_weaken; first done. apply Hext2. } *)
+(*       { intros γ; destruct (HR γ) as [HRL HRH]; split. *)
+(*          1: intros H; destruct (HRL H) as (ℓ & Vs & H1 & H2); *)
+(*             exists ℓ, Vs; split; try done; eapply lookup_weaken; *)
+(*             first done; apply Hext2. *)
+(*          intros (ℓ & Vs & H1 & H2). apply HRH. *)
+(*          exists ℓ, Vs. split; try done. eapply elem_of_dom_2 in H2. *)
+(*          destruct (HL _ H2) as (γ2 & Hγ2). *)
+(*          enough (γ2 = γ) as -> by done. eapply Hext2. 2,3: done. *)
+(*          eapply lookup_weaken; first done; eapply Hext2. } } *)
+(*     { intros γ. rewrite dom_union_L. intros [H|H]%elem_of_union; eapply lookup_weaken. *)
+(*       1: by eapply Hext. 2: by eapply Hext2. 2: done. 1: apply Hext2. } *)
+(*     { rewrite map_union_assoc. apply map_disjoint_union_r_2. 1: done. *)
+(*       eapply map_disjoint_dom, disjoint_weaken; *)
+(*       first eapply map_disjoint_dom, Hdis1; try done. *)
+(*       erewrite ! dom_union_L; set_solver. } *)
+(*     { intros ℓ vs' γ b H1 H2 H3. unfold ζC in *. *)
+(*       rewrite ! map_union_assoc. rewrite ! map_union_assoc in H3. *)
+(*       apply lookup_union_Some_inv_l in H3. *)
+(*       2: apply not_elem_of_dom; intros Hc; apply Hext2 in Hc; congruence. *)
+(*       eapply is_heap_elt_weaken. 1: eapply Hstore; try done. *)
+(*       2: apply Hext2. *)
+(*       + destruct Hstorebl as [HL HR]; destruct (HL ℓ) as [v Hv]; *)
+(*         first by eapply elem_of_dom_2. *)
+(*         rewrite <- Hv; f_equal; eapply Hext2; try done; eapply lookup_weaken, Hext2; try done. *)
+(*       + eapply map_union_subseteq_l. } *)
+(*     { split; first done. subst θdom3. intros γ blk γ' _ H2 H3. *)
+(*       apply Hθdom3. right. apply Hθdom2. right. apply Hθdom1. *)
+(*       right. left. do 2 eexists; done. } } *)
+(*   { exists lvs; cbn; split; try done. *)
+(*     eapply Forall2_impl; first done. intros * Hval; *)
+(*     eapply is_val_mono; first done; last done. *)
+(*     unfold ζC. rewrite ! map_union_assoc. eapply map_union_subseteq_r. done. } *)
+(* Qed. *)
+Admitted.
 
 Lemma ml_to_c_no_NB_val v ρml σ :
   check_ml_state ρml σ →
@@ -283,7 +284,7 @@ Definition c_to_ml_heap
     (** Split the C memory mem into the memory for the roots and the rest
        ("private" C memory). *)
     repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
-    dom (rootsML ρml) = rootsC ρc.
+    map dom (rootsML ρml) = rootsC ρc.
 
 
 Definition c_to_ml_vals
@@ -317,7 +318,7 @@ Inductive c_prim_step :
   | PrimAllocS ρc mem tgnum sz tg roots privmem Y :
     tgnum = vblock_tag_as_int tg →
     (0 ≤ sz)%Z →
-    dom roots = rootsC ρc →
+    map dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
     GC_correct (ζC ρc) (θC ρc) →
     roots_are_live (θC ρc) roots →
@@ -331,16 +332,31 @@ Inductive c_prim_step :
       θC' !! γ = Some a →
       Y (C_intf.LitV (C_intf.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     c_prim_step Palloc [CIntV tgnum; CIntV sz] ρc mem Y
-  | PrimRegisterrootS ρc mem a rootsC' Y :
-    a ∉ rootsC ρc →
-    rootsC' = {[ a ]} ∪ rootsC ρc →
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem →
+  | PrimRegisterRootS ρc mem a rootsChd rootsCtl rootsChd' Y :
+    rootsC ρc = rootsChd :: rootsCtl →
+    a ∉ rootsChd →
+    rootsChd' = {[ a ]} ∪ rootsChd →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd' :: rootsCtl)) mem →
     c_prim_step Pregisterroot [CLocV a] ρc mem Y
-  | PrimUnregisterrootS ρc mem a rootsC' Y :
-    a ∈ rootsC ρc →
-    rootsC' = rootsC ρc ∖ {[ a ]} →
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem →
+  | PrimUnregisterRootS ρc mem a rootsChd rootsCtl rootsChd' Y :
+    rootsC ρc = rootsChd :: rootsCtl →
+    a ∈ rootsChd →
+    rootsChd' = rootsChd ∖ {[ a ]} →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd' :: rootsCtl)) mem →
     c_prim_step Punregisterroot [CLocV a] ρc mem Y
+  | PrimRegisterLocalRootS ρc mem a rootsChd rootsCtl rootsCtl' Y :
+    rootsC ρc = rootsChd ++ [rootsCtl] →
+    a ∉ rootsCtl →
+    rootsCtl' = {[ a ]} ∪ rootsCtl →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd ++ [rootsCtl'])) mem →
+    c_prim_step Pregisterlocalroot [CLocV a] ρc mem Y
+  | PrimUnregisterLocalRootS ρc mem rootsChd rootsCtl Y :
+    rootsC ρc = rootsChd ++ [rootsCtl] →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsChd) mem →
+    c_prim_step Punregisterlocalroot [] ρc mem Y
+  | PrimInitLocalRootS ρc mem rootsC Y :
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsC ++ [∅])) mem →
+    c_prim_step Pinitlocalroot [] ρc mem Y
   | PrimModifyS ρc mem w i w' γ lv blk ζC' blk' Y :
     (0 ≤ i)%Z →
     repr_lval (θC ρc) (Lloc γ) w →
@@ -387,7 +403,7 @@ Inductive c_prim_step :
     Y w ρc mem →
     c_prim_step Pint2val [CIntV x] ρc mem Y
   | PrimAllocForeignS roots privmem ρc mem Y :
-    dom roots = rootsC ρc →
+    map dom roots = rootsC ρc →
     repr (θC ρc) roots privmem mem →
     GC_correct (ζC ρc) (θC ρc) →
     roots_are_live (θC ρc) roots →
@@ -423,70 +439,72 @@ Lemma c_prim_step_no_NB prm ws ρc mem Y :
   c_prim_step prm ws ρc mem Y →
   ∃ ws' ρc' mem', Y ws' ρc' mem'.
 Proof.
-  (* TODO: refactor *)
-  inversion 1; simplify_eq; eauto;[|].
-  { (* alloc case *)
-    destruct H3 as [pubmem Hrepr2].
-    destruct H4 as [? HGCOK].
-    rename H5 into Hrootslive.
-    pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk.
-    pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod.
-    pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src.
-    pose (fresh fresh_src) as γ.
-    pose (fresh fresh_not_θ_cod) as w.
-    pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union.
-    specialize (H6 γ
-                  (<[ γ := LlocPrivate ]> (χC ρc))
-                 (<[ γ := Bvblock (Mut, blk) ]> (ζC ρc))
-                 (<[ γ := w ]> (θC ρc))
-                 w mem).
-    do 3 eexists. eapply H6; eauto.
-    - by eapply not_elem_of_dom.
-    - split.
-      + eapply gmap_inj_extend; try done.
-        intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).
-        eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin.
-      + intros γ1 blk1 γ' HH1 [(->&HH)|(HA&HB)]%lookup_insert_Some HH3.
-        1: subst blk1; by apply lval_in_vblock, elem_of_list_In, repeat_spec in HH3.
-        rewrite dom_insert_L in HH1.
-        apply elem_of_union in HH1 as [->%elem_of_singleton|HH1]; first done.
-        rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done.
-    - eapply repr_mono; last by eexists.
-      eapply insert_subseteq, not_elem_of_dom, HFθ.
-    - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r.
-      by eapply Hrootslive.
-    - apply lookup_insert. }
-  { (* alloc_foreign *)
-    destruct H1 as [pubmem Hrepr2].
-    destruct H2 as [? HGCOK].
-    rename H3 into Hrootslive.
-    pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod.
-    pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src.
-    pose (fresh fresh_src) as γ.
-    pose (fresh fresh_not_θ_cod) as w.
-    pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union.
-    specialize (H4 γ
-                 (<[ γ := LlocPrivate ]> (χC ρc))
-                 (<[ γ := Bforeign (Mut, None) ]> (ζC ρc))
-                 (<[ γ := w ]> (θC ρc))
-                 w mem).
-    do 3 eexists. eapply H4; eauto.
-    - by eapply not_elem_of_dom.
-    - split.
-      + eapply gmap_inj_extend; try done.
-        intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).
-        eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin.
-      + intros γ1 blk1 γ' HH0 [(->&HH)|(HH1&HH2)]%lookup_insert_Some H3.
-        1: subst; by inversion H3.
-        rewrite dom_insert_L in HH0.
-        apply elem_of_union in HH0 as [->%elem_of_singleton|HH0]; first done.
-        rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done.
-    - eapply repr_mono; last by eexists.
-      eapply insert_subseteq, not_elem_of_dom, HFθ.
-    - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r.
-      by eapply Hrootslive.
-    - apply lookup_insert. }
-Qed.
+(*   (* TODO: refactor *) *)
+(*   inversion 1; simplify_eq; eauto;[|]. *)
+(*   { (* alloc case *) *)
+(*     destruct H3 as [pubmem Hrepr2]. *)
+(*     destruct H4 as [? HGCOK]. *)
+(*     rename H5 into Hrootslive. *)
+(*     pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk. *)
+(*     pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod. *)
+(*     pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src. *)
+(*     pose (fresh fresh_src) as γ. *)
+(*     pose (fresh fresh_not_θ_cod) as w. *)
+(*     pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union. *)
+(*     specialize (H6 γ *)
+(*                   (<[ γ := LlocPrivate ]> (χC ρc)) *)
+(*                  (<[ γ := Bvblock (Mut, blk) ]> (ζC ρc)) *)
+(*                  (<[ γ := w ]> (θC ρc)) *)
+(*                  w mem). *)
+(*     do 3 eexists. eapply H6; eauto. *)
+(*     - by eapply not_elem_of_dom. *)
+(*     - split. *)
+(*       + eapply gmap_inj_extend; try done. *)
+(*         intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod). *)
+(*         eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin. *)
+(*       + intros γ1 blk1 γ' HH1 [(->&HH)|(HA&HB)]%lookup_insert_Some HH3. *)
+(*         1: subst blk1; by apply lval_in_vblock, elem_of_list_In, repeat_spec in HH3. *)
+(*         rewrite dom_insert_L in HH1. *)
+(*         apply elem_of_union in HH1 as [->%elem_of_singleton|HH1]; first done. *)
+(*         rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done. *)
+(*     - eapply repr_mono; last by eexists. *)
+(*       eapply insert_subseteq, not_elem_of_dom, HFθ. *)
+(*     - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r. *)
+(*       by eapply Hrootslive. *)
+(*     - apply lookup_insert. } *)
+(*   { (* alloc_foreign *) *)
+(*     destruct H1 as [pubmem Hrepr2]. *)
+(*     destruct H2 as [? HGCOK]. *)
+(*     rename H3 into Hrootslive. *)
+(*     pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod. *)
+(*     pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src. *)
+(*     pose (fresh fresh_src) as γ. *)
+(*     pose (fresh fresh_not_θ_cod) as w. *)
+(*     pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union. *)
+(*     specialize (H4 γ *)
+(*                  (<[ γ := LlocPrivate ]> (χC ρc)) *)
+(*                  (<[ γ := Bforeign (Mut, None) ]> (ζC ρc)) *)
+(*                  (<[ γ := w ]> (θC ρc)) *)
+(*                  w mem). *)
+(*     do 3 eexists. eapply H4; eauto. *)
+(*     - by eapply not_elem_of_dom. *)
+(*     - split. *)
+(*       + eapply gmap_inj_extend; try done. *)
+(*         intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod). *)
+(*         eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin. *)
+(*       + intros γ1 blk1 γ' HH0 [(->&HH)|(HH1&HH2)]%lookup_insert_Some H3. *)
+(*         1: subst; by inversion H3. *)
+(*         rewrite dom_insert_L in HH0. *)
+(*         apply elem_of_union in HH0 as [->%elem_of_singleton|HH0]; first done. *)
+(*         rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done. *)
+(*     - eapply repr_mono; last by eexists. *)
+(*       eapply insert_subseteq, not_elem_of_dom, HFθ. *)
+(*     - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r. *)
+(*       by eapply Hrootslive. *)
+(*     - apply lookup_insert. } *)
+(* Qed. *)
+(**)
+Admitted.
 
 Local Definition is_ML_call (e : ML_lang.expr) fn_name vs K :=
   e = language.fill K (of_call _ fn_name vs).
@@ -548,8 +566,8 @@ Inductive prim_step_mrel (p : prog) : expr * state → (expr * state → Prop) �
 
   (** Call to the main function *)
   | MainS e K mem X :
-    X (WrE (ExprML e) K, MLState (WrapstateML ∅ ∅ ∅ mem) ∅) →
-    prim_step_mrel p (WrE (RunPrimitive (Pmain e) []) K, CState (WrapstateC ∅ ∅ ∅ ∅) mem) X
+    X (WrE (ExprML e) K, MLState (WrapstateML ∅ ∅ [∅] mem) ∅) →
+    prim_step_mrel p (WrE (RunPrimitive (Pmain e) []) K, CState (WrapstateC ∅ ∅ ∅ [∅]) mem) X
 
   (** Terminate execution with NB on values *)
   | ValStopS o σ X :

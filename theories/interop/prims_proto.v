@@ -66,6 +66,42 @@ Definition unregisterroot_proto : C_proto :=
     "unregisterroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
   {{ w, RETV C_intf.LitV $ C_intf.LitInt $ 0; GC θ ∗ l ↦C w ∗ ⌜repr_lval θ v w⌝ }}.
 
+Definition initlocalroot_proto : C_proto :=
+  !! θ fc
+  {{ "HGC" ∷ GC θ ∗ "Hfc" ∷ current_fc fc }}
+    "initlocalroot" with [ ]
+  {{ f, RETV C_intf.LitV $ C_intf.LitInt $ 0;
+    GC θ ∗ current_fc (f :: fc) ∗ ⌜fresh_frame f fc⌝
+  }}.
+
+Check elements.
+
+Definition registerlocalroot_proto : C_proto :=
+  !! θ l v w f fc r
+    {{
+       "HGC"    ∷ GC θ
+     ∗ "Hpto"   ∷ l ↦C w
+     ∗ "Hfc"    ∷ current_fc (f :: fc)
+     ∗ "Hlr"    ∷ local_roots f r
+     ∗ "%Hrepr" ∷ ⌜repr_lval θ v w⌝
+    }}
+        "registerlocalroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
+    {{
+      RETV C_intf.LitV $ C_intf.LitInt $ 0;
+      GC θ ∗ l ↦roots[f] v ∗ current_fc (f :: fc) ∗ local_roots f ({[l]} ∪ r)
+    }}.
+
+Definition unregisterlocalroot_proto : C_proto :=
+  !! θ f fc r ws
+  {{
+       "HGC"    ∷ GC θ
+     ∗ "Hfc"    ∷ current_fc (f :: fc)
+     ∗ "Hlr"    ∷ local_roots f r
+     ∗ "Hpto"   ∷ ([∗ list] l; w ∈ (elements r); ws, l ↦roots[f] w)
+  }}
+    "unregisterlocalroot" with [ ]
+  {{ RETV C_intf.LitV $ C_intf.LitInt $ 0; GC θ ∗ current_fc (f :: fc) }}.
+
 Definition modify_proto : C_proto :=
   !! θ w i v' w' γ mut tg vs
   {{
@@ -198,6 +234,9 @@ Definition prim_proto (p : prim) (Ψ : ML_proto) : C_proto :=
   | Pval2int => val2int_proto
   | Pregisterroot => registerroot_proto
   | Punregisterroot => unregisterroot_proto
+  | Pinitlocalroot => initlocalroot_proto
+  | Pregisterlocalroot => registerlocalroot_proto
+  | Punregisterlocalroot => unregisterlocalroot_proto
   | Pmodify => modify_proto
   | Preadfield => readfield_proto
   | Pisblock => isblock_proto
@@ -257,6 +296,12 @@ Lemma registerroot_refines_prims_proto Ψ : registerroot_proto ⊑ prims_proto �
 Proof using. tac Pregisterroot. Qed.
 Lemma unregisterroot_refines_prims_proto Ψ : unregisterroot_proto ⊑ prims_proto Ψ.
 Proof using. tac Punregisterroot. Qed.
+Lemma initlocalroot_refines_prims_proto Ψ : initlocalroot_proto ⊑ prims_proto Ψ.
+Proof using. tac Pinitlocalroot. Qed.
+Lemma registerlocalroot_refines_prims_proto Ψ : registerlocalroot_proto ⊑ prims_proto Ψ.
+Proof using. tac Pregisterlocalroot. Qed.
+Lemma unregisterlocalroot_refines_prims_proto Ψ : unregisterlocalroot_proto ⊑ prims_proto Ψ.
+Proof using. tac Punregisterlocalroot. Qed.
 Lemma modify_refines_prims_proto Ψ : modify_proto ⊑ prims_proto Ψ.
 Proof using. tac Pmodify. Qed.
 Lemma readfield_refines_prims_proto Ψ : readfield_proto ⊑ prims_proto Ψ.
@@ -284,6 +329,9 @@ Global Hint Resolve int2val_refines_prims_proto : core.
 Global Hint Resolve val2int_refines_prims_proto : core.
 Global Hint Resolve registerroot_refines_prims_proto : core.
 Global Hint Resolve unregisterroot_refines_prims_proto : core.
+Global Hint Resolve initlocalroot_refines_prims_proto : core.
+Global Hint Resolve registerlocalroot_refines_prims_proto : core.
+Global Hint Resolve unregisterlocalroot_refines_prims_proto : core.
 Global Hint Resolve modify_refines_prims_proto : core.
 Global Hint Resolve readfield_refines_prims_proto : core.
 Global Hint Resolve isblock_refines_prims_proto : core.
