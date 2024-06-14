@@ -28,8 +28,9 @@ Lemma wrap_interp_c_to_ml ws ρc mem θ vs lvs :
   GC θ -∗
   at_boundary wrap_lang -∗
   lvs ~~∗ vs -∗
-  ∃ ρml σ,
-  ⌜c_to_ml ws ρc mem vs ρml σ⌝ ∗
+  ∃ ρml σ ζ,
+  ⌜c_to_ml_heap ρc mem ρml σ ζ⌝ ∗
+  ⌜c_to_ml_vals ws ρc vs ρml ζ⌝ ∗
   |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
 Proof using.
   iIntros (Hlv) "Hσ HGC Hnb #Hblk".
@@ -52,9 +53,10 @@ Proof using.
 
   (* TODO: refactor opsem to use lstore_hybrid_repr? *)
   destruct Hζ as (ζσ&?&?&?&?).
-  iExists (WrapstateML _ _ _ _), _. iSplit.
-  { iPureIntro. unfold c_to_ml. cbn.
-    eexists σMLvirt, _, _, ζfreeze, ζσ. split_and!; eauto. by rewrite map_union_comm. }
+  iExists (WrapstateML _ _ _ _), _, _. iSplit. 2: iSplit.
+  { iPureIntro. unfold c_to_ml_heap. cbn.
+    eexists ζσ. split_and!; eauto. by rewrite map_union_comm. }
+  { iPureIntro. unfold c_to_ml_vals. cbn. exists lvs. split_and!; eauto. }
 
   iMod (ghost_var_update_halves with "Hnb SIbound") as "(Hb & SIbound)".
   iMod (ghost_var_update_halves with "GCζ SIζ") as "(GCζ & SIζ)".
@@ -71,7 +73,8 @@ Proof using.
 Qed.
 
 Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
-  ml_to_c_core vs ρml σ ws ρc mem →
+  ml_to_c_heap ρml σ ρc mem →
+  (∃ lvs, Forall2 (repr_lval (θC ρc)) lvs ws ∧ Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs) →
   wrap_state_interp (Wrap.MLState ρml σ) -∗
   not_at_boundary
   ==∗
@@ -80,10 +83,11 @@ Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
   GC (θC ρc) ∗
   (∃ lvs, lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
 Proof using.
-  iIntros (Hml_to_c) "Hst Hb".
-  destruct Hml_to_c as (ζσ & ζnewimm & lvs & HH).
+  iIntros (Hml_to_c H) "Hst Hb".
+  destruct H as (lv & Hval & Hrepre).
+  destruct Hml_to_c as (ζσ & ζnewimm & HH).
   destruct HH as (Hmono & Hblocks & Hprivblocks & HζC & Hζdisj &
-                    Hstore & Hvals & ? & ? & ? & Hroots & ?).
+                    Hstore & ? & ? & Hroots & ?).
 
   iNamed "Hst". iNamed "SIML". iNamed "SIGCrem".
   iDestruct (hgh_dom_lstore_sub with "GCHGH") as %Hζsub.
@@ -104,7 +108,7 @@ Proof using.
     { eapply is_store_blocks_lstore_dom_sub; eauto. }
     { eapply is_private_blocks_dom_sub; eauto. } }
   iMod (set_to_some with "HσCv GCrootspto") as "(HσCv & GCrootspto)"; first done.
-  iDestruct (hgh_block_sim_of _ _ _ vs lvs with "GCHGH") as "#Hsim"; first eassumption.
+  iDestruct (hgh_block_sim_of _ _ _ vs lv with "GCHGH") as "#Hsim"; first eassumption.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
