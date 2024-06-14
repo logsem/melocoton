@@ -74,8 +74,8 @@ Qed.
 
 Lemma wrap_interp_ml_to_c vs lvs ρml σ ws ρc mem :
   ml_to_c_heap ρml σ ρc mem →
-  (Forall2 (repr_lval (θC ρc)) lvs ws ∧
-   Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs) →
+  Forall2 (repr_lval (θC ρc)) lvs ws →
+  Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs →
   wrap_state_interp (Wrap.MLState ρml σ) -∗
   not_at_boundary
   ==∗
@@ -84,8 +84,7 @@ Lemma wrap_interp_ml_to_c vs lvs ρml σ ws ρc mem :
   GC (θC ρc) ∗
   lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝.
 Proof using.
-  iIntros (Hml_to_c H) "Hst Hb".
-  destruct H as (Hval & Hrepre).
+  iIntros (Hml_to_c Hval Hrepre) "Hst Hb".
   destruct Hml_to_c as (ζσ & ζnewimm & HH).
   destruct HH as (Hmono & Hblocks & Hprivblocks & HζC & Hζdisj &
                     Hstore & ? & ? & Hroots & ?).
