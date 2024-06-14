@@ -113,13 +113,66 @@ Proof.
 Qed.
 
 Definition try_raise : ML_lang.expr :=
-  try: raise: (#1 + #1) with: "v" => #1 + "v".
+  try: (raise: #1 + #1) ;; #1 with: "v" => #1 + "v".
+
+
+
+Ltac wp_apply_core lem tac_suc tac_fail := first
+  [iPoseProofCore lem as false (fun H =>
+     lazymatch goal with
+     | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+       reshape_expr e ltac:(fun K e' =>
+         wp_bind_core K; tac_suc H)
+     | _ => fail 1 "wp_apply: not a 'wp'"
+     end)
+  |tac_fail ltac:(fun _ => wp_apply_core lem tac_suc tac_fail)
+  |let P := type of lem in
+   fail "wp_apply: cannot apply" lem ":" P ].
+
+Tactic Notation "wp_apply" open_constr(lem) :=
+  wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
+                    ltac:(fun cont => fail).
+
+
+Tactic Notation "wp_pure" open_constr(efoc) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' =>
+    idtac K e';
+      unify e' efoc;
+      eapply (tac_wp_pure _ _ _ _ K e');
+      [tc_solve                       (* PureExec *)
+      |try solve_vals_compare_safe; try eauto (* The pure condition for PureExec --
+            handles trivial goals, including [vals_compare_safe] *)
+      |tc_solve                       (* IntoLaters *)
+      |wp_finish                      (* new goal *)
+      ])
+    || fail "wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
+  | _ => fail "wp_pure: not a 'wp'"
+  end.
 
 Lemma try_raise_proof
  : ⊢ (WP try_raise at AxiomEnv {{v, ⌜v = OVal #3⌝}})%I.
 Proof.
   iStartProof. unfold try_raise. wp_pures.
-  wp_apply (wp_try). wp_pures. iModIntro.
+  (* Set Printing Coercions. *)
+  wp_apply (wp_try).
+  wp_apply (wp_raise).
+  wp_bind (Raise _).
+  (* Unset Printing Notations. *)
+  iApply wp_raise.
+  Fail wp_pure (Rec BAnon BAnon _). wp_lam.
+lazymatch goal with
+     | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+       reshape_expr e ltac:(fun K e' =>
+        lazymatch K with | [] => fail 
+        | _ => wp_bind_core K; idtac K e' end)
+     | _ => fail 1 "wp_apply: not a 'wp'"
+     end.
+
+     wp_seq.
   wp_lam. wp_pures; eauto.
 Qed.
 

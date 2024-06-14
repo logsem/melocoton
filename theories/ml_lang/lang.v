@@ -1027,6 +1027,21 @@ Proof.
   rewrite /comp_ectx -app_assoc; eauto.
 Qed.
 
+Lemma fill_prefix_val_out : ∀ K K' e1 v,
+  fill K e1 = fill K' (Raise (Val v)) →
+  to_outcome e1 = None →
+  ∃ K'', K' = comp_ectx K K''.
+Proof.
+  intros * Hfill Hout.
+  assert (to_val e1 = None) as Hval by now eapply comp_val_in_out in Hout.
+  assert (to_val (Raise (Val v)) = None) as Hval' by eauto.
+  destruct (fill_prefix_val K K' e1 (Raise (Val v)) Hfill Hval Hval') as [K'' [-> | ->]]; eauto.
+  rewrite -fill_comp in Hfill. apply fill_inj in Hfill; subst.
+  apply fill_raise in Hfill. destruct Hfill; subst.
+  - exists []; now cbn.
+  - destruct H. congruence.
+Qed.
+
 Lemma fill_prefix : ∀ K K' e1 e1',
   fill K e1 = fill K' e1' →
   to_outcome e1 = None →
@@ -1037,7 +1052,23 @@ Proof.
   now apply comp_val_in_out.
 Qed.
 
-Lemma step_by_outcome  : ∀ p K K' e1 e1' σ1 e2 σ2,
+Lemma step_by_val  : ∀ p K K' e1 e1' σ1 e2 σ2,
+  fill K e1 = fill K' e1' →
+  to_val e1 = None →
+  head_step p e1' σ1 e2 σ2 →
+  ∃ K'', K' = comp_ectx K K''.
+Proof.
+  intros * Hfill Hval Hstep.
+  assert (to_val e1' = None) as Hval'.
+  { eapply val_head_stuck; eapply Hstep. }
+  destruct (fill_prefix_val K K' e1 e1' Hfill Hval Hval') as [K'' [-> | ->]]; eauto.
+  rewrite -fill_comp in Hfill. apply fill_inj in Hfill; subst.
+  apply head_ctx_step_val in Hstep as [-> | [x Htv]].
+  - now exists [].
+  - now rewrite Htv in Hval.
+Qed.
+
+Lemma step_by_outcome : ∀ p K K' e1 e1' σ1 e2 σ2,
   fill K e1 = fill K' e1' →
   to_outcome e1 = None →
   head_step p e1' σ1 e2 σ2 →

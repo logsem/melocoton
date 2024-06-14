@@ -263,6 +263,13 @@ Proof.
   iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl".
 Qed.
 
+Lemma wp_raise E pe v Φ :
+  Φ (OExn v)
+  ⊢ WP Raise (Val v) @ pe; E {{ Φ }}.
+Proof.
+  iApply (wp_outcome); eauto.
+Qed.
+
 Lemma wp_try E pe e r Φ :
   WP e @ pe; E
   {{ o, match o with
@@ -283,19 +290,32 @@ Proof.
   iIntros (σ1) "Hσ !>". iSplit.
   { iPureIntro; eexists (App r v), _. eapply (Prim_step_try _ []); eauto. }
   iIntros (v2 σ2 Hstep).
-  inversion Hstep; subst.
-  {  admit. }
-  { clear Hstep. assert (Ki = TryCtx r) as ->; last by exfalso.
-    admit. }
+  inversion Hstep; subst; clear Hstep.
+  { replace (Try (Raise v) r)
+       with (fill [TryCtx r] (of_outcome _ (OExn v))) in H by eauto.
+    edestruct (step_by_val (penv_prog pe) _ _ _ _ σ1 e2' σ2 H) as [K' Hk]; eauto.
+    subst; rewrite fill_app in H; apply fill_inj in H.
+    symmetry in H. apply lang.ML_lang.fill_outcome_3 in H.
+    apply outcome_head_stuck in H1. destruct H. congruence. }
+  { assert (Ki = TryCtx r) as ->; last by exfalso.
+    rewrite fill_comp_item in H; symmetry in H.
+    replace (Try (Raise v) r) with (fill [TryCtx r] (Raise v)) in H by eauto.
+    destruct (fill_prefix_val_out _ _ _ _ H) as [K' H']; eauto.
+    { destruct Ki; eauto. }
+    destruct K.  { destruct Ki; cbn in H; now inversion H. }
+    destruct K'. { cbn in H'. inversion H'; subst. destruct Ki; inversion H. }
+    cbn in H'. inversion H'. destruct K'; inversion H3. }
   { do 2 iModIntro. iFrame.
     assert (K = []) as ->.
     { rewrite fill_comp_item in H; cbn in H.
-      replace (Try (raise: v) r) with (fill [] (Try (raise: v) r)) in * by eauto.
-      destruct (fill_prefix _ _ _ _ H) as [K' [H' | H']]; eauto.
-      { cbn in *; subst. admit. }
-      { destruct K'; eauto. cbn in H. inversion H'. } }
+      replace (Try (Raise v) r) with (fill [TryCtx r] (Raise v)) in H by eauto.
+      symmetry in H.
+      destruct (lang.ML_lang.fill_prefix_val_out _ _ _ _ H) as [K' H']; eauto.
+      destruct K; eauto. unfold comp_ectx in H'.
+      destruct K'. 2: destruct K'; eauto; inversion H'.
+      cbn in H'. inversion H'. subst. cbn in H. congruence. }
     cbn in *. inversion H; subst. iFrame. }
-Admitted.
+Qed.
 
 Lemma wp_storeN_oob pe l i vs w :
   (i < 0 ∨ length vs ≤ i)%Z →
