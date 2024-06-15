@@ -38,7 +38,7 @@ Proof using.
   iModIntro. iRight. iRight.
   iSplit; first done.
 
-  iAssert (⌜ml_to_c [v] ρml σ (λ ws ρc mem, ml_to_c_core [v] ρml σ ws ρc mem)⌝)%I as "%Hprog".
+  iAssert (⌜check_ml_state ρml σ⌝)%I as "%Hprog".
   { iNamed "SI". iNamed "SIML". iNamed "SIGCrem".
     iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %?.
     iDestruct (hgh_dom_lstore_sub with "GCHGH") as %?.
@@ -46,17 +46,19 @@ Proof using.
     iPureIntro; split_and!; eauto. }
 
   iExists (λ '(e', σ'), ∃ w ρc mem,
-    ml_to_c_core [v] ρml σ [w] ρc mem ∧
+    ml_to_c_heap ρml σ ρc mem ∧
+    ml_to_c_val v w ρc ∧
     e' = WrSE (ExprV w) ∧ σ' = CState ρc mem).
-  iSplit. { iPureIntro. eapply ValS; naive_solver. }
+  iSplit.
+  { iPureIntro. eapply ValS; try naive_solver. }
 
-  iIntros (? ? (w & ρc & mem & Hcore & -> & ->)).
-  iMod (wrap_interp_ml_to_c with "SI Hnb") as "(SI & Hb & HGC & (%lvs & Hsim & %Hrepr))";
-    first done.
+  iIntros (? ? (w & ρc & mem & Hout & Hcore & -> & ->)).
+  destruct Hcore as [lv [Hv Hr]].
+  iMod ((wrap_interp_ml_to_c [v] [lv]) with "SI Hnb") 
+    as "(SI & Hb & HGC & ((Hsim & _) & %Hrepr))"; eauto.
   do 3 iModIntro. iFrame "SI".
   replace (WrSE (ExprV w)) with (of_outcome wrap_lang (OVal w)) by done. 
   iApply weakestpre.wp_outcome'.
-  iDestruct (big_sepL2_cons_inv_l with "Hsim") as "(% & % & -> & Hsim & _)".
   iExists _, _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
@@ -99,20 +101,22 @@ Proof.
 
     iModIntro. iRight; iRight.
     iSplit; first done.
-    iExists (λ '(e', σ'), ∃ ws ρc mem,
-      ml_to_c_core vs ρml σ ws ρc mem ∧
+    iExists (λ '(e', σ'), ∃ ws ρc mem lvs,
+      Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
+      Forall2 (repr_lval (θC ρc)) lvs ws ∧
+      ml_to_c_heap ρml σ ρc mem ∧
       e' = WrE (Wrap.ExprCall fn_name ws) [K'] ∧
       σ' = CState ρc mem).
     iSplit.
     { iPureIntro.
-      eapply MakeCallS with (YC := (λ ws ρc mem, ml_to_c_core vs ρml σ ws ρc mem)); eauto.
+      eapply MakeCallS; eauto.
       { done. }
       { apply not_elem_of_dom. rewrite dom_wrap_prog not_elem_of_prim_names //. }
       { split_and!; eauto. }
-      { intros. do 3 eexists. split_and!; eauto. } }
-    iIntros (? ? (ws & ρc & mem & Hcore & -> & ->)).
-    iMod (wrap_interp_ml_to_c with "[- Hnb Hr HT] Hnb") as "(Hσ & Hb & HGC & (%lvs & #Hblk & %))";
-      first done.
+      { intros * Hep (lvs & ? & ?). do 4 eexists. split_and!; eauto. } }
+    iIntros (? ? (ws & ρc & mem & lvs & ? & ? & Hcore & -> & ->)).
+    iMod ((wrap_interp_ml_to_c vs lvs) with "[- Hnb Hr HT] Hnb")
+      as "(Hσ & Hb & HGC & (#Hblk & %))"; eauto.
     { rewrite /wrap_state_interp /ML_state_interp /named.
       iSplitL "Hσ"; first by iFrame. by iFrame. }
     do 3 iModIntro. iFrame "Hσ".
@@ -143,13 +147,16 @@ Proof.
     iDestruct (SI_at_boundary_is_in_C with "Hst' Hb") as %(ρc'&mem'&->). simpl.
     iRight; iRight. iSplit; first done.
 
-    iDestruct (wrap_interp_c_to_ml with "Hst' HGC Hb [Hsim]") as (ρml' σ' Hc_to_ml) "HH".
-    2: by iApply big_sepL2_singleton.
-    1: by constructor.
+    iDestruct ((wrap_interp_c_to_ml [wret] _ _ _ [vret] [lvret]) with "Hst' HGC Hb [Hsim]")
+      as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_out) "HH"; eauto.
+    1: iFrame; eauto.
     iExists (λ '(e2, σ2),
       e2 = WrSE (ExprML (language.fill K' (Val vret))) ∧
       σ2 = MLState ρml' σ').
-    iSplit. { iPureIntro. eapply RetS; eauto. }
+    iSplit.
+    { iPureIntro. eapply RetS; eauto.
+      destruct Hc_to_ml_out as [lvs' [Hr Hi]]. inversion Hr; subst. eexists.
+      split; eauto. inversion Hi; eauto. }
     iIntros (? ? (-> & ->)). iMod "HH" as "[Hst' Hnb]".
     do 3 iModIntro. iFrame "Hst'".
 
@@ -199,7 +206,7 @@ Proof using.
 
   iDestruct "Hclos" as "#Hclos".
   iDestruct (wrap_interp_c_to_ml [w;w'] _ _ _ [RecV f x e; v']
-    with "Hst HGC Hb [Hclos Hsim']") as (ρml' σ' Hc_to_ml) "HH".
+    with "Hst HGC Hb [Hclos Hsim']") as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_vals) "HH".
   { repeat constructor; eauto. }
   { iApply big_sepL2_cons. iSplit.
     { cbn. iExists _. by iFrame "Hclos". }

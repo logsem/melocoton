@@ -28,8 +28,9 @@ Lemma wrap_interp_c_to_ml ws ρc mem θ vs lvs :
   GC θ -∗
   at_boundary wrap_lang -∗
   lvs ~~∗ vs -∗
-  ∃ ρml σ,
-  ⌜c_to_ml ws ρc mem vs ρml σ⌝ ∗
+  ∃ ρml σ ζ,
+  ⌜c_to_ml_heap ρc mem ρml σ ζ⌝ ∗
+  ⌜c_to_ml_vals ws ρc vs ρml ζ⌝ ∗
   |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
 Proof using.
   iIntros (Hlv) "Hσ HGC Hnb #Hblk".
@@ -52,9 +53,10 @@ Proof using.
 
   (* TODO: refactor opsem to use lstore_hybrid_repr? *)
   destruct Hζ as (ζσ&?&?&?&?).
-  iExists (WrapstateML _ _ _ _), _. iSplit.
-  { iPureIntro. unfold c_to_ml. cbn.
-    eexists σMLvirt, _, _, ζfreeze, ζσ. split_and!; eauto. by rewrite map_union_comm. }
+  iExists (WrapstateML _ _ _ _), _, _. iSplit. 2: iSplit.
+  { iPureIntro. unfold c_to_ml_heap. cbn.
+    eexists ζσ. split_and!; eauto. by rewrite map_union_comm. }
+  { iPureIntro. unfold c_to_ml_vals. cbn. exists lvs. split_and!; eauto. }
 
   iMod (ghost_var_update_halves with "Hnb SIbound") as "(Hb & SIbound)".
   iMod (ghost_var_update_halves with "GCζ SIζ") as "(GCζ & SIζ)".
@@ -70,20 +72,22 @@ Proof using.
   destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
 Qed.
 
-Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
-  ml_to_c_core vs ρml σ ws ρc mem →
+Lemma wrap_interp_ml_to_c vs lvs ρml σ ws ρc mem :
+  ml_to_c_heap ρml σ ρc mem →
+  Forall2 (repr_lval (θC ρc)) lvs ws →
+  Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs →
   wrap_state_interp (Wrap.MLState ρml σ) -∗
   not_at_boundary
   ==∗
   wrap_state_interp (Wrap.CState ρc mem) ∗
   at_boundary wrap_lang ∗
   GC (θC ρc) ∗
-  (∃ lvs, lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
+  lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝.
 Proof using.
-  iIntros (Hml_to_c) "Hst Hb".
-  destruct Hml_to_c as (ζσ & ζnewimm & lvs & HH).
+  iIntros (Hml_to_c Hval Hrepre) "Hst Hb".
+  destruct Hml_to_c as (ζσ & ζnewimm & HH).
   destruct HH as (Hmono & Hblocks & Hprivblocks & HζC & Hζdisj &
-                    Hstore & Hvals & ? & ? & ? & Hroots & ?).
+                    Hstore & ? & ? & Hroots & ?).
 
   iNamed "Hst". iNamed "SIML". iNamed "SIGCrem".
   iDestruct (hgh_dom_lstore_sub with "GCHGH") as %Hζsub.
@@ -110,7 +114,7 @@ Proof using.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. } iSplit.
   { rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
-  { iExists _; by iFrame "Hsim". }
+  { by iFrame "Hsim". }
 Qed.
 
 End BoundaryLaws.
