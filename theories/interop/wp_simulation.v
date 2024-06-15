@@ -53,13 +53,12 @@ Proof using.
   { iPureIntro. eapply OutS; try naive_solver.
     apply language.to_of_outcome. }
 
-  iIntros (? ? (w & ρc & mem & Hout & Hrepr & -> & ->)).
-  iMod (wrap_interp_ml_to_c_out with "SI Hnb") as "(SI & Hb & HGC & H)";
+  iIntros (? ? (w & ρc & mem & Hout & Hcore & -> & ->)).
+  iMod (wrap_interp_ml_to_c_out with "SI Hnb") as "(SI & Hb & HGC & (%ov & Hbo & %Hrepr))";
     first done; first done.
   do 3 iModIntro. iFrame "SI".
   iApply weakestpre.wp_outcome'.
-  iDestruct "H" as "(% & Hls & %Hval)".
-  iExists _, olv. iFrame. repeat iSplit; eauto.
+  iExists _, _. iFrame. by inversion Hrepr; simplify_eq.
 Qed.
 
 Lemma wp_simulates (Ψ : protocol ML_lang.val Σ) eml emain Φ :
@@ -149,6 +148,7 @@ Proof.
 
     iDestruct ((wrap_interp_c_to_ml_out wret _ _ _ vret lvret) with "Hst' HGC Hb [Hsim]")
       as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_out) "HH"; eauto.
+
     iExists (λ '(e2, σ2),
       e2 = WrSE (ExprML (language.fill K' (lang.ML_lang.of_outcome vret))) ∧
       σ2 = MLState ρml' σ').

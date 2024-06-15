@@ -318,7 +318,7 @@ Definition c_to_ml_val
 Definition c_to_ml_outcome
   (ow : outcome word) (ρc : wrapstateC)
   (ov : outcome val) (ρml : wrapstateML) (ζ : lstore)
-: Prop :=
+  : Prop :=
   ∃ olv,
     repr_lval_out (θC ρc) olv ow ∧
     is_val_out (χML ρml) ζ ov olv.
