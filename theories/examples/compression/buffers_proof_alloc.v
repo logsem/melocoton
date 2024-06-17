@@ -23,7 +23,7 @@ Section Proofs.
     {{{ GC θ }}}
          call: &buffers_specs.buf_alloc_name with (wcap)
       at ⟨buf_lib_prog, prims_proto Ψ⟩
-    {{{ w' θ' lv ℓ, RET w';
+    {{{ w' θ' lv ℓ, RETV w';
        GC θ' ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
        ⌜repr_lval θ' lv w'⌝ }}}%CE.
   Proof.

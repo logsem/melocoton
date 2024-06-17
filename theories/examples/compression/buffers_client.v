@@ -46,7 +46,7 @@ Section MLclient.
   Lemma ML_client_spec ℓ dq (zz : buffer) :
     {{{ ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}
       ML_client_code #ℓ at ML_client_env
-    {{{ RET #(if is_compressible zz then true else false); ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}.
+    {{{ RETV #(if is_compressible zz then true else false); ℓ ↦∗{dq} map (λ (x:Z), #x) zz }}}.
   Proof.
     iIntros (Φ) "Hℓ Cont".
     unfold ML_client_code, ML_client_env. wp_pures.

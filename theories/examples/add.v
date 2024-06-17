@@ -30,7 +30,7 @@ Definition add_one_ml_spec : protocol ML_lang.val Σ :=
   !! (x:Z)
     {{ True }}
       "add_one" with [ (#ML x) ]
-    {{ RET (#ML(x + 1)); True }}.
+    {{ RETV (#ML(x + 1)); True }}.
 
 Definition add_one_code (x : expr) : expr :=
   let: "r" := Int_val(x) in

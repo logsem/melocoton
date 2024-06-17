@@ -30,13 +30,13 @@ Definition is_odd_proto : protocol val Σ :=
   !! (x:Z)
   {{ "%" ∷ ⌜(0 ≤ x)%Z⌝ }}
     "is_odd" with [ #x ]
-  {{ RET #(Z.odd x); True }}.
+  {{ RETV #(Z.odd x); True }}.
 
 Definition is_even_proto : protocol val Σ :=
   !! (x:Z)
   {{ "%" ∷ ⌜(0 ≤ x)%Z⌝ }}
     "is_even" with [ #x ]
-  {{ RET #(Z.even x); True }}.
+  {{ RETV #(Z.even x); True }}.
 
 Lemma wp_is_even (x:Z) :
   (0 ≤ x)%Z →
@@ -122,7 +122,7 @@ Lemma is_even_linked_spec (x:Z) :
   (0 ≤ x)%Z →
   {{{ link_in_state _ _ Boundary }}}
     LkSE (Link.ExprCall "is_even" [ #x ]) at ⟪fullprog, ⊥⟫
-  {{{ RET #(Z.even x); link_in_state _ _ Boundary }}}.
+  {{{ RETV #(Z.even x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
   iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]").
@@ -135,7 +135,7 @@ Lemma is_odd_linked_spec (x:Z) :
   (0 ≤ x)%Z →
   {{{ link_in_state _ _ Boundary }}}
     LkSE (Link.ExprCall "is_odd" [ #x ]) at ⟪fullprog, ⊥⟫
-  {{{ RET #(Z.odd x); link_in_state _ _ Boundary }}}.
+  {{{ RETV #(Z.odd x); link_in_state _ _ Boundary }}}.
 Proof.
   iIntros (Hx Φ) "Hlkst HΦ".
   iApply (wp_internal_call_at_boundary fullprog with "[$Hlkst]").

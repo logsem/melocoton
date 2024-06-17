@@ -69,7 +69,7 @@ Definition swap_variant_ml_spec : protocol ML_lang.val Σ :=
   !! (v: MLval) r
       {{ ⌜swap_sum v = Some r⌝ }}
         "swap_variant" with [ v ]
-      {{ RET r; True }}.
+      {{ RETV r; True }}.
 
 Lemma swap_variant_correct :
   prims_proto swap_variant_ml_spec ||- swap_variant_prog :: wrap_proto swap_variant_ml_spec.
