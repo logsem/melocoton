@@ -140,7 +140,13 @@ Definition ml_to_c_vals
 
 Definition ml_to_c_outcome
   (ov : outcome val) (ow : outcome word) (ρc : wrapstateC) : Prop :=
-  ∃ olv, is_val_out (χC ρc) (ζC ρc) ov olv ∧ repr_lval_out (θC ρc) olv ow.
+  ∃ olv,
+    (** Demonically pick block-level outcome value olv
+        that represent the arguments ov. *)
+    is_val_out (χC ρc) (ζC ρc) ov olv ∧
+    (** Pick C-level outcome words that are live and represent the arguments of
+        the function. (repr_lval on a location entails that it is live.) *)
+    repr_lval_out (θC ρc) olv ow.
 
 Lemma ml_to_c_words_length vs ws ρml :
   ml_to_c_vals vs ws ρml →
@@ -320,7 +326,11 @@ Definition c_to_ml_outcome
   (ov : outcome val) (ρml : wrapstateML) (ζ : lstore)
   : Prop :=
   ∃ olv,
+    (** Angelically pick a block-level outcome value olv that corresponds to the
+      C outcome value ow. *)
     repr_lval_out (θC ρc) olv ow ∧
+    (** Angelically pick an ML outcome value ov that correspond to the
+      block-level outcome value olv. *)
     is_val_out (χML ρml) ζ ov olv.
 
 Local Notation CLocV w := (C_intf.LitV (C_intf.LitLoc w)).
