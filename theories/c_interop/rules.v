@@ -10,7 +10,7 @@ From iris.prelude Require Import options.
 (* Derived WP rules for C<->ML interop.
 
    These follow from the generic rules of the wrapper (in interop/) that work
-r  for any language obeying the C interface (c_interface/) -- specialized to our
+   for any language obeying the C interface (c_interface/) -- specialized to our
    concrete C language (c_lang/). *)
 
 Section Laws.
