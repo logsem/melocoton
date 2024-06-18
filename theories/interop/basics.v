@@ -1076,6 +1076,12 @@ Qed.
 (* Qed. *)
 (* Admitted. *)
 
+Lemma repr_roots_not_empty θ mem roots :
+  repr_roots θ mem roots -> exists rootsHd rootsTl, roots = rootsHd :: rootsTl.
+Proof.
+  intros. destruct H; eauto.
+Qed.
+
 Lemma code_int_inj z1 z2 : code_int z1 = code_int z2 → z1 = z2.
 Proof.
   intros H; simplify_eq; lia.
@@ -1121,6 +1127,13 @@ Proof.
 (*     by eapply repr_lval_mono. *)
 (* Qed. *)
 Admitted.
+
+Lemma repr_not_empty θ roots privmem mem :
+  repr θ roots privmem mem -> exists rootsHd rootsTl, roots = rootsHd :: rootsTl.
+Proof.
+  intros. destruct H as [memr [Hrepr]].
+  by eapply repr_roots_not_empty.
+Qed.
 
 Lemma lval_in_vblock v m tg vs :
   lval_in_block (Bvblock (m, (tg, vs))) v ↔ v ∈ vs.

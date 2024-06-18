@@ -4,7 +4,7 @@ From melocoton Require Import named_props stdpp_extra.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_interface Require Import defs notation resources.
 From melocoton.interop Require Import state lang basics_resources.
-From melocoton.interop Require Export prims weakestpre prims_proto.
+From melocoton.interop Require Export prims weakestpre prims_proto wp_utils.
 From melocoton.interop.wp_prims Require Import common.
 From melocoton.mlanguage Require Import weakestpre.
 Import Wrap.
@@ -28,16 +28,32 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  (* iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom". *)
-  (* 1: { iIntros "%H". eapply elem_of_dom in H. destruct H as [k Hk]. *)
-  (*      iPoseProof (big_sepM_lookup_acc with "GCrootspto") as "((%ww&Hww&_)&_)". *)
-  (*      1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. } *)
 
   iApply wp_pre_cases_c_prim; [done..|].
+
+  iAssert (⌜Forall (λ r,
+    ∀ k lv, r !! k = Some lv
+    → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
+  roots_m⌝)%I as "%Hroots".
+  { admit. }
+  destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
+  destruct (repr_not_empty (θC ρc) roots_m privmem mem Hpriv) as [rootsChd [rootsCtl Hroots_m]].
+
+  iAssert (⌜¬ l ∈ dom rootsChd⌝)%I as "%Hdom".
+  { admit. }
+    (* iIntros "%H". eapply elem_of_dom in H. destruct H as [k Hk]. *)
+    (* iPoseProof (big_sepM_lookup_acc with "GCrootspto") as "((%ww&Hww&_)&_)". *)
+    (* 1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. } *)
+
   iExists (λ '(e', σ'),
     e' = WrSE (ExprO (OVal #0)) ∧
-    σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := {[l]} ∪ rootsC ρc |} mem).
-  iSplit. { iPureIntro. econstructor; eauto. congruence. }
+    σ' = CState {|
+      χC := χC ρc;
+      ζC := ζC ρc;
+      θC := θC ρc;
+      rootsC := ({[l]} ∪ (dom rootsChd)) :: (map dom rootsCtl)
+   |} mem).
+  iSplit. { iPureIntro. econstructor; eauto. rewrite <- H2. rewrite Hroots_m. by simpl. }
   iIntros (w' ρc' mem' (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
   iMod (ghost_map_insert with "GCrootsm") as "(GCrootsm&Hres)".
