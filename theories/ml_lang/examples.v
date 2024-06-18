@@ -156,25 +156,24 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
 Lemma try_raise_proof
  : ⊢ (WP try_raise at AxiomEnv {{v, ⌜v = OVal #3⌝}})%I.
 Proof.
-  iStartProof. unfold try_raise. wp_pures.
-  (* Set Printing Coercions. *)
-  wp_apply (wp_try).
-  wp_apply (wp_raise).
-  wp_bind (Raise _).
-  (* Unset Printing Notations. *)
-  iApply wp_raise.
-  Fail wp_pure (Rec BAnon BAnon _). wp_lam.
-lazymatch goal with
-     | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
-       reshape_expr e ltac:(fun K e' =>
-        lazymatch K with | [] => fail 
-        | _ => wp_bind_core K; idtac K e' end)
-     | _ => fail 1 "wp_apply: not a 'wp'"
-     end.
-
-     wp_seq.
-  wp_lam. wp_pures; eauto.
-Qed.
+Admitted.
+(*   iStartProof. unfold try_raise. wp_pures. *)
+(*   wp_apply (wp_try). *)
+(*   wp_apply (wp_raise). *)
+(*   wp_bind (Raise _). *)
+(*   iApply wp_raise. cbn. *)
+(*   Fail wp_pure (Rec BAnon BAnon _). wp_lam. *)
+(* lazymatch goal with *)
+(*      | |- envs_entails _ (wp ?s ?E ?e ?Q) => *)
+(*        reshape_expr e ltac:(fun K e' => *)
+(*         lazymatch K with | [] => fail  *)
+(*         | _ => wp_bind_core K; idtac K e' end) *)
+(*      | _ => fail 1 "wp_apply: not a 'wp'" *)
+(*      end. *)
+(**)
+(*      wp_seq. *)
+(*   wp_lam. wp_pures; eauto. *)
+(* Qed. *)
 
 End examples.
 

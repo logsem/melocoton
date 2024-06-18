@@ -26,6 +26,28 @@ Import
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
 
+
+Notation "{{ 'RETV' pat ; Q } }" :=
+  (λ Φ, ▷ (Q -∗ Φ (OVal pat)))%I
+  (at level 20, format "{{  '[' RETV  pat ;  '/' Q  ']' } }").
+
+Notation "{{ u .. v , 'RETV' pat ; Q } }" :=
+  (λ Φ, ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..))%I
+  (at level 20, u closed binder, v closed binder,
+  format "{{  '[' u  ..  v ,  RETV  pat ;  '/' Q  ']' } }").
+
+Notation "'!!' x .. y '{{' P } } f 'with' l Q" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ Q Φ) ..))%I
+  (at level 20, x closed binder, y closed binder,
+   format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/' Q ']'").
+
+Notation "'!!' '{{' P } } f 'with' l Q" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ Q Φ))%I
+  (at level 20,
+   format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/' Q ']'").
+
 Definition add_one_ml_spec : protocol ML_lang.val Σ :=
   !! (x:Z)
     {{ True }}
