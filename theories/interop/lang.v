@@ -125,13 +125,19 @@ Definition ml_to_c_heap
 
 Definition ml_to_c_val (v : val) (w : word) (ρc : wrapstateC) : Prop :=
   ∃ (lv : lval),
+    (** Demonically pick block-level value lv that represent the arguments v. *)
     is_val (χC ρc) (ζC ρc) v lv ∧
+    (** Pick C-level word that are live and represent the arguments of the
+        function. (repr_lval on a location entails that it is live.) *)
     repr_lval (θC ρc) lv w.
 
 Definition ml_to_c_vals
   (vs : list val) (ws : list word) (ρc : wrapstateC) : Prop :=
   ∃ (lvs : list lval),
+    (** Demonically pick block-level values lvs that represent the arguments vs. *)
     Forall2 (is_val (χC ρc) (ζC ρc)) vs lvs ∧
+    (** Pick C-level words that are live and represent the arguments of the
+        function. (repr_lval on a location entails that it is live.) *)
     Forall2 (repr_lval (θC ρc)) lvs ws.
 
 Definition ml_to_c_outcome
@@ -300,8 +306,24 @@ Definition c_to_ml_vals
   (vs : list val) (ρml : wrapstateML) (ζ : lstore)
 : Prop :=
   ∃ lvs,
+    (** Angelically pick a block-level values lvs that corresponds to the
+       C values ws. *)
     Forall2 (repr_lval (θC ρc)) lvs ws ∧
+    (** Angelically pick an ML values vs that correspond to the
+       block-level values lvs. *)
     Forall2 (is_val (χML ρml) ζ) vs lvs.
+
+Definition c_to_ml_val
+  (w : word) (ρc : wrapstateC)
+  (v : val) (ρml : wrapstateML) (ζ : lstore)
+: Prop :=
+  ∃ lv,
+    (** Angelically pick a block-level value lv that corresponds to the
+       C value w. *)
+    repr_lval (θC ρc) lv w ∧
+    (** Angelically pick an ML value v that correspond to the
+       block-level value lv. *)
+    is_val (χML ρml) ζ v lv.
 
 Definition c_to_ml_outcome
   (ow : outcome word) (ρc : wrapstateC)
