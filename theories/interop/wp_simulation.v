@@ -38,7 +38,7 @@ Proof using.
   iModIntro. iRight. iRight.
 
   iSplit; first done.
-  iAssert (⌜sanity_check ρml σ⌝)%I as "%Hprog".
+  iAssert (⌜check_ml_state ρml σ⌝)%I as "%Hprog".
   { iNamed "SI". iNamed "SIML". iNamed "SIGCrem".
     iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %?.
     iDestruct (hgh_dom_lstore_sub with "GCHGH") as %?.
