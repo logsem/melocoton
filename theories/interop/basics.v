@@ -168,8 +168,10 @@ Implicit Type θ : addr_map.
    and keeping alive *)
 Notation roots_map := (gmap addr lval).
 
-Definition dom_roots (roots : list roots_map) :=
-  List.fold_left (fun acc r => acc ∪ (dom r)) roots ∅.
+Definition roots_map_mem' (acc : memory) (roots_m : list roots_map) :=
+  List.fold_left (λ acc r, acc ∪ (fmap (λ (_ : lval), None) r)) roots_m acc.
+
+Definition roots_map_mem := roots_map_mem' ∅.
 
 (** lloc_map injectivity: lloc_maps are always injective wrt public locs and
    foreign ids
@@ -1065,13 +1067,14 @@ Proof.
   eapply H2; eauto. by constructor.
 Qed.
 
-Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom_roots b.
-Proof.
+(* FIXME *)
+(* Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom_roots b. *)
+(* Proof. *)
 (*   induction 1. *)
 (*   + by do 2 rewrite dom_empty_L. *)
 (*   + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots. *)
 (* Qed. *)
-Admitted.
+(* Admitted. *)
 
 Lemma code_int_inj z1 z2 : code_int z1 = code_int z2 → z1 = z2.
 Proof.

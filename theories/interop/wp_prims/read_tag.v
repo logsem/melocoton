@@ -40,7 +40,7 @@ Proof using.
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame. rewrite Heqt.
   iApply ("Cont" with "[- $Hpto]").
-  rewrite /GC /named. iExists _, _, _, _, _. iFrame.
+  rewrite /GC /named. repeat iExists _. iFrame.
   iPureIntro; split_and!; eauto.
 Qed.
 

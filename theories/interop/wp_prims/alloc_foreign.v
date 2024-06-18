@@ -29,11 +29,11 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ".
   SI_at_boundary. SI_GC_agree.
-  iAssert (⌜∀ k lv, roots_m !! k = Some lv →
-            ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
-  1: { iIntros (kk vv Hroots).
-       iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done.
-       iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
+  iAssert (⌜Forall (λ r,
+    ∀ k lv, r !! k = Some lv
+    → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
+  roots_m⌝)%I as "%Hroots".
+  { admit. }
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
 
   assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
@@ -70,6 +70,6 @@ Proof using.
   iFrame. iSplit; last by eauto.
   rewrite /GC /named.
   iExists _, _, σMLvirt, _, _. iFrame; eauto.
-Qed.
+Admitted.
 
 End Laws.

@@ -47,44 +47,44 @@ Definition preGCtok : iProp Σ :=
     "GCζ" ∷ ghost_var wrapperG_γζ (1/2) (∅:lstore)
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) (∅:lloc_map)
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
-  (* FIXME *)
-  (* ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (∅ : list $ gset addr) *)
+  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) ([∅]:list $ gset addr)
   ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCML" ∷ state_interp (∅ : language.language.state ML_lang)
   ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval).
 
-Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots : list $ gset addr) : iProp Σ :=
+Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots_s : list $ gset addr) : iProp Σ :=
   ∃ (at_init : bool),
     "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperG_γθ (1/2) θ
-  ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots
+  ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
   ∗ "SIbound" ∷ ghost_var wrapperG_γat_boundary (1/2) true
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) at_init
   ∗ "Hinit" ∷ if at_init then preGCtok else True.
 
 Definition GC_remnant (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) : iProp Σ :=
+  ∃ (roots_f : list gname),
    "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
  ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
  ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
  ∗ "GCHGH" ∷ HGH χ None ζ
  ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (map dom roots_m)
- ∗ "GCrootsm" ∷ ([∗ list] roots ∈ roots_m, ghost_map_auth wrapperG_γroots_map 1 roots)
- ∗ "GCrootspto" ∷ ([∗ set] a ∈ (dom_roots roots_m), a O↦C None).
+ ∗ "GCrootsf"  ∷ghost_var wrapperG_γroots_frame (1 / 2) roots_f
+ ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_f;roots_m, ghost_map_auth f 1 r)
+ ∗ "GCrootspto" ∷ ([∗ list] r ∈ roots_m, [∗ set] a ∈ (dom r), a O↦C None).
 
-Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots : list roots_map) (memC : memory) : iProp Σ :=
+Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) (memC : memory) : iProp Σ :=
     "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperG_γθ (1/2) (∅ : addr_map)
-  ∗ "SIGCrem" ∷ GC_remnant ζ χ roots
-  (* ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots *)
+  ∗ "SIGCrem" ∷ GC_remnant ζ χ roots_m
+  ∗ "SIroots" ∷ ghost_var wrapperG_γroots_set (1/2) (map dom roots_m)
   ∗ "SIbound" ∷ ghost_var wrapperG_γat_boundary (1/2) false
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) false
-  (* FIXME *)
-  (* ∗ "HσCv" ∷ gen_heap_interp (memC ∪ (fmap (fun k => None) roots)) *)
-  ∗ "%HmemCdisj" ∷ ⌜dom memC ## dom_roots roots⌝.
+  ∗ "HσCv" ∷ gen_heap_interp (roots_map_mem' memC roots_m)
+  ∗ "%HmemCdisj" ∷ ⌜Forall (λ r, dom memC ## dom r) roots_m⌝.
 
 Definition private_state_interp : wrapstateC → iProp Σ :=
   (λ ρc, C_state_interp (ζC ρc) (χC ρc) (θC ρc) (rootsC ρc))%I.
@@ -151,7 +151,6 @@ Qed.
 
 End WrapperWP.
 
-(* FIXME *)
 Ltac SI_GC_agree :=
   iDestruct (ghost_var_agree with "GCζ SIζ") as %?;
   iDestruct (ghost_var_agree with "GCχ SIχ") as %?;

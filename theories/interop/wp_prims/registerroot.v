@@ -28,10 +28,10 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom".
-  1: { iIntros "%H". eapply elem_of_dom in H; destruct H as [k Hk].
-       iPoseProof (big_sepM_lookup_acc with "GCrootspto") as "((%ww&Hww&_)&_)".
-       1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. }
+  (* iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom". *)
+  (* 1: { iIntros "%H". eapply elem_of_dom in H. destruct H as [k Hk]. *)
+  (*      iPoseProof (big_sepM_lookup_acc with "GCrootspto") as "((%ww&Hww&_)&_)". *)
+  (*      1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. } *)
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),

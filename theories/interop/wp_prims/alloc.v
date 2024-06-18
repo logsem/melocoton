@@ -30,11 +30,14 @@ Proof using.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk.
-  iAssert (⌜∀ k lv, roots_m !! k = Some lv →
-            ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
-  1: { iIntros (kk vv Hroots).
-       iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done.
-       iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
+  iAssert (⌜Forall (λ r,
+    ∀ k lv, r !! k = Some lv
+    → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
+  roots_m⌝)%I as "%Hroots".
+  { admit. }
+  (* { iIntros (kk vv Hroots). *)
+  (*   iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done. *)
+  (*   iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). } *)
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
 
   assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
@@ -70,7 +73,7 @@ Proof using.
   iApply ("Cont" $! θC' γ with "[-]"); try done.
   iFrame. iSplit; last by eauto.
   rewrite /GC /named.
-  iExists _, _, σMLvirt, _, _. iFrame. iPureIntro; split_and!; eauto.
-Qed.
+  iExists _, _, σMLvirt, _, _, _. iFrame. iPureIntro; split_and!; eauto.
+Admitted.
 
 End Laws.

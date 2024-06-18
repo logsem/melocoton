@@ -36,12 +36,12 @@ Proof using.
   iIntros (Hlv) "Hσ HGC Hnb #Hblk".
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
-  iAssert (⌜∀ k lv, roots_m !! k = Some lv →
-            ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
-  1: { iIntros (kk vv Hroots).
-       iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done.
-       iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
-  apply map_Forall_lookup_2 in Hroots.
+  iAssert (⌜Forall (λ r,
+    ∀ k lv, r !! k = Some lv
+    → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
+  roots_m⌝)%I as "%Hroots".
+  { admit. }
+  (* apply map_Forall_lookup_2 in Hroots. *)
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done; [].
 
   iDestruct (hgh_export_ml_heap with "GCHGH")
@@ -68,9 +68,12 @@ Proof using.
   iModIntro. iSplitR "SIbound"; last by iFrame "SIbound".
   rewrite /= /named. iFrame "Hσ".
   unfold private_state_interp, ML_state_interp, GC_remnant, named; cbn.
-  iFrame. iPureIntro.
-  destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
-Qed.
+  iFrame. iSplit.
+  { iExists roots_f. iSplitL "GCrootsf"; done. }
+  iPureIntro.
+  (* destruct Hpriv as (mem_r & Hpriv1 & Hpriv2 & Hpriv3). by apply map_disjoint_dom. *)
+(* Qed. *)
+Admitted.
 
 Lemma wrap_interp_c_to_ml_out ow ρc mem θ ov olv :
   repr_lval_out θ olv ow →
@@ -86,12 +89,12 @@ Proof using.
   iIntros (Hlv) "Hσ HGC Hnb Hblk".
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
-  iAssert (⌜∀ k lv, roots_m !! k = Some lv →
-            ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
-  1: { iIntros (kk vv Hroots).
-       iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done.
-       iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
-  apply map_Forall_lookup_2 in Hroots.
+  iAssert (⌜Forall (λ r,
+    ∀ k lv, r !! k = Some lv
+    → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
+  roots_m⌝)%I as "%Hroots".
+  { admit. }
+  (* apply map_Forall_lookup_2 in Hroots. *)
   destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done; [].
 
   iDestruct (hgh_export_ml_heap with "GCHGH")
@@ -120,9 +123,11 @@ Proof using.
   iModIntro. iSplitR "SIbound"; last by iFrame "SIbound".
   rewrite /= /named. iFrame "Hσ".
   unfold private_state_interp, ML_state_interp, GC_remnant, named; cbn.
-  iFrame. iPureIntro.
-  destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
-Qed.
+  iFrame. iSplit.
+  { iExists roots_f. iSplitL "GCrootsf"; done. }
+  iPureIntro.
+  (* destruct Hpriv as (mem_r & Hpriv1 & Hpriv2 & Hpriv3); by apply map_disjoint_dom. *)
+Admitted.
 
 Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
   ml_to_c_heap ρml σ ρc mem →
@@ -165,7 +170,7 @@ Proof using.
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. } iSplit.
-  { rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
+  { rewrite /GC /named. iExists _, _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
   { iExists _; by iFrame "Hsim". }
 Qed.
 
@@ -210,7 +215,7 @@ Proof using.
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. } iSplit.
-  { rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
+  { rewrite /GC /named. iExists _, _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
   { iExists lv. iSplit; eauto. }
 Qed.
 
