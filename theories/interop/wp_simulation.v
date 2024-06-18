@@ -36,9 +36,9 @@ Proof using.
   iIntros "%st SI".
   iDestruct (SI_not_at_boundary_is_in_ML with "SI Hnb") as "%H"; destruct H as (ρml & σ & ->).
   iModIntro. iRight. iRight.
-  iSplit; first done.
 
-  iAssert (⌜check_ml_state ρml σ⌝)%I as "%Hprog".
+  iSplit; first done.
+  iAssert (⌜sanity_check ρml σ⌝)%I as "%Hprog".
   { iNamed "SI". iNamed "SIML". iNamed "SIGCrem".
     iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %?.
     iDestruct (hgh_dom_lstore_sub with "GCHGH") as %?.
@@ -148,7 +148,6 @@ Proof.
 
     iDestruct ((wrap_interp_c_to_ml_out wret _ _ _ vret lvret) with "Hst' HGC Hb [Hsim]")
       as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_out) "HH"; eauto.
-
     iExists (λ '(e2, σ2),
       e2 = WrSE (ExprML (language.fill K' (lang.ML_lang.of_outcome vret))) ∧
       σ2 = MLState ρml' σ').
