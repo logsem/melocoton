@@ -263,11 +263,49 @@ Proof.
   iModIntro. iFrame "Hσ". iApply "HΦ". iApply "Hl".
 Qed.
 
-Lemma wp_raise E pe v Φ :
-  Φ (OExn v)
-  ⊢ WP Raise (Val v) @ pe; E {{ Φ }}.
+Lemma wp_raise E Ki pe v Φ :
+  ¬ ML_lang.is_try Ki →
+  WP Raise (Val v) @ pe; E {{ Φ }}
+  ⊢ WP fill [Ki] (Raise (Val v)) @ pe; E {{ Φ }}.
 Proof.
-  iApply (wp_outcome); eauto.
+  iIntros (Htry) "Hwp".
+  iApply wp_lift_atomic_prim_step.
+  { destruct Ki; eauto. }
+  cbn. iIntros (σ1) "Hσ !>". iSplit.
+  { iPureIntro. unfold reducible. eexists (fill [] (Raise v)), _.
+    eapply Prim_step_raise; eauto. now rewrite fill_comp_item. }
+  iIntros (v2 σ2 Hstep).
+  inversion Hstep; subst; clear Hstep.
+  { replace (fill_item Ki (raise: v))
+       with (fill [Ki] (of_outcome _ (OExn v))) in H by eauto.
+    edestruct (step_by_val (penv_prog pe) _ _ _ _ σ1 e2' σ2 H) as [K' Hk]; eauto.
+    subst; rewrite fill_app in H; apply fill_inj in H.
+    symmetry in H. apply lang.ML_lang.fill_outcome_3 in H.
+    apply outcome_head_stuck in H1. destruct H. congruence. }
+  {  do 2 iModIntro. iFrame.
+    assert (K = []) as ->.
+    { rewrite fill_comp_item in H; cbn in H.
+      replace (fill_item Ki (raise: v)) with (fill [Ki] (Raise v)) in H by eauto.
+      symmetry in H.
+      destruct (lang.ML_lang.fill_prefix_val_out _ _ _ _ H) as [K' H'].
+      { destruct Ki0; eauto. }
+      destruct K; eauto. unfold comp_ectx in H'.
+      destruct K'. 2: destruct K'; eauto; inversion H'.
+      cbn in H'. inversion H'. subst. apply fill_inj in H.
+      destruct Ki0; inversion H. }
+    cbn in *. assert (Ki = Ki0). 1: (eapply fill_item_no_val_inj; eauto); eauto.
+    subst. apply fill_item_inj in H; inversion H. iFrame. }
+  { do 2 iModIntro. iFrame.
+    assert (K = []) as ->.
+    { rewrite fill_comp_item in H; cbn in H.
+      replace (fill_item Ki (raise: v)) with (fill [Ki] (Raise v)) in H by eauto.
+      symmetry in H.
+      destruct (lang.ML_lang.fill_prefix_val_out _ _ _ _ H) as [K' H']; eauto.
+      destruct K; eauto. unfold comp_ectx in H'.
+      destruct K'. 2: destruct K'; eauto; inversion H'.
+      cbn in H'. inversion H'. subst. cbn in H. apply fill_item_inj in H.
+      inversion H. }
+    destruct Ki; cbn in H; inversion H. exfalso; eauto. }
 Qed.
 
 Lemma wp_try E pe e r Φ :

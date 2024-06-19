@@ -147,7 +147,6 @@ Tactic Notation "wp_seq" := wp_pure (Rec BAnon BAnon _); wp_lam.
 Tactic Notation "wp_proj" := wp_pure (Fst _) || wp_pure (Snd _).
 Tactic Notation "wp_case" := wp_pure (Case _ _ _).
 Tactic Notation "wp_match" := wp_case; wp_pure (Rec _ _ _); wp_lam.
-Tactic Notation "wp_raise" := wp_pure (Raise _).
 Tactic Notation "wp_inj" := wp_pure (InjL _) || wp_pure (InjR _).
 Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
