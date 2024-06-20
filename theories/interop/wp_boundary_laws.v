@@ -88,7 +88,7 @@ Proof using.
   destruct ov as [v]; iSimpl in "Hblk".
   assert (Forall2 (repr_lval θ) [lv] [w]) by eauto.
   iAssert ([lv] ~~∗ [v]) with "[Hblk]" as "Hls"; first (cbn; iFrame).
-  iDestruct ((wrap_interp_c_to_ml [w] ρc mem θ [v] [lv] H)
+  iDestruct (wrap_interp_c_to_ml [w] ρc mem θ [v] [lv] H
               with "Hσ HGC Hnb Hls") as "(%ρml & %σ & %ζ & %Hheap & %Hlst & H)".
   iExists _, _, _. iFrame. iSplit; eauto.
   iPureIntro. inversion Hlst as (lvs & Hrepr & Hval).
@@ -155,7 +155,7 @@ Proof using.
   iIntros (Hml_to_c H) "Hst Hb".
   destruct ow as [w]. inversion H as (olv & Hrepr & Hval); subst.
   inversion Hval; inversion Hrepr; subst; inversion H8; subst.
-  iDestruct ((wrap_interp_ml_to_c [v0] [lv] ρml σ [w] ρc _) with "Hst Hb")
+  iDestruct (wrap_interp_ml_to_c [v0] [lv] ρml σ [w] ρc mem with "Hst Hb")
          as "> (Hst & Hb & HGC & (Hl & _) & %Hreprs)"; eauto.
   iModIntro. iSplitL "Hst"; eauto. iSplitL "Hb"; eauto.
   iFrame. iExists (OVal lv). iFrame. iPureIntro.
