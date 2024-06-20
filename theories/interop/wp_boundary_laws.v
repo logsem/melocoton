@@ -84,16 +84,17 @@ Lemma wrap_interp_c_to_ml_out ow ρc mem θ ov olv :
   |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
 Proof using.
   iIntros (Hlv) "Hσ HGC Hnb Hblk".
-  destruct ow as [w]. inversion Hlv; subst.
-  destruct ov as [v]; iSimpl in "Hblk".
-  assert (Forall2 (repr_lval θ) [lv] [w]) by eauto.
-  iAssert ([lv] ~~∗ [v]) with "[Hblk]" as "Hls"; first (cbn; iFrame).
+  destruct ow as [w | w]; inversion Hlv; subst;
+  destruct ov as [v | v]; iSimpl in "Hblk"; eauto;
+  assert (Forall2 (repr_lval θ) [lv] [w]) by eauto;
+  iAssert ([lv] ~~∗ [v]) with "[Hblk]" as "Hls"; cbn; try iFrame;
   iDestruct (wrap_interp_c_to_ml [w] ρc mem θ [v] [lv] H
-              with "Hσ HGC Hnb Hls") as "(%ρml & %σ & %ζ & %Hheap & %Hlst & H)".
-  iExists _, _, _. iFrame. iSplit; eauto.
-  iPureIntro. inversion Hlst as (lvs & Hrepr & Hval).
-  inversion Hrepr; inversion Hval; subst; inversion H9; subst; exists (OVal x).
-  split; econstructor; eauto.
+              with "Hσ HGC Hnb Hls") as "(%ρml & %σ & %ζ & %Hheap & %Hlst & H)";
+  iExists _, _, _; iFrame; iSplit; eauto; iPureIntro;
+  inversion Hlst as (lvs & Hrepr & Hval);
+  inversion Hrepr; inversion Hval; subst; inversion H9; subst.
+  { exists (OVal x). split; econstructor; eauto. }
+  { exists (OExn x). split; econstructor; eauto. }
 Qed.
 
 Lemma wrap_interp_ml_to_c vs lvs ρml σ ws ρc mem :
@@ -153,13 +154,13 @@ Lemma wrap_interp_ml_to_c_out ov ρml σ ow ρc mem :
   (∃ olv, olv ~~ₒ ov ∗ ⌜repr_lval_out (θC ρc) olv ow⌝).
 Proof using.
   iIntros (Hml_to_c H) "Hst Hb".
-  destruct ow as [w]. inversion H as (olv & Hrepr & Hval); subst.
-  inversion Hval; inversion Hrepr; subst; inversion H8; subst.
+  destruct ow as [w | w]; inversion H as (olv & Hrepr & Hval); subst;
+  inversion Hval; inversion Hrepr; subst; inversion H8; subst;
   iDestruct (wrap_interp_ml_to_c [v0] [lv] ρml σ [w] ρc mem with "Hst Hb")
-         as "> (Hst & Hb & HGC & (Hl & _) & %Hreprs)"; eauto.
-  iModIntro. iSplitL "Hst"; eauto. iSplitL "Hb"; eauto.
-  iFrame. iExists (OVal lv). iFrame. iPureIntro.
-  econstructor. inversion Hreprs; eauto.
+         as "> (Hst & Hb & HGC & (Hl & _) & %Hreprs)"; eauto;
+  iModIntro; iSplitL "Hst"; eauto; iSplitL "Hb"; eauto; iFrame.
+  { iExists (OVal lv). iFrame. iPureIntro. econstructor. now inversion Hreprs. }
+  { iExists (OExn lv). iFrame. iPureIntro. econstructor. now inversion Hreprs. }
 Qed.
 
 End BoundaryLaws.
