@@ -4,7 +4,7 @@ From melocoton Require Import named_props stdpp_extra.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_interface Require Import defs notation resources.
 From melocoton.interop Require Import state lang basics_resources.
-From melocoton.interop Require Export prims weakestpre prims_proto.
+From melocoton.interop Require Export prims weakestpre prims_proto wp_utils.
 From melocoton.interop.wp_prims Require Import common.
 From melocoton.mlanguage Require Import weakestpre.
 Import Wrap.
@@ -28,26 +28,34 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iPoseProof (ghost_map_lookup with "GCrootsm Hpto") as "%Helem".
+  iPoseProof (ghost_map_lookup with "GCrootsg Hpto") as "%Helem".
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
     e' = WrSE (ExprO (OVal #0)) ∧
-    σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := rootsC ρc ∖ {[l]} |} mem).
-  iSplit. { iPureIntro. econstructor; eauto. rewrite -H2. by eapply elem_of_dom_2. }
+    σ' = CState {|
+      χC := χC ρc;
+      ζC := ζC ρc;
+      θC := θC ρc;
+      rootsC := ((dom roots_gm) ∖ {[l]}) :: (map dom roots_fm)
+   |} mem).
+  iSplit. { iPureIntro. econstructor; eauto. by eapply elem_of_dom_2. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
-  iMod (ghost_map_delete with "GCrootsm Hpto") as "GCrootsm".
+  iMod (ghost_map_delete with "GCrootsg Hpto") as "GCrootsg".
   iPoseProof (big_sepM_delete) as "(HL&_)"; first eapply Helem.
-  iPoseProof ("HL" with "GCrootspto") as "((%W&Hpto&%Hw)&GCrootspto)".
+  iDestruct "GCrootspto" as "(GCrootsptog&GCrootsptol)".
+  iPoseProof ("HL" with "GCrootsptog") as "((%W&Hpto&%Hw)&GCrootsptog)".
   iClear "HL".
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! W with "[- $Hpto]"). iSplit; last done.
   repeat iExists _. iFrame. iPureIntro; split_and!; eauto.
-  - rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
-  - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
-Qed.
+  - admit. (* rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //. *)
+  - inversion Hrootslive.
+    econstructor; last done.
+    intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply H1.
+Admitted.
 
 End Laws.

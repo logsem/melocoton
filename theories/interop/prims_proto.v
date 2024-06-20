@@ -71,10 +71,8 @@ Definition initlocalroot_proto : C_proto :=
   {{ "HGC" ∷ GC θ ∗ "Hfc" ∷ current_fc fc }}
     "initlocalroot" with [ ]
   {{ f, RETV C_intf.LitV $ C_intf.LitInt $ 0;
-    GC θ ∗ current_fc (f :: fc) ∗ ⌜fresh_frame f fc⌝
+    GC θ ∗ current_fc (f :: fc) ∗ local_roots f ∅
   }}.
-
-Check elements.
 
 Definition registerlocalroot_proto : C_proto :=
   !! θ l v w f fc r

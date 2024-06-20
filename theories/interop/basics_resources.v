@@ -20,13 +20,14 @@ Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
   wrapperG_γζvirt : gname;
   wrapperG_γχvirt : gname;
   wrapperG_γχbij : gname;
-  wrapperG_γroots_map : gname;
-  wrapperG_γroots_frame : gname;
+  wrapperG_γroots_global_map : gname;
+  wrapperG_γroots_frame      : gname;
 }.
 
 Definition wrapperBasicsΣ {SI: indexT} : gFunctors :=
   #[ghost_mapΣ lloc block; ghost_mapΣ addr lval;
     ghost_varΣ (leibnizO (list gname));
+    ghost_varΣ (leibnizO gname);
     ghost_mapΣ lloc lloc_visibility; gset_bijΣ lloc loc].
 
 Global Instance subG_wrapperBasicsGpre `{SI: indexT} Σ :
@@ -472,9 +473,6 @@ Definition current_fc (fc : list gname) : iProp Σ :=
 Definition local_roots (f : gname) (roots : gset addr) : iProp Σ :=
   ∃ roots_m, ghost_map_auth f (1/2) roots_m ∗ ⌜dom roots_m = roots⌝.
 
-Definition fresh_frame (f : gname) (fc : list gname) : Prop :=
-  Forall (λ f', f ≠ f') fc.
-
 (* Lifting of ~ℓ~ at the level of ML values *)
 
 Fixpoint block_sim (v : val) (lv : lval) : iProp Σ := match v with
@@ -689,7 +687,7 @@ Notation "γ ↦roots[ f ]{ dq } w" := (loc_own_root γ f dq w)%I
 Notation "γ ↦roots[ f ] w" := (γ ↦roots[f]{DfracOwn 1} w)%I
   (at level 20, format "γ  ↦roots[ f ]  w") : bi_scope.
 
-Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperG_γroots_map]{dq} w)%I
+Notation "γ ↦roots{ dq } w" := (γ ↪[wrapperG_γroots_global_map]{dq} w)%I
   (at level 20, format "γ  ↦roots{ dq }  w") : bi_scope.
-Notation "γ ↦roots w" := (γ ↪[wrapperG_γroots_map] w)%I
+Notation "γ ↦roots w" := (γ ↪[wrapperG_γroots_global_map] w)%I
   (at level 20, format "γ  ↦roots  w") : bi_scope.

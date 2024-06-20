@@ -30,6 +30,7 @@ Proof using.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk.
+  pose (roots_gm::roots_fm) as roots_m.
   iAssert (⌜Forall (λ r,
     ∀ k lv, r !! k = Some lv
     → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
@@ -73,7 +74,7 @@ Proof using.
   iApply ("Cont" $! θC' γ with "[-]"); try done.
   iFrame. iSplit; last by eauto.
   rewrite /GC /named.
-  iExists _, _, σMLvirt, _, _, _. iFrame. iPureIntro; split_and!; eauto.
+  iExists _, _, σMLvirt, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
 Admitted.
 
 End Laws.

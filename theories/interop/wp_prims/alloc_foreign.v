@@ -29,6 +29,7 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ".
   SI_at_boundary. SI_GC_agree.
+  pose (roots_gm::roots_fm) as roots_m.
   iAssert (⌜Forall (λ r,
     ∀ k lv, r !! k = Some lv
     → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
@@ -69,7 +70,7 @@ Proof using.
   iApply ("Cont" $! θC' γ with "[-]"); try done.
   iFrame. iSplit; last by eauto.
   rewrite /GC /named.
-  iExists _, _, σMLvirt, _, _. iFrame; eauto.
+  iExists _, _, σMLvirt, _, _, _, _. iFrame; eauto.
 Admitted.
 
 End Laws.

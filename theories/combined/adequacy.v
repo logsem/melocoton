@@ -51,7 +51,7 @@ Section AllocBasics.
   Context `{Σ : gFunctors}.
   Context `{!invG Σ}. (* we already have invariants *)
 
-  Lemma alloc_heapG_ML `{!heapGpre_ML Σ} : @Alloc _ Σ (heapG_ML Σ) 
+  Lemma alloc_heapG_ML `{!heapGpre_ML Σ} : @Alloc _ Σ (heapG_ML Σ)
       (λ _, state_interp (∅ : language.state ML_lang) (* ∗ ml_lang.primitive_laws.inv_heap_inv *) )%I True.
   Proof using.
     intros P _ Halloc.
@@ -66,7 +66,7 @@ Section AllocBasics.
     - eapply gmap_view.gmap_view_auth_valid.
   Qed.
 
-  Lemma alloc_heapG_C `{!heapGpre_C Σ}  : @Alloc _ Σ (heapG_C Σ) 
+  Lemma alloc_heapG_C `{!heapGpre_C Σ}  : @Alloc _ Σ (heapG_C Σ)
       (λ _, state_interp (∅ : language.state C_lang) (* ∗ ml_lang.primitive_laws.inv_heap_inv *) )%I True.
   Proof.
     intros P _ Halloc.
@@ -81,8 +81,11 @@ Section AllocBasics.
     - eapply gmap_view.gmap_view_auth_valid.
   Qed.
 
-  Lemma alloc_wrapperBasicsG `{!wrapperBasicsGpre Σ} : @Alloc _ Σ (wrapperBasicsG Σ) 
-      (λ _, lstore_own_auth ∅ ∗ lloc_own_auth ∅ ∗ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval) ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
+  Lemma alloc_wrapperBasicsG `{!wrapperBasicsGpre Σ} : @Alloc _ Σ (wrapperBasicsG Σ)
+      (λ _, lstore_own_auth ∅
+          ∗ lloc_own_auth ∅
+          ∗ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval)
+          ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
   Proof.
     intros P _ Halloc.
     (* did not find a better workaround *)
@@ -118,7 +121,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
   Lemma alloc_wrapperGCtokG :
       ffiGpre Σ →
       @Alloc _ Σ (wrapperGCtokG Σ)
-      (λ H, GCtok_gammas 
+      (λ H, GCtok_gammas
           ∗ ⌜wrapperG_inG = _⌝
           ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
   Proof using All.
@@ -146,7 +149,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
   Lemma alloc_wrapperG :
       ffiGpre Σ →
       @Alloc _ Σ (prod (wrapperG Σ) (heapG_ML Σ))
-      (λ '(HW,HML), weakestpre.private_state_interp {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} 
+      (λ '(HW,HML), weakestpre.private_state_interp {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |}
                ∗ ghost_var wrapperG_γat_boundary (1 / 2) true ∗ at_init
                ∗ ⌜wrapperG_inG = _⌝)%I True.
   Proof using All.

@@ -41,7 +41,8 @@ Class wrapperGCtokG `{SI: indexT} Σ := WrapperGCtokG {
 }.
 
 Definition wrapperGCtokΣ {SI: indexT} : gFunctors :=
-  #[ghost_varΣ (leibnizO (list $ gset addr)); ghost_varΣ (leibnizO addr_map);
+  #[ghost_varΣ (leibnizO (list $ gset addr));
+    ghost_varΣ (leibnizO addr_map);
     ghost_varΣ lstore; ghost_varΣ lloc_map; ghost_varΣ (leibnizO bool)].
 
 Global Instance subG_wrapperGCtokGpre `{SI: indexT} Σ :
@@ -56,7 +57,8 @@ Context `{!wrapperGCtokG Σ}.
 
 Definition GC (θ : addr_map) : iProp Σ :=
   ∃ (ζ : lstore) (χ : lloc_map) (σMLvirt : store)
-    (roots_s : list $ gset addr) (roots_m : list roots_map) (roots_f : list gname),
+    (roots_s : list $ gset addr) (roots_fm : list roots_map) (roots_gm : roots_map)
+    (roots_f : list gname),
     "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) θ
@@ -64,11 +66,12 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
   ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
   ∗ "GCrootsf" ∷ ghost_var wrapperG_γroots_frame (1/2) roots_f
-  ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_f; roots_m, ghost_map_auth f 1 r)
-  ∗ "GCrootspto" ∷ ([∗ list] r ∈ roots_m,
+  ∗ "GCrootsg" ∷ ghost_map_auth wrapperG_γroots_global_map 1 roots_gm
+  ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_f; roots_fm, ghost_map_auth f (1/2) r)
+  ∗ "GCrootspto" ∷ ([∗ list] r ∈ (roots_gm::roots_fm),
                    ([∗ map] a ↦ v ∈ r, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝))
-  ∗ "%Hrootsdom" ∷ ⌜map dom roots_m = roots_s⌝
-  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
+  ∗ "%Hrootsdom" ∷ ⌜map dom (roots_gm::roots_fm) = roots_s⌝
+  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ (roots_gm::roots_fm)⌝
   ∗ "%HGCOK" ∷ ⌜GC_correct ζ θ⌝.
 
 Definition at_init := ghost_var wrapperG_γat_init (1/2) true.
