@@ -75,7 +75,7 @@ Section C_specs.
        "Htok" ∷ na_tok
     }}
       "is_eq" with [x; y]
-    {{ RET (#ML (bool_decide (x = y))); na_tok }}.
+    {{ RETV (#ML (bool_decide (x = y))); na_tok }}.
 
   Lemma is_eq_correct Ψ :
     prims_proto Ψ ||- is_eq_prog :: wrap_proto is_eq_spec_ML.

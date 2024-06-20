@@ -89,7 +89,7 @@ Section Proofs.
     !! interp Δ v
     {{ "#Hv" ∷ interp Δ v ∗ "Hna" ∷ na_tok }}
       "box_create" with [v]
-    {{ vr, RET vr; na_tok ∗ box_interp Ψ interp Δ vr }}.
+    {{ vr, RETV vr; na_tok ∗ box_interp Ψ interp Δ vr }}.
 
   Definition box_update_spec_ML : protocol ML_lang.val Σ :=
     !! interp Δ vn vb
@@ -99,7 +99,7 @@ Section Proofs.
        "#Hbox" ∷ ▷ box_interp Ψ interp Δ vb
     }}
       "box_update" with [vn; vb]
-    {{ RET #(); na_tok }}.
+    {{ RETV #(); na_tok }}.
 
   Definition box_listen_spec_ML : protocol ML_lang.val Σ :=
     !! interp Δ vl vb
@@ -109,7 +109,7 @@ Section Proofs.
        "Hna" ∷ na_tok
     }}
       "box_listen" with [vl; vb]
-    {{ RET #(); na_tok }}.
+    {{ RETV #(); na_tok }}.
 
   Import melocoton.c_lang.primitive_laws melocoton.c_lang.proofmode.
 

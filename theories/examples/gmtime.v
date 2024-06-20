@@ -30,7 +30,7 @@ Section C_spec.
     {{ True }}
       "gmtime" with ([ #C w ])
     {{
-      (a : loc) (tm_sec : Z) (tm_min : Z), RET(#C a);
+      (a : loc) (tm_sec : Z) (tm_min : Z), RETV (#C a);
       a ↦C∗ [ #C tm_sec; #C tm_min ]
     }}.
 
@@ -65,7 +65,7 @@ Section FFI_spec.
       {{ True }}
         "caml_gmtime" with [(#ML (ML_lang.LitBoxedInt t))]
       {{
-        (tm_sec : Z) (tm_min : Z), RET((#ML tm_sec, #ML tm_min)%MLV);
+        (tm_sec : Z) (tm_min : Z), RETV ((#ML tm_sec, #ML tm_min)%MLV);
         True
       }}.
 

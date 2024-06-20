@@ -36,7 +36,7 @@ Section FFI_spec.
       {{ True }}
         "caml_new_boxedint" with []
       {{
-        RET((#ML (LitBoxedInt 0))%MLV);
+        RETV ((#ML (LitBoxedInt 0))%MLV);
         True
       }}.
 

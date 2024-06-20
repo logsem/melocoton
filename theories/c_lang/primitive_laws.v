@@ -70,7 +70,7 @@ Qed.
 Lemma wp_Malloc_seq n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) at p
-  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
+  {{{ l, RETV LitV (LitLoc l); [∗ list] i ∈ seq 0 (Z.to_nat n), (l +ₗ (i : nat)) ↦C ? }}}.
 Proof.
   iIntros (Hn Φ) "_ HΦ". iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iModIntro. iSplit; first (destruct n; eauto with lia head_step).
@@ -85,7 +85,7 @@ Qed.
 
 Lemma wp_free s l (v:option val) :
   {{{ ▷ l O↦C (Some v) }}} Free (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt 1) at s
-  {{{ RET LitV LitUnit; True }}}.
+  {{{ RETV LitV LitUnit; True }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
@@ -100,7 +100,7 @@ Proof.
 Qed.
 
 Lemma wp_load s l dq v :
-  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) at s {{{ RET v; l ↦C{dq} v }}}.
+  {{{ ▷ l ↦C{dq} v }}} Load (Val $ LitV $ LitLoc l) at s {{{ RETV v; l ↦C{dq} v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ". iDestruct (gen_heap_valid with "Hσ Hl") as "%HH". iModIntro.
@@ -112,7 +112,7 @@ Qed.
 
 Lemma wp_store s l (v':option val) v :
   {{{ ▷ l O↦C Some v' }}} Store (Val $ LitV $ LitLoc l) (Val v) at s
-  {{{ RET LitV LitUnit; l ↦C v }}}.
+  {{{ RETV LitV LitUnit; l ↦C v }}}.
 Proof.
   iIntros (Φ) "> Hl HΦ". iApply (wp_step with "HΦ"). iApply wp_lift_atomic_head_step; first done.
   iIntros (σ1) "Hσ !>". iDestruct (gen_heap_valid with "Hσ Hl") as %?.

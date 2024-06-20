@@ -26,19 +26,36 @@ Notation "'WP' e 'at' s {{ o , Q } }" := (wp s ⊤ e%E (λ o, Q))
 
 Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
   (□ ∀ Φ,
-      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
     (at level 20, x closed binder, y closed binder,
      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' x  ..  y ,  RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
 
 Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
-  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }})%I
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }})%I
     (at level 20,
      format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' RET  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
 
 
 Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RET' pat ; Q } } }" :=
-  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
 Notation "'{{{' P } } } e 'at' s {{{ 'RET' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (Q -∗ Φ pat%V) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+
+Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RETV' pat ; Q } } }" :=
+  (□ ∀ Φ,
+      P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }})%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' x  ..  y ,  RETV  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+
+Notation "'{{{' P } } } e 'at' s {{{ 'RETV' pat ; Q } } }" :=
+  (□ ∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }})%I
+    (at level 20,
+     format "'[hv' {{{  '[' P  ']' } } }  '/  ' e  '/'  'at'  s  '/' {{{  '[' RETV  pat ;  '/' Q  ']' } } } ']'") : bi_scope.
+
+
+Notation "'{{{' P } } } e 'at' s {{{ x .. y , 'RETV' pat ; Q } } }" :=
+  (∀ Φ, P -∗ ▷ (∀ x, .. (∀ y, Q -∗ Φ (OVal pat%V)) .. ) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
+Notation "'{{{' P } } } e 'at' s {{{ 'RETV' pat ; Q } } }" :=
   (∀ Φ, P -∗ ▷ (Q -∗ Φ (OVal pat%V)) -∗ WP e @ s; ⊤ {{ Φ }}) : stdpp_scope.
 
 (** Protocols *)
@@ -211,26 +228,51 @@ Notation "Ψ 'on' fns" := (proto_on Ψ fns) (at level 10).
 
 Notation "'!!' x .. y '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)) ..))%I
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)) ..))%I
   (at level 20, x closed binder, y closed binder, u closed binder, v closed binder,
    format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' '{{' P } } f 'with' l {{ u .. v , 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)))%I
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ pat) ..)))%I
   (at level 20, u closed binder, v closed binder,
    format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' x .. y '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))) ..))%I
+    "Cont" ∷ ▷ (Q -∗ Φ pat)) ..))%I
   (at level 20, x closed binder, y closed binder,
    format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
 
 Notation "'!!' '{{' P } } f 'with' l {{ 'RET' pat ; Q } }" :=
   (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
-    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))))%I
+    "Cont" ∷ ▷ (Q -∗ Φ pat)))%I
   (at level 20,
    format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RET  pat ;  '/' Q  ']' } } ']'").
+
+
+Notation "'!!' x .. y '{{' P } } f 'with' l {{ u .. v , 'RETV' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)) ..))%I
+  (at level 20, x closed binder, y closed binder, u closed binder, v closed binder,
+   format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RETV  pat ;  '/' Q  ']' } } ']'").
+
+Notation "'!!' '{{' P } } f 'with' l {{ u .. v , 'RETV' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (∀ u, .. (∀ v, Q -∗ Φ (OVal pat)) ..)))%I
+  (at level 20, u closed binder, v closed binder,
+   format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' u  ..  v ,  RETV  pat ;  '/' Q  ']' } } ']'").
+
+Notation "'!!' x .. y '{{' P } } f 'with' l {{ 'RETV' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ (∃ x, .. (∃ y, "->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))) ..))%I
+  (at level 20, x closed binder, y closed binder,
+   format "'[hv' !!  x  ..  y  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RETV  pat ;  '/' Q  ']' } } ']'").
+
+Notation "'!!' '{{' P } } f 'with' l {{ 'RETV' pat ; Q } }" :=
+  (λ fn args Φ, "->" ∷ ⌜fn = f⌝ ∗ ("->" ∷ ⌜args = l⌝ ∗ "ProtoPre" ∷ P ∗
+    "Cont" ∷ ▷ (Q -∗ Φ (OVal pat))))%I
+  (at level 20,
+   format "'[hv' !!  {{  '[' P  ']' } }  '/  ' f  'with'  l  '/'  {{  '[' RETV  pat ;  '/' Q  ']' } } ']'").
 
 Ltac iNamedProto H := repeat (iNamed H); iNamed "ProtoPre".

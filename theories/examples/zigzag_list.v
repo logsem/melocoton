@@ -82,31 +82,31 @@ Section Proofs.
   Import melocoton.ml_lang.notation.
 
   Definition zigzag_nil_spec_ML : protocol ML_lang.val Σ :=
-    !! {{ True }} "zigzag_nil" with [] {{ vr, RET vr; is_zigzag nil vr }}.
+    !! {{ True }} "zigzag_nil" with [] {{ vr, RETV vr; is_zigzag nil vr }}.
 
   Definition zigzag_cons_spec_ML : protocol ML_lang.val Σ :=
     !! hd tl tlV
     {{ "Htl" ∷ is_zigzag tl tlV }}
       "zigzag_cons" with [ hd; tlV ]
-    {{ vr, RET vr; is_zigzag (hd::tl) vr }}.
+    {{ vr, RETV vr; is_zigzag (hd::tl) vr }}.
 
   Definition zigzag_empty_spec_ML : protocol ML_lang.val Σ :=
     !! lst lstV
     {{ "Htl" ∷ is_zigzag lst lstV }}
       "zigzag_empty" with [lstV]
-    {{ RET #(is_empty lst); is_zigzag lst lstV }}.
+    {{ RETV #(is_empty lst); is_zigzag lst lstV }}.
 
   Definition zigzag_head_spec_ML : protocol ML_lang.val Σ :=
     !! hd tl lstV
     {{ "Htl" ∷ is_zigzag (hd::tl) lstV }}
       "zigzag_head" with [lstV]
-    {{ RET hd; is_zigzag (hd::tl) lstV }}.
+    {{ RETV hd; is_zigzag (hd::tl) lstV }}.
 
   Definition zigzag_tail_spec_ML : protocol ML_lang.val Σ :=
     !! hd tl lstV
     {{ "Htl" ∷ is_zigzag (hd::tl) lstV }}
       "zigzag_tail" with [lstV]
-    {{ tlV, RET tlV;
+    {{ tlV, RETV tlV;
          is_zigzag tl tlV ∗
          (∀ tl', is_zigzag tl' tlV -∗ is_zigzag (hd::tl') lstV) }}.
 
@@ -114,7 +114,7 @@ Section Proofs.
     !! hd tl lstV
     {{ "Htl" ∷ is_zigzag (hd::tl) lstV }}
       "zigzag_pop" with [lstV]
-    {{ tlV, RET tlV; is_zigzag tl tlV ∗ is_zigzag nil lstV }}.
+    {{ tlV, RETV tlV; is_zigzag tl tlV ∗ is_zigzag nil lstV }}.
 
   Import melocoton.c_lang.primitive_laws melocoton.c_lang.proofmode.
 

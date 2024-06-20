@@ -91,7 +91,7 @@ Section Proofs.
     !! interp Δ
     {{ "Hna" ∷ na_tok }}
       "listener_create" with [ #() ]
-    {{ vr, RET vr; na_tok ∗ listener_interp Ψ interp Δ vr }}.
+    {{ vr, RETV vr; na_tok ∗ listener_interp Ψ interp Δ vr }}.
   Definition listener_notify_spec_ML : protocol ML_lang.val Σ :=
     !! interp Δ vn vb
     {{
@@ -100,7 +100,7 @@ Section Proofs.
        "#Hbox" ∷ ▷ listener_interp Ψ interp Δ vb
     }}
       "listener_notify" with [ vn; vb ]
-    {{ RET #(); na_tok }}.
+    {{ RETV #(); na_tok }}.
   Definition listener_listen_spec_ML : protocol ML_lang.val Σ :=
     !! interp Δ vl vb
     {{
@@ -109,7 +109,7 @@ Section Proofs.
        "Hna" ∷ na_tok
     }}
       "listener_listen" with [ vl; vb ]
-    {{ RET #(); na_tok }}.
+    {{ RETV #(); na_tok }}.
   Definition listener_unlisten_spec_ML : protocol ML_lang.val Σ :=
     !! interp Δ vb
     {{
@@ -117,7 +117,7 @@ Section Proofs.
        "Hna" ∷ na_tok
     }}
       "listener_unlisten" with [ vb ]
-    {{ RET #(); na_tok }}.
+    {{ RETV #(); na_tok }}.
 
   Import melocoton.c_lang.primitive_laws melocoton.c_lang.proofmode.
 
