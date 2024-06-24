@@ -83,7 +83,7 @@ Section Specs.
       ∗ "#Hγaux" ∷ γaux ↦imm (TagDefault, [Lint cap; Lloc γfgn])
       ∗ "Hbuf" ∷ isBufferForeignBlock γfgn ℓbuf (Pb used) cap.
 
-  Definition isBufferRecordML (v : MLval) (ℓbuf : loc)  (Pb : nat → list (option Z) → iProp Σ) (cap:nat) : iProp Σ :=
+  Definition isBufferRecordML (v : ML_lang.val) (ℓbuf : loc)  (Pb : nat → list (option Z) → iProp Σ) (cap:nat) : iProp Σ :=
     ∃ (ℓML:loc) (used:nat) γfgn,
       "->" ∷ ⌜v = (#ML ℓML, (#ML cap, #ML (LitForeign γfgn)))%MLV⌝
     ∗ "HℓbufML" ∷ ℓML ↦M (#ML used)

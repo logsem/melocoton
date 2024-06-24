@@ -24,7 +24,7 @@ Section MLclient.
     penv_prog  := ∅ ;
     penv_proto := buf_library_spec_ML_pre Ψ |}.
 
-  Definition ML_client_code : MLval := 
+  Definition ML_client_code : ML_lang.val := 
     λ: "vbuf",
       let: "len"  := Length "vbuf" in
       if: "len" = #0 then #false else (

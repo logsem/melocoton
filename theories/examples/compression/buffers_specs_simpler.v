@@ -216,7 +216,7 @@ Section Specs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Definition bf (a : Cval) (cap : nat) (arr : list Z) : iProp Σ :=
+  Definition bf (a : C_intf.val) (cap : nat) (arr : list Z) : iProp Σ :=
     ∃ (vcontent:list (option val)) (zcontent zrest : list (option Z)) (ℓ:loc),
     ⌜zcontent = fmap Some arr ++ zrest⌝
   ∗ ⌜vcontent = fmap (option_map (λ (z:Z), #z)) zcontent⌝
@@ -227,7 +227,7 @@ Section Specs.
   Definition Pb (cap : nat) (arr : list Z) : list (option Z) → iProp Σ := (λ k, ∃ (zrest : list (option Z)), ⌜k = fmap Some arr ++ zrest⌝ ∗ ⌜cap = length k⌝)%I.
   Definition Pbu (arr : list Z) : nat → list (option Z) → iProp Σ := (λ used k, ∃ (zrest : list (option Z)), ⌜k = fmap Some arr ++ zrest⌝ ∗ ⌜used  = length arr⌝)%I.
 
-  Definition bytes (V : MLval) (cap : Z) (arr : list Z) : iProp Σ :=
+  Definition bytes (V : ML_lang.val) (cap : Z) (arr : list Z) : iProp Σ :=
     ∃ γ ℓbuf (ncap:nat),
       ⌜V = #ML (ML_lang.LitForeign γ)⌝ ∗ ⌜cap = ncap⌝
     ∗ isBufferForeignBlock γ ℓbuf (Pb ncap arr) ncap.
@@ -260,7 +260,7 @@ Section Specs.
     iExists _. cbn. done.
   Qed.
 
-  Definition buf_update_spec_ML_simple Ψcb s vv (Φ:(outcome MLval) → iProp Σ) : iProp Σ :=
+  Definition buf_update_spec_ML_simple Ψcb s vv (Φ:(outcome ML_lang.val) → iProp Σ) : iProp Σ :=
     ∃ (i j : nat) b1 b2 F V n m (P : Z → iProp Σ) (f : Z → Z)
       (Hblen : (i ≤ length m)),
       "->" ∷ ⌜s = buf_upd_name⌝
