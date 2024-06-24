@@ -2,7 +2,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
-From melocoton.interop Require Import basics basics_resources basics_constructions.
+From melocoton.interop Require Import basics basics_resources.
 From melocoton.interop Require Import lang weakestpre update_laws prims_proto.
 From melocoton.language Require Import weakestpre progenv.
 From melocoton.c_interop Require Import rules notation.
