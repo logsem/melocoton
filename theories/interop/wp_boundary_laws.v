@@ -47,7 +47,7 @@ Proof using.
   iDestruct (hgh_export_ml_heap with "GCHGH")
     as (ζ' χ' ζfreeze) "(GCHGH & Hσ & %Hχ & %Hfrz & %Hζ)".
   iAssert (⌜Forall2 (is_val χ' ζfreeze) vs lvs⌝)%I as %Hval.
-  { iDestruct (hgh_block_sim_is_val with "GCHGH Hblk") as %Hval. iPureIntro.
+  { iDestruct (hgh_block_sim_is_vals with "GCHGH Hblk") as %Hval. iPureIntro.
     eapply Forall2_impl; first done. intros ? ?. eapply is_val_mono; eauto.
     by eapply lstore_hybrid_repr_lstore_sub. }
 
@@ -70,6 +70,30 @@ Proof using.
   unfold private_state_interp, ML_state_interp, GC_remnant, named; cbn.
   iFrame. iPureIntro.
   destruct Hpriv as (mem_r & ->%repr_roots_dom & Hpriv2 & Hpriv3); by apply map_disjoint_dom.
+Qed.
+
+Lemma wrap_interp_c_to_ml_out ow ρc mem θ ov olv :
+  repr_lval_out θ olv ow →
+  wrap_state_interp (Wrap.CState ρc mem) -∗
+  GC θ -∗
+  at_boundary wrap_lang -∗
+  olv ~~ₒ ov -∗
+  ∃ ρml σ ζ,
+  ⌜c_to_ml_heap ρc mem ρml σ ζ⌝ ∗
+  ⌜c_to_ml_outcome ow ρc ov ρml ζ⌝ ∗
+  |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
+Proof using.
+  iIntros (Hlv) "Hσ HGC Hnb Hblk".
+  destruct ow as [w]. inversion Hlv; subst.
+  destruct ov as [v]; iSimpl in "Hblk".
+  assert (Forall2 (repr_lval θ) [lv] [w]) by eauto.
+  iAssert ([lv] ~~∗ [v]) with "[Hblk]" as "Hls"; first (cbn; iFrame).
+  iDestruct (wrap_interp_c_to_ml [w] ρc mem θ [v] [lv] H
+              with "Hσ HGC Hnb Hls") as "(%ρml & %σ & %ζ & %Hheap & %Hlst & H)".
+  iExists _, _, _. iFrame. iSplit; eauto.
+  iPureIntro. inversion Hlst as (lvs & Hrepr & Hval).
+  inversion Hrepr; inversion Hval; subst; inversion H9; subst; exists (OVal x).
+  split; econstructor; eauto.
 Qed.
 
 Lemma wrap_interp_ml_to_c vs lvs ρml σ ws ρc mem :
@@ -108,13 +132,34 @@ Proof using.
     { eapply is_store_blocks_lstore_dom_sub; eauto. }
     { eapply is_private_blocks_dom_sub; eauto. } }
   iMod (set_to_some with "HσCv GCrootspto") as "(HσCv & GCrootspto)"; first done.
-  iDestruct (hgh_block_sim_of _ _ _ vs lvs with "GCHGH") as "#Hsim"; first eassumption.
+  iDestruct (hgh_block_sim_of_vals _ _ _ vs lvs with "GCHGH") as "#Hsim"; first eassumption.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. } iSplit.
   { rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
   { by iFrame "Hsim". }
+Qed.
+
+Lemma wrap_interp_ml_to_c_out ov ρml σ ow ρc mem :
+  ml_to_c_heap ρml σ ρc mem →
+  ml_to_c_outcome ov ow ρc →
+  wrap_state_interp (Wrap.MLState ρml σ) -∗
+  not_at_boundary
+  ==∗
+  wrap_state_interp (Wrap.CState ρc mem) ∗
+  at_boundary wrap_lang ∗
+  GC (θC ρc) ∗
+  (∃ olv, olv ~~ₒ ov ∗ ⌜repr_lval_out (θC ρc) olv ow⌝).
+Proof using.
+  iIntros (Hml_to_c H) "Hst Hb".
+  destruct ow as [w]. inversion H as (olv & Hrepr & Hval); subst.
+  inversion Hval; inversion Hrepr; subst; inversion H8; subst.
+  iDestruct (wrap_interp_ml_to_c [v0] [lv] ρml σ [w] ρc mem with "Hst Hb")
+         as "> (Hst & Hb & HGC & (Hl & _) & %Hreprs)"; eauto.
+  iModIntro. iSplitL "Hst"; eauto. iSplitL "Hb"; eauto.
+  iFrame. iExists (OVal lv). iFrame. iPureIntro.
+  econstructor. inversion Hreprs; eauto.
 Qed.
 
 End BoundaryLaws.

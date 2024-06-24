@@ -33,7 +33,7 @@ Proof using.
     inversion Hb; subst; eauto. }
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iExists (λ '(e', σ'), e' = WrSE (ExprV #(tag_as_int (block_tag _))) ∧ σ' = CState ρc mem).
+  iExists (λ '(e', σ'), e' = WrSE (ExprO (OVal #(tag_as_int (block_tag _)))) ∧ σ' = CState ρc mem).
   iSplit. { iPureIntro; econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }

@@ -268,6 +268,11 @@ Inductive repr_lval : addr_map → lval → C_intf.val → Prop :=
     θ !! γ = Some a →
     repr_lval θ (Lloc γ) (C_intf.LitV (C_intf.LitLoc a)).
 
+Inductive repr_lval_out : addr_map → outcome lval → outcome C_intf.val → Prop :=
+  | repr_lval_val θ lv v :
+    repr_lval θ lv v →
+    repr_lval_out θ (OVal lv) (OVal v).
+
 Inductive repr_roots : addr_map → roots_map → memory → Prop :=
   | repr_roots_emp θ :
     repr_roots θ ∅ ∅
@@ -340,6 +345,10 @@ Definition is_store (χ : lloc_map) (ζ : lstore) (σ : store) : Prop :=
     σ !! ℓ = Some (Some vs) → χ !! γ = Some (LlocPublic ℓ) → ζ !! γ = Some blk →
     is_heap_elt χ ζ vs blk.
 
+Inductive is_val_out : lloc_map → lstore → outcome val → outcome lval → Prop :=
+  | is_val_out_val χ ζ v lv:
+    is_val χ ζ v lv →
+    is_val_out χ ζ (OVal v) (OVal lv).
 
 (******************************************************************************)
 (** auxiliary definitions and lemmas *)
@@ -776,6 +785,15 @@ Lemma is_val_mono χ χL ζ ζL x y :
 Proof.
   intros H1 H2; induction 1 in χL,ζL,H1,H2|-*; econstructor; eauto.
   all: eapply lookup_weaken; done.
+Qed.
+
+Lemma is_val_out_mono χ χL ζ ζL x y :
+  χ ⊆ χL → ζ ⊆ ζL →
+  is_val_out χ ζ x y →
+  is_val_out χL ζL x y.
+Proof.
+  intros H1 H2; inversion 1; econstructor; eauto.
+  eapply is_val_mono; eauto.
 Qed.
 
 Lemma is_val_expose_llocs χ χ' ζ v lv :

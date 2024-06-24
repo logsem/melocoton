@@ -2,7 +2,7 @@ From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
 From transfinite.base_logic.lib Require Import ghost_map ghost_var gen_heap gset_bij.
 From iris.proofmode Require Import proofmode.
-From melocoton Require Import named_props iris_extra.
+From melocoton Require Import language_commons named_props iris_extra.
 From melocoton.ml_lang Require Import lang.
 From melocoton.c_interface Require Import defs.
 From melocoton.interop Require Export basics.
@@ -487,6 +487,18 @@ Proof using.
   induction v as [[x|b| | | |]| | | |] in l|-*; cbn; unshelve eapply (_).
 Qed.
 
+Definition block_sim_out (ov : outcome val) (olv : outcome lval) : iProp Σ :=
+  match ov, olv with
+  | OVal v, OVal lv => block_sim v lv
+  end.
+
+Notation "olv  ~~ₒ  ov" := (block_sim_out ov olv) (at level 20).
+
+Global Instance block_sim_out_pers v l : Persistent (l ~~ₒ v).
+Proof using.
+  destruct v, l. cbn. apply block_sim_pers.
+Qed.
+
 Definition block_sim_arr (vs:list ML_lang.val) (ls : list lval) : iProp Σ :=
   [∗ list] v;l ∈ vs;ls, l ~~ v.
 
@@ -624,6 +636,7 @@ Notation "γ ~ℓ~/" := (lloc_own_priv γ)
   (at level 20, format "γ  ~ℓ~/").
 
 Notation "lv  ~~  v" := (block_sim v lv) (at level 20).
+Notation "olv  ~~ₒ ov" := (block_sim_out ov olv) (at level 20).
 Notation "lvs  ~~∗  vs" := (block_sim_arr vs lvs) (at level 20).
 
 Notation "γ ↦vblk[ a ]{ dq } b" := (lstore_own_vblock γ a dq b)

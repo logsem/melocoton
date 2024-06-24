@@ -35,7 +35,7 @@ Proof using.
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
-    e' = WrSE (ExprV #0) ∧
+    e' = WrSE (ExprO (OVal #0)) ∧
     σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := {[l]} ∪ rootsC ρc |} mem).
   iSplit. { iPureIntro. econstructor; eauto. congruence. }
   iIntros (w' ρc' mem' (? & ?)); simplify_eq.

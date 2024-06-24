@@ -28,7 +28,7 @@ Proof using.
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
 
   iApply wp_pre_cases_c_prim; [done..|].
-  iExists (λ '(e', σ'), e' = WrSE (ExprV (code_int z)) ∧ σ' = CState ρc mem).
+  iExists (λ '(e', σ'), e' = WrSE (ExprO (OVal (code_int z))) ∧ σ' = CState ρc mem).
   iSplit. { iPureIntro. econstructor; eauto. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }

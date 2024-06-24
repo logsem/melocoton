@@ -46,7 +46,8 @@ Section Proofs.
     iSplit; first done. iNext. wp_finish.
     wp_apply (wp_int2val with "HGC"); [mdone..|].
     iIntros (w) "(HGC&%Hrepr)".
-    iApply "HΦ". iApply ("Return" with "HGC HCont [//] [//]").
+    iApply "HΦ".
+    iApply ("Return" $! _ _ (OVal (Lint (n + (n + 0))%nat)) with "HGC HCont [//] [//]").
   Qed.
 
   Lemma wrap_compress_correct Ψ :
@@ -132,11 +133,11 @@ Section Proofs.
       wp_pure _. iApply (wp_post_mono _ _ _ 
         (λ o, ∃ w, ⌜o = OVal w⌝ ∗ GC θ ∗ ⌜repr_lval θ (Lint 1) w⌝)%I with "[HGC]").
       1: wp_apply (wp_int2val with "HGC"); [mdone..|iIntros (w) "H"; iExists w; iFrame; try done].
-      iIntros (o) "(%w&->&HGC&Hreprw1)".
+      iIntros (o) "(%w&->&HGC&%Hreprw1)".
       iMod (bufToML_fixed with "HGC [Hγusedref Hγfgnpto Hℓbuf Hℓbufuninit HContent] Hsim1") as "(HGC&HBuf1)"; last first.
       1: iMod (bufToML_fixed with "HGC [Hγusedref2 Hγfgnpto2 Hℓbuf2 HContent2] Hsim2") as "(HGC&HBuf2)"; last first.
       1: iApply "HΦ".
-      1: iApply ("Return" $! _ (#ML true) _ (w) with "HGC (HCont HBuf1 HBuf2) [//]"); try done.
+      1: iApply ("Return" $! _ (OVal (#ML true)) (OVal (Lint 1)) (OVal w) with "HGC (HCont HBuf1 HBuf2) [//]"); try done.
       { iExists _, _, _, _, _. unfold named.
         iSplit; first done.
         change (Z.to_nat 0) with 0; cbn.

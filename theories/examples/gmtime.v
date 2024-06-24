@@ -133,7 +133,7 @@ Section FFI_spec.
 
     (* Return *)
     wp_apply (load_from_root with "[$HGC $Hℓ]").
-    iIntros (w4) "(Hℓ&HGC&Hγ4)". wp_pures.
+    iIntros (w4) "(Hℓ&HGC&%Hγ4)". wp_pures.
 
     wp_apply (wp_unregisterroot with "[$HGC $Hℓ]"); try eauto.
     iIntros (w5) "(HGC&hℓ&%Hγ5)". wp_pures.
@@ -143,10 +143,10 @@ Section FFI_spec.
 
     iModIntro.
     iApply "HΦ".
-    iApply ("Return" with "[$HGC] [Cont] []").
+    iApply ("Return" $! θ' (OVal _) (OVal (Lloc γ')) with "[$HGC] [Cont] []").
     - by iApply "Cont".
     - cbn. iExists γ'. iExists _, _. iSplit; try eauto.
-    - eauto.
+    - iPureIntro. econstructor. eauto.
 Qed.
 
 End FFI_spec.

@@ -126,7 +126,8 @@ Proof.
   (* Finish, convert the new points-to to an immutable pointsto *)
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
 
-  iModIntro. iApply "HΦ". iApply ("Return" with "HGC [Cont] [] []").
+  iModIntro. iApply "HΦ".
+  iApply ("Return" $! θ' _ (OVal (Lloc γnew)) with "HGC [Cont] [] []").
   - by iApply "Cont".
   - cbn. do 3 iExists _. iFrame "Hnew Hlv1 Hlv2". done.
   - done.

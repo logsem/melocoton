@@ -48,7 +48,7 @@ Proof using.
       repr θC' roots_m privmem mem' ∧
       roots_are_live θC' roots_m ∧
       θC' !! γ = Some aret ∧
-      e' = WrSE (ExprV (# aret)) ∧
+      e' = WrSE (ExprO (OVal (# aret))) ∧
       σ' = CState (WrapstateC χC' ζC' θC' (rootsC ρc)) mem').
   iSplit. { iPureIntro. econstructor; naive_solver. }
   iIntros (? ? ? (γ & χC' & ζC' & θC' & aret & mem' &

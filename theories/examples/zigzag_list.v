@@ -289,7 +289,7 @@ Section Proofs.
     { iNext. cbn. rewrite !loc_add_0. iFrame. }
     iIntros "_". wp_pures. iModIntro.
     iApply "Cont2".
-    iApply ("Return" with "HGC (Cont [$Hrec Hγfgn])"); [|done..].
+    iApply ("Return" $! θ (OVal Vlst) (OVal lv2) with "HGC (Cont [$Hrec Hγfgn])"); [|done..].
     iExists _, _; iSplit; first done. iFrame "Hγfgn". done.
   Qed.
 

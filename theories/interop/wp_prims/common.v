@@ -42,11 +42,11 @@ Lemma wp_pre_cases_c_prim p T wp prm ρc mem E ws Φ :
   prm ≠ Pcallback →
   (∀ e, prm ≠ Pmain e) →
   (∃ X,
-    ⌜c_prim_step prm ws ρc mem (λ w ρc' mem', X (WrSE (ExprV w), CState ρc' mem'))⌝ ∗
+    ⌜c_prim_step prm ws ρc mem (λ w ρc' mem', X (WrSE (ExprO (OVal w)), CState ρc' mem'))⌝ ∗
     (∀ w ρc' mem',
-       ⌜X (WrSE (ExprV w), CState ρc' mem')⌝ ={E}▷=∗
+       ⌜X (WrSE (ExprO (OVal w)), CState ρc' mem')⌝ ={E}▷=∗
        weakestpre.state_interp (CState ρc' mem') ∗
-       wp E (WrSE (ExprV w)) Φ)) -∗
+       wp E (WrSE (ExprO (OVal w))) Φ)) -∗
   |={E}=> wp_pre_cases p T wp (CState ρc mem) E
     (WrSE (RunPrimitive prm ws))
     Φ.
@@ -56,7 +56,7 @@ Proof using.
   iSplit; first done.
   iDestruct "HWP" as (X Hpstep) "HWP".
   iExists (λ '(e', σ'), X (e', σ') ∧ ∃ w ρc' mem',
-            e' = WrSE (ExprV w) ∧ σ' = CState ρc' mem').
+            e' = WrSE (ExprO (OVal w)) ∧ σ' = CState ρc' mem').
   iSplit.
   { iPureIntro. econstructor.
     eapply c_prim_step_covariant_in_Y; naive_solver. }
