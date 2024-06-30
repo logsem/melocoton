@@ -115,13 +115,6 @@ Qed.
 Definition try_raise : ML_lang.expr :=
   try: (raise: #1 + #1) ;; #1 with: "v" => #1 + "v".
 
-
-Ltac wp_bind_core K :=
-  lazymatch eval hnf in K with
-  | [] => idtac
-  | _ => eapply (tac_wp_bind K); [simpl; reflexivity|reduction.pm_prettify]
-  end.
-
 Tactic Notation "wp_raise" :=
   iStartProof;
   lazymatch goal with
@@ -148,7 +141,7 @@ Proof.
   wp_raise.
   wp_apply (wp_try).
   wp_pures. iModIntro.
-  wp_lam. wp_pures; eauto.
+  wp_pures. eauto.
 Qed.
 
 End examples.
