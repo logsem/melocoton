@@ -44,6 +44,7 @@ Section FFI_spec.
   Context `{!ffiG Σ}.
 
   Definition caml_gmtime_code (t : expr) : expr :=
+    caml_init_local( );;
     CAMLlocal: "res" in
     let: "timer" := BoxedInt_val (t) in
     let: "tm"    := (call: &"gmtime" with ("timer")) in
@@ -55,7 +56,7 @@ Section FFI_spec.
     Store_field( *"res", #0, "tm_sec" );;
     Store_field( *"res", #1, "tm_min" );;
 
-    CAMLreturn: *"res" unregistering [ "res" ].
+    CAMLreturn ( *"res" ).
 
   Definition caml_gmtime_prog : lang_prog C_lang :=
     {[ "caml_gmtime" := Fun [BNamed "t"] (caml_gmtime_code "t") ]}.
@@ -85,11 +86,15 @@ Section FFI_spec.
     iDestruct "Hγ" as (γ) "[-> Hγ]".
     wp_call_direct.
 
+    wp_apply (wp_initlocalroot with "[$HGC $Hfc]"); eauto.
+    iIntros (f) "(HGC&Hfc&Hlr)". wp_pures.
+
     (* Declare result variable *)
-    wp_apply (wp_CAMLlocal with "HGC"); eauto. iIntros (ℓ) "(HGC&Hℓ)". wp_pures.
+    wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+    iIntros (ℓ) "(HGC&Hℓ&Hfc&Hlr)". wp_pures.
 
     (* Call stdlib gmtime *)
-    wp_apply (wp_read_foreign with "[$HGC $Hγ]"); try eauto.
+    wp_apply (wp_read_foreign with "[$HGC $Hγ]"); auto.
     iIntros "(HGC&_)".
     wp_pures.
     wp_extern. iModIntro. iRight.
@@ -102,40 +107,40 @@ Section FFI_spec.
     (* Allocate result variable *)
     wp_apply (wp_alloc (TagDefault) with "HGC"); try done; auto.
     iIntros (θ' γ' w0') "(HGC&Hγ'&%H2)".
-    wp_apply (store_to_root with "[$HGC $Hℓ]"); try done.
-    iIntros "(HGC&Hℓ)". wp_pures.
+    wp_apply (store_to_local_root with "[$HGC $Hℓ $Hlr]"); try done.
+    iIntros "(HGC&Hℓ&Hlr)". wp_pures.
 
     (* Convert tm_sec to ml int *)
-    wp_apply (wp_load with "[Ha0]"); try auto.
+    wp_apply (wp_load with "[Ha0]"); auto.
     iIntros "Ha0".
-    wp_apply (wp_int2val with "HGC"); try auto.
+    wp_apply (wp_int2val with "HGC"); auto.
     iIntros (w0) "(HGC&%Htms)". wp_pures.
 
     (* Convert tm_min to ml int *)
-    wp_apply (wp_load with "[Ha1]"); try auto.
+    wp_apply (wp_load with "[Ha1]"); auto.
     iIntros "Ha1".
-    wp_apply (wp_int2val with "HGC"); try auto.
+    wp_apply (wp_int2val with "HGC"); auto.
     iIntros (w1) "(HGC&%Htmm)". wp_pures.
 
     (* Load tm_sec *)
-    wp_apply (load_from_root with "[$HGC $Hℓ]").
-    iIntros (w2) "(Hℓ&HGC&%Hγ2)".
-    wp_apply (wp_modify with "[$HGC $Hγ']"); try eauto.
+    wp_apply (load_from_local_root with "[$HGC $Hℓ $Hlr]").
+    iIntros (w2) "(Hℓ&HGC&Hlr&%Hγ2)".
+    wp_apply (wp_modify with "[$HGC $Hγ']"); eauto.
     1: simpl; done.
     iIntros "(HGC&Hγ')". wp_pures.
 
     (* Load tm_min *)
-    wp_apply (load_from_root with "[$HGC $Hℓ]").
-    iIntros (w3) "(Hℓ&HGC&%Hγ3)".
-    wp_apply (wp_modify with "[$HGC $Hγ']"); try eauto.
+    wp_apply (load_from_local_root with "[$HGC $Hℓ $Hlr]").
+    iIntros (w3) "(Hℓ&HGC&Hlr&%Hγ3)".
+    wp_apply (wp_modify with "[$HGC $Hγ']"); eauto.
     1: simpl; done.
     iIntros "(HGC&Hγ')". wp_pures.
 
     (* Return *)
-    wp_apply (load_from_root with "[$HGC $Hℓ]").
-    iIntros (w4) "(Hℓ&HGC&%Hγ4)". wp_pures.
+    wp_apply (load_from_local_root with "[$HGC $Hℓ $Hlr]").
+    iIntros (w4) "(Hℓ&HGC&Hlr&%Hγ4)". wp_pures.
 
-    wp_apply (wp_unregisterroot with "[$HGC $Hℓ]"); try eauto.
+    wp_apply (wp_unregisterlocalroot with "[$HGC $Hfc $Hlr Hℓ]"); try eauto.
     iIntros (w5) "(HGC&hℓ&%Hγ5)". wp_pures.
     wp_free. wp_pures.
 

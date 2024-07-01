@@ -22,10 +22,11 @@ Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!invG Σ}.
 Context `{!wrapperG Σ}.
 
-Lemma wrap_interp_c_to_ml ws ρc mem θ vs lvs :
+Lemma wrap_interp_c_to_ml ws ρc mem θ fc vs lvs :
   Forall2 (repr_lval θ) lvs ws →
   wrap_state_interp (Wrap.CState ρc mem) -∗
   GC θ -∗
+  current_fc fc -∗
   at_boundary wrap_lang -∗
   lvs ~~∗ vs -∗
   ∃ ρml σ ζ,
@@ -33,17 +34,17 @@ Lemma wrap_interp_c_to_ml ws ρc mem θ vs lvs :
   ⌜c_to_ml_vals ws ρc vs ρml ζ⌝ ∗
   |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
 Proof using.
-  iIntros (Hlv) "Hσ HGC Hnb #Hblk".
+  iIntros (Hlv) "Hσ HGC Hfc Hnb #Hblk".
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
-  pose (roots_gm::roots_fm) as roots_m.
+  pose (roots_fm++[roots_gm]) as roots_m.
   iAssert (⌜Forall (λ r,
     ∀ k lv, r !! k = Some lv
     → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
   roots_m⌝)%I as "%Hroots".
   { admit. }
-  (* apply map_Forall_lookup_2 in Hroots. *)
-  destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done; [].
+
+  destruct (make_repr (θC ρc) roots_m roots_fm roots_gm mem) as [privmem Hpriv]; try done.
 
   iDestruct (hgh_export_ml_heap with "GCHGH")
     as (ζ' χ' ζfreeze) "(GCHGH & Hσ & %Hχ & %Hfrz & %Hζ)".
@@ -69,16 +70,17 @@ Proof using.
   iModIntro. iSplitR "SIbound"; last by iFrame "SIbound".
   rewrite /= /named. iFrame "Hσ".
   unfold private_state_interp, ML_state_interp, GC_remnant, named; cbn.
-  iFrame. iSplit. { iExists roots_fm, roots_gm, roots_f. iFrame. done. }
+  iExists fc. iFrame. iSplit. { iExists roots_fm, roots_gm, roots_f. iFrame. done. }
   iPureIntro.
   (* destruct Hpriv as (mem_r & Hpriv1 & Hpriv2 & Hpriv3). by apply map_disjoint_dom. *)
 (* Qed. *)
 Admitted.
 
-Lemma wrap_interp_c_to_ml_out ow ρc mem θ ov olv :
+Lemma wrap_interp_c_to_ml_out ow ρc mem θ fc ov olv :
   repr_lval_out θ olv ow →
   wrap_state_interp (Wrap.CState ρc mem) -∗
   GC θ -∗
+  current_fc fc -∗
   at_boundary wrap_lang -∗
   olv ~~ₒ ov -∗
   ∃ ρml σ ζ,
@@ -86,17 +88,17 @@ Lemma wrap_interp_c_to_ml_out ow ρc mem θ ov olv :
   ⌜c_to_ml_outcome ow ρc ov ρml ζ⌝ ∗
   |==> wrap_state_interp (Wrap.MLState ρml σ) ∗ not_at_boundary.
 Proof using.
-  iIntros (Hlv) "Hσ HGC Hnb Hblk".
+  iIntros (Hlv) "Hσ HGC Hfc Hnb Hblk".
   iNamed "Hσ". iNamed "SIC". iNamed "HGC". simplify_eq. SI_GC_agree.
 
-  pose (roots_gm::roots_fm) as roots_m.
+  pose (roots_fm++[roots_gm]) as roots_m.
   iAssert (⌜Forall (λ r,
     ∀ k lv, r !! k = Some lv
     → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
   roots_m⌝)%I as "%Hroots".
   { admit. }
-  (* apply map_Forall_lookup_2 in Hroots. *)
-  destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done; [].
+
+  destruct (make_repr (θC ρc) roots_m roots_fm roots_gm mem) as [privmem Hpriv]; try done.
 
   iDestruct (hgh_export_ml_heap with "GCHGH")
     as (ζ' χ' ζfreeze) "(GCHGH & Hσ & %Hχ & %Hfrz & %Hζ)".
@@ -124,7 +126,9 @@ Proof using.
   iModIntro. iSplitR "SIbound"; last by iFrame "SIbound".
   rewrite /= /named. iFrame "Hσ".
   unfold private_state_interp, ML_state_interp, GC_remnant, named; cbn.
-  iFrame. iSplit. { iExists roots_fm, roots_gm, roots_f. iFrame. done. }
+  iFrame.
+  iExists fc. iFrame "Hfc".
+  iSplit. { iExists roots_fm, roots_gm, roots_f. iFrame. done. }
   iPureIntro.
   (* destruct Hpriv as (mem_r & Hpriv1 & Hpriv2 & Hpriv3); by apply map_disjoint_dom. *)
 Admitted.
@@ -138,6 +142,7 @@ Lemma wrap_interp_ml_to_c vs ρml σ ws ρc mem :
   wrap_state_interp (Wrap.CState ρc mem) ∗
   at_boundary wrap_lang ∗
   GC (θC ρc) ∗
+  (∃ fc, current_fc fc) ∗
   (∃ lvs, lvs ~~∗ vs ∗ ⌜Forall2 (repr_lval (θC ρc)) lvs ws⌝).
 Proof using.
   iIntros (Hml_to_c Hlvs) "Hst Hb".
@@ -169,11 +174,14 @@ Proof using.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
-  iSplitL "SIinit". { iExists false. iFrame. } iSplit.
+  iSplitL "SIinit". { iExists false. iFrame. }
+  iSplitR "Hfc".
   { rewrite /GC /named. iExists _, _, _, _, roots_fm, roots_gm, roots_f.
     rewrite GCrootsm. iFrame. rewrite <- GCrootsm.
     iPureIntro; split_and!; eauto. }
-  { iExists _; by iFrame "Hsim". }
+  iSplit; iExists _.
+  { by iFrame "Hfc".  }
+  { by iFrame "Hsim". }
 Qed.
 
 Lemma wrap_interp_ml_to_c_out ov ρml σ ow ρc mem :
@@ -185,6 +193,7 @@ Lemma wrap_interp_ml_to_c_out ov ρml σ ow ρc mem :
   wrap_state_interp (Wrap.CState ρc mem) ∗
   at_boundary wrap_lang ∗
   GC (θC ρc) ∗
+  (∃ fc, current_fc fc) ∗
   (∃ olv, olv ~~ₒ ov ∗ ⌜repr_lval_out (θC ρc) olv ow⌝).
 Proof using.
   iIntros (Hml_to_c H) "Hst Hb".
@@ -216,11 +225,13 @@ Proof using.
 
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
-  iSplitL "SIinit". { iExists false. iFrame. } iSplit.
+  iSplitL "SIinit". { iExists false. iFrame. } iSplitR "Hfc".
   { rewrite /GC /named. iExists _, _, _, _, roots_fm, roots_gm, roots_f.
     rewrite GCrootsm. iFrame. rewrite <- GCrootsm.
     iPureIntro; split_and!; eauto. }
-  { iExists lv. iSplit; eauto. }
+  iSplit; iExists _.
+  { iFrame "Hfc". }
+  { iSplit; eauto. }
 Qed.
 
 End BoundaryLaws.

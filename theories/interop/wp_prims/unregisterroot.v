@@ -29,6 +29,7 @@ Proof using.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
   iPoseProof (ghost_map_lookup with "GCrootsg Hpto") as "%Helem".
+  rewrite map_app in H2. simpl in H2.
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
@@ -37,25 +38,30 @@ Proof using.
       χC := χC ρc;
       ζC := ζC ρc;
       θC := θC ρc;
-      rootsC := ((dom roots_gm) ∖ {[l]}) :: (map dom roots_fm)
+      rootsC := (map dom roots_fm) ++ [(dom roots_gm) ∖ {[l]}]
    |} mem).
   iSplit. { iPureIntro. econstructor; eauto. by eapply elem_of_dom_2. }
   iIntros (? ? ? (? & ?)); simplify_eq.
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
   iMod (ghost_map_delete with "GCrootsg Hpto") as "GCrootsg".
   iPoseProof (big_sepM_delete) as "(HL&_)"; first eapply Helem.
-  iDestruct "GCrootspto" as "(GCrootsptog&GCrootsptol)".
+  iDestruct "GCrootspto" as "(GCrootsptol&GCrootsptog)". simpl.
+  iDestruct "GCrootsptog" as "(GCrootsptog&_)".
   iPoseProof ("HL" with "GCrootsptog") as "((%W&Hpto&%Hw)&GCrootsptog)".
   iClear "HL".
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! W with "[- $Hpto]"). iSplit; last done.
-  repeat iExists _. iFrame. iPureIntro; split_and!; eauto.
-  - admit. (* rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //. *)
-  - inversion Hrootslive.
-    econstructor; last done.
-    intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply H1.
-Admitted.
+  repeat iExists _. iFrame. simpl. iPureIntro; split_and!; eauto.
+  - rewrite map_app. simpl. f_equal. by rewrite dom_delete_L.
+  - apply Forall_app.
+    unfold roots_are_live in Hrootslive. rewrite Forall_app in Hrootslive.
+    destruct Hrootslive as [Hrootslivel Hrootsliveg].
+    split; first done.
+    econstructor; last done. simpl in Hrootsliveg.
+    rewrite Forall_singleton in Hrootsliveg.
+    intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootsliveg.
+Qed.
 
 End Laws.

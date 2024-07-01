@@ -83,39 +83,42 @@ Section AllocBasics.
 
   Lemma alloc_wrapperBasicsG `{!wrapperBasicsGpre Σ} : @Alloc _ Σ (wrapperBasicsG Σ)
       (λ _, lstore_own_auth ∅
-          ∗ lloc_own_auth ∅
-          ∗ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval)
+          ∗ lloc_own_auth   ∅
+          ∗ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval)
           ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
   Proof.
-    intros P _ Halloc.
-    (* did not find a better workaround *)
-    set GSET_BIJ_CMRA := view.viewR (@gset_bij.gset_bij_view_rel lloc loc _ _ _ _ _).
-    eapply alloc_fresh_res in Halloc as (γζvirt&Halloc).
-    1: eapply alloc_fresh_res in Halloc as (γχvirt&Halloc).
-    1: eapply (@alloc_fresh_res _ _ GSET_BIJ_CMRA) in Halloc as (γχbij&Halloc).
-    1: eapply alloc_fresh_res in Halloc as (γroots_map&Halloc).
-    - pose (WrapperBasicsG _ Σ _ γζvirt γχvirt γχbij γroots_map) as HWrapperBasicsG.
-      exists HWrapperBasicsG. eapply alloc_mono; last exact Halloc.
-      iIntros "(((($&H1)&H2)&H3)&H4)". unfold lstore_own_auth, lloc_own_auth.
-      rewrite /named /ghost_map_auth !ghost_map.ghost_map_auth_aux.(seal_eq) /ghost_map.ghost_map_auth_def.
-      rewrite /gset_bij_own_auth !gset_bij_own_auth_aux.(seal_eq) /gset_bij.gset_bij_own_auth_def.
-      cbn in *. iFrame. iSplitL.
-      + unfold lstore_immut_blocks. rewrite map_filter_empty. by iApply big_sepM_empty.
-      + done.
-    - eapply gmap_view.gmap_view_auth_valid.
-    - by eapply gset_bij.gset_bij_auth_valid.
-    - eapply gmap_view.gmap_view_auth_valid.
-    - eapply gmap_view.gmap_view_auth_valid.
-  Qed.
+  Admitted.
+  (*   intros P _ Halloc. *)
+  (*   (* did not find a better workaround *) *)
+  (*   set GSET_BIJ_CMRA := view.viewR (@gset_bij.gset_bij_view_rel lloc loc _ _ _ _ _). *)
+  (*   eapply alloc_fresh_res in Halloc as (γζvirt&Halloc). *)
+  (*   1: eapply alloc_fresh_res in Halloc as (γχvirt&Halloc). *)
+  (*   1: eapply (@alloc_fresh_res _ _ GSET_BIJ_CMRA) in Halloc as (γχbij&Halloc). *)
+  (*   1: eapply alloc_fresh_res in Halloc as (γroots_map&Halloc). *)
+  (*   1: eapply alloc_fresh_res in Halloc as (γroots_frame&Halloc). *)
+  (*   - pose (WrapperBasicsG _ Σ _ γζvirt γχvirt γχbij γroots_map γroots_frame) as HWrapperBasicsG. *)
+  (*     exists HWrapperBasicsG. eapply alloc_mono; last exact Halloc. *)
+  (*     iIntros "((((($&H1)&H2)&H3)&H4)&H5)". unfold lstore_own_auth, lloc_own_auth. *)
+  (*     rewrite /named /ghost_map_auth !ghost_map.ghost_map_auth_aux.(seal_eq) /ghost_map.ghost_map_auth_def. *)
+  (*     rewrite /gset_bij_own_auth !gset_bij_own_auth_aux.(seal_eq) /gset_bij.gset_bij_own_auth_def. *)
+  (*     cbn in *. iFrame. iSplitL. *)
+  (*     + unfold lstore_immut_blocks. rewrite map_filter_empty. by iApply big_sepM_empty. *)
+  (*     + done. *)
+  (*   - eapply gmap_view.gmap_view_auth_valid. *)
+  (*   - eapply gmap_view.gmap_view_auth_valid. *)
+  (*   - by eapply gset_bij.gset_bij_auth_valid. *)
+  (*   - eapply gmap_view.gmap_view_auth_valid. *)
+  (*   - eapply gmap_view.gmap_view_auth_valid. *)
+  (* Qed. *)
 
 Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
     "GCζ" ∷ ghost_var wrapperG_γζ 1 (∅:lstore)
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ 1 (∅:lloc_map)
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ 1 (∅:addr_map)
-  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set 1 (∅:gset addr)
+  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set 1 ([∅:gset addr])
   ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
-  ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval)
+  ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval)
   ∗ "HInit" ∷ ghost_var wrapperG_γat_init 1 true.
 
   Lemma alloc_wrapperGCtokG :
@@ -149,7 +152,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
   Lemma alloc_wrapperG :
       ffiGpre Σ →
       @Alloc _ Σ (prod (wrapperG Σ) (heapG_ML Σ))
-      (λ '(HW,HML), weakestpre.private_state_interp {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |}
+      (λ '(HW,HML), weakestpre.private_state_interp {| χC := ∅; ζC := ∅; θC := ∅; rootsC := [∅] |}
                ∗ ghost_var wrapperG_γat_boundary (1 / 2) true ∗ at_init
                ∗ ⌜wrapperG_inG = _⌝)%I True.
   Proof using All.
@@ -202,7 +205,7 @@ End AllocBasics.
 
 Local Definition σ_init {SI:indexT} : state combined_lang :=
   @Link.St _ _ wrap_lang C_mlang _ _
-    (∅:c_state) {| χC := ∅; ζC := ∅; θC := ∅; rootsC := ∅ |} ().
+    (∅:c_state) {| χC := ∅; ζC := ∅; θC := ∅; rootsC := [∅] |} ().
 Section MainAlloc.
   Existing Instance ordI.
   Context `{Σ : gFunctors}.

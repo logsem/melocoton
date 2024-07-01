@@ -332,30 +332,31 @@ Inductive c_prim_step :
       θC' !! γ = Some a →
       Y (C_intf.LitV (C_intf.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
     c_prim_step Palloc [CIntV tgnum; CIntV sz] ρc mem Y
-  | PrimRegisterRootS ρc mem a rootsChd rootsCtl rootsChd' Y :
-    rootsC ρc = rootsChd :: rootsCtl →
-    a ∉ rootsChd →
-    rootsChd' = {[ a ]} ∪ rootsChd →
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd' :: rootsCtl)) mem →
-    c_prim_step Pregisterroot [CLocV a] ρc mem Y
-  | PrimUnregisterRootS ρc mem a rootsChd rootsCtl rootsChd' Y :
-    rootsC ρc = rootsChd :: rootsCtl →
-    a ∈ rootsChd →
-    rootsChd' = rootsChd ∖ {[ a ]} →
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd' :: rootsCtl)) mem →
-    c_prim_step Punregisterroot [CLocV a] ρc mem Y
-  | PrimRegisterLocalRootS ρc mem a rootsChd rootsCtl rootsCtl' Y :
+  | PrimRegisterRootS ρc mem a rootsChd rootsCtl rootsCtl' Y :
     rootsC ρc = rootsChd ++ [rootsCtl] →
     a ∉ rootsCtl →
     rootsCtl' = {[ a ]} ∪ rootsCtl →
     Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd ++ [rootsCtl'])) mem →
+    c_prim_step Pregisterroot [CLocV a] ρc mem Y
+  | PrimUnregisterRootS ρc mem a rootsChd rootsCtl rootsCtl' Y :
+    rootsC ρc = rootsChd ++ [rootsCtl] →
+    a ∈ rootsCtl →
+    rootsCtl' = rootsCtl ∖ {[ a ]} →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd ++ [rootsCtl'])) mem →
+    c_prim_step Punregisterroot [CLocV a] ρc mem Y
+  | PrimRegisterLocalRootS ρc mem a rootsChd rootsCtl rootsChd' Y :
+    rootsC ρc = rootsChd :: rootsCtl →
+    a ∉ rootsChd →
+    rootsChd' = {[ a ]} ∪ rootsChd →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsChd' :: rootsCtl)) mem →
     c_prim_step Pregisterlocalroot [CLocV a] ρc mem Y
   | PrimUnregisterLocalRootS ρc mem rootsChd rootsCtl Y :
-    rootsC ρc = rootsChd ++ [rootsCtl] →
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsChd) mem →
+    rootsC ρc = rootsChd :: rootsCtl →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsCtl) mem →
     c_prim_step Punregisterlocalroot [] ρc mem Y
-  | PrimInitLocalRootS ρc mem rootsC Y :
-    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) (rootsC ++ [∅])) mem →
+  | PrimInitLocalRootS ρc mem rootsC' Y :
+    rootsC' = ∅ :: (rootsC ρc) →
+    Y (CIntV 0) (WrapstateC (χC ρc) (ζC ρc) (θC ρc) rootsC') mem →
     c_prim_step Pinitlocalroot [] ρc mem Y
   | PrimModifyS ρc mem w i w' γ lv blk ζC' blk' Y :
     (0 ≤ i)%Z →

@@ -28,13 +28,14 @@ Context `{SI:indexT}.
 Context `{!ffiG Σ}.
 
 Definition swap_variant_code (x : expr) : expr :=
+  caml_init_local( );;
+  CAMLlocal: "x" in
   let: "v" := malloc (#1) in
   "v" <- Field("x", #0) ;;
-  (call: &"registerroot" with ("v")) ;;
   let: "t" := (call: &"read_tag" with (x)) in
   let: "r" := caml_alloc(#1, !"t") in                          (* !t := not t *)
   Store_field("r", #0, *("v" +ₗ #0)) ;;
-  CAMLreturn: "r" unregistering ["v"].
+  CAMLreturn ( "r" ).
 
 Definition swap_variant_func : function := Fun [BNamed "x"] (swap_variant_code "x").
 Definition swap_variant_prog : lang_prog C_lang := {[ "swap_variant" := swap_variant_func ]}.
@@ -168,7 +169,7 @@ Import melocoton.ml_lang.proofmode.
   Context `{!logrelG Σ}.
   Context (A B : type).
 
-  Definition program_type_ctx : program_env := 
+  Definition program_type_ctx : program_env :=
     {[ "swap_variant" := FunType [ TSum A B ] (TSum B A) ]}.
 
   Lemma swap_variant_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, swap_variant_ml_spec⟩ Δ.

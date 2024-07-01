@@ -68,10 +68,10 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "GCrootsf" ∷ ghost_var wrapperG_γroots_frame (1/2) roots_f
   ∗ "GCrootsg" ∷ ghost_map_auth wrapperG_γroots_global_map 1 roots_gm
   ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_f; roots_fm, ghost_map_auth f (1/2) r)
-  ∗ "GCrootspto" ∷ ([∗ list] r ∈ (roots_gm::roots_fm),
+  ∗ "GCrootspto" ∷ ([∗ list] r ∈ (roots_fm++[roots_gm]),
                    ([∗ map] a ↦ v ∈ r, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝))
-  ∗ "%Hrootsdom" ∷ ⌜map dom (roots_gm::roots_fm) = roots_s⌝
-  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ (roots_gm::roots_fm)⌝
+  ∗ "%Hrootsdom" ∷ ⌜map dom (roots_fm++[roots_gm]) = roots_s⌝
+  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ (roots_fm++[roots_gm])⌝
   ∗ "%HGCOK" ∷ ⌜GC_correct ζ θ⌝.
 
 Definition at_init := ghost_var wrapperG_γat_init (1/2) true.

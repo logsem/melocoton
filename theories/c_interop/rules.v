@@ -36,6 +36,20 @@ Proof.
   iApply "HΦ". by iFrame.
 Qed.
 
+Lemma store_to_local_root pe (l : loc) (f : gname) (r : gset addr) (v v' : lval) w θ :
+  repr_lval θ v w →
+  {{{ GC θ ∗ l ↦roots[f] v' ∗ local_roots f r }}}
+     (#l <- w)%CE at pe
+  {{{ RETV LitV LitUnit; GC θ ∗ l ↦roots[f] v ∗ local_roots f r }}}%CE.
+Proof.
+  iIntros (Hrepr Φ) "(HGC&Hroot&Hlocal) HΦ".
+  iDestruct (update_local_root with "[$HGC $Hroot $Hlocal]") as (w') "(Hpto & _ & Hupd)".
+  iApply wp_fupd.
+  iApply (wp_store with "Hpto"). iIntros "!> Hpto".
+  iMod ("Hupd" with "[$Hpto]") as "(? & ?)"; first done.
+  iApply "HΦ". by iFrame.
+Qed.
+
 Lemma load_from_root pe (l:loc) (v : lval) dq θ :
   {{{ GC θ ∗ l ↦roots{dq} v }}}
      ( * #l)%CE at pe
@@ -45,6 +59,17 @@ Proof.
   iDestruct (access_root with "[$HGC $Hroot]") as (w') "(Hpto & %Hrepr & Hupd)".
   iApply (wp_load with "Hpto"). iIntros "!> Hpto".
   iDestruct ("Hupd" with "Hpto") as "(?&?)". iApply "HΦ". by iFrame.
+Qed.
+
+Lemma load_from_local_root pe (l:loc) (f : gname) (r : gset addr) (v : lval) dq θ :
+  {{{ GC θ ∗ l ↦roots[f]{dq} v ∗ local_roots f r }}}
+     ( * #l)%CE at pe
+  {{{ w, RETV w; l ↦roots[f]{dq} v ∗ GC θ ∗ local_roots f r ∗ ⌜repr_lval θ v w⌝ }}}%CE.
+Proof.
+  iIntros (Φ) "(HGC&Hroot) HΦ".
+  iDestruct (access_local_root with "[$HGC $Hroot]") as (w') "(Hpto & %Hrepr & Hupd)".
+  iApply (wp_load with "Hpto"). iIntros "!> Hpto".
+  iDestruct ("Hupd" with "Hpto") as "(?&?&?)". iApply "HΦ". by iFrame.
 Qed.
 
 (* Calling to runtime primitives *)
@@ -112,6 +137,67 @@ Proof.
   iExists _, _, _. iFrame.
   iSplit; first by eauto. iIntros "!>" (?) "(? & ? & %)".
   iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
+Qed.
+
+Lemma wp_initlocalroot p Ψ θ fc :
+  p !! "initlocalroot" = None →
+  initlocalroot_proto ⊑ Ψ →
+  {{{ GC θ ∗ current_fc fc }}}
+    (call: &"initlocalroot" with ( ))%CE at ⟨p, Ψ⟩
+  {{{ f, RETV # 0; GC θ ∗ current_fc (f :: fc) ∗ local_roots f ∅ }}}.
+Proof.
+  iIntros (Hp Hproto Φ) "(HGC & Hfc) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /initlocalroot_proto /named. iSplit; first done.
+  repeat iExists _. iFrame.
+  iSplit; first done.
+  iIntros "!>" (?) "(? & ?)".
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. iFrame.
+Qed.
+
+Lemma wp_registerlocalroot p Ψ θ v w a f fc r :
+  p !! "registerlocalroot" = None →
+  registerlocalroot_proto ⊑ Ψ →
+  repr_lval θ v w →
+  {{{ GC θ ∗ a ↦C w ∗ current_fc (f :: fc) ∗ local_roots f r }}}
+    (call: &"registerlocalroot" with (Val (# a)))%CE at ⟨p, Ψ⟩
+  {{{ RETV # 0; GC θ ∗ a ↦roots[f] v ∗ current_fc (f :: fc) ∗ local_roots f ({[a]} ∪ r) }}}.
+Proof.
+  iIntros (Hp Hproto Hrepr Φ) "(HGC & Hpto & Hfc & Hlocals) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /registerlocalroot_proto /named. iSplit; first done.
+  repeat iExists _. iFrame.
+  do 2 (iSplit; first by eauto). iIntros "!> [? ?]".
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. iFrame.
+Qed.
+
+Lemma wp_unregisterlocalroot p Ψ θ vs f fc r :
+  p !! "unregisterlocalroot" = None →
+  unregisterlocalroot_proto ⊑ Ψ →
+  {{{
+    GC θ
+  ∗ current_fc (f :: fc)
+  ∗ local_roots f r
+  ∗ ([∗ list] l; v ∈ (elements r); vs, l ↦roots[f] v)
+ }}}
+    (call: &"unregisterlocalroot" with ( ))%CE at ⟨p, Ψ⟩
+  {{{ ws, RETV # 0;
+     GC θ
+   ∗ current_fc fc
+   ∗ ([∗ list] w; l ∈ ws; (elements r), l ↦C w)
+   ∗ ([∗ list] w; v ∈ ws; vs, ⌜repr_lval θ v w⌝)
+  }}}.
+Proof.
+  iIntros (Hp Hproto Φ) "(HGC & Hfc & Hlocals & Hrepr) Cont".
+  wp_pures. wp_extern; first done.
+  iModIntro. cbn. iApply Hproto.
+  rewrite /unregisterlocalroot_proto /named. iSplit; first done.
+  repeat iExists _. iFrame.
+  iSplit; first done.
+  iIntros "!>" (?) "[? ?]".
+  iApply wp_outcome; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 
 Lemma wp_modify p Ψ θ γ w mut tg vs v' w' i :
@@ -306,19 +392,21 @@ Proof.
   iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_callback p ΨML Ψ θ w γ f x e lv' w' v' Φ :
+Lemma wp_callback p ΨML Ψ θ fc w γ f x e lv' w' v' Φ :
   p !! "callback" = None →
   callback_proto ΨML ⊑ Ψ →
   repr_lval θ (Lloc γ) w →
   repr_lval θ lv' w' →
   {{{ GC θ ∗
+      current_fc fc ∗
       γ ↦clos (f, x, e) ∗
       lv' ~~ v' ∗
       (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) at ⟨∅, ΨML⟩ {{ Φ }})
   }}}
     (call: &"callback" with (Val w, Val w'))%CE at ⟨p, Ψ⟩
-  {{{ θ' vret lvret wret, RET wret;
+  {{{ θ' fc' vret lvret wret, RET wret;
         GC θ' ∗
+        current_fc fc' ∗
         Φ vret ∗
         lvret ~~ₒ vret ∗
         ⌜repr_lval_out θ' lvret wret⌝ }}}.
@@ -327,8 +415,8 @@ Proof.
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /callback_proto /named. iSplit; first done.
-  do 10 iExists _. iFrame.
-  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ?) "(? & ? & ? & %)".
+  repeat iExists _. iFrame.
+  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ? ?) "(? & ? & ? & ? & %)".
   iApply wp_outcome; first apply to_of_outcome.
   iApply "Cont"; by iFrame.
 Qed.
@@ -350,25 +438,29 @@ Proof.
 Qed.
 
 (* Macro Laws *)
-Lemma wp_CAMLlocal n e2 p Ψ Φ θ :
+Lemma wp_CAMLlocal n e2 p Ψ Φ θ f fc r :
   p !! "int2val" = None →
   int2val_proto ⊑ Ψ →
-  p !! "registerroot" = None →
-  registerroot_proto ⊑ Ψ →
-  (⊢ GC θ -∗
-     (▷ ∀ (l:loc), GC θ ∗ l ↦roots Lint 0 -∗ WP (subst_all {[n := #l]} e2) at ⟨ p, Ψ ⟩ {{Φ}}) -∗
-     WP (CAMLlocal: n in e2)%CE at ⟨ p, Ψ ⟩
-     {{Φ}}%CE)%I.
+  p !! "registerlocalroot" = None →
+  registerlocalroot_proto ⊑ Ψ →
+  (⊢ GC θ ∗ current_fc (f :: fc) ∗ local_roots f r  -∗
+     (▷ ∀ (l:loc),
+     (GC θ
+     ∗ l ↦roots[f] Lint 0
+     ∗ current_fc (f :: fc)
+     ∗ local_roots f ({[l]} ∪ r))
+     -∗ WP (subst_all {[n := #l]} e2) at ⟨ p, Ψ ⟩ {{Φ}})
+     -∗ WP (CAMLlocal: n in e2)%CE    at ⟨ p, Ψ ⟩ {{Φ}}%CE)%I.
 Proof.
-  iIntros (????) "HGC Cont". unfold CAMLlocal.
+  iIntros (? ? ? ?) "(HGC&Hfc&Hroots) Cont". unfold CAMLlocal.
   wp_apply wp_Malloc. 1-2: done. change (Z.to_nat 1) with 1. cbn.
   iIntros (l) "(Hl&_)". rewrite loc_add_0.
   wp_pures. wp_apply (wp_int2val with "[$]"); [try done..|].
   iIntros (w) "(HGC&%Hrepr)".
   wp_apply (wp_store with "Hl"). iIntros "Hl".
   wp_pures.
-  wp_apply (wp_registerroot with "[$]"); [try done..|].
-  iIntros "(HGC&Hroot)". wp_pures.
+  wp_apply (wp_registerlocalroot with "[$]"); [try done..|].
+  iIntros "(HGC&Hroot&Hfc&Hroots)". wp_pures.
   iApply "Cont". iFrame.
 Qed.
 

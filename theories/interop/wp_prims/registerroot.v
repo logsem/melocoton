@@ -31,11 +31,12 @@ Proof using.
 
   iApply wp_pre_cases_c_prim; [done..|].
 
-  iDestruct "GCrootspto" as "(GCrootsptog&GCrootsptol)".
+  iDestruct "GCrootspto" as "(GCrootsptol&(GCrootsptog&_))". simpl.
   iAssert (⌜¬ l ∈ dom roots_gm⌝)%I as "%Hdom".
-    { iIntros "%H". eapply elem_of_dom in H. destruct H as [k Hk].
-    iPoseProof (big_sepM_lookup_acc with "GCrootsptog") as "((%ww&Hww&_)&_)".
-    1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. }
+  { iIntros "%H". eapply elem_of_dom in H. destruct H as [k Hk].
+  iPoseProof (big_sepM_lookup_acc with "GCrootsptog") as "((%ww&Hww&_)&_)".
+  1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. }
+  rewrite map_app in H2. simpl in H2.
 
   iExists (λ '(e', σ'),
     e' = WrSE (ExprO (OVal #0)) ∧
@@ -43,7 +44,7 @@ Proof using.
       χC := χC ρc;
       ζC := ζC ρc;
       θC := θC ρc;
-      rootsC := ({[l]} ∪ (dom roots_gm)) :: (map dom roots_fm)
+      rootsC := (map dom roots_fm) ++ [ {[l]} ∪ (dom roots_gm) ]
    |} mem).
   iSplit. { iPureIntro. econstructor; eauto. }
   iIntros (w' ρc' mem' (? & ?)); simplify_eq.
@@ -52,19 +53,23 @@ Proof using.
   1: eapply not_elem_of_dom; intros Hc; eapply Hdom; done.
   iPoseProof (big_sepM_insert) as "(_&HR)".
   1: eapply not_elem_of_dom; intros Hc; eapply Hdom; done.
-  iPoseProof ("HR" with "[Hpto GCrootsptog]") as "GCrootsptog"; first iFrame "GCrootsptog".
-  1: iExists w; iFrame; done.
+  iPoseProof ("HR" with "[Hpto GCrootsptog]") as "GCrootsptog".
+  1: iFrame "GCrootsptog"; iExists w; iFrame; done.
   iClear "HR".
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame "Hres".
-  repeat iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
-  - admit. (* rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //. *)
-  - inversion Hrootslive.
-    econstructor; last done.
-    intros ℓ γ [[-> ->]|[Hne HH]]%lookup_insert_Some; last by eapply H1.
+  repeat iExists _. unfold named. iFrame. simpl. iPureIntro; split_and!; eauto.
+  - rewrite map_app. simpl. f_equal. by rewrite dom_insert_L.
+  - apply Forall_app.
+    unfold roots_are_live in Hrootslive. rewrite Forall_app in Hrootslive.
+    destruct Hrootslive as [Hrootslivel Hrootsliveg].
+    split; first done.
+    econstructor; last done. simpl in Hrootsliveg.
+    rewrite Forall_singleton in Hrootsliveg.
+    intros ℓ γ [[-> ->]|[Hne HH]]%lookup_insert_Some; last by eapply Hrootsliveg.
     inv_repr_lval. by eapply elem_of_dom_2.
-Admitted.
+Qed.
 
 End Laws.

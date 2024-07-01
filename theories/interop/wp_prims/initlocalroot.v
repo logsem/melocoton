@@ -30,6 +30,54 @@ Proof using.
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
 
   iApply wp_pre_cases_c_prim; [done..|].
-Admitted.
+  pose (∅::(rootsC ρc)) as roots_s.
+
+  iExists (λ '(e', σ'),
+    e' = WrSE (ExprO (OVal #0)) ∧
+    σ' = CState {|
+      χC := χC ρc;
+      ζC := ζC ρc;
+      θC := θC ρc;
+      rootsC :=  roots_s;
+   |} mem).
+  iSplit. { iPureIntro. econstructor; eauto. }
+  iIntros (w' ρc' mem' (? & ?)); simplify_eq.
+  (* Alloc local_roots f ∅ *)
+  iMod (ghost_map_alloc (∅:roots_map)) as "(%f&Hlr&_)".
+  iDestruct "Hlr" as "(Hlr&HGCrootsfm)".
+  iAssert (local_roots f (dom ∅)) with "[Hlr]" as "Hlr".
+  { iExists ∅. iSplit; done. }
+  replace (dom (∅:roots_map)) with (∅:gset addr); last by rewrite dom_empty_L.
+
+  iAssert ([∗ list] f0;r ∈ (f::roots_f);(∅::roots_fm), ghost_map_auth f0 (1/2) r)%I
+  with "[GCrootsm HGCrootsfm]" as "GCrootsm".
+  { simpl. iFrame. }
+
+  (* TODO: Update rootspto *)
+  iAssert ([∗ list] r ∈ (∅ :: roots_fm ++ [roots_gm]), [∗ map] a↦v ∈ r,
+           ∃ w : word, a ↦C{DfracOwn 1} w ∗ ⌜repr_lval (θC ρc) v w⌝)%I
+  with "[GCrootspto]" as "GCrootspto".
+  { simpl. iFrame. done. }
+
+
+  (* Update frame in GC *)
+  iMod (ghost_var_update_halves roots_s with "SIroots GCroots") as "(SIroots&GCroots)".
+
+  iPoseProof (ghost_var_agree with "GCrootsf Hfc") as "->".
+
+  (* Update current_fc *)
+  iMod (ghost_var_update_halves (f::fc) with "Hfc GCrootsf") as "(Hfc&GCrootsf)".
+
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  iApply wp_outcome; first done.
+  iApply "Hcont". iFrame.
+  iApply "Cont". iFrame.
+  iExists _, _, _, roots_s, (∅::roots_fm), roots_gm, _. iFrame. iPureIntro.
+  split_and!; eauto.
+  - simpl. rewrite dom_empty_L. by rewrite H2.
+  - apply Forall_app. apply Forall_app in Hrootslive.
+    destruct Hrootslive as [Hrootslivef Hrootsliveg]. split; last done.
+    econstructor; done.
+Qed.
 
 End Laws.

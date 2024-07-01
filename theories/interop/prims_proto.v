@@ -18,13 +18,15 @@ Notation C_proto := (protocol C_intf.val Σ).
 Notation ML_proto := (protocol ML_lang.val Σ).
 
 Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
-  ∃ θ vs lvs Φ',
+  ∃ θ fc vs lvs Φ',
     "HGC" ∷ GC θ ∗
+    "Hfc" ∷ current_fc fc ∗
     "%Hrepr" ∷ ⌜Forall2 (repr_lval θ) lvs ws⌝ ∗
     "#Hsim" ∷ lvs ~~∗ vs ∗
     "Hproto" ∷ Ψ f vs Φ' ∗
     "Return" ∷ (∀ θ' vret lvret wret,
       GC θ' -∗
+      current_fc fc -∗
       Φ' vret -∗
       lvret ~~ₒ vret -∗
       ⌜repr_lval_out θ' lvret wret⌝ -∗
@@ -34,7 +36,7 @@ Definition wrap_proto (Ψ : ML_proto) : C_proto := (λ f ws Φ,
 Lemma wrap_proto_mono Ψ Ψ' : Ψ ⊑ Ψ' → wrap_proto Ψ ⊑ wrap_proto Ψ'.
 Proof using.
   iIntros (Hre ? ? ?) "H". unfold wrap_proto. iNamed "H".
-  rewrite /named. iExists _, _, _, _. iFrame. iFrame "Hsim". iSplit; first done.
+  rewrite /named. repeat iExists _. iFrame. iFrame "Hsim". iSplit; first done.
   by iApply Hre.
 Qed.
 
@@ -76,29 +78,34 @@ Definition initlocalroot_proto : C_proto :=
 
 Definition registerlocalroot_proto : C_proto :=
   !! θ l v w f fc r
-    {{
-       "HGC"    ∷ GC θ
-     ∗ "Hpto"   ∷ l ↦C w
-     ∗ "Hfc"    ∷ current_fc (f :: fc)
-     ∗ "Hlr"    ∷ local_roots f r
-     ∗ "%Hrepr" ∷ ⌜repr_lval θ v w⌝
-    }}
-        "registerlocalroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
-    {{
-      RETV C_intf.LitV $ C_intf.LitInt $ 0;
-      GC θ ∗ l ↦roots[f] v ∗ current_fc (f :: fc) ∗ local_roots f ({[l]} ∪ r)
-    }}.
+  {{
+     "HGC"    ∷ GC θ
+   ∗ "Hpto"   ∷ l ↦C w
+   ∗ "Hfc"    ∷ current_fc (f :: fc)
+   ∗ "Hlr"    ∷ local_roots f r
+   ∗ "%Hrepr" ∷ ⌜repr_lval θ v w⌝
+  }}
+      "registerlocalroot" with [ C_intf.LitV $ C_intf.LitLoc $ l ]
+  {{
+    RETV C_intf.LitV $ C_intf.LitInt $ 0;
+    GC θ ∗ l ↦roots[f] v ∗ current_fc (f :: fc) ∗ local_roots f ({[l]} ∪ r)
+  }}.
 
 Definition unregisterlocalroot_proto : C_proto :=
-  !! θ f fc r ws
+  !! θ f fc r vs
   {{
-       "HGC"    ∷ GC θ
-     ∗ "Hfc"    ∷ current_fc (f :: fc)
-     ∗ "Hlr"    ∷ local_roots f r
-     ∗ "Hpto"   ∷ ([∗ list] l; w ∈ (elements r); ws, l ↦roots[f] w)
+     "HGC"  ∷ GC θ
+   ∗ "Hfc"  ∷ current_fc (f :: fc)
+   ∗ "Hlr"  ∷ local_roots f r
+   ∗ "Hpto" ∷ ([∗ list] l; v ∈ (elements r); vs, l ↦roots[f] v)
   }}
     "unregisterlocalroot" with [ ]
-  {{ RETV C_intf.LitV $ C_intf.LitInt $ 0; GC θ ∗ current_fc (f :: fc) }}.
+  {{ ws, RETV C_intf.LitV $ C_intf.LitInt $ 0;
+     GC θ
+   ∗ current_fc fc
+   ∗ ([∗ list] w; l ∈ ws; (elements r), l ↦C w)
+   ∗ ([∗ list] w; v ∈ ws; vs, ⌜repr_lval θ v w⌝)
+  }}.
 
 Definition modify_proto : C_proto :=
   !! θ w i v' w' γ mut tg vs
@@ -207,9 +214,10 @@ Definition read_foreign_proto : C_proto :=
   {{ RETV w'; GC θ ∗ γ ↦foreign[m]{dq} w' }}.
 
 Definition callback_proto (Ψ : ML_proto) : C_proto :=
-  !! θ w γ w' lv' v' f x e Φ'
+  !! θ fc w γ w' lv' v' f x e Φ'
   {{
      "HGC" ∷ GC θ ∗
+     "Hfc" ∷ current_fc fc ∗
      "%Hreprw" ∷ ⌜repr_lval θ (Lloc γ) w⌝ ∗
      "Hclos" ∷ γ ↦clos (f, x, e) ∗
      "%Hreprw'" ∷ ⌜repr_lval θ lv' w'⌝ ∗
@@ -217,8 +225,8 @@ Definition callback_proto (Ψ : ML_proto) : C_proto :=
      "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) at ⟨∅, Ψ⟩ {{ Φ' }}
   }}
     "callback" with [ w; w' ]
-  {{ θ' ov olv ow, RET ow;
-     GC θ' ∗ Φ' ov ∗ olv ~~ₒ ov ∗ ⌜repr_lval_out θ' olv ow⌝
+  {{ θ' fc' ov olv ow, RET ow;
+     GC θ' ∗ current_fc fc' ∗ Φ' ov ∗ olv ~~ₒ ov ∗ ⌜repr_lval_out θ' olv ow⌝
   }}.
 
 Definition main_proto (Φ' : Z → Prop) (Pinit : iProp Σ) : C_proto :=
@@ -256,7 +264,7 @@ Lemma proto_prim_mono Ψ1 Ψ2 : Ψ1 ⊑ Ψ2 →
 Proof using.
   iIntros (HH s vv Φ) "H". iDestruct "H" as (p) "H". iExists p.
   destruct p; try done. iNamedProto "H".
-  iSplit; first done. do 10 iExists _; unfold named.
+  iSplit; first done. repeat iExists _; unfold named.
   iFrame. do 3 (iSplit; first done).
   iNext. iApply (wp_strong_mono with "[-] []"). 1-2: done.
   1: iFrame. by iIntros (v) "$".

@@ -29,13 +29,14 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ".
   SI_at_boundary. SI_GC_agree.
-  pose (roots_gm::roots_fm) as roots_m.
+  pose (roots_fm++[roots_gm]) as roots_m.
   iAssert (⌜Forall (λ r,
     ∀ k lv, r !! k = Some lv
     → ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w)
   roots_m⌝)%I as "%Hroots".
   { admit. }
-  destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
+  destruct (make_repr (θC ρc) roots_m roots_fm roots_gm mem) as [privmem Hpriv];
+  try done.
 
   assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
   { eapply GC_correct_transport_rev; last done; done. }

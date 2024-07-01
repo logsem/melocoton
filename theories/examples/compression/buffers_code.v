@@ -18,8 +18,9 @@ Section C_code.
 (** See [buffers_specs] for more information about the in-memory layout of buffers. *)
 
 Definition buf_alloc_code (cap : expr) : expr :=
-  CAMLlocal: "bk" in
-  CAMLlocal: "bf" in
+  caml_init_local( );;
+  CAMLlocal: "bk"  in
+  CAMLlocal: "bf"  in
   CAMLlocal: "bf2" in
   "bk" <- caml_alloc_custom ( ) ;;
   (Custom_contents ( *"bk" ) :=  malloc(Int_val (cap))) ;;
@@ -31,13 +32,13 @@ Definition buf_alloc_code (cap : expr) : expr :=
   Store_field ( *"bf", #1, *"bf2") ;;
   Store_field ( *"bf2", #0, cap) ;;
   Store_field ( *"bf2", #1, *"bk") ;;
-  CAMLreturn: * "bf" unregistering ["bk", "bf", "bf2"].
+  CAMLreturn ( * "bf" ).
 Definition buf_alloc_fun := Fun [BNamed "cap"] (buf_alloc_code "cap") .
 Definition buf_alloc_name := "buf_alloc".
 
-
 Definition buf_upd_code (iv jv f_arg bf_arg : expr) : expr :=
-  CAMLlocal: "f" in "f" <- f_arg ;;
+  caml_init_local( );;
+  CAMLlocal: "f"  in "f"  <- f_arg  ;;
   CAMLlocal: "bf" in "bf" <- bf_arg ;;
   let: "bts" := Custom_contents(Field(Field( *"bf", #1), #1)) in
   let: "j" := Int_val ( jv ) in
@@ -50,7 +51,7 @@ Definition buf_upd_code (iv jv f_arg bf_arg : expr) : expr :=
       else Skip) ;;
       "i" <- *"i" + #1 )) ;;
   free ("i", #1);;
-  CAMLreturn: Val_int (#0) unregistering ["f", "bf"].
+  CAMLreturn (Val_int (#0)).
 Definition buf_upd_fun := Fun [BNamed "iv"; BNamed "jv"; BNamed "f_arg"; BNamed "bf_arg"]
                               (buf_upd_code "iv" "jv" "f_arg" "bf_arg").
 Definition buf_upd_name := "buf_upd".

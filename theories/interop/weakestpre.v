@@ -75,12 +75,12 @@ Definition GC_remnant (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) :
  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (map dom roots_m)
  ∗ "GCrootsf" ∷ ghost_var wrapperG_γroots_frame (1/2) roots_f
  ∗ "GCrootsg" ∷ ghost_map_auth wrapperG_γroots_global_map 1 roots_gm
- ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_f; roots_fm,
-                 ghost_map_auth f (1/2) r)
+ ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_f; roots_fm, ghost_map_auth f (1/2) r)
  ∗ "GCrootspto" ∷ ([∗ list] r ∈ roots_m, [∗ set] a ∈ (dom r), a O↦C None)
- ∗ "%GCrootsm" ∷ ⌜roots_m = roots_gm :: roots_fm⌝.
+ ∗ "%GCrootsm" ∷ ⌜roots_m = roots_fm++[roots_gm]⌝.
 
 Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) (memC : memory) : iProp Σ :=
+  ∃ (fc : list gname),
     "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperG_γθ (1/2) (∅ : addr_map)
@@ -89,6 +89,7 @@ Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots_m : list roots_m
   ∗ "SIbound" ∷ ghost_var wrapperG_γat_boundary (1/2) false
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) false
   ∗ "HσCv" ∷ gen_heap_interp (roots_map_mem' memC roots_m)
+  ∗ "Hfc" ∷ current_fc fc
   ∗ "%HmemCdisj" ∷ ⌜Forall (λ r, dom memC ## dom r) roots_m⌝.
 
 Definition private_state_interp : wrapstateC → iProp Σ :=

@@ -1068,19 +1068,9 @@ Proof.
 Qed.
 
 (* FIXME *)
-(* Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom_roots b. *)
-(* Proof. *)
-(*   induction 1. *)
-(*   + by do 2 rewrite dom_empty_L. *)
-(*   + by do 2 rewrite dom_insert_L; rewrite IHrepr_roots. *)
-(* Qed. *)
-(* Admitted. *)
-
-Lemma repr_roots_not_empty θ mem roots :
-  repr_roots θ mem roots -> exists rootsHd rootsTl, roots = rootsHd :: rootsTl.
+Lemma repr_roots_dom θ a b : repr_roots θ a [b] -> dom a = dom b.
 Proof.
-  intros. destruct H; eauto.
-Qed.
+Admitted.
 
 Lemma code_int_inj z1 z2 : code_int z1 = code_int z2 → z1 = z2.
 Proof.
@@ -1119,20 +1109,14 @@ Opaque code_int.
 Lemma repr_mono θ θ' roots_m privmem mem :
   θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
 Proof.
-(*   intros Helem (memr&(H1&H2)). exists memr. split; last done. *)
-(*   clear H2. *)
-(*   induction H1. *)
-(*   - econstructor. *)
-(*   - econstructor. 1: by eapply IHrepr_roots. 2-3: done. *)
-(*     by eapply repr_lval_mono. *)
-(* Qed. *)
-Admitted.
-
-Lemma repr_not_empty θ roots privmem mem :
-  repr θ roots privmem mem -> exists rootsHd rootsTl, roots = rootsHd :: rootsTl.
-Proof.
-  intros. destruct H as [memr [Hrepr]].
-  by eapply repr_roots_not_empty.
+  intros Helem (memr&(H1&H2)). exists memr. split; last done.
+  clear H2.
+  induction H1; econstructor.
+  - by eapply IHrepr_roots.
+  - by eapply IHrepr_roots.
+  - by eapply repr_lval_mono.
+  - done.
+  - done.
 Qed.
 
 Lemma lval_in_vblock v m tg vs :

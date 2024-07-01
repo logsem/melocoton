@@ -28,8 +28,51 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
+  iPoseProof (ghost_var_agree with "GCrootsf Hfc") as "->".
+  destruct roots_fm as [| fm roots_fm ]; first by simpl.
+  rewrite map_app in H2. simpl in H2.
 
   iApply wp_pre_cases_c_prim; [done..|].
+
+  iExists (λ '(e', σ'),
+    e' = WrSE (ExprO (OVal #0)) ∧
+    σ' = CState {|
+      χC := χC ρc;
+      ζC := ζC ρc;
+      θC := θC ρc;
+      rootsC := (map dom roots_fm) ++ [dom roots_gm];
+   |} mem).
+  iSplit. { iPureIntro. econstructor; eauto. }
+  iIntros (w' ρc' mem' (? & ?)); simplify_eq.
+
+  iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
+  iMod (ghost_var_update_halves with "GCrootsf Hfc") as "(GCrootsf&Hfc)".
+  iDestruct "GCrootsm" as "(GCrootsfm&GCrootsm)".
+  iDestruct "GCrootspto" as "(GCrootsfpto&GCrootspto)".
+
+  iDestruct "Hlr" as "(%fm'&(Hlr1&%Hlr2))".
+  iPoseProof (ghost_map_auth_agree with "Hlr1 GCrootsfm") as "->".
+
+  (* TODO: Transform points to roots into points to C *)
+  iDestruct "GCrootsfpto" as "(GCrootsfmpto&GCrootsfpto)".
+  iAssert (∃ ws,
+     ([∗ list] w; l ∈ ws; (elements r), l ↦C w)
+   ∗ ([∗ list] w; v ∈ ws; (elements r), ⌜repr_lval (θC ρc) v w⌝))% I
+   with "[GCrootsfmpto]" as "(%ws&Hws)".
+   { iInduction (elements r) as [ | rhd rtl ] "HR".
+     - iExists []. admit.
+     - iPoseProof ("HR" with "GCrootsfmpto") as "(%ws&Hws)".
+       admit. }
+
+  do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
+  iApply wp_outcome; first done.
+  iApply "Hcont". iFrame.
+  iApply "Cont". iFrame "Hfc Hws".
+  iExists _, _, _, _, roots_fm, roots_gm, fc.
+  unfold named. iFrame.
+  iPureIntro. split_and!; eauto.
+  - apply map_app.
+  - simpl in Hrootslive. by apply Forall_inv_tail in Hrootslive.
 Admitted.
 
 End Laws.

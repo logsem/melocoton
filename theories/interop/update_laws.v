@@ -77,42 +77,64 @@ Qed.
 Lemma update_root θ (l:loc) v E :
   GC θ ∗ l ↦roots v -∗
   ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
-    (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots v').
+  (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots v').
 Proof using.
-(*   iIntros "(HGC & Hroots)". *)
-(*   iNamed "HGC". *)
-(*   iPoseProof (ghost_map_lookup with "GCrootsm Hroots") as "%H". *)
-(*   iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H. *)
-(*   iPoseProof ("HL" with "GCrootspto") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL". *)
-(*   iExists _. iFrame "Hown". iSplit; first done. iIntros (v' w') "(Hown' & %Hrepr')". *)
-(*   iMod (ghost_map_update with "GCrootsm Hroots") as "(GCrootsm&Hroots)". *)
-(*   iModIntro. iFrame "Hroots". repeat iExists _; rewrite /named. iFrame. *)
-(*   rewrite dom_insert_lookup_L; last done. *)
-(*   iSplit. *)
-(*   { iPoseProof (big_sepM_insert_delete) as "(_&HR)"; iApply "HR"; iClear "HR". *)
-(*     iFrame. iExists _. by iFrame. } *)
-(*   { iPureIntro; split_and!; eauto. *)
-(*     intros l' γ [[-> ->]|[Hne HH]]%lookup_insert_Some. *)
-(*     2: by eapply Hrootslive. *)
-(*     inv_repr_lval. by eapply elem_of_dom_2. } *)
-(* Qed. *)
+  iIntros "(HGC & Hroots)".
+  iNamed "HGC".
+  iPoseProof (ghost_map_lookup with "GCrootsg Hroots") as "%H".
+  iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H.
+  iDestruct "GCrootspto" as "(GCrootsptol&(GCrootsptog&_))".
+  simpl.
+  iPoseProof ("HL" with "GCrootsptog") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
+  iExists _. iFrame "Hown". iSplit; first done. iIntros (v' w') "(Hown' & %Hrepr')".
+  iMod (ghost_map_update with "GCrootsg Hroots") as "(GCrootsg&Hroots)".
+  iModIntro. iFrame "Hroots". repeat iExists _; rewrite /named. iFrame. simpl.
+  iSplit.
+  1: { iSplit; last done.
+       iPoseProof (big_sepM_insert_delete) as "(_&HR)"; iApply "HR"; iClear "HR".
+       iFrame. iExists _. by iFrame. }
+  iPureIntro. split_and!; eauto.
+  - rewrite map_app. rewrite map_app in Hrootsdom. simpl.
+    rewrite dom_insert_lookup_L; done.
+  - apply Forall_app. apply Forall_app in Hrootslive.
+    destruct Hrootslive as [Hrootslivel Hrootsliveg]. split; first done.
+    econstructor; last done.
+    rewrite Forall_singleton in Hrootsliveg.
+    intros l' γ [[-> ->]|[Hne HH]]%lookup_insert_Some.
+    2: by eapply Hrootsliveg.
+    inv_repr_lval. by eapply elem_of_dom_2.
+Qed.
+
+(* FIXME: We also need to assert that f is in frame. *)
+Lemma update_local_root θ (l:loc) (f:gname) (r:gset addr) v E :
+  GC θ ∗ l ↦roots[f] v ∗ local_roots f r -∗
+  ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
+  (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots[f] v' ∗ local_roots f r).
+Proof using.
 Admitted.
 
 Lemma access_root θ (l:loc) dq v :
   GC θ ∗ l ↦roots{dq} v -∗
-  ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
-      (l ↦C w -∗ GC θ ∗ l ↦roots{dq} v).
+  ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗ (l ↦C w -∗ GC θ ∗ l ↦roots{dq} v).
 Proof using.
-(*   iIntros "(HGC & Hroot)". iNamed "HGC". *)
-(*   iPoseProof (ghost_map_lookup with "GCrootsm Hroot") as "%H". *)
-(*   iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H. *)
-(*   iPoseProof ("HL" with "GCrootspto") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL". *)
-(*   iExists _. iFrame "Hown". iSplit; first done. iIntros "Hown". iFrame "Hroot". *)
-(*   rewrite /GC /named. repeat iExists _. *)
-(*   iPoseProof ("HR" with "[Hown Hrp]") as "Hrootsm"; iClear "HR". *)
-(*   { iFrame. iExists w; by iFrame. } *)
-(*   iFrame. eauto. *)
-(* Qed. *)
+  iIntros "(HGC & Hroot)". iNamed "HGC".
+  iPoseProof (ghost_map_lookup with "GCrootsg Hroot") as "%H".
+  iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H.
+  iDestruct "GCrootspto" as "(GCrootsptol&(GCrootsptog&_))".
+  simpl.
+  iPoseProof ("HL" with "GCrootsptog") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
+  iExists _. iFrame "Hown". iSplit; first done. iIntros "Hown". iFrame "Hroot".
+  rewrite /GC /named. repeat iExists _.
+  iPoseProof ("HR" with "[Hown Hrp]") as "Hrootsm"; iClear "HR".
+  { iFrame. iExists w; by iFrame. }
+  iFrame. eauto.
+Qed.
+
+(* FIXME: We also need to assert that f is in frame. *)
+Lemma access_local_root θ (l:loc) (f:gname) (r:gset addr) dq v :
+  GC θ ∗ l ↦roots[f]{dq} v ∗ local_roots f r -∗
+  ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗ (l ↦C w -∗ GC θ ∗ l ↦roots[f]{dq} v ∗ local_roots f r).
+Proof using.
 Admitted.
 
 End UpdateLaws.
