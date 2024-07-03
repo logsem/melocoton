@@ -254,6 +254,7 @@ Lemma main_correct emain Ψ P (Φ : Z → Prop) :
   (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = OVal (LitV (LitInt x)) ∧ Φ x⌝ }}) →
   wrap_proto Ψ |- wrap_prog emain :: main_proto Φ P.
 Proof using.
+Admitted.
 (*   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamedProto "Hproto". *)
 (*   iSplit; first done. iIntros (Φ') "Hb Hcont". *)
 (*   iApply wp_wrap_call; first done. cbn [snd]. *)
@@ -287,8 +288,9 @@ Proof using.
 (*   rewrite /ML_state_interp /= /named. *)
 (*   rewrite /public_state_interp. *)
 (*   rewrite !fmap_empty !right_id_L !dom_empty_L. iFrame. *)
-(*   rewrite /named !dom_empty_L big_sepS_empty. iFrame. *)
-(*   iSplitL "GCζvirt GCχvirt". { iSplit; eauto. iApply (hgh_empty with "[$] [$]"). } *)
+(*   (* rewrite /named !dom_empty_L big_sepS_empty. iFrame. *) *)
+(*   iSplitL "GCζvirt GCχvirt GCrootsm". *)
+(*     { iExists []. iSplit. eauto. iApply (hgh_empty with "[$] [$]"). } *)
 (**)
 (*   iApply (weakestpre.wp_wand with "[-Cont Hcont]"). *)
 (*   { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done. *)
@@ -300,7 +302,6 @@ Proof using.
 (*     inversion H2; simplify_eq. *)
 (*     iApply "Hcont". iFrame. by iApply "Cont". } *)
 (* Qed. *)
-Admitted.
 
 Lemma wrap_correct emain Ψ (Φ : Z → Prop) P :
   Ψ on prim_names ⊑ ⊥ →

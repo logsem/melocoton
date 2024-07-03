@@ -21,7 +21,7 @@ Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
   wrapperG_γχvirt : gname;
   wrapperG_γχbij : gname;
   wrapperG_γroots_global_map : gname;
-  wrapperG_γroots_frame      : gname;
+  wrapperG_γroots_frame : gname;
 }.
 
 Definition wrapperBasicsΣ {SI: indexT} : gFunctors :=
