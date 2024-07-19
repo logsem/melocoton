@@ -50,7 +50,8 @@ Proof using.
   iSplit. { iPureIntro. econstructor; eauto. }
   iIntros (w' ρc' mem' (? & ?)); simplify_eq.
   iDestruct "GCrootsm" as "(GCrootsfm&GCrootsm)".
-  iDestruct "Hlr" as "(%fm'&(Hlr1&%Hlr2))".
+  iDestruct "Hlr" as "(%fm'&(Hlr1&Hllive&%Hlr2))".
+
   iPoseProof (ghost_map_auth_agree with "Hlr1 GCrootsfm") as "->".
   iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
 
@@ -72,7 +73,7 @@ Proof using.
   with "[GCrootsm GCrootsfm]" as "GCrootsm".
   { simpl. iSplitL "GCrootsfm"; done. }
 
-  iAssert (local_roots f ({[l]} ∪ r)) with "[Hlr1]" as "Hlr".
+  iAssert (local_roots f ({[l]} ∪ r)) with "[Hlr1 Hllive]" as "Hlr".
   { unfold local_roots. iExists (<[l:=v]> fm). iFrame. iPureIntro.
     rewrite dom_insert_L. by rewrite Hlr2. }
 
@@ -80,7 +81,7 @@ Proof using.
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame "Hres Hfc Hlr".
-  iExists _, _, _, _, (<[l:=v]> fm :: roots_fm), roots_gm, _. unfold named. iFrame.
+  iExists _, _, _, _, (<[l:=v]> fm :: roots_fm), roots_gm, _, _. unfold named. iFrame.
   iPureIntro; split_and!; eauto.
   - rewrite map_app. simpl. f_equal. by rewrite dom_insert_L.
   - apply Forall_app.

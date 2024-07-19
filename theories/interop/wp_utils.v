@@ -188,4 +188,11 @@ Admitted.
 
 End RootsRepr.
 
+Definition frame_fresh (fs : list gname) (f : gname) :=
+  f ∉ fs.
+
+Lemma frame_fresh_infinite (fs : list gname) : pred_infinite (frame_fresh fs).
+Proof.
+Admitted.
+
 End Utils.

@@ -66,18 +66,21 @@ Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots_s
 
 Definition GC_remnant (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) : iProp Σ :=
   ∃ (roots_fm : list roots_map) (roots_gm : roots_map)
-    (roots_f : list gname),
+    (roots_f : list gname) (roots_lm : gmap gname unit),
    "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
  ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
  ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) (∅:addr_map)
  ∗ "GCHGH" ∷ HGH χ None ζ
  ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) (map dom roots_m)
+ ∗ "GCrootslive" ∷ ghost_map_auth wrapperG_γroots_live_map 1 roots_lm
  ∗ "GCrootsf" ∷ ghost_var wrapperG_γroots_frame (1/2) roots_f
  ∗ "GCrootsg" ∷ ghost_map_auth wrapperG_γroots_global_map 1 roots_gm
  ∗ "GCrootsm" ∷ ([∗ list] f; r ∈ roots_f; roots_fm, ghost_map_auth f (1/2) r)
  ∗ "GCrootspto" ∷ ([∗ list] r ∈ roots_m, [∗ set] a ∈ (dom r), a O↦C None)
- ∗ "%GCrootsm" ∷ ⌜roots_m = roots_fm++[roots_gm]⌝.
+ ∗ "%GCrootsm" ∷ ⌜roots_m = roots_fm++[roots_gm]⌝
+ ∗ "%Hlocalrootslive" ∷ ⌜dom roots_lm = list_to_set roots_f⌝
+ ∗ "%Hlocalnodup" ∷ ⌜NoDup roots_f⌝.
 
 Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) (memC : memory) : iProp Σ :=
   ∃ (fc : list gname),

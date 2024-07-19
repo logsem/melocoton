@@ -50,29 +50,34 @@ Proof using.
   iDestruct "GCrootsm" as "(GCrootsfm&GCrootsm)".
   iDestruct "GCrootspto" as "(GCrootsfpto&GCrootspto)".
 
-  iDestruct "Hlr" as "(%fm'&(Hlr1&%Hlr2))".
+  unfold local_roots.
+  iDestruct "Hlr" as "(%fm'&(Hlr1&Hllive&%Hlr2))".
   iPoseProof (ghost_map_auth_agree with "Hlr1 GCrootsfm") as "->".
 
-  (* TODO: Transform points to roots into points to C *)
   iDestruct "GCrootsfpto" as "(GCrootsfmpto&GCrootsfpto)".
-  iAssert (∃ ws,
-     ([∗ list] w; l ∈ ws; (elements r), l ↦C w)
-   ∗ ([∗ list] w; v ∈ ws; (elements r), ⌜repr_lval (θC ρc) v w⌝))% I
-   with "[GCrootsfmpto]" as "(%ws&Hws)".
-   { iInduction (elements r) as [ | rhd rtl ] "HR".
-     - iExists []. admit.
-     - iPoseProof ("HR" with "GCrootsfmpto") as "(%ws&Hws)".
-       admit. }
+  iAssert ([∗ list] l ∈ (elements r), ∃ w, l ↦C w)%I with "[GCrootsfmpto]"
+    as "Hws".
+   { admit. }
+
+  iMod (ghost_map_delete with "GCrootslive Hllive") as "GCrootslive".
 
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame "Hfc Hws".
-  iExists _, _, _, _, roots_fm, roots_gm, fc.
+  iExists _, _, _, _, roots_fm, roots_gm, fc, (delete f roots_lm).
   unfold named. iFrame.
   iPureIntro. split_and!; eauto.
   - apply map_app.
   - simpl in Hrootslive. by apply Forall_inv_tail in Hrootslive.
+  - rewrite dom_delete_L. rewrite Hlocalrootslive.
+    rewrite NoDup_cons in Hlocalnodup.
+    destruct Hlocalnodup as [ ffresh  HLocalNoDup ].
+    rewrite list_to_set_cons. rewrite difference_union_distr_l_L.
+    rewrite difference_diag_L.
+    admit.
+  - rewrite NoDup_cons in Hlocalnodup.
+    by destruct Hlocalnodup as [ ffresh HLocalNoDup ].
 Admitted.
 
 End Laws.

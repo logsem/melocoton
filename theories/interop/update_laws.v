@@ -105,12 +105,12 @@ Proof using.
     inv_repr_lval. by eapply elem_of_dom_2.
 Qed.
 
-(* FIXME: We also need to assert that f is in frame. *)
 Lemma update_local_root θ (l:loc) (f:gname) (r:gset addr) v E :
   GC θ ∗ l ↦roots[f] v ∗ local_roots f r -∗
   ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
   (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots[f] v' ∗ local_roots f r).
 Proof using.
+  iIntros "(HGC & Hroot & Hlr)". iNamed "HGC". iNamed "Hlr".
 Admitted.
 
 Lemma access_root θ (l:loc) dq v :

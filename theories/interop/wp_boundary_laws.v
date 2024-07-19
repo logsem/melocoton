@@ -70,7 +70,8 @@ Proof using.
   iModIntro. iSplitR "SIbound"; last by iFrame "SIbound".
   rewrite /= /named. iFrame "Hσ".
   unfold private_state_interp, ML_state_interp, GC_remnant, named; cbn.
-  iExists fc. iFrame. iSplit. { iExists roots_fm, roots_gm, roots_f. iFrame. done. }
+  iExists fc. iFrame.
+  iSplit. { iExists roots_fm, roots_gm, roots_f, roots_lm. by iFrame. }
   iPureIntro.
   (* destruct Hpriv as (mem_r & Hpriv1 & Hpriv2 & Hpriv3). by apply map_disjoint_dom. *)
 (* Qed. *)
@@ -128,7 +129,7 @@ Proof using.
   unfold private_state_interp, ML_state_interp, GC_remnant, named; cbn.
   iFrame.
   iExists fc. iFrame "Hfc".
-  iSplit. { iExists roots_fm, roots_gm, roots_f. iFrame. done. }
+  iSplit. { iExists roots_fm, roots_gm, roots_f, roots_lm. by iFrame. }
   iPureIntro.
   (* destruct Hpriv as (mem_r & Hpriv1 & Hpriv2 & Hpriv3); by apply map_disjoint_dom. *)
 Admitted.
@@ -176,7 +177,7 @@ Proof using.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. }
   iSplitR "Hfc".
-  { rewrite /GC /named. iExists _, _, _, _, roots_fm, roots_gm, roots_f.
+  { rewrite /GC /named. iExists _, _, _, _, roots_fm, roots_gm, roots_f, roots_lm.
     rewrite GCrootsm. iFrame. rewrite <- GCrootsm.
     iPureIntro; split_and!; eauto. }
   iSplit; iExists _.
@@ -226,7 +227,7 @@ Proof using.
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. } iSplitR "Hfc".
-  { rewrite /GC /named. iExists _, _, _, _, roots_fm, roots_gm, roots_f.
+  { rewrite /GC /named. iExists _, _, _, _, roots_fm, roots_gm, roots_f, roots_lm.
     rewrite GCrootsm. iFrame. rewrite <- GCrootsm.
     iPureIntro; split_and!; eauto. }
   iSplit; iExists _.

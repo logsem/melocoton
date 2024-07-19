@@ -13,6 +13,7 @@ Class wrapperBasicsGpre `{SI: indexT} Σ := WrapperBasicsGpre {
   wrapperG_lloc_mapG :> ghost_mapG Σ lloc lloc_visibility;
   wrapperG_lloc_map_bijG :> gset_bijG Σ lloc loc;
   wrapperG_locsetG :> ghost_varG Σ (leibnizO (list gname));
+  wrapperG_frame_mapG :> ghost_mapG Σ gname unit;
 }.
 
 Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
@@ -21,11 +22,13 @@ Class wrapperBasicsG `{SI: indexT} Σ := WrapperBasicsG {
   wrapperG_γχvirt : gname;
   wrapperG_γχbij : gname;
   wrapperG_γroots_global_map : gname;
+  wrapperG_γroots_live_map : gname;
   wrapperG_γroots_frame : gname;
 }.
 
 Definition wrapperBasicsΣ {SI: indexT} : gFunctors :=
   #[ghost_mapΣ lloc block; ghost_mapΣ addr lval;
+    ghost_mapΣ gname unit;
     ghost_varΣ (leibnizO (list gname));
     ghost_varΣ (leibnizO gname);
     ghost_mapΣ lloc lloc_visibility; gset_bijΣ lloc loc].
@@ -471,7 +474,10 @@ Definition current_fc (fc : list gname) : iProp Σ :=
   ghost_var wrapperG_γroots_frame (1/2) fc.
 
 Definition local_roots (f : gname) (roots : gset addr) : iProp Σ :=
-  ∃ roots_m, ghost_map_auth f (1/2) roots_m ∗ ⌜dom roots_m = roots⌝.
+  ∃ (roots_m : roots_map),
+    ghost_map_auth f (1/2) roots_m
+  ∗ f ↪[wrapperG_γroots_live_map] ()
+  ∗ ⌜dom roots_m = roots⌝.
 
 (* Lifting of ~ℓ~ at the level of ML values *)
 

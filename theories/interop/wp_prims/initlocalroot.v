@@ -20,6 +20,7 @@ Context `{!wrapperG Σ}.
 Implicit Types P : iProp Σ.
 Import mlanguage.
 
+
 Lemma initlocalroot_correct e : |- wrap_prog e :: initlocalroot_proto.
 Proof using.
   iIntros (? ? ? ?) "H". unfold mprogwp. iNamedProto "H".
@@ -42,23 +43,28 @@ Proof using.
    |} mem).
   iSplit. { iPureIntro. econstructor; eauto. }
   iIntros (w' ρc' mem' (? & ?)); simplify_eq.
+
   (* Alloc local_roots f ∅ *)
-  iMod (ghost_map_alloc (∅:roots_map)) as "(%f&Hlr&_)".
+  iMod (ghost_map_alloc_strong (frame_fresh roots_f) (∅:roots_map) (frame_fresh_infinite roots_f))
+    as "(%f&%ffresh&Hlr&_)".
   iDestruct "Hlr" as "(Hlr&HGCrootsfm)".
-  iAssert (local_roots f (dom ∅)) with "[Hlr]" as "Hlr".
-  { iExists ∅. iSplit; done. }
+
+  iMod (ghost_map_insert f () with "GCrootslive") as "(GCrootslive&flive)".
+  { rewrite <- not_elem_of_dom. rewrite Hlocalrootslive.
+    by rewrite not_elem_of_list_to_set. }
+
+  iAssert (local_roots f (dom ∅)) with "[Hlr flive]" as "Hlr".
+  { unfold local_roots. iExists ∅. by iFrame. }
   replace (dom (∅:roots_map)) with (∅:gset addr); last by rewrite dom_empty_L.
 
   iAssert ([∗ list] f0;r ∈ (f::roots_f);(∅::roots_fm), ghost_map_auth f0 (1/2) r)%I
   with "[GCrootsm HGCrootsfm]" as "GCrootsm".
   { simpl. iFrame. }
 
-  (* TODO: Update rootspto *)
   iAssert ([∗ list] r ∈ (∅ :: roots_fm ++ [roots_gm]), [∗ map] a↦v ∈ r,
            ∃ w : word, a ↦C{DfracOwn 1} w ∗ ⌜repr_lval (θC ρc) v w⌝)%I
   with "[GCrootspto]" as "GCrootspto".
-  { simpl. iFrame. done. }
-
+  { by iFrame. }
 
   (* Update frame in GC *)
   iMod (ghost_var_update_halves roots_s with "SIroots GCroots") as "(SIroots&GCroots)".
@@ -72,12 +78,14 @@ Proof using.
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame.
-  iExists _, _, _, roots_s, (∅::roots_fm), roots_gm, _. iFrame. iPureIntro.
+  iExists _, _, _, roots_s, (∅::roots_fm), roots_gm, _, _. iFrame. iPureIntro.
   split_and!; eauto.
   - simpl. rewrite dom_empty_L. by rewrite H2.
   - apply Forall_app. apply Forall_app in Hrootslive.
     destruct Hrootslive as [Hrootslivef Hrootsliveg]. split; last done.
     econstructor; done.
+  - rewrite list_to_set_cons. rewrite dom_insert_L. congruence.
+  - by apply NoDup_cons_2.
 Qed.
 
 End Laws.

@@ -72,7 +72,7 @@ Proof using.
   iApply ("Cont" $! θC' γ with "[-]"); try done.
   iFrame. iSplit; last by eauto.
   rewrite /GC /named.
-  iExists _, _, σMLvirt, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
+  iExists _, _, σMLvirt, _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
 Admitted.
 
 End Laws.

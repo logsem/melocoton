@@ -173,30 +173,28 @@ Proof.
   iApply wp_outcome; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 
-Lemma wp_unregisterlocalroot p Ψ θ vs f fc r :
+Lemma wp_unregisterlocalroot p Ψ θ f fc r :
   p !! "unregisterlocalroot" = None →
   unregisterlocalroot_proto ⊑ Ψ →
   {{{
     GC θ
   ∗ current_fc (f :: fc)
   ∗ local_roots f r
-  ∗ ([∗ list] l; v ∈ (elements r); vs, l ↦roots[f] v)
  }}}
     (call: &"unregisterlocalroot" with ( ))%CE at ⟨p, Ψ⟩
-  {{{ ws, RETV # 0;
+  {{{ RETV # 0;
      GC θ
    ∗ current_fc fc
-   ∗ ([∗ list] w; l ∈ ws; (elements r), l ↦C w)
-   ∗ ([∗ list] w; v ∈ ws; vs, ⌜repr_lval θ v w⌝)
+   ∗ ([∗ list] l ∈ (elements r), ∃ w, l ↦C w)
   }}}.
 Proof.
-  iIntros (Hp Hproto Φ) "(HGC & Hfc & Hlocals & Hrepr) Cont".
+  iIntros (Hp Hproto Φ) "(HGC & Hfc & Hlocals) Cont".
   wp_pures. wp_extern; first done.
   iModIntro. cbn. iApply Hproto.
   rewrite /unregisterlocalroot_proto /named. iSplit; first done.
   repeat iExists _. iFrame.
   iSplit; first done.
-  iIntros "!>" (?) "[? ?]".
+  iIntros "!> [? ?]".
   iApply wp_outcome; eauto. iApply "Cont"; eauto. iFrame.
 Qed.
 

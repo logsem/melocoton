@@ -92,19 +92,17 @@ Definition registerlocalroot_proto : C_proto :=
   }}.
 
 Definition unregisterlocalroot_proto : C_proto :=
-  !! θ f fc r vs
+  !! θ f fc r
   {{
      "HGC"  ∷ GC θ
    ∗ "Hfc"  ∷ current_fc (f :: fc)
    ∗ "Hlr"  ∷ local_roots f r
-   ∗ "Hpto" ∷ ([∗ list] l; v ∈ (elements r); vs, l ↦roots[f] v)
   }}
     "unregisterlocalroot" with [ ]
-  {{ ws, RETV C_intf.LitV $ C_intf.LitInt $ 0;
+  {{ RETV C_intf.LitV $ C_intf.LitInt $ 0;
      GC θ
    ∗ current_fc fc
-   ∗ ([∗ list] w; l ∈ ws; (elements r), l ↦C w)
-   ∗ ([∗ list] w; v ∈ ws; vs, ⌜repr_lval θ v w⌝)
+   ∗ ([∗ list] l ∈ (elements r), ∃ w, l ↦C w)
   }}.
 
 Definition modify_proto : C_proto :=

@@ -85,6 +85,7 @@ Section AllocBasics.
       (λ _, lstore_own_auth ∅
           ∗ lloc_own_auth   ∅
           ∗ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval)
+          ∗ ghost_map_auth wrapperG_γroots_live_map  1 (∅:gmap gname unit)
           ∗ ghost_var wrapperG_γroots_frame (1/2) ([]: list gname)
           ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
   Proof.
@@ -96,15 +97,18 @@ Section AllocBasics.
     1: eapply (@alloc_fresh_res _ _ GSET_BIJ_CMRA) in Halloc as (γχbij&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γroots_map&Halloc).
     1: eapply alloc_fresh_res in Halloc as (γroots_frame&Halloc).
-    - pose (WrapperBasicsG _ Σ _ γζvirt γχvirt γχbij γroots_map γroots_frame) as HWrapperBasicsG.
+    1: eapply alloc_fresh_res in Halloc as (γroots_live_map&Halloc).
+    - pose (WrapperBasicsG _ Σ _ γζvirt γχvirt γχbij γroots_map γroots_frame γroots_live_map) as HWrapperBasicsG.
       exists HWrapperBasicsG. eapply alloc_mono; last exact Halloc.
-      iIntros "((((($&H1)&H2)&H3)&H4)&H5)". unfold lstore_own_auth, lloc_own_auth.
+      iIntros "(((((($&H1)&H2)&H3)&H4)&H5)&H6)".
+      unfold lstore_own_auth, lloc_own_auth.
       rewrite /named /ghost_map_auth !ghost_map.ghost_map_auth_aux.(seal_eq) /ghost_map.ghost_map_auth_def.
       rewrite /gset_bij_own_auth !gset_bij_own_auth_aux.(seal_eq) /gset_bij.gset_bij_own_auth_def.
       rewrite /ghost_var !ghost_var.ghost_var_aux.(seal_eq) /ghost_var.ghost_var_def; cbn.
       cbn in *. iFrame. iSplit; last done.
       unfold lstore_immut_blocks. rewrite map_filter_empty. by iApply big_sepM_empty.
     - cbv; done.
+    - eapply gmap_view.gmap_view_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.
     - by eapply gset_bij.gset_bij_auth_valid.
     - eapply gmap_view.gmap_view_auth_valid.
@@ -120,6 +124,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
   ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval)
   ∗ "GCrootsf" ∷ ghost_var wrapperG_γroots_frame (1/2) ([]:list gname)
+  ∗ "GCrootslive" ∷ ghost_map_auth wrapperG_γroots_live_map 1 (∅:gmap gname unit)
   ∗ "HInit" ∷ ghost_var wrapperG_γat_init 1 true.
 
   Lemma alloc_wrapperGCtokG :
@@ -140,8 +145,8 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
       exists HWrapperGCtokG. eapply alloc_mono; last exact Halloc.
       unfold GCtok_gammas; cbn.
       rewrite /ghost_var !ghost_var.ghost_var_aux.(seal_eq) /ghost_var.ghost_var_def; cbn.
-      iIntros "(((((($&($&($&(H1&(H2&->)))))&$)&$)&$)&$)&$)".
-      iFrame "H1". iFrame "H2".
+      iIntros "(((((($&($&($&(H1&(H2&(H3&->))))))&$)&$)&$)&$)&$)".
+      iFrame "H1 H2 H3".
       done.
     - cbv; done.
     - cbv; done.
