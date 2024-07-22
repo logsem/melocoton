@@ -83,8 +83,7 @@ Proof using.
   iNamed "HGC".
   iPoseProof (ghost_map_lookup with "GCrootsg Hroots") as "%H".
   iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H.
-  iDestruct "GCrootspto" as "(GCrootsptol&(GCrootsptog&_))".
-  simpl.
+  iDestruct "GCrootspto" as "(GCrootsptol&GCrootsptog&_)".
   iPoseProof ("HL" with "GCrootsptog") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
   iExists _. iFrame "Hown". iSplit; first done. iIntros (v' w') "(Hown' & %Hrepr')".
   iMod (ghost_map_update with "GCrootsg Hroots") as "(GCrootsg&Hroots)".
@@ -110,7 +109,59 @@ Lemma update_local_root θ (l:loc) (f:gname) (r:gset addr) v E :
   ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
   (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots[f] v' ∗ local_roots f r).
 Proof using.
-  iIntros "(HGC & Hroot & Hlr)". iNamed "HGC". iNamed "Hlr".
+  iIntros "(HGC & Hroot & Hlr)". iNamed "HGC".
+  iDestruct "Hlr" as "(%fm'&(Hlr1&Hlive&%Hlr2))".
+
+  iAssert (⌜f ∈ roots_f⌝)%I with "[Hlive GCrootslive]" as "%flive" .
+  { iPoseProof (ghost_map_lookup with "GCrootslive Hlive") as "%Hres".
+    apply elem_of_dom_2 in Hres. rewrite Hlocalrootslive in Hres.
+    by apply elem_of_list_to_set in Hres. }
+  destruct (elem_of_list_split_l _ _ flive) as (fm1&fm2&Hroots_f&hfm2).
+  rewrite Hroots_f.
+  iDestruct (big_sepL2_app_inv_l with "GCrootsm") as "(%rfm1&%rfm2&%Hroots_fm&GCrootsfm1&GCrootsfm2)".
+  rewrite Hroots_fm.
+  iDestruct (big_sepL2_cons_inv_l with "GCrootsfm2") as "(%rfm&%rfm2'&->&rfmauth&GCrootsfm2)".
+
+  iDestruct (ghost_map_auth_agree with "Hlr1 rfmauth") as "->".
+  iDestruct "GCrootspto" as "((GCrootsptorfm1&GCrootsptorfm&GCrootsptorfm2)&GCrootsptog&_)".
+
+  iPoseProof (ghost_map_lookup with "Hlr1 Hroot") as "%H".
+  iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H.
+  iPoseProof ("HL" with "GCrootsptorfm") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
+
+  iExists _. iFrame "Hown". iSplit; first done. iIntros (v' w') "(Hown' & %Hrepr')".
+  iCombine "Hlr1 rfmauth" as "GCrootsrfm".
+  iMod (ghost_map_update v' with "GCrootsrfm Hroot") as "(GCrootsrfm&Hroot)".
+  iDestruct "GCrootsrfm" as "(Hlr1&rfmauth)".
+
+  pose (rfm1++(<[l:=v']>rfm)::rfm2') as roots_fm'.
+
+  iAssert (local_roots f r) with "[Hlr1 Hlive]" as "Hlr".
+    { iExists (<[l:=v']> rfm). iFrame. admit. }
+
+  iAssert ([∗ list] y1;y2 ∈ roots_f;roots_fm', ghost_map_auth y1 (1 / 2) y2)%I
+    with "[GCrootsfm1 GCrootsfm2 rfmauth]" as "GCrootsfm".
+    { rewrite Hroots_f. iFrame. }
+
+  iAssert
+    ([∗ map] k↦y ∈ <[l:=v']>rfm, ∃ w0 : word, k ↦C{DfracOwn 1} w0 ∗ ⌜repr_lval θ y w0⌝)%I
+    with "[Hrp Hown']" as "GCrootsptorfm".
+    { admit. }
+
+  iAssert
+    ([∗ list] y ∈ roots_fm', [∗ map] a↦v0 ∈ y,
+    ∃ w0 : word, a ↦C{DfracOwn 1} w0 ∗ ⌜repr_lval θ v0 w0⌝)%I
+  with "[GCrootsptorfm1 GCrootsptorfm2 GCrootsptorfm]" as "GCrootspto".
+  { iFrame. }
+  rewrite <- Hroots_f.
+
+  iModIntro. iFrame "Hroot Hlr".
+  iExists _, _, _, _, _, roots_gm, roots_f, _; rewrite /named. iFrame. simpl.
+  iSplit; first done.
+  iPureIntro. split_and!; eauto.
+  - admit.
+  - apply Forall_app. apply Forall_app in Hrootslive.
+    destruct Hrootslive as [Hrootslivel Hrootsliveg]. split; last done.
 Admitted.
 
 Lemma access_root θ (l:loc) dq v :
@@ -130,11 +181,25 @@ Proof using.
   iFrame. eauto.
 Qed.
 
-(* FIXME: We also need to assert that f is in frame. *)
 Lemma access_local_root θ (l:loc) (f:gname) (r:gset addr) dq v :
   GC θ ∗ l ↦roots[f]{dq} v ∗ local_roots f r -∗
   ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗ (l ↦C w -∗ GC θ ∗ l ↦roots[f]{dq} v ∗ local_roots f r).
 Proof using.
+  iIntros "(HGC & Hroot & Hlr)". iNamed "HGC".
+  iDestruct "Hlr" as "(%fm'&(Hlr1&Hlive&%Hlr2))".
+  iPoseProof (ghost_map_lookup with "Hlr1 Hroot") as "%H".
+  iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H.
+
+  iAssert (⌜f ∈ roots_f⌝)%I with "[Hlive GCrootslive]" as "%fmlive" .
+  { iPoseProof (ghost_map_lookup with "GCrootslive Hlive") as "%Hres".
+    apply elem_of_dom_2 in Hres. rewrite Hlocalrootslive in Hres.
+    by apply elem_of_list_to_set in Hres. }
+  iDestruct "GCrootspto" as "(GCrootsptol&(GCrootsptog&_))".
+
+  (* big_sepL_elem_of *)
+  Search ([∗ list] _ ∈ _, _)%I.
+
+  (* Use GCrootspto *)
 Admitted.
 
 End UpdateLaws.
