@@ -140,15 +140,14 @@ Section FFI_spec.
     wp_apply (load_from_local_root with "[$HGC $Hℓ $Hlr]").
     iIntros (w4) "(Hℓ&HGC&Hlr&%Hγ4)". wp_pures.
 
-    wp_apply (wp_unregisterlocalroot with "[$HGC $Hfc $Hlr Hℓ]"); try eauto.
-    iIntros (w5) "(HGC&hℓ&%Hγ5)". wp_pures.
-    wp_free. wp_pures.
+    wp_apply (wp_unregisterlocalroot with "[$HGC $Hfc $Hlr]"); try eauto.
+    iIntros "(HGC&Hfc&Hlr)". wp_pures.
 
     iMod (freeze_to_immut γ' _ θ' with "[$]") as "(HGC&#Hγ')".
 
     iModIntro.
     iApply "HΦ".
-    iApply ("Return" $! θ' (OVal _) (OVal (Lloc γ')) with "[$HGC] [Cont] []").
+    iApply ("Return" $! θ' (OVal _) (OVal (Lloc γ')) with "[$HGC] [$Hfc] [Cont] []").
     - by iApply "Cont".
     - cbn. iExists γ'. iExists _, _. iSplit; try eauto.
     - iPureIntro. econstructor. eauto.

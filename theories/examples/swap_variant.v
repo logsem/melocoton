@@ -85,6 +85,13 @@ Proof.
   cbn. iDestruct "Hsim" as "(Hsim&_)".
   wp_call_direct.
 
+  wp_apply (wp_initlocalroot with "[$HGC $Hfc]"); eauto.
+  iIntros (f) "(HGC&Hfc&Hlr)". wp_pures.
+
+  (* Declare local variable *)
+  wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+  iIntros (ℓ) "(HGC&Hℓ&Hfc&Hlr)". wp_pures.
+
   wp_alloc rr as "H"; first done.
   change (Z.to_nat 1) with 1. cbn. iDestruct "H" as "(H&_)". rewrite loc_add_0.
   wp_pures.
