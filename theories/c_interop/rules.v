@@ -443,7 +443,7 @@ Lemma wp_CAMLlocal n e2 p Ψ Φ θ f fc r :
   registerlocalroot_proto ⊑ Ψ →
   (⊢ GC θ ∗ current_fc (f :: fc) ∗ local_roots f r  -∗
      (▷ ∀ (l:loc),
-     (GC θ
+     ( GC θ
      ∗ l ↦roots[f] Lint 0
      ∗ current_fc (f :: fc)
      ∗ local_roots f ({[l]} ∪ r))

@@ -16,30 +16,22 @@ From melocoton.mlanguage Require weakestpre.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.combined Require Import adequacy rules.
 
-
 Section C_prog.
-Import melocoton.c_lang.notation melocoton.c_lang.proofmode.
+Import melocoton.c_interop.notation melocoton.c_lang.proofmode.
 
 Context `{SI:indexT}.
 Context `{!ffiG Σ}.
 
-
 Definition swap_pair_code (x : expr) : expr :=
-  let: "lv" := malloc (#2) in
-  ("lv" +ₗ #0 <- (call: &"readfield" with (x, Val #0))) ;;
-  ("lv" +ₗ #1 <- (call: &"readfield" with (x, Val #1))) ;;
-  (call: &"registerroot" with ( Var "lv" +ₗ #0 )) ;;
-  (call: &"registerroot" with ( Var "lv" +ₗ #1 )) ;;
-  let: "np" := (call: &"alloc" with (Val #0, Val #2)) in
-  (call: &"modify" with (Var "np", Val #1, * ("lv" +ₗ #0))) ;;
-  (call: &"modify" with (Var "np", Val #0, * ("lv" +ₗ #1))) ;;
-  (call: &"unregisterroot" with ( Var "lv" +ₗ #0 )) ;;
-  (call: &"unregisterroot" with ( Var "lv" +ₗ #1 )) ;;
-  (free ("lv", #2)) ;;
-  "np".
-
-Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
-Definition swap_pair_prog : lang_prog C_lang := {[ "swap_pair" := swap_pair_func ]}.
+  caml_init_local( );;
+  CAMLlocal: "lv" in
+  CAMLlocal: "f0" in
+  CAMLlocal: "f1" in
+  "f0" <- Field( "x", #0 );;
+  "f1" <- Field( "x", #1 );;
+  "lv" <- caml_alloc (#2, #0);;
+  Store_field( *"lv", #0, *"f1" );;
+  Store_field( *"lv", #1, *"f0" );;
 
 Definition swap_pair_ml_spec : protocol ML_lang.val Σ :=
   !! v1 v2 {{ True }} "swap_pair" with [ (v1, v2)%MLV ] {{ RETV (v2, v1)%MLV; True }}.
@@ -57,77 +49,68 @@ Proof.
   cbn. iDestruct "Hsim" as "[Hsim _]".
   wp_call_direct.
 
-  wp_pures.
-  wp_alloc rr as "H"; first done.
-  change (Z.to_nat 2) with 2. cbn. iDestruct "H" as "(H1&H2&_)". destruct rr as [rr].
-  wp_pures.
+  wp_apply (wp_initlocalroot with "[$HGC $Hfc]"); eauto.
+  iIntros (f) "(HGC&Hfc&Hlr)". wp_pures.
+
+  wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+  iIntros (ℓ_lv) "(HGC&Hlv&Hfc&Hlr)". wp_pures.
+
+  wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+  iIntros (ℓ_f0) "(HGC&Hf0&Hfc&Hlr)". wp_pures.
+
+  wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+  iIntros (ℓ_f1) "(HGC&Hf1&Hfc&Hlr)". wp_pures.
+
+  iDestruct "Hsim" as (γ lv1 lv2 ->) "(#Hptpair & #Hlv1 & #Hlv2)".
 
   (* readfield 1 *)
-  iDestruct "Hsim" as (γ lv1 lv2 ->) "(#Hptpair & #Hlv1 & #Hlv2)".
   wp_apply (wp_readfield with "[$HGC $Hptpair]"); [done..|].
   iIntros (v wlv1) "(HGC & _ & %Heq & %Hrepr1)".
   change (Z.to_nat 0) with 0 in Heq. cbn in *. symmetry in Heq. simplify_eq.
-  wp_apply (wp_store with "H1"). iIntros "H1". wp_pures.
+  wp_apply (store_to_local_root with "[$HGC $Hf0 $Hlr]"); first eauto.
+  iIntros "(HGC&Hf0&Hlr)". wp_pures.
 
   (* readfield 2 *)
   wp_apply (wp_readfield with "[$HGC $Hptpair]"); [done..|].
   iIntros (v wlv2) "(HGC & _ & %Heq & %Hrepr2)".
   change (Z.to_nat 1) with 1 in Heq. cbn in *. symmetry in Heq. simplify_eq.
-  wp_apply (wp_store with "H2"). iIntros "H2". wp_pures.
+  wp_apply (store_to_local_root with "[$HGC $Hf1 $Hlr]"); first eauto.
+  iIntros "(HGC&Hf1&Hlr)". wp_pures.
 
-  (* registerroot 1 *)
-  wp_apply (wp_registerroot with "[$HGC $H1]"); [done..|].
-  iIntros "(HGC & H1r)". wp_pures.
-
-  (* registerroot 2 *)
-  wp_apply (wp_registerroot with "[$HGC $H2]"); [done..|].
-  iIntros "(HGC & H2r)". wp_pures.
-
-  (* alloc *)
+  (* allocate result *)
   wp_apply (wp_alloc TagDefault with "HGC"); [done..|].
-  iIntros (θ' γnew wnew) "(HGC & Hnew & %Hreprnew)".
+  iIntros (θ' γnew wnew) "(HGC&Hnew&%Hreprnew)".
   wp_pures. change (Z.to_nat 2) with 2. cbn [repeat].
+  wp_apply (store_to_local_root with "[$HGC $Hlr $Hlv]"); eauto.
+  iIntros "(HGC&Hlv&Hlr)". wp_pures.
 
-  (* load from root *)
-  wp_apply (load_from_root with "[HGC H1r]"); first iFrame.
-  iIntros (wlv1') "(Hr1&HGC&%Hrepr1')".
-
-  (* modify 1 *)
-  wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
-  iIntros "(HGC & Hnew)". change (Z.to_nat 1) with 1. cbn.
-  wp_pures.
-
-  (* load from root *)
-  wp_bind (Load _).
-  wp_apply (load_from_root with "[HGC H2r]"); first iFrame.
-  iIntros (wlv2') "(Hr2&HGC&%Hrepr2')".
-
-  (* modify 2 *)
+  (* storefield 1 *)
+  wp_apply (load_from_local_root with "[$HGC $Hlr $Hlv]").
+  iIntros (wlv1') "(Hlv&HGC&Hlr&%Hwl0)". wp_pures.
+  wp_apply (load_from_local_root with "[$HGC $Hlr $Hf1]").
+  iIntros (wf1) "(Hf1&HGC&Hlr&%Hf1)". wp_pures.
   wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
   iIntros "(HGC & Hnew)". change (Z.to_nat 0) with 0. cbn.
   wp_pures.
 
-  (* unregisterroot 1 *)
-  wp_apply (wp_unregisterroot with "[$HGC $Hr1]"); [done..|].
-  iIntros (wlv1'') "(HGC & H1 & %Hrepr1'1)".
-  repr_lval_inj. wp_pures.
-
-  (* unregisterroot 2 *)
-  wp_apply (wp_unregisterroot with "[$HGC $Hr2]"); [done..|].
-  iIntros (wlv2'') "(HGC & H2 & %Hrepr2'1)".
-  repr_lval_inj. wp_pures.
-
-  (* free *)
-  iAssert ((Loc rr) ↦C∗ [wlv1'; wlv2'])%I with "[H1 H2]" as "Hrr".
-  1: cbn; iFrame.
-  wp_apply (wp_free_array' with "Hrr"); first done. iIntros "_".
+  (* storefield 2 *)
+  wp_apply (load_from_local_root with "[$HGC $Hlr $Hlv]").
+  iIntros (wlv2') "(Hlv&HGC&Hlr&%Hwl1)". wp_pures.
+  wp_apply (load_from_local_root with "[$HGC $Hlr $Hf0]").
+  iIntros (wf0) "(Hf0&HGC&Hlr&%Hf0)". wp_pures.
+  wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
+  iIntros "(HGC & Hnew)". change (Z.to_nat 1) with 1. cbn.
   wp_pures.
 
   (* Finish, convert the new points-to to an immutable pointsto *)
+  wp_apply (load_from_local_root with "[$HGC $Hlr $Hlv]").
+  iIntros (wres) "(Hres&HGC&Hlr&%Hreprres)". wp_pures.
+  wp_apply (wp_unregisterlocalroot with "[$HGC $Hfc $Hlr]"); try eauto.
+  iIntros "(HGC&Hfc&Hlr)". wp_pures.
   iMod (freeze_to_immut γnew _ θ' with "[$]") as "(HGC&#Hnew)".
 
   iModIntro. iApply "HΦ".
-  iApply ("Return" $! θ' _ (OVal (Lloc γnew)) with "HGC [Cont] [] []").
+  iApply ("Return" $! θ' _ (OVal (Lloc γnew)) with "HGC Hfc [Cont] [] []").
   - by iApply "Cont".
   - cbn. do 3 iExists _. iFrame "Hnew Hlv1 Hlv2". done.
   - done.
@@ -148,7 +131,7 @@ Import melocoton.ml_lang.proofmode.
   Context `{!logrelG Σ}.
   Context (A B : type).
 
-  Definition program_type_ctx : program_env := 
+  Definition program_type_ctx : program_env :=
     {[ "swap_pair" := FunType [ TProd A B ] (TProd B A) ]}.
 
   Lemma swap_pair_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, swap_pair_ml_spec⟩ Δ.
@@ -195,7 +178,3 @@ Proof.
     { set_solver. } }
   { by intros [? ?] (? & ? & ->). }
 Qed.
-(*
-Check @swap_pair_adequate.
-Print Assumptions swap_pair_adequate.
-*)
