@@ -32,6 +32,10 @@ Definition swap_pair_code (x : expr) : expr :=
   "lv" <- caml_alloc (#2, #0);;
   Store_field( *"lv", #0, *"f1" );;
   Store_field( *"lv", #1, *"f0" );;
+  CAMLreturn ( *"lv" ).
+
+Definition swap_pair_func : function := Fun [BNamed "x"] (swap_pair_code "x").
+Definition swap_pair_prog : lang_prog C_lang := {[ "swap_pair" := swap_pair_func ]}.
 
 Definition swap_pair_ml_spec : protocol ML_lang.val Σ :=
   !! v1 v2 {{ True }} "swap_pair" with [ (v1, v2)%MLV ] {{ RETV (v2, v1)%MLV; True }}.
