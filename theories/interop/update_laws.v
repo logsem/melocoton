@@ -137,32 +137,36 @@ Proof using.
   pose (rfm1++(<[l:=v']>rfm)::rfm2') as roots_fm'.
 
   iAssert (local_roots f r) with "[Hlr1 Hlive]" as "Hlr".
-    { iExists (<[l:=v']> rfm). iFrame. admit. }
+    { iExists (<[l:=v']> rfm). iFrame. iPureIntro. rewrite dom_insert_lookup_L; done. }
 
-  iAssert ([∗ list] y1;y2 ∈ roots_f;roots_fm', ghost_map_auth y1 (1 / 2) y2)%I
+  iAssert ([∗ list] y1;y2 ∈ roots_f;roots_fm', ghost_map_auth y1 (1/2) y2)%I
     with "[GCrootsfm1 GCrootsfm2 rfmauth]" as "GCrootsfm".
     { rewrite Hroots_f. iFrame. }
-
-  iAssert
-    ([∗ map] k↦y ∈ <[l:=v']>rfm, ∃ w0 : word, k ↦C{DfracOwn 1} w0 ∗ ⌜repr_lval θ y w0⌝)%I
-    with "[Hrp Hown']" as "GCrootsptorfm".
-    { admit. }
-
-  iAssert
-    ([∗ list] y ∈ roots_fm', [∗ map] a↦v0 ∈ y,
-    ∃ w0 : word, a ↦C{DfracOwn 1} w0 ∗ ⌜repr_lval θ v0 w0⌝)%I
-  with "[GCrootsptorfm1 GCrootsptorfm2 GCrootsptorfm]" as "GCrootspto".
-  { iFrame. }
+  iPoseProof (big_sepM_insert_delete with "[$Hrp Hown']") as "GCrootsptorfm"; first eauto.
   rewrite <- Hroots_f.
 
   iModIntro. iFrame "Hroot Hlr".
-  iExists _, _, _, _, _, roots_gm, roots_f, _; rewrite /named. iFrame. simpl.
+  iExists _, _, _, _, roots_fm', roots_gm, roots_f, _; rewrite /named. iFrame. simpl.
   iSplit; first done.
   iPureIntro. split_and!; eauto.
-  - admit.
+  - rewrite <- Hrootsdom. rewrite Hroots_fm.
+    rewrite 4!map_app. f_equal. f_equal. rewrite 2!map_cons. f_equal.
+    by apply dom_insert_lookup_L.
   - apply Forall_app. apply Forall_app in Hrootslive.
     destruct Hrootslive as [Hrootslivel Hrootsliveg]. split; last done.
-Admitted.
+    unfold roots_fm'.
+    rewrite Hroots_fm in Hrootslivel.
+    rewrite Forall_app in Hrootslivel.
+    destruct Hrootslivel as [Hrootsliverfm1 Hrootsliverfm2].
+    rewrite Forall_cons in Hrootsliverfm2.
+    destruct Hrootsliverfm2 as [Hrootsliverfm Hrootsliverfm2'].
+    apply Forall_app. split; first done.
+    apply Forall_cons; split; last done.
+    unfold roots_are_live'.
+    intros l' γ [[-> ->]|[Hne HH]]%lookup_insert_Some.
+    2: by eapply Hrootsliverfm.
+    inv_repr_lval. by eapply elem_of_dom_2.
+Qed.
 
 Lemma access_root θ (l:loc) dq v :
   GC θ ∗ l ↦roots{dq} v -∗
@@ -187,19 +191,40 @@ Lemma access_local_root θ (l:loc) (f:gname) (r:gset addr) dq v :
 Proof using.
   iIntros "(HGC & Hroot & Hlr)". iNamed "HGC".
   iDestruct "Hlr" as "(%fm'&(Hlr1&Hlive&%Hlr2))".
-  iPoseProof (ghost_map_lookup with "Hlr1 Hroot") as "%H".
-  iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H.
 
-  iAssert (⌜f ∈ roots_f⌝)%I with "[Hlive GCrootslive]" as "%fmlive" .
+  iAssert (⌜f ∈ roots_f⌝)%I with "[Hlive GCrootslive]" as "%flive" .
   { iPoseProof (ghost_map_lookup with "GCrootslive Hlive") as "%Hres".
     apply elem_of_dom_2 in Hres. rewrite Hlocalrootslive in Hres.
     by apply elem_of_list_to_set in Hres. }
-  iDestruct "GCrootspto" as "(GCrootsptol&(GCrootsptog&_))".
+  destruct (elem_of_list_split_l _ _ flive) as (fm1&fm2&Hroots_f&hfm2).
+  rewrite Hroots_f.
+  iDestruct (big_sepL2_app_inv_l with "GCrootsm") as "(%rfm1&%rfm2&%Hroots_fm&GCrootsfm1&GCrootsfm2)".
+  rewrite Hroots_fm.
+  iDestruct (big_sepL2_cons_inv_l with "GCrootsfm2") as "(%rfm&%rfm2'&->&rfmauth&GCrootsfm2)".
 
-  (* big_sepL_elem_of *)
-  Search ([∗ list] _ ∈ _, _)%I.
+  iDestruct (ghost_map_auth_agree with "Hlr1 rfmauth") as "->".
+  iDestruct "GCrootspto" as "((GCrootsptorfm1&GCrootsptorfm&GCrootsptorfm2)&GCrootsptog&_)".
 
-  (* Use GCrootspto *)
-Admitted.
+  iPoseProof (ghost_map_lookup with "Hlr1 Hroot") as "%H".
+  iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H.
+  iPoseProof ("HL" with "GCrootsptorfm") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
+
+  iExists _. iFrame "Hown". iSplit; first done. iIntros "Hown".
+
+  iAssert (local_roots f r) with "[Hlr1 Hlive]" as "Hlr".
+    { iExists rfm. by iFrame. }
+
+  iAssert ([∗ list] y1;y2 ∈ roots_f;roots_fm, ghost_map_auth y1 (1/2) y2)%I
+    with "[GCrootsfm1 GCrootsfm2 rfmauth]" as "GCrootsfm".
+    { rewrite Hroots_f. rewrite Hroots_fm. iFrame. }
+  iPoseProof (big_sepM_insert_delete with "[$Hrp Hown]") as "GCrootsptorfm"; first eauto.
+  rewrite (insert_id rfm l v H) .
+  rewrite <- Hroots_f.
+
+  iFrame "Hroot Hlr".
+  iExists _, _, _, _, roots_fm, roots_gm, roots_f, _; rewrite /named Hroots_fm.
+  iFrame. simpl. rewrite <- Hroots_fm.
+  iPureIntro. split_and!; eauto.
+Qed.
 
 End UpdateLaws.
