@@ -48,8 +48,12 @@ Section FFI_spec.
     wp_call_direct.
 
     (* Declare result variable *)
-    wp_apply (wp_initlocalroot with "HGC"); eauto. iIntros (ℓ) "(HGC&Hℓ)". wp_pures.
-    wp_apply (wp_CAMLlocal with "HGC"); eauto. iIntros (ℓ) "(HGC&Hℓ)". wp_pures.
+    wp_apply (wp_initlocalroot with "[$HGC $Hfc]"); eauto.
+    iIntros (f) "(HGC&Hfc&Hlr)". wp_pures.
+
+    wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+    iIntros (ℓ) "(HGC&Hℓ&Hfc&Hlr)". wp_pures.
+    wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (w) "(HGC&%Hw)".
 Abort.
 
 End FFI_spec.

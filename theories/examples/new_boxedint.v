@@ -65,7 +65,7 @@ Section FFI_spec.
 
     iModIntro.
     iApply "HΦ".
-    iApply ("Return" $! _ _ (OVal (Lloc γ)) with "[$HGC] [Cont] []").
+    iApply ("Return" $! _ _ (OVal (Lloc γ)) with "HGC Hfc [Cont] []").
     - by iApply "Cont".
     - cbn. iExists γ. iSplit; try eauto.
     - eauto.

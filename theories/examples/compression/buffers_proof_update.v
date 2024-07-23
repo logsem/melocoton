@@ -34,19 +34,24 @@ Section Proofs.
     eapply Forall2_cons in Hrepr as (HreprF&Hrepr).
     eapply Forall2_cons in Hrepr as (Hreprbuf&_).
     cbn. wp_call_direct.
-    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
-    iIntros (ℓF) "(HGC&HℓF)"; wp_pures.
-    wp_apply (store_to_root with "[$HGC $HℓF]"); [done..|].
-    iIntros "(HGC&HℓF)". wp_pures.
-    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
-    iIntros (ℓbf) "(HGC&Hℓbf)"; wp_pures.
-    wp_apply (store_to_root with "[$HGC $Hℓbf]"); [done..|].
-    iIntros "(HGC&Hℓbf)". wp_pure _.
+    wp_apply (wp_initlocalroot with "[$HGC $Hfc]"); eauto.
+    iIntros (f) "(HGC&Hfc&Hlr)". wp_pures.
+
+    wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+    iIntros (ℓF) "(HGC&HℓF&Hfc&Hlr)". wp_pures.
+    wp_apply (store_to_local_root with "[$HGC $HℓF $Hlr]"); [done..|].
+    iIntros "(HGC&HℓF&Hlr)". wp_pures.
+
+    wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
+    iIntros (ℓbf) "(HGC&Hℓbf&Hfc&Hlr)". wp_pures.
+    wp_apply (store_to_local_root with "[$HGC $Hℓbf $Hlr]"); [done..|].
+    iIntros "(HGC&Hℓbf&Hlr)". wp_pures.
+
     iMod (bufToC with "HGC Hrecord Hsim") as "(HGC&Hrecord&%&%&->)".
     iNamed "Hrecord". iNamed "Hbuf".
 
-    wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
-    iIntros (wγ1) "(Hℓbf&HGC&%Hwγ1)".
+    wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf]"); [done..|].
+    iIntros (wγ1) "(Hℓbf&HGC&Hlr&%Hwγ1)".
     wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
     iIntros (? wγaux1) "(HGC&_&%Heq&%Hγaux'1)"; cbv in Heq; simplify_eq.
     wp_apply (wp_readfield with "[$HGC $Hγaux]"); [done..|].
@@ -79,8 +84,12 @@ Section Proofs.
     generalize (length vcontent) as vcontent_length. intros vcontent_length Hb3.
     clear vcontent.
 
-    wp_apply (wp_wand _ _ _ (λ _, ∃ θ, ℓF ↦roots Lloc γF ∗ ℓbf ↦roots Lloc γ0 ∗ GC θ ∗ Ψ (j + 1)%Z ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
-              with "[HℓF Hℓbf Hℓi HGC HΨ]").
+    wp_apply (wp_wand _ _ _
+      (λ _, ∃ θ, ℓF ↦roots[f] Lloc γF
+               ∗ ℓbf ↦roots[f] Lloc γ0
+               ∗ GC θ ∗ current_fc (f::fc) ∗ Ψ (j + 1)%Z
+               ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
+              with "[HℓF Hℓbf Hℓi HGC Hfc Hlr HΨ]").
     { iRevert "HMerge HWP Hb1 Hb2". iLöb as "IH" forall (i θ).
       iIntros "#HMerge #HWP %Hb1 %Hb2".
       wp_pure _.
@@ -89,17 +98,17 @@ Section Proofs.
       rewrite bool_decide_decide. destruct decide; last first.
       { wp_pures. iModIntro.
         assert (i=j+1)%Z as -> by lia. iExists _. iFrame. }
-      wp_pure _.
+      wp_pures.
 
       wp_apply (wp_load with "Hℓi").
       iIntros "Hℓi". wp_pures.
-      wp_apply (load_from_root with "[$HGC $HℓF]").
-      iIntros (wγF) "(HℓF&HGC&%HwγF)".
+      wp_apply (load_from_local_root with "[$HGC $HℓF $Hlr]").
+      iIntros (wγF) "(HℓF&HGC&Hlr&%HwγF)".
       cbn; wp_apply (wp_load with "Hℓi").
       iIntros "Hℓi".
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (wi) "(HGC&%Hwi)".
-      wp_apply (wp_callback _ _ _ _ _ _ _ _ _ _ _ (#ML i) with "[$HGC $HγF HΨ]"); [done..| |].
+      wp_apply (wp_callback _ _ _ _ _ _ _ _ _ _ _ _ (#ML i) with "[$HGC $HγF $Hfc HΨ]"); [done..| |].
       { cbn. iSplit; first done.
         iNext. by iApply ("HWP" with "[] [] HΨ"). } cbn.
       cbn.

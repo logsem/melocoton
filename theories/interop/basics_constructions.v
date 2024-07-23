@@ -550,7 +550,6 @@ Proof.
     eexists. econstructor; done.
 Qed.
 
-(* FIXME *)
 Lemma find_repr_roots θ roots privmem :
    roots_are_live θ roots
  → Forall (λ roots, dom privmem ## dom roots) roots

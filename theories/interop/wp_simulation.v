@@ -244,7 +244,7 @@ Proof using.
   do 3 iModIntro. iFrame "Hst".
   iApply (weakestpre.wp_wand with "[-Cont Hcont Hclos]").
   { by iApply (wp_simulates with "Hnb [WPcallback]"). }
-  cbn. iIntros (o) "(%θ' & %fc' & %lv & %vret & HGC &HFC & % & Hsim & Hψ & ?)".
+  cbn. iIntros (o) "(%θ' & %fc' & %lv & %vret & HGC & Hfc & % & Hsim & Hψ & ?)".
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame; eauto.
 Qed.

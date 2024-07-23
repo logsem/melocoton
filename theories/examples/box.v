@@ -146,10 +146,10 @@ Section Proofs.
     { iNext. iRight. iFrame. }
     iMod (freeze_foreign_to_immut γ θ1 _ with "[$]") as "(HGC&#Hγfgn)".
     iModIntro. iApply "Cont2".
-    iApply ("Return" $! θ1 (OVal #(LitForeign γ)) (OVal (Lloc γ)) with "HGC [-] [] []").
+    iApply ("Return" $! θ1 (OVal #(LitForeign γ)) (OVal (Lloc γ)) with "HGC Hfc [-] [] []").
     2,3: done.
     iApply "Cont". iFrame "Hna". iExists γ, ℓ.
-    iSplit; first done. 
+    iSplit; first done.
     iSplitL; first done.
     iFrame "Hinv1 Hinv2".
   Qed.
@@ -191,10 +191,10 @@ Section Proofs.
         iExists _, _, _; iSplit; first done. iApply "Hcall". }
       iMod ("Hclose1" with "[$Hna Hℓ1]") as "Hna".
       { iNext. iExists _, _. iFrame "Hℓ1 Hvn Hsimvn". }
-      wp_apply (wp_callback with "[$HGC $Hlv2 Hna]"); [done..| |].
+      wp_apply (wp_callback with "[$HGC $Hfc $Hlv2 Hna]"); [done..| |].
       { iSplit; first iApply "Hlv1".
         iNext. iApply ("Hcall" with "Hv1 Hna"). }
-      iIntros (θ' vret lvret wret) "(HGC & ((%v&->&->)&Hna) & (H & %Hrepr))".
+      iIntros (θ' fc' vret lvret wret) "(HGC & Hfc & ((%v&->&->)&Hna) & (H & %Hrepr))".
       destruct lvret. cbn. inversion Hrepr.
       wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
@@ -374,7 +374,7 @@ Section Proofs.
     let: <> := Snd "box_abs" (λ: "v", Snd (Fst "box_abs") (#1) "mbox") "mbox" in
     #42.
 
-  Lemma box_client_1_typed : 
+  Lemma box_client_1_typed :
     typed ∅ ∅ box_client_1 (TArrow ML_type TNat).
   Proof.
     econstructor; cbn in *.
@@ -398,7 +398,7 @@ Section Proofs.
 End Proofs.
 
 
-Lemma box_client_1_adequacy : 
+Lemma box_client_1_adequacy :
 umrel.trace (mlanguage.prim_step (combined_prog box_client box_prog))
   (LkCall "main" [], adequacy.σ_init)
   (λ '(e, σ), ∃ x, mlanguage.to_outcome e = Some (OVal (code_int x)) ∧ True).

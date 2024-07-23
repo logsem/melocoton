@@ -150,7 +150,7 @@ Section Proofs.
     { iNext. iRight. iFrame "Ha". }
     iMod (freeze_foreign_to_immut γ θ1 _ with "[$]") as "(HGC&#Hγfgn')".
     iModIntro. iApply "Cont2".
-    iApply ("Return" $! θ1 (OVal #(LitForeign γ)) (OVal (Lloc γ)) with "HGC [-] [] []").
+    iApply ("Return" $! θ1 (OVal #(LitForeign γ)) (OVal (Lloc γ)) with "HGC Hfc [-] [] []").
     2,3: done.
     iApply "Cont". iFrame "Hna". iExists γ, a.
     iSplit; first done. iSplitL.
@@ -188,7 +188,7 @@ Section Proofs.
       { iNext. iLeft. iExists _, (RecV b1 b2 e). iFrame "Ha". iSplit.
         + iExists _; by iSplit.
         + iExists _, _, _; by repeat iSplit. }
-      wp_apply (wp_callback with "[$HGC $Hclos $Hsimvn Hinterp Hna]"); [try done..|].
+      wp_apply (wp_callback with "[$HGC $Hfc $Hclos $Hsimvn Hinterp Hna]"); [try done..|].
       { iNext. by iApply "Hinterp". }
       iIntros (θ' vret lvret wret) "(HGC & ((%v&->&Hi)&Hna) & Hsimret & %)".
       destruct lvret. cbn. inversion H2.
@@ -203,7 +203,7 @@ Section Proofs.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (?) "[HGC %HH]". inversion HH; simplify_eq.
       iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna] [] []").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc [Cont Hna] [] []").
       1: by iApply "Cont". 1,2: by iPureIntro.
   Qed.
 

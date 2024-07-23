@@ -88,11 +88,11 @@ Section C_specs.
     all: cbn; iDestruct "Hsim" as "(Hy&?)"; try done.
     destruct ws as [|wx [|wy [|??]]]; decompose_Forall.
     iDestruct "Hx" as "-#Hx". iDestruct "Hy" as "-#Hy".
-    iAssert (▷ ∀ wret, GC θ -∗ na_tok -∗
+    iAssert (▷ ∀ wret, GC θ -∗ current_fc fc -∗ na_tok -∗
        ⌜repr_lval θ (Lint (bool_to_Z (bool_decide (x = y)))) wret⌝ -∗
        Φ'' (OVal wret))%I with "[Return Cont HΦ]" as "Return". {
-      iIntros "!>" (?) "??". iIntros (?).
-      iApply "HΦ". iApply ("Return" with "[$] [-] [] [//]").
+      iIntros "!>" (?) "???". iIntros (?).
+      iApply "HΦ". iApply ("Return" with "[$] [$] [-] [] [//]").
       { by iApply "Cont". } done.
     }
     iLöb as "IH" forall (τ x lvx wx y lvy wy Φ'' Hτ H1 H2).
@@ -111,7 +111,7 @@ Section C_specs.
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w) "[HGC %]".
-      by iApply ("Return" with "HGC Htok").
+      by iApply ("Return" with "HGC Hfc Htok").
     - (* TNat *)
       iDestruct "Hτx" as %[? ->].
       iDestruct "Hτy" as %[? ->].
@@ -124,7 +124,7 @@ Section C_specs.
       cbn; wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
       iPureIntro. repeat case_bool_decide; naive_solver.
     - (* TBool *)
       iDestruct "Hτx" as %[? ->].
@@ -138,7 +138,7 @@ Section C_specs.
       cbn; wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". wp_pures => /=.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
       iPureIntro. repeat case_match; naive_solver.
     - (* TProd *)
       destruct Hτ as [??].
@@ -181,8 +181,8 @@ Section C_specs.
       wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
       iIntros (??) "(HGC&_&%&%)". simplify_eq.
       wp_bind (FunCall _ _).
-      iApply ("IH" with "[] [] [] HGC Hτx1 Hτy1 Htok"); [done..|].
-      iIntros "!>" (?) "HGC Htok". iIntros (?). wp_pures.
+      iApply ("IH" with "[] [] [] HGC Hfc Hτx1 Hτy1 Htok"); [done..|].
+      iIntros "!>" (?) "HGC Hfc Htok". iIntros (?). wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". case_bool_decide. 2: {
         wp_pures.
@@ -197,7 +197,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
         iPureIntro. repeat case_bool_decide; naive_solver.
       }
       wp_pures.
@@ -217,8 +217,8 @@ Section C_specs.
       wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
       iIntros (??) "(HGC&_&%&%)". simplify_eq.
       wp_bind (FunCall _ _).
-      iApply ("IH" with "[] [] [] HGC Hτx2 Hτy2 Htok"); [done..|].
-      iIntros "!>" (?) "HGC Htok". iIntros (?). wp_pures.
+      iApply ("IH" with "[] [] [] HGC Hfc Hτx2 Hτy2 Htok"); [done..|].
+      iIntros "!>" (?) "HGC Hfc Htok". iIntros (?). wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". case_bool_decide. 2: {
         wp_pures.
@@ -233,7 +233,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
         iPureIntro. repeat case_bool_decide; naive_solver.
       }
       wp_pures.
@@ -249,7 +249,7 @@ Section C_specs.
       wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
       wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
-      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+      iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
       iPureIntro. repeat case_bool_decide; naive_solver.
     - (* TSum *)
       destruct Hτ as [??].
@@ -277,7 +277,7 @@ Section C_specs.
       destruct_decide (bool_decide_reflect (vblock_tag_as_int tgx = vblock_tag_as_int tgy)). 2: {
         wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
         iPureIntro. repeat case_match; case_bool_decide; naive_solver.
       }
       wp_pures.
@@ -316,8 +316,8 @@ Section C_specs.
       wp_apply (wp_readfield with "[$HGC ]"); [try done..|] => //=.
       iIntros (??) "(HGC&_&%&%)". simplify_eq.
       wp_bind (FunCall _ _).
-      iApply ("IH" with "[] [] [] HGC Hτx' Hτy' Htok"); [try done..|].
-      iIntros "!>" (?) "HGC Htok". iIntros (?). wp_pures.
+      iApply ("IH" with "[] [] [] HGC Hfc Hτx' Hτy' Htok"); [try done..|].
+      iIntros "!>" (?) "HGC Hfc Htok". iIntros (?). wp_pures.
       wp_apply (wp_val2int with "HGC"); [done..|].
       iIntros "HGC". case_bool_decide.
       + wp_pures.
@@ -332,7 +332,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
         iPureIntro. repeat case_match; case_bool_decide; naive_solver.
       + wp_pures.
         wp_apply (wp_store with "Hℓr").
@@ -346,7 +346,7 @@ Section C_specs.
         wp_apply (wp_free with "Hℓi"). iIntros "_". wp_pures.
         wp_apply (wp_free with "Hℓr"). iIntros "_". wp_pures.
         wp_apply (wp_int2val with "HGC"); [done..|].
-        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Htok").
+        iIntros (w) "[HGC %]". iApply ("Return" with "HGC Hfc Htok").
         iPureIntro. repeat case_match; case_bool_decide; naive_solver.
   Qed.
 

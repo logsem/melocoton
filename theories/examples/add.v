@@ -60,7 +60,7 @@ Proof.
   iIntros (w) "(HGC&%Hr)".
 
   iApply "HΦ".
-  iApply ("Return" $! _ _ (OVal (Lint (x + 1))) with "HGC [Cont] []"); eauto.
+  iApply ("Return" $! _ _ (OVal (Lint (x + 1))) with "HGC Hfc [Cont] []"); eauto.
   - by iApply "Cont".
   - cbn. done.
 Qed.
@@ -77,7 +77,7 @@ Import melocoton.ml_lang.proofmode.
   Context `{!logrelG Σ}.
   Context (A B : type).
 
-  Definition program_type_ctx : program_env := 
+  Definition program_type_ctx : program_env :=
     {[ "add_one" := FunType [ TNat ] TNat ]}.
 
   Lemma add_one_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, add_one_ml_spec⟩ Δ.

@@ -47,7 +47,7 @@ Section Proofs.
     wp_apply (wp_int2val with "HGC"); [mdone..|].
     iIntros (w) "(HGC&%Hrepr)".
     iApply "HΦ".
-    iApply ("Return" $! _ _ (OVal (Lint (n + (n + 0))%nat)) with "HGC HCont [//] [//]").
+    iApply ("Return"_ _ _ $!(OVal (Lint (n + (n + 0))%nat)) with "HGC Hfc HCont [//] [//]").
   Qed.
 
   Lemma wrap_compress_correct Ψ :
@@ -130,7 +130,7 @@ Section Proofs.
       wp_apply (wp_free with "Hℓcap2"). iIntros "_".
       do 2 wp_pure _.
       rewrite bool_decide_decide; destruct decide; try done.
-      wp_pure _. iApply (wp_post_mono _ _ _ 
+      wp_pure _. iApply (wp_post_mono _ _ _
         (λ o, ∃ w, ⌜o = OVal w⌝ ∗ GC θ ∗ ⌜repr_lval θ (Lint 1) w⌝)%I with "[HGC]").
       1: wp_apply (wp_int2val with "HGC"); [mdone..|iIntros (w) "H"; iExists w; iFrame; try done].
       iIntros (o) "(%w&->&HGC&%Hreprw1)".
