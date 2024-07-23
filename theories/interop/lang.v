@@ -440,72 +440,71 @@ Lemma c_prim_step_no_NB prm ws ρc mem Y :
   c_prim_step prm ws ρc mem Y →
   ∃ ws' ρc' mem', Y ws' ρc' mem'.
 Proof.
-(*   (* TODO: refactor *) *)
-(*   inversion 1; simplify_eq; eauto;[|]. *)
-(*   { (* alloc case *) *)
-(*     destruct H3 as [pubmem Hrepr2]. *)
-(*     destruct H4 as [? HGCOK]. *)
-(*     rename H5 into Hrootslive. *)
-(*     pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk. *)
-(*     pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod. *)
-(*     pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src. *)
-(*     pose (fresh fresh_src) as γ. *)
-(*     pose (fresh fresh_not_θ_cod) as w. *)
-(*     pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union. *)
-(*     specialize (H6 γ *)
-(*                   (<[ γ := LlocPrivate ]> (χC ρc)) *)
-(*                  (<[ γ := Bvblock (Mut, blk) ]> (ζC ρc)) *)
-(*                  (<[ γ := w ]> (θC ρc)) *)
-(*                  w mem). *)
-(*     do 3 eexists. eapply H6; eauto. *)
-(*     - by eapply not_elem_of_dom. *)
-(*     - split. *)
-(*       + eapply gmap_inj_extend; try done. *)
-(*         intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod). *)
-(*         eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin. *)
-(*       + intros γ1 blk1 γ' HH1 [(->&HH)|(HA&HB)]%lookup_insert_Some HH3. *)
-(*         1: subst blk1; by apply lval_in_vblock, elem_of_list_In, repeat_spec in HH3. *)
-(*         rewrite dom_insert_L in HH1. *)
-(*         apply elem_of_union in HH1 as [->%elem_of_singleton|HH1]; first done. *)
-(*         rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done. *)
-(*     - eapply repr_mono; last by eexists. *)
-(*       eapply insert_subseteq, not_elem_of_dom, HFθ. *)
-(*     - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r. *)
-(*       by eapply Hrootslive. *)
-(*     - apply lookup_insert. } *)
-(*   { (* alloc_foreign *) *)
-(*     destruct H1 as [pubmem Hrepr2]. *)
-(*     destruct H2 as [? HGCOK]. *)
-(*     rename H3 into Hrootslive. *)
-(*     pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod. *)
-(*     pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src. *)
-(*     pose (fresh fresh_src) as γ. *)
-(*     pose (fresh fresh_not_θ_cod) as w. *)
-(*     pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union. *)
-(*     specialize (H4 γ *)
-(*                  (<[ γ := LlocPrivate ]> (χC ρc)) *)
-(*                  (<[ γ := Bforeign (Mut, None) ]> (ζC ρc)) *)
-(*                  (<[ γ := w ]> (θC ρc)) *)
-(*                  w mem). *)
-(*     do 3 eexists. eapply H4; eauto. *)
-(*     - by eapply not_elem_of_dom. *)
-(*     - split. *)
-(*       + eapply gmap_inj_extend; try done. *)
-(*         intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod). *)
-(*         eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin. *)
-(*       + intros γ1 blk1 γ' HH0 [(->&HH)|(HH1&HH2)]%lookup_insert_Some H3. *)
-(*         1: subst; by inversion H3. *)
-(*         rewrite dom_insert_L in HH0. *)
-(*         apply elem_of_union in HH0 as [->%elem_of_singleton|HH0]; first done. *)
-(*         rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done. *)
-(*     - eapply repr_mono; last by eexists. *)
-(*       eapply insert_subseteq, not_elem_of_dom, HFθ. *)
-(*     - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r. *)
-(*       by eapply Hrootslive. *)
-(*     - apply lookup_insert. } *)
-(* Qed. *)
-(**)
-Admitted.
+  inversion 1; simplify_eq; eauto;[|].
+  { (* alloc case *)
+    destruct H3 as [pubmem Hrepr2].
+    destruct H4 as [? HGCOK].
+    rename H5 into Hrootslive.
+    pose (tg, repeat (Lint 0) (Z.to_nat sz)) as blk.
+    pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod.
+    pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src.
+    pose (fresh fresh_src) as γ.
+    pose (fresh fresh_not_θ_cod) as w.
+    pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union.
+    specialize (H6 γ
+                  (<[ γ := LlocPrivate ]> (χC ρc))
+                 (<[ γ := Bvblock (Mut, blk) ]> (ζC ρc))
+                 (<[ γ := w ]> (θC ρc))
+                 w mem).
+    do 3 eexists. eapply H6; eauto.
+    - by eapply not_elem_of_dom.
+    - split.
+      + eapply gmap_inj_extend; try done.
+        intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).
+        eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin.
+      + intros γ1 blk1 γ' HH1 [(->&HH)|(HA&HB)]%lookup_insert_Some HH3.
+        1: subst blk1; by apply lval_in_vblock, elem_of_list_In, repeat_spec in HH3.
+        rewrite dom_insert_L in HH1.
+        apply elem_of_union in HH1 as [->%elem_of_singleton|HH1]; first done.
+        rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done.
+    - eapply repr_mono; last by eexists.
+      eapply insert_subseteq, not_elem_of_dom, HFθ.
+    - rewrite roots_are_live_forall. rewrite roots_are_live_forall in Hrootslive.
+      intros root Hroot l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r.
+      by eapply Hrootslive.
+    - apply lookup_insert. }
+  { (* alloc_foreign *)
+    destruct H1 as [pubmem Hrepr2].
+    destruct H2 as [? HGCOK].
+    rename H3 into Hrootslive.
+    pose ((map_to_set (fun a b => b) (θC ρc) : gset loc)) as fresh_not_θ_cod.
+    pose (dom (χC ρc) ∪ dom (θC ρc) ∪ dom (ζC ρc : gmap _ _)) as fresh_src.
+    pose (fresh fresh_src) as γ.
+    pose (fresh fresh_not_θ_cod) as w.
+    pose proof (is_fresh fresh_src) as ((HFχ&HFθ)%not_elem_of_union&HFζ)%not_elem_of_union.
+    specialize (H4 γ
+                 (<[ γ := LlocPrivate ]> (χC ρc))
+                 (<[ γ := Bforeign (Mut, None) ]> (ζC ρc))
+                 (<[ γ := w ]> (θC ρc))
+                 w mem).
+    do 3 eexists. eapply H4; eauto.
+    - by eapply not_elem_of_dom.
+    - split.
+      + eapply gmap_inj_extend; try done.
+        intros k' v' Hin <-. eapply (is_fresh fresh_not_θ_cod).
+        eapply elem_of_map_to_set. do 2 eexists; repeat split. apply Hin.
+      + intros γ1 blk1 γ' HH0 [(->&HH)|(HH1&HH2)]%lookup_insert_Some H3.
+        1: subst; by inversion H3.
+        rewrite dom_insert_L in HH0.
+        apply elem_of_union in HH0 as [->%elem_of_singleton|HH0]; first done.
+        rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done.
+    - eapply repr_mono; last by eexists.
+      eapply insert_subseteq, not_elem_of_dom, HFθ.
+    - rewrite roots_are_live_forall. rewrite roots_are_live_forall in Hrootslive.
+      intros root Hroot l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r.
+      by eapply Hrootslive.
+    - apply lookup_insert. }
+Qed.
 
 Local Definition is_ML_call (e : ML_lang.expr) fn_name vs K :=
   e = language.fill K (of_call _ fn_name vs).

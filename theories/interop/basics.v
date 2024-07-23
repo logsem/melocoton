@@ -264,6 +264,7 @@ Definition roots_are_live' (θ : addr_map) (roots : roots_map) : Prop :=
 Definition roots_are_live (θ : addr_map) (roots : list roots_map) : Prop :=
   Forall (roots_are_live' θ) roots.
 
+
 (** C representation of block-level values, roots and memory *)
 
 Definition code_int (z:Z) : word := (C_intf.LitV (C_intf.LitInt (2*z + 1))).
@@ -361,6 +362,13 @@ Inductive is_val_out : lloc_map → lstore → outcome val → outcome lval → 
 
 Global Hint Resolve freeze_block_refl : core.
 Global Hint Resolve expose_lloc_refl : core.
+
+Lemma roots_are_live_forall θ roots:
+    roots_are_live θ roots
+  ↔ (∀ root, root ∈ roots → (∀ a γ, root !! a = Some (Lloc γ) → γ ∈ dom θ)).
+Proof.
+  unfold roots_are_live. unfold roots_are_live'. by rewrite Forall_forall.
+Qed.
 
 Global Instance ismut_eqdecision : EqDecision ismut.
 Proof. intros [] []; solve_decision. Qed.
@@ -1067,7 +1075,6 @@ Proof.
   eapply H2; eauto. by constructor.
 Qed.
 
-(* FIXME *)
 Lemma repr_roots_dom θ a b : repr_roots θ a [b] -> dom a = dom b.
 Proof.
 Admitted.

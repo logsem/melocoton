@@ -57,7 +57,7 @@ Proof using.
   iDestruct "GCrootsfpto" as "(GCrootsfmpto&GCrootsfpto)".
   iAssert ([∗ list] l ∈ (elements r), ∃ w, l ↦C w)%I with "[GCrootsfmpto]"
     as "Hws".
-   { admit. }
+   { Search ([∗ map] _↦_ ∈ _,_)%I. admit. }
 
   iMod (ghost_map_delete with "GCrootslive Hllive") as "GCrootslive".
 
@@ -73,9 +73,10 @@ Proof using.
   - rewrite dom_delete_L. rewrite Hlocalrootslive.
     rewrite NoDup_cons in Hlocalnodup.
     destruct Hlocalnodup as [ ffresh  HLocalNoDup ].
-    rewrite list_to_set_cons. rewrite difference_union_distr_l_L.
-    rewrite difference_diag_L.
-    admit.
+    rewrite list_to_set_cons difference_union_distr_l_L difference_diag_L.
+    rewrite difference_disjoint_L.
+    2: { by rewrite disjoint_singleton_r not_elem_of_list_to_set. }
+    by rewrite left_id_L.
   - rewrite NoDup_cons in Hlocalnodup.
     by destruct Hlocalnodup as [ ffresh HLocalNoDup ].
 Admitted.
