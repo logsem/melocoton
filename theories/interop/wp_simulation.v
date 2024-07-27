@@ -210,98 +210,110 @@ Lemma callback_correct emain Ψ :
   Ψ on prim_names ⊑ ⊥ →
   wrap_proto Ψ |- wrap_prog emain :: callback_proto Ψ.
 Proof using.
-  iIntros (Hnprim ? ? ?) "Hproto". iNamedProto "Hproto".
-  iSplit; first done. iIntros (Φ'') "Hb Hcont".
-  iApply wp_wrap_call; first done. cbn [snd].
-
-  rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-  iIntros (st) "Hst".
-  iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
-  iAssert (⌜θ = θC ρc ∧
-            gmap_inj (θC ρc) ∧
-            ζC ρc !! γ = Some (Bclosure f x e)⌝)%I
-    as %(-> & Hθinj & Hγ).
-  { iNamed "Hst". iNamed "HGC". iNamed "SIC". SI_GC_agree.
-    iDestruct (hgh_lookup_block with "GCHGH [Hclos]") as %(?&Hfrz&?);
-      first by iDestruct "Hclos" as "($&_)".
-    inversion Hfrz; subst; eauto. }
-
-  iDestruct "Hclos" as "#Hclos".
-  iDestruct (wrap_interp_c_to_ml [w;w'] _ _ _ _ [RecV f x e; v']
-    with "Hst HGC Hfc Hb [Hclos Hsim']") as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_vals) "HH".
-  { repeat constructor; eauto. }
-  { iApply big_sepL2_cons. iSplit.
-    { cbn. iExists _. by iFrame "Hclos". }
-    { iApply big_sepL2_cons; iFrame. by iApply big_sepL2_nil. } }
-
-  iModIntro.
-  iRight; iRight. iSplit; first done.
-  iExists (λ '(e2, σ2),
-    e2 = WrSE (ExprML (App (Val (RecV f x e)) (Val v'))) ∧
-    σ2 = MLState ρml' σ').
-  iSplit. { iPureIntro. eapply CallbackS; eauto. }
-  iIntros (? ? (-> & ->)). iMod "HH" as "(Hst & Hnb)".
-  do 3 iModIntro. iFrame "Hst".
-  iApply (weakestpre.wp_wand with "[-Cont Hcont Hclos]").
-  { by iApply (wp_simulates with "Hnb [WPcallback]"). }
-  cbn. iIntros (o) "(%θ' & %fc' & %lv & %vret & HGC & Hfc & % & Hsim & Hψ & ?)".
-  iApply "Hcont". iFrame.
-  iApply "Cont". iFrame; eauto.
-Qed.
+  (* iIntros (Hnprim ? ? ?) "Hproto". iNamedProto "Hproto". *)
+  (* iSplit; first done. iIntros (Φ'') "Hb Hcont". *)
+  (* iApply wp_wrap_call; first done. cbn [snd]. *)
+  (**)
+  (* rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre. *)
+  (* iIntros (st) "Hst". *)
+  (* iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl. *)
+  (* iAssert (⌜θ = θC ρc ∧ *)
+  (*           gmap_inj (θC ρc) ∧ *)
+  (*           ζC ρc !! γ = Some (Bclosure f x e)⌝)%I *)
+  (*   as %(-> & Hθinj & Hγ). *)
+  (* { iNamed "Hst". iNamed "HGC". iNamed "SIC". SI_GC_agree. *)
+  (*   iDestruct (hgh_lookup_block with "GCHGH [Hclos]") as %(?&Hfrz&?); *)
+  (*     first by iDestruct "Hclos" as "($&_)". *)
+  (*   inversion Hfrz; subst; eauto. } *)
+  (**)
+  (* iDestruct "Hclos" as "#Hclos". *)
+  (* iDestruct (wrap_interp_c_to_ml [w;w'] _ _ _ _ [RecV f x e; v'] *)
+  (*   with "Hst HGC Hfc Hb [Hclos Hsim']") as (ρml' σ' ζ Hc_to_ml_heap Hc_to_ml_vals) "HH". *)
+  (* { repeat constructor; eauto. } *)
+  (* { iApply big_sepL2_cons. iSplit. *)
+  (*   { cbn. iExists _. by iFrame "Hclos". } *)
+  (*   { iApply big_sepL2_cons; iFrame. by iApply big_sepL2_nil. } } *)
+  (**)
+  (* iModIntro. *)
+  (* iRight; iRight. iSplit; first done. *)
+  (* iExists (λ '(e2, σ2), *)
+  (*   e2 = WrSE (ExprML (App (Val (RecV f x e)) (Val v'))) ∧ *)
+  (*   σ2 = MLState ρml' σ'). *)
+  (* iSplit. { iPureIntro. eapply CallbackS; eauto. } *)
+  (* iIntros (? ? (-> & ->)). iMod "HH" as "(Hst & Hnb)". *)
+  (* do 3 iModIntro. iFrame "Hst". *)
+  (* iApply (weakestpre.wp_wand with "[-Cont Hcont Hclos]"). *)
+  (* { by iApply (wp_simulates with "Hnb [WPcallback]"). } *)
+  (* cbn. iIntros (o) "(%θ' & %fc' & %lv & %vret & HGC & Hfc & % & Hsim & Hψ & ?)". *)
+  (* iApply "Hcont". iFrame. *)
+  (* iApply "Cont". iFrame; eauto. *)
+Admitted.
 
 Lemma main_correct emain Ψ P (Φ : Z → Prop) :
   Ψ on prim_names ⊑ ⊥ →
   (⊢ P -∗ WP emain at ⟨∅, Ψ⟩ {{ k, ⌜∃ x, k = OVal (LitV (LitInt x)) ∧ Φ x⌝ }}) →
   wrap_proto Ψ |- wrap_prog emain :: main_proto Φ P.
 Proof using.
-Admitted.
-(*   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamedProto "Hproto". *)
-(*   iSplit; first done. iIntros (Φ') "Hb Hcont". *)
-(*   iApply wp_wrap_call; first done. cbn [snd]. *)
-(*   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre. *)
-(*   iIntros (st) "Hst". *)
-(*   iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl. *)
-(*   iNamed "Hst". iNamed "SIC". unfold gctoken.at_init. *)
-(*   iDestruct (ghost_var_agree with "Hat_init SIinit") as %?; simplify_eq. *)
-(*   iNamed "Hinit". iRename "Hat_init" into "GCinit". *)
-(*   destruct ρc. cbn [state.ζC state.χC state.θC state.rootsC] in *. SI_GC_agree. *)
-(*   iAssert (ghost_var wrapperG_γat_init 1 true) with "[GCinit SIinit]" as "SIinit". *)
-(*   { rewrite -{3}Qp.half_half. *)
-(*     iApply (fractional.fractional_merge _ _ (λ q, ghost_var wrapperG_γat_init q true) *)
-(*              with "GCinit SIinit"). } *)
-(*   iMod (ghost_var_update false with "SIinit") as "SIinit". *)
-(*   iMod (ghost_var_update_halves false with "Hb SIbound") as "[Hb SIbound]". *)
-(**)
-(*   iModIntro. *)
-(*   iRight; iRight. iSplit; first done. *)
-(*   iExists (λ '(e2, σ2), *)
-(*     e2 = WrSE (ExprML emain) ∧ *)
-(*     σ2 = MLState {| χML := ∅; ζML := ∅; rootsML := ∅ |} ∅). *)
-(*   iSplit. { iPureIntro. eapply MainS; eauto. } *)
-(*   iIntros (? ? (-> & ->)). *)
-(*   do 3 iModIntro. *)
-(**)
-(*   rewrite [X in ghost_var wrapperG_γat_init X _](_: 1 = 1/2 + 1/2)%Qp; *)
-(*     last by rewrite Qp.half_half. *)
-(*   iDestruct (ghost_var_split _ _ (1/2) (1/2) with "SIinit") as "[Hinit1 Hinit2]". *)
-(*   rewrite /weakestpre.state_interp /= /named. *)
-(*   rewrite /ML_state_interp /= /named. *)
-(*   rewrite /public_state_interp. *)
-(*   rewrite !fmap_empty !right_id_L !dom_empty_L. iFrame. *)
-(*   (* rewrite /named !dom_empty_L big_sepS_empty. iFrame. *) *)
-(*   iSplitL "GCζvirt GCχvirt GCrootsm". *)
-(*     { iExists []. iSplit. eauto. iApply (hgh_empty with "[$] [$]"). } *)
-(**)
-(*   iApply (weakestpre.wp_wand with "[-Cont Hcont]"). *)
-(*   { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done. *)
-(*     iApply (Hmain with "[$]"). } *)
-(*   cbn. iIntros (o) "(%θ' & %v & %lv & HGC & %Hrepr & Hsim & HΦ' & ?)". *)
-(*   iDestruct "HΦ'" as (?) "[%Hv %HΦ]". inversion Hv. subst. *)
-(*   destruct lv. *)
-(*   { iDestruct "Hsim" as "->". inversion Hrepr; simplify_eq. *)
-(*     inversion H2; simplify_eq. *)
-(*     iApply "Hcont". iFrame. by iApply "Cont". } *)
-(* Qed. *)
+  iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamedProto "Hproto".
+  iSplit; first done. iIntros (Φ') "Hb Hcont".
+  iApply wp_wrap_call; first done. cbn [snd].
+  rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
+  iIntros (st) "Hst".
+  iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
+  iNamed "Hst". iNamed "SIC". unfold gctoken.at_init.
+  iDestruct (ghost_var_agree with "Hat_init SIinit") as %?; simplify_eq.
+  iNamed "Hinit". iRename "Hat_init" into "GCinit".
+  destruct ρc. cbn [state.ζC state.χC state.θC state.rootsC] in *. SI_GC_agree.
+  iAssert (ghost_var wrapperG_γat_init 1 true) with "[GCinit SIinit]" as "SIinit".
+  { rewrite -{3}Qp.half_half.
+    iApply (fractional.fractional_merge _ _ (λ q, ghost_var wrapperG_γat_init q true)
+             with "GCinit SIinit"). }
+  iMod (ghost_var_update false with "SIinit") as "SIinit".
+  iMod (ghost_var_update_halves false with "Hb SIbound") as "[Hb SIbound]".
+
+  iModIntro.
+  iRight; iRight. iSplit; first done.
+  iExists (λ '(e2, σ2),
+    e2 = WrSE (ExprML emain) ∧
+    σ2 = MLState {| χML := ∅; ζML := ∅; rootsML := [∅] |} ∅).
+  iSplit. { iPureIntro. eapply MainS; eauto. }
+  iIntros (? ? (-> & ->)).
+  do 3 iModIntro.
+  rewrite [X in ghost_var wrapperG_γat_init X _](_: 1 = 1/2 + 1/2)%Qp;
+    last by rewrite Qp.half_half.
+  iDestruct (ghost_var_split _ _ (1/2) (1/2) with "SIinit") as "[Hinit1 Hinit2]".
+  rewrite /weakestpre.state_interp /= /named.
+  rewrite /ML_state_interp /= /named.
+  rewrite /public_state_interp.
+  rewrite !fmap_empty !right_id_L !dom_empty_L.
+  iFrame "SIroots SIθ SIχ SIζ SIbound HσC Hinit1 Hinit2 GCML".
+  rewrite /named.
+
+  (* rewrite /named. !dom_empty_L big_sepS_empty. iFrame. *)
+
+  iSplitL "GCζ GCχ GCθ GCζvirt GCχvirt GCrootsm Hfc GCroots GCrootslive".
+    { iDestruct "Hfc" as "(Hfc&GCrootsf)".
+      iExists ([]:list gname).
+      iSplitR "Hfc".
+      2: { iFrame. iPureIntro. repeat econstructor. rewrite dom_empty_L.
+           apply disjoint_empty_r. }
+      iExists [], ∅, [], ∅. simpl. rewrite dom_empty_L big_sepS_empty. iFrame.
+      iSplitR "".
+      1: { iApply (hgh_empty with "[$] [$]"). }
+      repeat iSplit; try done; iPureIntro.
+      1: apply dom_empty_L.
+      econstructor. }
+
+  iApply (weakestpre.wp_wand with "[-Cont Hcont]").
+  { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done.
+    iApply (Hmain with "[$]"). }
+  cbn. iIntros (o) "(%θ' & %v & %ov & %olv & Hfc & HGC & %Hrepr & Hsim & HΦ' & ?)".
+  iDestruct "HΦ'" as (?) "[%Hv %HΦ]". inversion Hv. subst.
+  destruct olv.
+  { iDestruct "Hsim" as "->". inversion Hrepr; simplify_eq.
+    inversion H2; simplify_eq.
+    iApply "Hcont". iFrame. by iApply "Cont". }
+Qed.
 
 Lemma wrap_correct emain Ψ (Φ : Z → Prop) P :
   Ψ on prim_names ⊑ ⊥ →

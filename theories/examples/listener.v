@@ -190,11 +190,12 @@ Section Proofs.
         + iExists _, _, _; by repeat iSplit. }
       wp_apply (wp_callback with "[$HGC $Hfc $Hclos $Hsimvn Hinterp Hna]"); [try done..|].
       { iNext. by iApply "Hinterp". }
-      iIntros (θ' vret lvret wret) "(HGC & ((%v&->&Hi)&Hna) & Hsimret & %)".
+      iIntros (θ' vret lvret wret) "(HGC & Hfc & ((%v&->&Hi)&Hna) & Hsimret & %)".
       destruct lvret. cbn. inversion H2.
       wp_pures. wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (?) "[HGC %HH]". inversion HH; simplify_eq.
-      iApply "Cont2". cbn. iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna] [] []").
+      iApply "Cont2". cbn.
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc [Cont Hna] [] []").
       1: by iApply "Cont". 1,2: by iPureIntro.
     - wp_apply (wp_load with "[$Hnull]"). iIntros "Hnull".
       wp_pures.
@@ -241,7 +242,7 @@ Section Proofs.
       { iNext. iLeft. iExists _, _. iFrame "Ha Hvl Hsimvl". }
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc [Cont Hna]").
       1: by iApply "Cont". 1,2: by iPureIntro.
     - wp_pures.
       wp_apply (wp_load with "Hnull"); iIntros "Hnull".
@@ -255,7 +256,7 @@ Section Proofs.
       { iNext. iLeft. iExists _, _. iFrame "Hroot Hvl Hsimvl". }
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc [Cont Hna]").
       1: by iApply "Cont". 1,2: by iPureIntro.
   Qed.
 
@@ -291,7 +292,7 @@ Section Proofs.
       { iNext. iRight. iFrame. } wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc [Cont Hna]").
       1: by iApply "Cont". 1,2: by iPureIntro.
     - wp_pures.
       wp_apply (wp_load with "Hnull"); iIntros "Hnull".
@@ -302,7 +303,7 @@ Section Proofs.
       { iNext. iRight. iFrame. }
       wp_apply (wp_int2val with "HGC"); [done..|]. iIntros (?) "[HGC %]".
       iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC [Cont Hna]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc [Cont Hna]").
       1: by iApply "Cont". 1,2: by iPureIntro.
   Qed.
 

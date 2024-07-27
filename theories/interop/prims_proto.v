@@ -223,8 +223,8 @@ Definition callback_proto (Ψ : ML_proto) : C_proto :=
      "WPcallback" ∷ ▷ WP (App (Val (RecV f x e)) (Val v')) at ⟨∅, Ψ⟩ {{ Φ' }}
   }}
     "callback" with [ w; w' ]
-  {{ θ' fc' ov olv ow, RET ow;
-     GC θ' ∗ current_fc fc' ∗ Φ' ov ∗ olv ~~ₒ ov ∗ ⌜repr_lval_out θ' olv ow⌝
+  {{ θ' ov olv ow, RET ow;
+     GC θ' ∗ current_fc fc ∗ Φ' ov ∗ olv ~~ₒ ov ∗ ⌜repr_lval_out θ' olv ow⌝
   }}.
 
 Definition main_proto (Φ' : Z → Prop) (Pinit : iProp Σ) : C_proto :=

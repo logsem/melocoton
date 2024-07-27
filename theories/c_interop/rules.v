@@ -402,9 +402,9 @@ Lemma wp_callback p ΨML Ψ θ fc w γ f x e lv' w' v' Φ :
       (▷ WP (App (ML_lang.Val (RecV f x e)) (ML_lang.Val v')) at ⟨∅, ΨML⟩ {{ Φ }})
   }}}
     (call: &"callback" with (Val w, Val w'))%CE at ⟨p, Ψ⟩
-  {{{ θ' fc' vret lvret wret, RET wret;
+  {{{ θ' vret lvret wret, RET wret;
         GC θ' ∗
-        current_fc fc' ∗
+        current_fc fc ∗
         Φ vret ∗
         lvret ~~ₒ vret ∗
         ⌜repr_lval_out θ' lvret wret⌝ }}}.
@@ -414,7 +414,7 @@ Proof.
   iModIntro. cbn. iApply Hproto.
   rewrite /callback_proto /named. iSplit; first done.
   repeat iExists _. iFrame.
-  do 2 (iSplit; first by eauto with lia). iIntros "!>" (? ? ? ? ?) "(? & ? & ? & ? & %)".
+  do 2 (iSplit; first by eauto with lia). iIntros "!>"(? ? ? ?) "(? & ? & ? & ? & %)".
   iApply wp_outcome; first apply to_of_outcome.
   iApply "Cont"; by iFrame.
 Qed.

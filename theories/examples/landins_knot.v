@@ -58,10 +58,10 @@ Section C_specs.
       iDestruct (lloc_own_pub_inj with "Hγ' Hγ'''") as "%".
       iPureIntro. naive_solver.
     }
-    wp_apply (wp_callback with "[$HGC $Hx $Hγ'' HWP Hl]"); [done.. | |].
+    wp_apply (wp_callback with "[$HGC $Hfc $Hx $Hγ'' HWP Hl]"); [done.. | |].
     { by iApply "HWP". }
-    iIntros (θ' vret lvret wret) "(HGC&HΦ'&Hvret&%)". (* wp_pures. *)
-    iApply "HΦ". iApply ("Return" with "HGC HΦ' Hvret [//]").
+    iIntros (θ' vret lvret wret) "(HGC&Hfc&HΦ'&Hvret&%)". (* wp_pures. *)
+    iApply "HΦ". iApply ("Return" with "HGC Hfc HΦ' Hvret [//]").
   Qed.
 
   Global Instance tie_knot_spec_ML_contractive :

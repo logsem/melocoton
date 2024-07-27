@@ -87,7 +87,9 @@ Section Proofs.
     wp_apply (wp_wand _ _ _
       (λ _, ∃ θ, ℓF ↦roots[f] Lloc γF
                ∗ ℓbf ↦roots[f] Lloc γ0
-               ∗ GC θ ∗ current_fc (f::fc) ∗ Ψ (j + 1)%Z
+               ∗ GC θ ∗ current_fc (f::fc)
+               ∗ local_roots f ({[ℓbf]} ∪ ({[ℓF]} ∪ ∅))
+               ∗ Ψ (j + 1)%Z
                ∗ ℓi ↦C{DfracOwn 1} #(j + 1))%I
               with "[HℓF Hℓbf Hℓi HGC Hfc Hlr HΨ]").
     { iRevert "HMerge HWP Hb1 Hb2". iLöb as "IH" forall (i θ).
@@ -112,7 +114,7 @@ Section Proofs.
       { cbn. iSplit; first done.
         iNext. by iApply ("HWP" with "[] [] HΨ"). } cbn.
       cbn.
-      iIntros (θ' vret lvret wret) "(HGC&(%zret&%Ho&HΦz&HΨframe&HBuffer)&Hv&%Hzrep)".
+      iIntros (θ' vret lvret wret) "(HGC&Hfc&(%zret&%Ho&HΦz&HΨframe&HBuffer)&Hv&%Hzrep)".
       inversion Ho. subst. destruct lvret. inversion Hzrep; subst.
       cbn. iRevert "Hv". iIntros "%Hv". subst.
       wp_apply (wp_val2int with "HGC"); try done.
@@ -125,8 +127,8 @@ Section Proofs.
       iIntros "Hℓbuf". erewrite (map_insert (Some zret)); [|done|lia].
 
       wp_pure _.
-      wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
-      iIntros (wbf1) "(Hℓbf&HGC&%Hwbf1)".
+      wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf]"); [done..|].
+      iIntros (wbf1) "(Hℓbf&HGC&Hlr&%Hwbf1)".
       wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
       iIntros (vγref wγref) "(HGC&_&%Heq&%Hvwγref)". cbv in Heq. simplify_eq.
 
@@ -156,13 +158,13 @@ Section Proofs.
       cbn; wp_apply (wp_load with "Hℓi").
       iIntros "Hℓi". do 2 wp_pure _.
       wp_bind (If _ _ _).
-      iApply (wp_wand _ _ _ (λ _, _ ∗ γref ↦mut (TagDefault, [Lint (max used0 (Z.to_nat (ni+1)))%Z]))%I with "[HGC Hℓi Hℓbf HℓbufML]").
+      iApply (wp_wand _ _ _ (λ _, _ ∗ γref ↦mut (TagDefault, [Lint (max used0 (Z.to_nat (ni+1)))%Z]))%I with "[HGC Hlr Hℓi Hℓbf HℓbufML]").
       { rewrite bool_decide_decide. destruct decide; last first.
         { do 2 wp_pure _. rewrite max_l; last lia.
           iFrame "HℓbufML". iModIntro. iAccu. }
         { wp_pure _.
-          wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
-          iIntros (wbf2) "(Hℓbf&HGC&%Hwbf2)".
+          wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf]"); [done..|].
+          iIntros (wbf2) "(Hℓbf&HGC&Hlr&%Hwbf2)".
           wp_apply (wp_readfield with "[$HGC $Hγbuf]"); [done..|].
           iIntros (vγref2 wγref2) "(HGC&_&%Heq&%Hvwγref2)". cbv in Heq. simplify_eq.
           cbn; wp_apply (wp_load with "Hℓi").
@@ -170,11 +172,11 @@ Section Proofs.
           wp_apply (wp_int2val with "HGC"); [done..|].
           iIntros (vnp1) "(HGC&%Hnp1)".
           wp_apply (wp_modify with "[$HGC $HℓbufML]"); [done..|].
-          iIntros "(HGC&HℓbufML)". iFrame "HGC Hℓbf Hℓi".
+          iIntros "(HGC&HℓbufML)". iFrame "HGC Hlr Hℓbf Hℓi".
           rewrite max_r; last lia. change (Z.to_nat 0) with 0; cbn.
           rewrite Z2Nat.id; last lia. done. }
       }
-      iIntros (vv) "((HGC&Hℓi&Hℓbf)&HℓbufML)". cbn. destruct vv. wp_pure _.
+      iIntros (vv) "((HGC&Hlr&Hℓi&Hℓbf)&HℓbufML)". cbn. destruct vv. wp_pure _.
       wp_apply (wp_load with "Hℓi"). iIntros "Hℓi". wp_pure _.
       wp_apply (wp_store with "Hℓi"). iIntros "Hℓi". wp_pure _.
       iMod (mut_to_ml _ [ #ML (_:Z)] with "[$HGC $HℓbufML]") as "(HGC&%ℓML2&HℓbufML&Hsimℓ2)". 1: cbn; iFrame; done.
@@ -186,7 +188,7 @@ Section Proofs.
         rewrite insert_length. iSplit; last done.
         iExists vcontent, _. iFrame "HContent". iPureIntro. rewrite Nat2Z.id. split; first done.
         reflexivity. }
-      iApply ("IH" with "HℓF Hℓbf Hℓi HGC HH").
+      iApply ("IH" with "HℓF Hℓbf Hℓi HGC Hfc Hlr HH").
       - iIntros "!> %z1 %z2 %HH1 %HH2". iApply "HMerge".
         all: iPureIntro; lia.
       - iIntros "!> %z1 %HH1 %HH2". iApply "HWP".
@@ -194,19 +196,17 @@ Section Proofs.
       - iPureIntro; lia.
       - iPureIntro; lia.
     }
-    iIntros (vvv) "(%θ' & HℓF & Hℓbf & HGC & HΨ & Hℓi)".
+    iIntros (vvv) "(%θ' & HℓF & Hℓbf & HGC & Hfc & Hlr & HΨ & Hℓi)".
     destruct vvv. wp_pure _.
     wp_apply (wp_free with "Hℓi"). iIntros "_".
     wp_pure _.
     wp_apply (wp_int2val with "HGC"); [done..|].
     iIntros (v0) "(HGC&%Hrepr)".
     wp_pure _.
-    wp_apply (wp_CAMLunregister1 with "[$HGC $HℓF]"); [done..|].
-    iIntros "HGC"; wp_pure _.
-    wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbf]"); [done..|].
-    iIntros "HGC"; wp_pure _.
+    wp_apply (wp_unregisterlocalroot with "[$HGC $Hfc $Hlr]"); try eauto.
+    iIntros "(HGC&Hfc&Hlr)". wp_pures.
     iModIntro. iApply "HΦ".
-    iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (HCont HΨ) [//] [//]").
+    iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc (HCont HΨ) [//] [//]").
   Qed.
 
 End Proofs.

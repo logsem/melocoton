@@ -29,12 +29,10 @@ Context `{!ffiG Σ}.
 
 Definition swap_variant_code (x : expr) : expr :=
   caml_init_local( );;
-  CAMLlocal: "x" in
-  let: "v" := malloc (#1) in
-  "v" <- Field("x", #0) ;;
-  let: "t" := (call: &"read_tag" with (x)) in
+  let: "v" := Field( "x", #0 ) in
+  let: "t" := (call: &"read_tag" with ( "x" )) in
   let: "r" := caml_alloc(#1, !"t") in                          (* !t := not t *)
-  Store_field("r", #0, *("v" +ₗ #0)) ;;
+  Store_field ("r", #0, "v");;
   CAMLreturn ( "r" ).
 
 Definition swap_variant_func : function := Fun [BNamed "x"] (swap_variant_code "x").
@@ -88,14 +86,6 @@ Proof.
   wp_apply (wp_initlocalroot with "[$HGC $Hfc]"); eauto.
   iIntros (f) "(HGC&Hfc&Hlr)". wp_pures.
 
-  (* Declare local variable *)
-  wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); eauto.
-  iIntros (ℓ) "(HGC&Hℓ&Hfc&Hlr)". wp_pures.
-
-  wp_alloc rr as "H"; first done.
-  change (Z.to_nat 1) with 1. cbn. iDestruct "H" as "(H&_)". rewrite loc_add_0.
-  wp_pures.
-
   iAssert (∃ γ lvs vs tag, γ ↦imm (tag, [lvs]) ∗
                           lvs ~~ vs ∗
                           ⌜get_value v = Some vs⌝ ∗
@@ -112,11 +102,7 @@ Proof.
   wp_apply (wp_readfield with "[$HGC $Hptsum]"); try done.
   iIntros (v' wlv) "(HGC & _ & %Heq & %Hreprwlv)".
   change (Z.to_nat 0) with 0 in Heq. cbn in *. symmetry in Heq. simplify_eq.
-  wp_apply (wp_store with "H"). iIntros "H". wp_pures.
-
-  (* registerroot *)
-  wp_apply (wp_registerroot with "[$HGC $H]"); [done..|].
-  iIntros "(HGC & Hrr)". wp_pures.
+  wp_pures.
 
   (* read_tag(w) *)
   wp_apply (wp_read_tag with "[$HGC ]"); [done..| |].
@@ -132,12 +118,8 @@ Proof.
   wp_apply (wp_alloc (swap_tag tag) with "HGC"); try done.
   iIntros (θ' γnew wnew) "(HGC & Hnew & %Hreprnew)". wp_pures.
 
-  (* load from root *)
-  wp_apply (load_from_root with "[HGC Hrr]"); rewrite loc_add_0; first iFrame.
-  iIntros (wlv') "(Hr&HGC&%Hreprwlv')".
-
   (* modify *)
-  wp_apply (wp_modify with "[$HGC $Hnew]"); [done..|].
+  wp_apply (wp_modify with "[$HGC $Hnew]"); try done.
   iIntros "(HGC & Hnew)". change (Z.to_nat 0) with 0. cbn.
   wp_pures.
 

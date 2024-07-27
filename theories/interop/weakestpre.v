@@ -51,8 +51,9 @@ Definition preGCtok : iProp Σ :=
   ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCML" ∷ state_interp (∅ : language.language.state ML_lang)
   ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
-  ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval).
-  (* TODO: frame here ?*)
+  ∗ "GCrootslive" ∷ ghost_map_auth wrapperG_γroots_live_map 1 (∅:gmap gname unit)
+  ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval)
+  ∗ "Hfc"      ∷ ghost_var wrapperG_γroots_frame 1 ([]:list gname).
 
 Definition C_state_interp (ζ : lstore) (χ : lloc_map) (θ : addr_map) (roots_s : list $ gset addr) : iProp Σ :=
   ∃ (at_init : bool),

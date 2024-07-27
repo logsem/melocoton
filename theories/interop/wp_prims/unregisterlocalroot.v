@@ -57,7 +57,7 @@ Proof using.
   iDestruct "GCrootsfpto" as "(GCrootsfmpto&GCrootsfpto)".
   iAssert ([∗ list] l ∈ (elements r), ∃ w, l ↦C w)%I with "[GCrootsfmpto]"
     as "Hws".
-   { Search ([∗ map] _↦_ ∈ _,_)%I. admit. }
+   { admit. }
 
   iMod (ghost_map_delete with "GCrootslive Hllive") as "GCrootslive".
 

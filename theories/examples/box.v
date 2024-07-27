@@ -194,12 +194,12 @@ Section Proofs.
       wp_apply (wp_callback with "[$HGC $Hfc $Hlv2 Hna]"); [done..| |].
       { iSplit; first iApply "Hlv1".
         iNext. iApply ("Hcall" with "Hv1 Hna"). }
-      iIntros (θ' fc' vret lvret wret) "(HGC & Hfc & ((%v&->&->)&Hna) & (H & %Hrepr))".
+      iIntros (θ' vret lvret wret) "(HGC & Hfc & ((%v&->&->)&Hna) & (H & %Hrepr))".
       destruct lvret. cbn. inversion Hrepr.
       wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc (Cont Hna) [//] [//]").
     - wp_apply (wp_load with "Hℓ0"). iIntros "Hℓ0".
       wp_pures.
       iMod ("Hclose2" with "[$Hna Hℓ0]") as "Hna".
@@ -208,7 +208,7 @@ Section Proofs.
       { iNext. iExists _, _. iFrame "Hℓ1 Hvn Hsimvn". }
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc (Cont Hna) [//] [//]").
   Qed.
 
   Lemma box_listen_correct :
@@ -252,7 +252,7 @@ Section Proofs.
       destruct v; wp_pures.
       wp_apply (wp_int2val with "HGC"); [done..|].
       iIntros (w0) "(HGC&%Hw0)". iApply "Cont2".
-      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC (Cont Hna) [//] [//]").
+      iApply ("Return" $! _ _ (OVal (Lint 0)) with "HGC Hfc (Cont Hna) [//] [//]").
   Qed.
 
   End InPsi.

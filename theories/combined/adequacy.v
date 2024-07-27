@@ -86,7 +86,7 @@ Section AllocBasics.
           ∗ lloc_own_auth   ∅
           ∗ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval)
           ∗ ghost_map_auth wrapperG_γroots_live_map  1 (∅:gmap gname unit)
-          ∗ ghost_var wrapperG_γroots_frame (1/2) ([]: list gname)
+          ∗ ghost_var wrapperG_γroots_frame 1 ([]: list gname)
           ∗ ⌜basics_resources.wrapperG_inG = _⌝)%I True.
   Proof.
     intros P _ Halloc.
@@ -123,7 +123,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
   ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_global_map 1 (∅:gmap addr lval)
-  ∗ "GCrootsf" ∷ ghost_var wrapperG_γroots_frame (1/2) ([]:list gname)
+  ∗ "GCrootsf" ∷ ghost_var wrapperG_γroots_frame 1 ([]:list gname)
   ∗ "GCrootslive" ∷ ghost_map_auth wrapperG_γroots_live_map 1 (∅:gmap gname unit)
   ∗ "HInit" ∷ ghost_var wrapperG_γat_init 1 true.
 

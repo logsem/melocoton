@@ -550,12 +550,13 @@ Proof.
     eexists. econstructor; done.
 Qed.
 
-Lemma find_repr_roots θ roots privmem :
-   roots_are_live θ roots
- → Forall (λ roots, dom privmem ## dom roots) roots
- → exists mem, repr θ roots privmem mem.
+Lemma find_repr_roots θ roots_m privmem :
+   roots_are_live θ roots_m
+ → Forall (λ roots, dom privmem ## dom roots) roots_m
+ → exists mem, repr θ roots_m privmem mem.
 Proof.
 (*   revert privmem. unfold repr. *)
+(*   induction roots. *)
 (*   induction roots as [|l a roots_m Hin IH] using map_ind; intros privmem Hlive Hdisj. *)
 (*   - exists privmem, ∅. split_and!. *)
 (*     + econstructor. *)

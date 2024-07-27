@@ -17,29 +17,32 @@ Section Proofs.
   Context `{SI:indexT}.
   Context `{!heapG_C Σ, !heapG_ML Σ, !invG Σ, !primitive_laws.heapG_ML Σ, !wrapperG Σ}.
 
-  Lemma buf_alloc_spec_C θ (n: nat) (wcap: word) Ψ :
+  Lemma buf_alloc_spec_C θ fc (n: nat) (wcap: word) Ψ :
     (0 < n)%Z →
     repr_lval θ (Lint n) wcap →
-    {{{ GC θ }}}
+    {{{ GC θ ∗ current_fc fc }}}
          call: &buffers_specs.buf_alloc_name with (wcap)
       at ⟨buf_lib_prog, prims_proto Ψ⟩
     {{{ w' θ' lv ℓ, RETV w';
-       GC θ' ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
+       GC θ' ∗ current_fc fc ∗ isBufferRecord lv ℓ (buf_alloc_res_buffer n) n ∗
        ⌜repr_lval θ' lv w'⌝ }}}%CE.
   Proof.
-    iIntros (Hb1 Hlval Φ) "HGC HΦ". wp_call_direct.
-    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
-    iIntros (ℓbk) "(HGC&Hℓbk)"; wp_pures.
-    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
-    iIntros (ℓbf) "(HGC&Hℓbf)"; wp_pures.
-    wp_apply (wp_CAMLlocal with "HGC"); [done..|].
-    iIntros (ℓbf2) "(HGC&Hℓbf2)". wp_finish.
+    iIntros (Hb1 Hlval Φ) "(HGC&Hfc) HΦ". wp_call_direct.
+    wp_apply (wp_initlocalroot with "[$HGC $Hfc]"); eauto.
+    iIntros (f) "(HGC&Hfc&Hlr)". wp_pures.
+
+    wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); [done..|].
+    iIntros (ℓbk) "(HGC&Hℓbk&Hfc&Hlr)"; wp_pures.
+    wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); [done..|].
+    iIntros (ℓbf) "(HGC&Hℓbf&Hfc&Hlr)"; wp_pures.
+    wp_apply (wp_CAMLlocal with "[$HGC $Hfc $Hlr]"); [done..|].
+    iIntros (ℓbf2) "(HGC&Hℓbf2&Hfc&Hlr)". wp_finish.
     wp_apply (wp_alloc_foreign with "HGC"); [done..|].
     iIntros (θ1 γbk wbk) "(HGC&Hγbk&%Hbk'1)".
-    wp_apply (store_to_root with "[$HGC $Hℓbk]"); [done..|].
-    iIntros "(HGC&Hℓbk)". wp_pures.
-    wp_apply (load_from_root with "[$HGC $Hℓbk]"); [done..|].
-    iIntros (w) "(Hℓbk&HGC&%Hbk'1b)".
+    wp_apply (store_to_local_root with "[$HGC $Hlr $Hℓbk]"); [done..|].
+    iIntros "(HGC&Hℓbk&Hlr)". wp_pures.
+    wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbk]"); [done..|].
+    iIntros (w) "(Hℓbk&HGC&Hlr&%Hbk'1b)".
     cbn. wp_apply (wp_val2int with "HGC"); [try done..|].
     1: by eapply repr_lval_lint.
     iIntros "HGC".
@@ -49,12 +52,12 @@ Section Proofs.
     iIntros "(HGC&Hγbk)". wp_pure _.
     wp_apply (wp_alloc TagDefault with "HGC"); [done..|].
     iIntros (θ2 γbf wbf) "(HGC&Hγbf&%Hbf'1)".
-    wp_apply (store_to_root with "[$HGC $Hℓbf]"); [done..|].
-    iIntros "(HGC&Hℓbf)". wp_pure _.
+    wp_apply (store_to_local_root with "[$HGC $Hlr $Hℓbf]"); [done..|].
+    iIntros "(HGC&Hℓbf&Hlr)". wp_pure _.
     wp_apply (wp_alloc TagDefault with "HGC"); [done..|].
     iIntros (θ3 γbf2 wbf2) "(HGC&Hγbf2&%Hbf2'1)".
-    wp_apply (store_to_root with "[$HGC $Hℓbf2]"); [done..|].
-    iIntros "(HGC&Hℓbf2)". wp_pure _.
+    wp_apply (store_to_local_root with "[$HGC $Hlr $Hℓbf2]"); [done..|].
+    iIntros "(HGC&Hℓbf2&Hlr)". wp_pure _.
     wp_apply (wp_alloc TagDefault with "HGC"); [done..|].
     iIntros (θ4 γbfref wbfref) "(HGC&Hγbfref&%Hbfref'1)".
     wp_pure _.
@@ -63,41 +66,37 @@ Section Proofs.
     wp_apply (wp_modify with "[$HGC $Hγbfref]"); [done..|].
     iIntros "(HGC&Hγbfref)".
     wp_pure _.
-    wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
-    iIntros (wbf'4) "(Hℓbf&HGC&%Hbf'4)".
+    wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf]"); [done..|].
+    iIntros (wbf'4) "(Hℓbf&HGC&Hlr&%Hbf'4)".
     wp_apply (wp_modify with "[$HGC $Hγbf]"); [done..|].
     iIntros "(HGC&Hγbf)".
     wp_pure _.
-    wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
-    iIntros (wbf'4') "(Hℓbf&HGC&%Hbf'4')".
-    cbn. wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
-    iIntros (wbf2'4) "(Hℓbf2&HGC&%Hbf2'4)".
+    wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf]"); [done..|].
+    iIntros (wbf'4') "(Hℓbf&HGC&Hlr&%Hbf'4')".
+    cbn. wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf2]"); [done..|].
+    iIntros (wbf2'4) "(Hℓbf2&HGC&Hlr&%Hbf2'4)".
     wp_apply (wp_modify with "[$HGC $Hγbf]"); [done..|].
     iIntros "(HGC&Hγbf)".
     wp_pure _.
-    wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
-    iIntros (wbf2'4') "(Hℓbf2&HGC&%Hbf2'4')".
+    wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf2]"); [done..|].
+    iIntros (wbf2'4') "(Hℓbf2&HGC&Hlr&%Hbf2'4')".
     wp_apply (wp_modify with "[$HGC $Hγbf2]"); [try done..|].
     1: by eapply repr_lval_lint.
     iIntros "(HGC&Hγbf2)".
     wp_pure _.
 
-    wp_apply (load_from_root with "[$HGC $Hℓbf2]"); [done..|].
-    iIntros (wbf2'4'') "(Hℓbf2&HGC&%Hbf2'4'')".
-    cbn. wp_apply (load_from_root with "[$HGC $Hℓbk]"); [done..|].
-    iIntros (wbk'4') "(Hℓbk&HGC&%Hbk'4')".
+    wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf2]"); [done..|].
+    iIntros (wbf2'4'') "(Hℓbf2&HGC&Hlr&%Hbf2'4'')".
+    cbn. wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbk]"); [done..|].
+    iIntros (wbk'4') "(Hℓbk&HGC&Hlr&%Hbk'4')".
     wp_apply (wp_modify with "[$HGC $Hγbf2]"); [done..|].
     iIntros "(HGC&Hγbf2)".
     wp_pure _.
 
-    wp_apply (load_from_root with "[$HGC $Hℓbf]"); [done..|].
-    iIntros (wbf'4'') "(Hℓbf&HGC&%Hbf'4'')". wp_pure _.
-    wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbk]"); [done..|].
-    iIntros "HGC". wp_pure _.
-    wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbf]"); [done..|].
-    iIntros "HGC". wp_pure _.
-    wp_apply (wp_CAMLunregister1 with "[$HGC $Hℓbf2]"); [done..|].
-    iIntros "HGC". wp_pure _.
+    wp_apply (load_from_local_root with "[$HGC $Hlr $Hℓbf]"); [done..|].
+    iIntros (wbf'4'') "(Hℓbf&HGC&Hlr&%Hbf'4'')". wp_pure _.
+    wp_apply (wp_unregisterlocalroot with "[$HGC $Hfc $Hlr]"); try eauto.
+    iIntros "(HGC&Hfc&Hlr)". wp_pures.
     change (Z.to_nat 0) with 0.
     change (Z.to_nat 1) with 1.
     change (Z.to_nat 2) with 2.
@@ -129,13 +128,13 @@ Section Proofs.
     destruct ws as [|w [|??]]; try (eapply Forall2_length in Hrepr; cbn in Hrepr; done).
     eapply Forall2_cons_inv_l in Hrepr as (wcap&?&Hlval&_&?); simplify_eq.
     cbn. iApply wp_fupd.
-    iApply (buf_alloc_spec_C _ (Z.to_nat z) with "HGC"); first lia.
+    iApply (buf_alloc_spec_C _ _ (Z.to_nat z) with "[$HGC $Hfc]"); first lia.
     { rewrite -(_: z = Z.to_nat z) //; lia. }
-    iIntros "!>" (w' θ' lv ℓ) "(HGC & Hbuf & %)".
+    iIntros "!>" (w' θ' lv ℓ) "(HGC & Hfc & Hbuf & %)".
     iMod (bufToML with "HGC Hbuf") as "(HGC&%vv&Hbuffer&#Hsim)".
     iModIntro. iApply "HΦ".
      rewrite -(_: z = Z.to_nat z); last lia.
-    iApply ("Return" $! θ' (OVal vv) (OVal lv) with "HGC (HCont Hbuffer) Hsim [//]").
+    iApply ("Return" $! θ' (OVal vv) (OVal lv) with "HGC Hfc (HCont Hbuffer) Hsim [//]").
   Qed.
 
 End Proofs.

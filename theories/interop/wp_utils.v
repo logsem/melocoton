@@ -32,46 +32,6 @@ Import mlanguage.
 
 Section RootsRepr.
 
-(* We can decompose mem, the C heap, into a privmem, which is everything but the
-   roots, and a memr, which are just the rooted cells *)
-Lemma make_repr' θ roots_m mem :
- roots_are_live θ [roots_m]
- -> map_Forall (λ k v, ∃ w , mem !! k = Some (Storing w) ∧ repr_lval θ v w) roots_m
- -> ∃ privmem, repr θ [roots_m] privmem mem.
-Proof.
-  revert mem.
-  induction roots_m as [|l a roots_m Hin IH] using map_ind;
-  intros mem Hlive Hforall.
-  + exists mem, ∅. split_and!.
-    * econstructor.
-    * eapply map_disjoint_empty_r.
-    * by rewrite map_empty_union.
-  + apply map_Forall_insert_1_1 in Hforall as Hforall2.
-    destruct Hforall2 as (w & Hw & Hrep).
-    specialize (IH (delete l mem)).
-    destruct IH as (privmem & memr & IH & Hdisj & Hunion).
-    1: { unfold roots_are_live in *. rewrite Forall_singleton.
-        rewrite Forall_singleton in Hlive.
-    intros l' g Hg. eapply Hlive. rewrite lookup_insert_ne; first done.
-    intros ->. rewrite Hg in Hin. congruence. }
-    1: apply map_Forall_lookup; intros i x Hinix;
-       eapply map_Forall_lookup_1 in Hforall.
-    1: destruct Hforall as (w' & H1 & H2); exists w'; repeat split; try done.
-    1: rewrite lookup_delete_ne; first done.
-    2: rewrite lookup_insert_ne; first done.
-    1-2: intros ->; rewrite Hin in Hinix; congruence.
-    assert (memr !! l = None) as HNone1.
-    1: apply not_elem_of_dom; erewrite repr_roots_dom; last done; by eapply not_elem_of_dom.
-    assert (privmem !! l = None) as Hnone2.
-    1: rewrite <- (lookup_union_r memr privmem); try done; rewrite <- Hunion; by apply lookup_delete.
-    eexists privmem, (<[l:=Storing w]> memr). split_and!.
-    * econstructor; try done; first by eapply not_elem_of_dom.
-      apply Forall_singleton. by eapply not_elem_of_dom.
-    * by apply map_disjoint_insert_r.
-    * erewrite <- insert_union_l. rewrite <- Hunion. rewrite insert_delete_insert.
-      apply map_eq_iff. intros i. destruct (decide (i = l)) as [-> |]; (try by rewrite lookup_insert); by rewrite lookup_insert_ne.
-Qed.
-
 Lemma make_repr θ roots_m roots_fm roots_gm mem :
   roots_m = roots_fm++[roots_gm]
   -> roots_are_live θ roots_m
