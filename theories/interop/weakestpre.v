@@ -84,7 +84,6 @@ Definition GC_remnant (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) :
  ∗ "%Hlocalnodup" ∷ ⌜NoDup roots_f⌝.
 
 Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots_m : list roots_map) (memC : memory) : iProp Σ :=
-  ∃ (fc : list gname),
     "SIζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "SIχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "SIθ" ∷ ghost_var wrapperG_γθ (1/2) (∅ : addr_map)
@@ -93,7 +92,6 @@ Definition ML_state_interp (ζ : lstore) (χ : lloc_map) (roots_m : list roots_m
   ∗ "SIbound" ∷ ghost_var wrapperG_γat_boundary (1/2) false
   ∗ "SIinit" ∷ ghost_var wrapperG_γat_init (1/2) false
   ∗ "HσCv" ∷ gen_heap_interp (roots_map_mem' memC roots_m)
-  ∗ "Hfc" ∷ current_fc fc
   ∗ "%HmemCdisj" ∷ ⌜Forall (λ r, dom memC ## dom r) roots_m⌝.
 
 Definition private_state_interp : wrapstateC → iProp Σ :=
