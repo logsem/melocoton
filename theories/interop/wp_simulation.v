@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect.
 From stdpp Require Import strings gmap.
-From melocoton Require Import named_props stdpp_extra.
+From melocoton Require Import named_props stdpp_extra iris_extra.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.language Require Import language weakestpre.
 From melocoton.mlanguage Require Import weakestpre.
@@ -257,19 +257,16 @@ Proof using.
   iIntros (Hnprim Hmain ? ? ?) "Hproto". iNamedProto "Hproto".
   iSplit; first done. iIntros (Φ') "Hb Hcont".
   iApply wp_wrap_call; first done. cbn [snd].
-  rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
+  rewrite weakestpre.wp_unfold /weakestpre.wp_pre.
   iIntros (st) "Hst".
   iDestruct (SI_at_boundary_is_in_C with "Hst Hb") as %(ρc&mem&->). simpl.
   iNamed "Hst". iNamed "SIC". unfold gctoken.at_init.
   iDestruct (ghost_var_agree with "Hat_init SIinit") as %?; simplify_eq.
   iNamed "Hinit". iRename "Hat_init" into "GCinit".
   destruct ρc. cbn [state.ζC state.χC state.θC state.rootsC] in *. SI_GC_agree.
-  iAssert (ghost_var wrapperG_γat_init 1 true) with "[GCinit SIinit]" as "SIinit".
-  { rewrite -{3}Qp.half_half.
-    iApply (fractional.fractional_merge _ _ (λ q, ghost_var wrapperG_γat_init q true)
-             with "GCinit SIinit"). }
-  iMod (ghost_var_update false with "SIinit") as "SIinit".
+  iMod (ghost_var_update_halves false with "GCinit SIinit") as "[GCinit SIinit]".
   iMod (ghost_var_update_halves false with "Hb SIbound") as "[Hb SIbound]".
+  iDestruct (ghost_var_split_halves with "Hfc") as "[Hfc1 Hfc2]".
 
   iModIntro.
   iRight; iRight. iSplit; first done.
@@ -279,30 +276,22 @@ Proof using.
   iSplit. { iPureIntro. eapply MainS; eauto. }
   iIntros (? ? (-> & ->)).
   do 3 iModIntro.
-  rewrite [X in ghost_var wrapperG_γat_init X _](_: 1 = 1/2 + 1/2)%Qp;
-    last by rewrite Qp.half_half.
-  iDestruct (ghost_var_split _ _ (1/2) (1/2) with "SIinit") as "[Hinit1 Hinit2]".
   rewrite /weakestpre.state_interp /= /named.
   rewrite /ML_state_interp /= /named.
   rewrite /public_state_interp.
   rewrite !fmap_empty !right_id_L !dom_empty_L.
-  iFrame "SIroots SIθ SIχ SIζ SIbound HσC Hinit1 Hinit2 GCML".
+  iFrame "SIroots SIθ SIχ SIζ SIbound HσC GCinit SIinit GCML".
   rewrite /named.
 
   (* rewrite /named. !dom_empty_L big_sepS_empty. iFrame. *)
 
-  iSplitL "GCζ GCχ GCθ GCζvirt GCχvirt GCrootsm Hfc GCroots GCrootslive".
-    { iDestruct "Hfc" as "(Hfc&GCrootsf)".
-      iExists ([]:list gname).
-      iSplitR "Hfc".
-      2: { iFrame. iPureIntro. repeat econstructor. rewrite dom_empty_L.
+  iSplitL "GCζ GCχ GCθ GCζvirt GCχvirt GCrootsm Hfc1 Hfc2 GCroots GCrootslive".
+    { iExists ([]:list gname). iFrame "Hfc1 GCζ GCχ GCθ". iSplitL.
+      2: { iPureIntro. repeat econstructor. rewrite dom_empty_L.
            apply disjoint_empty_r. }
-      iExists [], ∅, [], ∅. simpl. rewrite dom_empty_L big_sepS_empty. iFrame.
-      iSplitR "".
-      1: { iApply (hgh_empty with "[$] [$]"). }
-      repeat iSplit; try done; iPureIntro.
-      1: apply dom_empty_L.
-      econstructor. }
+      iExists [], ∅, [], ∅. simpl. rewrite dom_empty_L big_sepS_empty.
+      iFrame. iSplitL; first by iApply (hgh_empty with "[$] [$]").
+      by rewrite dom_empty_L NoDup_nil. }
 
   iApply (weakestpre.wp_wand with "[-Cont Hcont]").
   { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done.
