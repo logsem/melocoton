@@ -115,25 +115,6 @@ Qed.
 Definition try_raise : ML_lang.expr :=
   try: (raise: #1 + #1) ;; #1 with: "v" => #1 + "v".
 
-Tactic Notation "wp_raise" :=
-  iStartProof;
-  lazymatch goal with
-  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
-    let e := eval simpl in e in
-    reshape_expr e ltac:(fun K e' =>
-      lazymatch K with
-      | [] => fail
-      | ?Ki :: ?K' =>
-        wp_bind_core K';
-        let e'' := eval simpl in (fill [Ki] e') in
-        replace e'' with (fill [Ki] e') by eauto;
-        wp_apply wp_raise; first (now eauto);
-        wp_pures; cbn
-      end)
-    || fail "wp_raise: "
-  | _ => fail "wp_pure: not a 'wp'"
-  end.
-
 Lemma try_raise_proof
  : ⊢ (WP try_raise at AxiomEnv {{v, ⌜v = OVal #3⌝}})%I.
 Proof.

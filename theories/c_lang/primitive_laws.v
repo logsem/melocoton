@@ -67,6 +67,25 @@ Proof.
   iApply wp_outcome; first done. iApply "H2".
 Qed.
 
+Lemma wp_lift_atomic_prim_step {s E Φ} e1 :
+  to_outcome e1 = None →
+  (∀ σ1, state_interp σ1 ={E}=∗
+    ⌜reducible (penv_prog s) e1 σ1⌝ ∗
+    ▷ ∀ e2 σ2, ⌜prim_step (penv_prog s) e1 σ1 e2 σ2⌝ ={E}=∗
+      state_interp σ2 ∗
+      WP e2 @ s; E {{ Φ }})
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (?) "H".
+  iApply (wp_lift_step_fupd s E _ e1)=>//; iIntros (σ1) "Hσ1".
+  iMod ("H" $! σ1 with "Hσ1") as "[%HH H]". iModIntro.
+  iSplitR; eauto.
+  iIntros (e' σ' Hstep).
+  do 2 iModIntro.
+  iMod ("H" $! e' σ' Hstep) as "[H1 H2]". iModIntro.
+  iFrame. done.
+Qed.
+
 Lemma wp_Malloc_seq n :
   (0 < n)%Z →
   {{{ True }}} Malloc (Val $ LitV $ LitInt $ n) at p
@@ -121,6 +140,44 @@ Proof.
   iMod (gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iFrame. iIntros "HΦ". iModIntro. by iApply "HΦ".
 Qed.
+
+Lemma wp_raise E Ki pe v Φ :
+  WP Raise v @ pe; E {{ Φ }}
+  ⊢ WP fill [Ki] (Raise v) @ pe; E {{ Φ }}.
+Proof.
+  iIntros "Hwp".
+  iApply wp_lift_atomic_prim_step.
+  { destruct Ki; eauto. }
+  cbn. iIntros (σ1) "Hσ !>". iSplit.
+  { iPureIntro. unfold reducible. eexists (fill [] (Raise v)), _.
+    eapply Prim_step_raise; eauto. now rewrite fill_comp_item. }
+  iIntros (v2 σ2 Hstep).
+  inversion Hstep; subst; clear Hstep.
+  { replace (fill_item Ki (Raise v)) with (fill [Ki] (Raise v)) in H by eauto.
+    symmetry in H. admit. }
+    (* edestruct (fill_prefix_val_out K [Ki] _ _ H) as [K' Hk]. *)
+    (* { by eapply outcome_head_stuck. } *)
+    (* destruct K'; cbn in *; subst. *)
+    (* - cbn in H. apply fill_item_inj in H. subst. inversion H1. *)
+    (* - inversion Hk; subst. symmetry in H3. *)
+    (*   apply app_nil in H3 as [-> ->]; cbn in *. *)
+    (*   destruct e; subst; cbn in H1; inversion H1; first (exfalso; eauto); subst. *)
+    (*   apply map_eq_app in H0 as (_ & l2 & _ & _ & Hr). *)
+    (*   destruct l2; inversion Hr. } *)
+  {  do 2 iModIntro. iFrame.
+    assert (K = []) as ->.
+    { rewrite fill_comp_item in H; cbn in H.
+      replace (fill_item Ki (Raise v)) with (fill [Ki] (Raise v)) in H by eauto.
+      symmetry in H. admit. }
+    (*   destruct (lang.C_lang.fill_prefix_val_out _ _ _ _ H) as [K' H']. *)
+    (*   { destruct Ki0; eauto. } *)
+    (*   destruct K; eauto. unfold comp_ectx in H'. *)
+    (*   destruct K'. 2: destruct K'; eauto; inversion H'. *)
+    (*   cbn in H'. inversion H'. subst. apply fill_inj in H. *)
+    (*   destruct Ki0; inversion H. } *)
+    cbn in *. assert (Ki = Ki0). 1: (eapply fill_item_no_val_inj; eauto); eauto.
+    subst. apply fill_item_inj in H; inversion H. iFrame. }
+Admitted.
 
 Lemma wp_call' (s:prog_environ C_lang Σ) n args body body' vv E Φ :
      ⌜(penv_prog s) !! n = Some (Fun args body)⌝

@@ -786,9 +786,6 @@ Inductive prim_step p : expr → state → expr → state → Prop :=
   | Prim_step_raise K Ki e1 e2 σ1 v :
       e1 = fill (Ki :: K) (Raise (Val v)) → e2 = fill K (Raise (Val v)) →
       ¬is_try Ki → prim_step p e1 σ1 e2 σ1.
-  (* | Prim_step_try K e1 e2 σ1 r v : *)
-  (*     e1 = fill (TryCtx r :: K) (Raise (Val v)) → e2 = fill K (App r (Val v)) → *)
-  (*     prim_step p e1 σ1 e2 σ1. *)
 
 (** External calls *)
 
@@ -838,22 +835,12 @@ Proof.
   inversion 1; simplify_eq; try done.
 Qed.
 
-(* Lemma head_ctx_item_step_val p Ki e σ1 e2 σ2 : *)
-(*   head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_val e). *)
-(* Proof. *)
-(*   revert e2. induction Ki; try by (inversion_clear 1; simplify_option_eq; eauto). *)
-(*   intros e2. inversion 1; subst. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy. *)
-(*   apply in_map_iff. rewrite H1. apply in_or_app. right. now left. *)
-(* Qed. *)
-
 Lemma head_ctx_item_step_outcome p Ki e σ1 e2 σ2 :
   head_step p (fill_item Ki e) σ1 e2 σ2 → is_Some (to_outcome e).
 Proof.
   revert e2. induction Ki; try by (inversion_clear 1; simplify_option_eq; eauto).
   intros e2. inversion 1; subst. enough (exists k, Val k = e ∧ In k va0) as (k & <- & _) by easy.
   apply in_map_iff. rewrite H1. apply in_or_app. right. now left.
-  (* intros H. apply head_ctx_item_step_val in H as [x H]. *)
-  (* destruct e; cbn in H; try congruence. eauto. *)
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -883,13 +870,10 @@ Lemma prim_step_inv p e1 e2 σ1 σ2 :
   (∃ K e1' e2', e1 = fill K e1' ∧ e2 = fill K e2' ∧ head_step p e1' σ1 e2' σ2) ∨
   (∃ K Ki v, e1 = fill (Ki :: K) (Raise (Val v)) ∧
              e2 = fill K (Raise (Val v)) ∧ ¬ is_try Ki ∧ σ1 = σ2).
-  (* (∃ K r v, e1 = fill (TryCtx r :: K) (Raise (Val v)) ∧ *)
-  (*           e2 = fill K (App r (Val v)) ∧ σ1 = σ2). *)
 Proof.
   inversion 1; subst.
   { left; do 3 eexists; eauto. }
   { right; do 5 eexists; eauto. }
-  (* { repeat right; do 5 eexists; eauto. } *)
 Qed.
 
 Lemma head_prim_step p e1 σ1 e2 σ2 :

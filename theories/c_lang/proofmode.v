@@ -379,6 +379,28 @@ Tactic Notation "wp_free" :=
       |fail 1 "wp_free: cannot find 'Free' in" e]
   | _ => fail "wp_free: not a 'wp'"
   end.
+
+Ltac wp_raise :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' =>
+      lazymatch K with
+      | [] => fail
+      | ?Ki :: ?K' =>
+        wp_bind_core K';
+        let e'' := eval simpl in (fill [Ki] e') in
+        replace e'' with (fill [Ki] e') by eauto;
+        wp_apply wp_raise; first (now eauto);
+        wp_pures; cbn
+      end)
+    || fail "wp_raise: 'raise v' not found"
+  | _ => fail "wp_pure: not a 'wp'"
+  end.
+
+Tactic Notation "wp_raises" := repeat wp_raise.
+
 (*
 Tactic Notation "wp_load" :=
   let solve_mapsto _ :=

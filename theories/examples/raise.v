@@ -82,7 +82,7 @@ Proof.
   wp_apply (wp_int2val with "HGC"); auto.
   iIntros (resv) "(HGC&%Hr)". cbn.
 
-  wp_apply (wp_raise); auto. iIntros "_".
+  wp_apply (wp_raise_prim); auto. iIntros "_".
   iApply "HΦ". iApply ("Return" $! _ _ (OExn (Lint _)) with "HGC [Cont]").
   - now iApply "Cont".
   - eauto.
@@ -117,48 +117,5 @@ Import
     iModIntro. wp_rec. wp_pures. eauto.
   Qed.
 
-  (* Section LogRel. *)
-  (* Import logrel typing fundamental. *)
-  (* Context `{!logrelG Σ}. *)
-  (* Context (A B : type). *)
-  (**)
-  (* Definition program_type_ctx : program_env := *)
-  (*   {[ "add_one" := FunType [ TNat ] TNat ]}. *)
-  (**)
-  (* Lemma add_one_well_typed Δ : ⊢ ⟦ program_type_ctx ⟧ₚ* ⟨∅, add_one_ml_spec⟩ Δ. *)
-  (* Proof. *)
-  (*   iIntros (s vv Φ) "!> (%ats&%rt&%Heq&Hargs&Htok&HCont)". *)
-  (*   wp_extern. iModIntro. unfold program_type_ctx in Heq. *)
-  (*   apply lookup_singleton_Some in Heq as (<-&Heq). simplify_eq. *)
-  (*   iPoseProof (big_sepL2_length with "Hargs") as "%Heq". *)
-  (*   destruct vv as [|v [|??]]; cbn in Heq; try lia. *)
-  (*   cbn. iDestruct "Hargs" as "((%n&->)&_)". *)
-  (*   iSplit; first done. iExists n. iSplit; first done. iSplit; first done. *)
-  (*   iIntros "!> _". wp_pures. iModIntro. iApply ("HCont" with "[-Htok] Htok"). *)
-  (*   iExists _. eauto. *)
-  (* Qed. *)
-  (* End LogRel. *)
-
-
 End JustML.
-
-Local Existing Instance ordinals.ordI.
-
-Definition fullprog : mlang_prog combined_lang :=
-  combined_prog raise_client get_raise_prog.
-
-Lemma add_one_adequate :
-  umrel.trace (mlanguage.prim_step fullprog) (LkCall "main" [], adequacy.σ_init)
-    (λ '(e, σ), mlanguage.to_outcome e = Some (OVal (code_int 4))).
-Proof.
-Admitted.
-(*   eapply umrel_upclosed. *)
-(*   { eapply combined_adequacy_trace. intros Σ Hffi. split_and!. *)
-(*     3: {iIntros "_". iApply ML_prog_correct_axiomatic. } *)
-(*     3: admit. *)
-(*     { iIntros (? Hn ?) "(% & H)". iDestruct "H" as (? ? ->) "H". *)
-(*       exfalso. set_solver. } *)
-(*     { set_solver. } } *)
-(*   { intros [?] (? & -> & ?). do 3 f_equal; done. } *)
-(* Qed. *)
 

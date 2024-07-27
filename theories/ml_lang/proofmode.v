@@ -214,8 +214,6 @@ Tactic Notation "wp_bind" open_constr(efoc) :=
   end.
 
 
-
-
 (** Heap tactics *)
 (* TODO fix later-sep issues
 Section heap.
@@ -376,6 +374,29 @@ Tactic Notation "wp_apply" open_constr(lem) :=
 Tactic Notation "wp_smart_apply" open_constr(lem) :=
   wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
                     ltac:(fun cont => wp_pure _; []; cont ()).
+
+
+Ltac wp_raise :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    let e := eval simpl in e in
+    reshape_expr e ltac:(fun K e' =>
+      lazymatch K with
+      | [] => fail
+      | ?Ki :: ?K' =>
+        wp_bind_core K';
+        let e'' := eval simpl in (fill [Ki] e') in
+        replace e'' with (fill [Ki] e') by eauto;
+        wp_apply wp_raise; first (now eauto);
+        wp_pures; cbn
+      end)
+    || fail "wp_raise: 'raise v' not found"
+  | _ => fail "wp_pure: not a 'wp'"
+  end.
+
+Tactic Notation "wp_raises" := repeat wp_raise.
+
 (*
 Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
   let Htmp := iFresh in

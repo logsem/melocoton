@@ -306,7 +306,7 @@ Proof.
   iApply wp_outcome; eauto. iApply "Cont"; eauto. by iFrame.
 Qed.
 
-Lemma wp_raise p Ψ w :
+Lemma wp_raise_prim p Ψ w :
   p !! "raise" = None →
   raise_proto ⊑ Ψ →
   {{{ True }}}
