@@ -42,8 +42,7 @@ Proof using.
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[- $Hpto]").
-  rewrite /GC /named. iExists _, _, σMLvirt, _, _.
-  iFrame. iPureIntro; split_and!; eauto.
+  rewrite /GC /named. iExists _, _, σMLvirt, _. by iFrame.
 Qed.
 
 End Laws.

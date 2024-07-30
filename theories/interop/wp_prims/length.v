@@ -43,8 +43,7 @@ Proof using.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[- $Hpto]"); try done; [].
   rewrite /GC /named.
-  iExists _, _, σMLvirt, _. iExists _.
-  iFrame. iPureIntro; split_and!; eauto.
+  iExists _, _, σMLvirt, _; by iFrame.
 Qed.
 
 End Laws.

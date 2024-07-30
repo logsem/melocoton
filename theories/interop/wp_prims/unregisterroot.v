@@ -44,8 +44,8 @@ Proof using.
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply ("Cont" $! w with "[- $Hpto]"). iSplit; last done.
-  repeat iExists _. iFrame. iPureIntro; split_and!; eauto.
-  rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
+  repeat iExists _. iFrame.
+  rewrite /= dom_delete_L (_: dom roots_m = rootsC ρc) //. by iFrame.
 Qed.
 
 End Laws.

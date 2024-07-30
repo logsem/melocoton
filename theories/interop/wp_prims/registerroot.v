@@ -44,8 +44,8 @@ Proof using.
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame "Hres".
-  repeat iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
-  rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.
+  repeat iExists _. unfold named. iFrame. cbn.
+  rewrite dom_insert_L (_: dom roots_m = rootsC ρc) //. by iFrame.
 Qed.
 
 End Laws.

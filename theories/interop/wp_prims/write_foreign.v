@@ -47,8 +47,8 @@ Proof using.
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[- $Hpto]"). iFrame.
   rewrite /GC /named. 
-  iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto.
-  eapply GC_correct_modify_foreign; eauto.
+  iExists _, _, _, _. iFrame.
+  iPureIntro; eapply GC_correct_modify_foreign; eauto.
 Qed.
 
 End Laws.
