@@ -4,7 +4,7 @@ From iris.proofmode Require Export tactics.
 From iris.prelude Require Import options.
 From melocoton Require Import named_props.
 From melocoton.interop Require Import basics basics_resources.
-From melocoton.interop Require Import lang weakestpre update_laws wp_utils prims_proto.
+From melocoton.interop Require Import lang weakestpre update_laws prims_proto.
 From melocoton.language Require Import weakestpre progenv.
 From melocoton.c_interop Require Import rules notation.
 From melocoton.ml_lang Require Import notation lang_instantiation.

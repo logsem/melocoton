@@ -113,3 +113,5 @@ Qed.
 End C_intf.
 
 Export C_intf.
+
+Global Notation Cval := C_intf.val.

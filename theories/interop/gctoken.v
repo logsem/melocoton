@@ -7,7 +7,7 @@ From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Export defs resources.
 From melocoton.ml_lang Require Import lang_instantiation.
 From melocoton.ml_lang Require Export lang primitive_laws.
-From melocoton.interop Require Import basics_resources hybrid_ghost_heap.
+From melocoton.interop Require Import basics_resources hybrid_ghost_heap roots.
 
 (** The [GC θ] resource.
 
@@ -62,11 +62,10 @@ Definition GC (θ : addr_map) : iProp Σ :=
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) θ
   ∗ "GCHGH" ∷ HGH χ (Some σMLvirt) ζ
   ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
-  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
+  ∗ "GCrootss" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
-  ∗ "GCrootspto" ∷ ([∗ map] a ↦ v ∈ roots_m, ∃ w, a ↦C w ∗ ⌜repr_lval θ v w⌝)
+  ∗ "GCROOTS" ∷ ROOTS θ roots_m
   ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
-  ∗ "%Hrootslive" ∷ ⌜roots_are_live θ roots_m⌝
   ∗ "%HGCOK" ∷ ⌜GC_correct ζ θ⌝.
 
 Definition at_init := ghost_var wrapperG_γat_init (1/2) true.

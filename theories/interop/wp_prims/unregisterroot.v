@@ -36,18 +36,16 @@ Proof using.
     σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := rootsC ρc ∖ {[l]} |} mem).
   iSplit. { iPureIntro. econstructor; eauto. rewrite -H2. by eapply elem_of_dom_2. }
   iIntros (? ? ? (? & ?)); simplify_eq.
-  iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
+  iMod (ghost_var_update_halves with "SIroots GCrootss") as "(SIroots&GCrootss)".
   iMod (ghost_map_delete with "GCrootsm Hpto") as "GCrootsm".
-  iPoseProof (big_sepM_delete) as "(HL&_)"; first eapply Helem.
-  iPoseProof ("HL" with "GCrootspto") as "((%W&Hpto&%Hw)&GCrootspto)".
-  iClear "HL".
+  iDestruct (ROOTS_delete with "GCROOTS") as (w) "(GCROOTS & Hpto & %)"; first done.
+
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
-  iApply ("Cont" $! W with "[- $Hpto]"). iSplit; last done.
+  iApply ("Cont" $! w with "[- $Hpto]"). iSplit; last done.
   repeat iExists _. iFrame. iPureIntro; split_and!; eauto.
-  - rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
-  - intros ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hrootslive.
+  rewrite dom_delete_L. rewrite (_: dom roots_m = rootsC ρc) //.
 Qed.
 
 End Laws.

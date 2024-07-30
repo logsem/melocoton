@@ -5,7 +5,7 @@ From iris.proofmode Require Import proofmode.
 From melocoton Require Import named_props.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang primitive_laws.
-From melocoton.interop Require Import basics basics_resources gctoken hybrid_ghost_heap.
+From melocoton.interop Require Import basics basics_resources gctoken hybrid_ghost_heap roots.
 
 Section UpdateLaws.
 
@@ -79,22 +79,18 @@ Lemma update_root θ (l:loc) v E :
   ∃ w, l ↦C w ∗ ⌜repr_lval θ v w⌝ ∗
     (∀ v' w', l ↦C w' ∗ ⌜repr_lval θ v' w'⌝ ={E}=∗ GC θ ∗ l ↦roots v').
 Proof using.
-  iIntros "(HGC & Hroots)".
+  iIntros "(HGC & Hroot)".
   iNamed "HGC".
-  iPoseProof (ghost_map_lookup with "GCrootsm Hroots") as "%H".
-  iPoseProof (big_sepM_delete) as "(HL&_)"; first apply H.
-  iPoseProof ("HL" with "GCrootspto") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
-  iExists _. iFrame "Hown". iSplit; first done. iIntros (v' w') "(Hown' & %Hrepr')".
-  iMod (ghost_map_update with "GCrootsm Hroots") as "(GCrootsm&Hroots)".
-  iModIntro. iFrame "Hroots". repeat iExists _; rewrite /named. iFrame.
-  rewrite dom_insert_lookup_L; last done.
-  iSplit.
-  { iPoseProof (big_sepM_insert_delete) as "(_&HR)"; iApply "HR"; iClear "HR".
-    iFrame. iExists _. by iFrame. }
-  { iPureIntro; split_and!; eauto.
-    intros l' γ [[-> ->]|[Hne HH]]%lookup_insert_Some.
-    2: by eapply Hrootslive.
-    inv_repr_lval. by eapply elem_of_dom_2. }
+  iPoseProof (ghost_map_lookup with "GCrootsm Hroot") as "%Hl".
+  iDestruct (ROOTS_delete _ _ l with "GCROOTS") as (w) "(GCROOTS & Hpto & %Hrepr)"; first done.
+  iExists _. iFrame "Hpto". iSplit; first done.
+  iIntros (v' w') "(Hpto & %Hrepr')".
+  iDestruct (ROOTS_insert with "GCROOTS Hpto") as "GCROOTS"; first done.
+  rewrite insert_delete_insert.
+  iMod (ghost_map_update with "GCrootsm Hroot") as "(GCrootsm&$)".
+  iModIntro. rewrite /GC /named. repeat iExists _. iFrame.
+  iPureIntro; split_and!; eauto.
+  rewrite dom_insert_L. apply elem_of_dom_2 in Hl. set_solver.
 Qed.
 
 Lemma access_root θ (l:loc) dq v :
@@ -103,14 +99,13 @@ Lemma access_root θ (l:loc) dq v :
       (l ↦C w -∗ GC θ ∗ l ↦roots{dq} v).
 Proof using.
   iIntros "(HGC & Hroot)". iNamed "HGC".
-  iPoseProof (ghost_map_lookup with "GCrootsm Hroot") as "%H".
-  iPoseProof (big_sepM_delete) as "(HL&HR)"; first apply H.
-  iPoseProof ("HL" with "GCrootspto") as "((%w&Hown&%Hrepr2) & Hrp)"; iClear "HL".
-  iExists _. iFrame "Hown". iSplit; first done. iIntros "Hown". iFrame "Hroot".
-  rewrite /GC /named. repeat iExists _.
-  iPoseProof ("HR" with "[Hown Hrp]") as "Hrootsm"; iClear "HR".
-  { iFrame. iExists w; by iFrame. }
-  iFrame. eauto.
+  iPoseProof (ghost_map_lookup with "GCrootsm Hroot") as "%Hl".
+  iDestruct (ROOTS_delete _ _ l with "GCROOTS") as (w) "(GCROOTS & Hpto & %Hrepr)"; first done.
+  iExists _. iFrame "Hpto Hroot". iSplit; first done.
+  iIntros "Hpto".
+  iDestruct (ROOTS_insert with "GCROOTS Hpto") as "GCROOTS"; first done.
+  rewrite insert_delete// /GC /named. repeat iExists _. iFrame.
+  iPureIntro; split_and!; eauto.
 Qed.
 
 End UpdateLaws.

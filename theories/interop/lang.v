@@ -119,7 +119,7 @@ Definition ml_to_c_heap
     (** Pick C memory (mem) that represents the roots (through θC) + the
        remaining private C memory. *)
     rootsC ρc = dom (rootsML ρml) ∧
-    repr (θC ρc) (rootsML ρml) (privmemML ρml) mem.
+    repr_mem (θC ρc) (rootsML ρml) (privmemML ρml) mem.
 
 Definition ml_to_c_val (v : val) (w : word) (ρc : wrapstateC) : Prop :=
   ∃ (lv : lval),
@@ -187,7 +187,7 @@ Proof.
   1: intros γ Hγ; subst θdom3; apply Hθdom3; right; apply Hθdom2; left; done.
   assert (roots_are_live θC (rootsML ρml)) as Hrootslive.
   1: { intros a γ ?. subst θdom3. apply Hθdom3. left. by eexists. }
-  destruct (find_repr_roots θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
+  destruct (find_repr_mem θC (rootsML ρml) (privmemML ρml)) as (mem & Hrepr); [done..|].
 
   eexists ws, (WrapstateC χ2 ζC θC _), mem. split.
   { unfold ml_to_c_heap; eexists _, _; split_and!; try done; cbn.
@@ -294,7 +294,7 @@ Definition c_to_ml_heap
     is_store (χML ρml) ζ σ ∧
     (** Split the C memory mem into the memory for the roots and the rest
        ("private" C memory). *)
-    repr (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
+    repr_mem (θC ρc) (rootsML ρml) (privmemML ρml) mem ∧
     dom (rootsML ρml) = rootsC ρc.
 
 Definition c_to_ml_vals
@@ -349,7 +349,7 @@ Inductive c_prim_step :
     tgnum = vblock_tag_as_int tg →
     (0 ≤ sz)%Z →
     dom roots = rootsC ρc →
-    repr (θC ρc) roots privmem mem →
+    repr_mem (θC ρc) roots privmem mem →
     GC_correct (ζC ρc) (θC ρc) →
     roots_are_live (θC ρc) roots →
     (∀ γ χC' ζC' θC' a mem',
@@ -357,7 +357,7 @@ Inductive c_prim_step :
       χC' = <[ γ := LlocPrivate ]> (χC ρc) →
       ζC' = <[ γ := (Bvblock (Mut, (tg, List.repeat (Lint 0) (Z.to_nat sz)))) ]> (ζC ρc) →
       GC_correct ζC' θC' →
-      repr θC' roots privmem mem' →
+      repr_mem θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
       Y (C_intf.LitV (C_intf.LitLoc a)) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
@@ -419,7 +419,7 @@ Inductive c_prim_step :
     c_prim_step Pint2val [CIntV x] ρc mem Y
   | PrimAllocForeignS roots privmem ρc mem Y :
     dom roots = rootsC ρc →
-    repr (θC ρc) roots privmem mem →
+    repr_mem (θC ρc) roots privmem mem →
     GC_correct (ζC ρc) (θC ρc) →
     roots_are_live (θC ρc) roots →
     (∀ γ χC' ζC' θC' a mem',
@@ -427,7 +427,7 @@ Inductive c_prim_step :
       χC' = <[ γ := LlocPrivate ]> (χC ρc) →
       ζC' = <[ γ := Bforeign (Mut, None) ]> (ζC ρc) →
       GC_correct ζC' θC' →
-      repr θC' roots privmem mem' →
+      repr_mem θC' roots privmem mem' →
       roots_are_live θC' roots →
       θC' !! γ = Some a →
       Y (CLocV a) (WrapstateC χC' ζC' θC' (rootsC ρc)) mem') →
@@ -482,7 +482,7 @@ Proof.
         rewrite dom_insert_L in HH1.
         apply elem_of_union in HH1 as [->%elem_of_singleton|HH1]; first done.
         rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done.
-    - eapply repr_mono; last by eexists.
+    - eapply repr_mem_mono; last by eexists.
       eapply insert_subseteq, not_elem_of_dom, HFθ.
     - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r.
       by eapply Hrootslive.
@@ -512,7 +512,7 @@ Proof.
         rewrite dom_insert_L in HH0.
         apply elem_of_union in HH0 as [->%elem_of_singleton|HH0]; first done.
         rewrite dom_insert_L; eapply elem_of_union_r. eapply HGCOK; done.
-    - eapply repr_mono; last by eexists.
+    - eapply repr_mem_mono; last by eexists.
       eapply insert_subseteq, not_elem_of_dom, HFθ.
     - intros l γ1 Hin. rewrite dom_insert_L; eapply elem_of_union_r.
       by eapply Hrootslive.

@@ -7,7 +7,7 @@ From melocoton.combined Require Import rules adequacy.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import basics basics_resources.
-From melocoton.interop Require Import lang weakestpre update_laws wp_utils prims_proto.
+From melocoton.interop Require Import lang weakestpre update_laws prims_proto.
 From melocoton.language Require Import weakestpre progenv.
 From melocoton.c_interface Require Import notation defs resources.
 From melocoton.c_interop Require Import rules notation.
