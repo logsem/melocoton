@@ -127,7 +127,7 @@ Proof using.
   iModIntro. iFrame "Hnb". rewrite /= /named.
   iFrame "HσCv SIζ SIχ SIθ SIroots SIbound".
   iSplitL "SIinit". { iExists false. iFrame. } iSplit.
-  { rewrite /GC /named. iExists _, _, _, _, _. iFrame. iPureIntro; split_and!; eauto. }
+  { rewrite /GC /named Hroots. iExists _, _, _, _. by iFrame. }
   { by iFrame "Hsim". }
 Qed.
 

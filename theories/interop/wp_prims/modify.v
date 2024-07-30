@@ -49,9 +49,8 @@ Proof using.
   change (Z.of_nat 0) with (Z0).
   iApply "Hcont". iFrame.
   iApply ("Cont" with "[-]"). iSplitR "Hpto Hptoacc".
-  { rewrite /GC /named /=. iExists (<[γ:=blk']> (ζC ρc)), _, _, _, _.
-    iFrame. iPureIntro; split_and!; eauto.
-    eapply GC_correct_modify_block; eauto. }
+  { rewrite /GC /named /=. iExists (<[γ:=blk']> (ζC ρc)), _, _, _.
+    iFrame. iPureIntro; eapply GC_correct_modify_block; eauto. }
   { iApply lstore_own_vblock_mutable_as_mut; eauto. by iFrame. }
 Qed.
 

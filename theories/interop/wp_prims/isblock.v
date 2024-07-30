@@ -38,8 +38,7 @@ Proof using.
   iApply "Hcont". iFrame.
   destruct lv; iApply ("Cont").
   all: rewrite /GC /named.
-  all: iExists _, _, σMLvirt, _; iExists _.
-  all: iFrame; iPureIntro; split_and!; eauto; done.
+  all: iExists _, _, σMLvirt, _; by iFrame.
 Qed.
 
 End Laws.

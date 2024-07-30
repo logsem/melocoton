@@ -55,17 +55,15 @@ Context `{!heapG_ML Σ, !heapG_C Σ}.
 Context `{!wrapperGCtokG Σ}.
 
 Definition GC (θ : addr_map) : iProp Σ :=
-  ∃ (ζ : lstore) (χ : lloc_map) (σMLvirt : store)
-    (roots_s : gset addr) (roots_m : gmap addr lval),
+  ∃ (ζ : lstore) (χ : lloc_map) (σMLvirt : store) (roots_m : gmap addr lval),
     "GCζ" ∷ ghost_var wrapperG_γζ (1/2) ζ
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ (1/2) χ
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ (1/2) θ
   ∗ "GCHGH" ∷ HGH χ (Some σMLvirt) ζ
   ∗ "GCinit" ∷ ghost_var wrapperG_γat_init (1/2) false
-  ∗ "GCrootss" ∷ ghost_var wrapperG_γroots_set (1/2) roots_s
+  ∗ "GCrootss" ∷ ghost_var wrapperG_γroots_set (1/2) (dom roots_m)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 roots_m
   ∗ "GCROOTS" ∷ ROOTS θ roots_m
-  ∗ "%Hrootsdom" ∷ ⌜dom roots_m = roots_s⌝
   ∗ "%HGCOK" ∷ ⌜GC_correct ζ θ⌝.
 
 Definition at_init := ghost_var wrapperG_γat_init (1/2) true.

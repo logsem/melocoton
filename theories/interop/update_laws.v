@@ -89,8 +89,9 @@ Proof using.
   rewrite insert_delete_insert.
   iMod (ghost_map_update with "GCrootsm Hroot") as "(GCrootsm&$)".
   iModIntro. rewrite /GC /named. repeat iExists _. iFrame.
-  iPureIntro; split_and!; eauto.
-  rewrite dom_insert_L. apply elem_of_dom_2 in Hl. set_solver.
+  rewrite dom_insert_L (_: {[l]} ∪ dom roots_m = dom roots_m);
+    last by apply elem_of_dom_2 in Hl; set_solver.
+  by iFrame.
 Qed.
 
 Lemma access_root θ (l:loc) dq v :
@@ -104,8 +105,7 @@ Proof using.
   iExists _. iFrame "Hpto Hroot". iSplit; first done.
   iIntros "Hpto".
   iDestruct (ROOTS_insert with "GCROOTS Hpto") as "GCROOTS"; first done.
-  rewrite insert_delete// /GC /named. repeat iExists _. iFrame.
-  iPureIntro; split_and!; eauto.
+  rewrite insert_delete// /GC /named. repeat iExists _. by iFrame.
 Qed.
 
 End UpdateLaws.

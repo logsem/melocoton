@@ -35,7 +35,7 @@ Proof using.
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iSplit; last done.
-  repeat iExists _; rewrite /named; iFrame. eauto.
+  repeat iExists _; rewrite /named; by iFrame.
 Qed.
 
 End Laws.
