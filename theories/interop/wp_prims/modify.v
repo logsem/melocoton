@@ -3,8 +3,7 @@ From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From melocoton Require Import named_props stdpp_extra.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_interface Require Import defs notation resources.
-From melocoton.interop Require Import state lang basics_resources.
-From melocoton.interop Require Import basics wp_utils.
+From melocoton.interop Require Import state lang basics basics_resources.
 From melocoton.interop Require Export prims weakestpre prims_proto.
 From melocoton.interop.wp_prims Require Import common.
 From melocoton.mlanguage Require Import weakestpre.

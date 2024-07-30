@@ -6,7 +6,7 @@ From melocoton.ml_lang.logrel Require Import typing logrel fundamental.
 From melocoton.language Require Import language weakestpre.
 From melocoton.interop Require Import basics basics_resources prims_proto.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
-From melocoton.interop Require Import state lang weakestpre update_laws wp_utils wp_simulation.
+From melocoton.interop Require Import state lang weakestpre update_laws wp_simulation.
 From melocoton.ml_lang Require Import primitive_laws lang_instantiation.
 From melocoton.c_lang Require Import lang_instantiation mlang_instantiation.
 From melocoton.mlanguage Require Import progenv.
@@ -109,7 +109,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
     "GCζ" ∷ ghost_var wrapperG_γζ 1 (∅:lstore)
   ∗ "GCχ" ∷ ghost_var wrapperG_γχ 1 (∅:lloc_map)
   ∗ "GCθ" ∷ ghost_var wrapperG_γθ 1 (∅:addr_map)
-  ∗ "GCroots" ∷ ghost_var wrapperG_γroots_set 1 (∅:gset addr)
+  ∗ "GCrootss" ∷ ghost_var wrapperG_γroots_set 1 (∅:gset addr)
   ∗ "GCζvirt" ∷ lstore_own_auth (∅:lstore)
   ∗ "GCχvirt" ∷ lloc_own_auth (∅:lloc_map)
   ∗ "GCrootsm" ∷ ghost_map_auth wrapperG_γroots_map 1 (∅:gmap addr lval)
@@ -167,7 +167,7 @@ Definition GCtok_gammas `{!wrapperGCtokG Σ} : iProp Σ :=
       iDestruct "GCζ" as "($&$)".
       iDestruct "GCχ" as "($&$)".
       iDestruct "GCθ" as "($&$)".
-      iDestruct "GCroots" as "($&$)".
+      iDestruct "GCrootss" as "($&$)".
     - eapply dfrac_agree.frac_agree_op_valid_L; done.
   Qed.
 

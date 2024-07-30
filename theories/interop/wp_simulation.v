@@ -10,7 +10,7 @@ From iris.proofmode Require Import proofmode.
 From melocoton.c_interface Require Import defs resources.
 From melocoton.ml_lang Require Import lang lang_instantiation primitive_laws.
 From melocoton.interop Require Export prims weakestpre prims_proto hybrid_ghost_heap.
-From melocoton.interop Require Import wp_ext_call_laws wp_boundary_laws wp_utils.
+From melocoton.interop Require Import wp_ext_call_laws wp_boundary_laws.
 From melocoton.interop.wp_prims Require Import common.
 Import Wrap.
 
@@ -43,6 +43,7 @@ Proof using.
     iDestruct (hgh_discarded_locs_pub with "GCHGH HσML") as %?.
     iDestruct (hgh_dom_lstore_sub with "GCHGH") as %?.
     iDestruct (hgh_χ_inj with "GCHGH") as %?.
+    apply repr_mem_disj in Hreprmem.
     iPureIntro; split_and!; eauto. }
 
   iExists (λ '(e', σ'), ∃ ow ρc mem,
@@ -84,7 +85,8 @@ Proof.
     iDestruct (weakestpre.wp_strong_mono_post with "[Hret] Hwp") as "Hwp";
       last first.
     { rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
-      iApply ("Hwp" $! (MLState ρml σ)). iFrame. by iPureIntro. }
+      iApply ("Hwp" $! (MLState ρml σ)). iFrame. rewrite /named.
+      iExists _, _. iFrame. by iPureIntro. }
     { cbn. iIntros (vv) "(%θ' & %olv & HGC & %Hrep & Hval & ?)".
       iExists _, _, _. iFrame. eauto. }
   (* extcall *)
@@ -111,13 +113,13 @@ Proof.
       eapply MakeCallS; eauto.
       { done. }
       { apply not_elem_of_dom. rewrite dom_wrap_prog not_elem_of_prim_names //. }
-      { split_and!; eauto. }
+      { split_and!; eauto. eapply repr_mem_disj; eauto. }
       { intros * Hep (lvs & ? & ?). do 4 eexists. split_and!; eauto. } }
-    iIntros (? ? (ws & ρc & mem & lvs & ? & ? & Hcore & -> & ->)).
+    iIntros (? ? (ws & ρc & mem0 & lvs & ? & ? & Hcore & -> & ->)).
     iMod ((wrap_interp_ml_to_c vs lvs) with "[- Hnb Hr HT] Hnb")
       as "(Hσ & Hb & HGC & (#Hblk & %))"; eauto.
     { rewrite /wrap_state_interp /ML_state_interp /named.
-      iSplitL "Hσ"; first by iFrame. by iFrame. }
+      iSplitL "Hσ"; first by iFrame. iExists _, _. by iFrame. }
     do 3 iModIntro. iFrame "Hσ".
 
     (* step done; make an external call in the wrapper *)
@@ -176,7 +178,7 @@ Proof.
     do 2 iModIntro. iMod "HWP" as "(HσC & HWP')".
     iModIntro. iSplitR "HWP' Hnb".
     { rewrite /weakestpre.state_interp /= /named.
-      iSplitL "HσC"; by iFrame. }
+      iSplitL "HσC"; iFrame. iExists _, _. by iFrame. }
     iApply ("IH" with "Hnb HWP'").
 Qed.
 
@@ -259,10 +261,12 @@ Proof using.
   iDestruct (ghost_var_split _ _ (1/2) (1/2) with "SIinit") as "[Hinit1 Hinit2]".
   rewrite /weakestpre.state_interp /= /named.
   rewrite /ML_state_interp /= /named.
-  rewrite /public_state_interp.
-  rewrite !fmap_empty !right_id_L !dom_empty_L. iFrame.
-  rewrite /named !dom_empty_L big_sepS_empty. iFrame.
-  iSplitL "GCζvirt GCχvirt". { iSplit; eauto. iApply (hgh_empty with "[$] [$]"). }
+  rewrite /public_state_interp dom_empty_L. iFrame. rewrite /named.
+  iSplitL "GCζvirt GCχvirt GCθ SIθ SIroots HσC".
+  { iExists mem, ∅. rewrite dom_empty_L. iFrame. iSplit.
+    2: iPureIntro; by apply repr_mem_empty_roots.
+    iSplitL; first by iApply (hgh_empty with "[$] [$]").
+    iApply ROOTS_empty. }
 
   iApply (weakestpre.wp_wand with "[-Cont Hcont]").
   { iApply (wp_simulates with "Hb [Hinitial_resources]"); first done.

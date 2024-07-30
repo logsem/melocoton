@@ -5,7 +5,7 @@ From melocoton Require Import named_props.
 From melocoton.ml_lang.logrel Require logrel typing fundamental.
 From melocoton.interop Require Import basics basics_resources.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
-From melocoton.interop Require Import lang weakestpre update_laws wp_utils wp_ext_call_laws wp_simulation.
+From melocoton.interop Require Import lang weakestpre update_laws wp_ext_call_laws wp_simulation.
 From melocoton.c_interop Require Import rules.
 From melocoton.ml_lang Require Import notation lang_instantiation.
 From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.

@@ -5,7 +5,7 @@ From melocoton Require Import named_props.
 From melocoton.linking Require Import lang weakestpre.
 From melocoton.lang_to_mlang Require Import lang weakestpre.
 From melocoton.interop Require Import basics basics_resources wp_simulation.
-From melocoton.interop Require Import lang weakestpre update_laws wp_utils prims_proto.
+From melocoton.interop Require Import lang weakestpre update_laws prims_proto.
 From melocoton.language Require Import weakestpre progenv.
 From melocoton.c_interop Require Import rules notation.
 From melocoton.c_lang Require Import mlang_instantiation lang_instantiation.

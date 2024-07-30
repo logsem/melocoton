@@ -28,10 +28,7 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ". cbn -[wrap_prog].
   SI_at_boundary. iNamed "HGC". SI_GC_agree.
-  iAssert (⌜¬ l ∈ dom roots_m⌝)%I as "%Hdom".
-  1: { iIntros "%H". eapply elem_of_dom in H; destruct H as [k Hk].
-       iPoseProof (big_sepM_lookup_acc with "GCrootspto") as "((%ww&Hww&_)&_)".
-       1: apply Hk. iPoseProof (resources.mapsto_ne with "Hpto Hww") as "%Hne". congruence. }
+  iDestruct (ROOTS_pto_notin with "GCROOTS Hpto") as %Hdom.
 
   iApply wp_pre_cases_c_prim; [done..|].
   iExists (λ '(e', σ'),
@@ -39,22 +36,16 @@ Proof using.
     σ' = CState {| χC := χC ρc; ζC := ζC ρc; θC := θC ρc; rootsC := {[l]} ∪ rootsC ρc |} mem).
   iSplit. { iPureIntro. econstructor; eauto. congruence. }
   iIntros (w' ρc' mem' (? & ?)); simplify_eq.
-  iMod (ghost_var_update_halves with "SIroots GCroots") as "(SIroots&GCroots)".
+  iMod (ghost_var_update_halves with "SIroots GCrootss") as "(SIroots&GCrootss)".
   iMod (ghost_map_insert with "GCrootsm") as "(GCrootsm&Hres)".
-  1: eapply not_elem_of_dom; intros Hc; eapply Hdom; done.
-  iPoseProof (big_sepM_insert) as "(_&HR)".
-  1: eapply not_elem_of_dom; intros Hc; eapply Hdom; done.
-  iPoseProof ("HR" with "[Hpto GCrootspto]") as "GCrootspto"; first iFrame "GCrootspto".
-  1: iExists w; iFrame; done.
-  iClear "HR".
+  1: by eapply not_elem_of_dom.
+  iDestruct (ROOTS_insert with "GCROOTS Hpto") as "GCROOTS"; eauto.
   do 3 iModIntro. iFrame. iSplitL "SIinit". { iExists false. iFrame. }
   iApply wp_outcome; first done.
   iApply "Hcont". iFrame.
   iApply "Cont". iFrame "Hres".
   repeat iExists _. unfold named. iFrame. iPureIntro; split_and!; eauto.
-  - rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.
-  - intros ℓ γ [[-> ->]|[Hne HH]]%lookup_insert_Some; last by eapply Hrootslive.
-    inv_repr_lval. by eapply elem_of_dom_2.
+  rewrite dom_insert_L. rewrite (_: dom roots_m = rootsC ρc) //.
 Qed.
 
 End Laws.

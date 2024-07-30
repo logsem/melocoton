@@ -1093,3 +1093,5 @@ Qed.
 
 End ML_lang.
 Export ML_lang.
+
+Global Notation MLval := ML_lang.val.

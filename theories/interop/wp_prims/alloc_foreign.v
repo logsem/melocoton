@@ -3,8 +3,7 @@ From transfinite.base_logic.lib Require Import ghost_map ghost_var.
 From melocoton Require Import named_props stdpp_extra.
 From melocoton.mlanguage Require Import mlanguage.
 From melocoton.c_interface Require Import defs notation resources.
-From melocoton.interop Require Import state lang basics_resources.
-From melocoton.interop Require Import basics wp_utils.
+From melocoton.interop Require Import state lang basics basics_resources.
 From melocoton.interop Require Export prims weakestpre prims_proto.
 From melocoton.interop.wp_prims Require Import common.
 From melocoton.mlanguage Require Import weakestpre.
@@ -29,13 +28,8 @@ Proof using.
   rewrite weakestpre.wp_unfold. rewrite /weakestpre.wp_pre.
   iIntros "%σ Hσ".
   SI_at_boundary. SI_GC_agree.
-  iAssert (⌜∀ k lv, roots_m !! k = Some lv →
-            ∃ w, mem !! k = Some (Storing w) ∧ repr_lval (θC ρc) lv w⌝)%I as "%Hroots".
-  1: { iIntros (kk vv Hroots).
-       iPoseProof (big_sepM_lookup with "GCrootspto") as "(%wr & Hwr & %Hw2)"; first done.
-       iExists wr. iSplit; last done. iApply (gen_heap_valid with "HσC Hwr"). }
-  destruct (make_repr (θC ρc) roots_m mem) as [privmem Hpriv]; try done.
-
+  iDestruct (ROOTS_valid with "GCROOTS HσC") as %(privmem & Hrepr).
+  iDestruct (ROOTS_live with "GCROOTS") as %Hlive.
   assert (GC_correct (ζC ρc) (θC ρc)) as HGC'.
   { eapply GC_correct_transport_rev; last done; done. }
 
@@ -45,7 +39,7 @@ Proof using.
       χC' = <[ γ := LlocPrivate ]> (χC ρc) ∧
       ζC' = <[ γ := Bforeign (Mut, None) ]> (ζC ρc) ∧
       GC_correct ζC' θC' ∧
-      repr θC' roots_m privmem mem' ∧
+      repr_mem θC' roots_m privmem mem' ∧
       roots_are_live θC' roots_m ∧
       θC' !! γ = Some aret ∧
       e' = WrSE (ExprO (OVal (# aret))) ∧
@@ -56,11 +50,10 @@ Proof using.
   destruct_and!; simplify_eq.
 
   iMod (hgh_alloc_block with "GCHGH") as "(GCHGH & Hpto & Hfresh)"; first eassumption.
-  iMod (set_to_none _ _ _ _ Hpriv with "HσC GCrootspto") as "(HσC&GCrootspto)".
-  iMod (set_to_some _ _ _ _ Hrepr' with "HσC GCrootspto") as "(HσC&GCrootspto)".
   iMod (ghost_var_update_halves with "GCζ SIζ") as "(GCζ&SIζ)".
   iMod (ghost_var_update_halves with "GCχ SIχ") as "(GCχ&SIχ)".
   iMod (ghost_var_update_halves with "GCθ SIθ") as "(GCθ&SIθ)".
+  iMod (ROOTS_update_θ _ _ _ _ mem mem' with "GCROOTS HσC") as "[GCROOTS HσC]"; [by eauto..|].
 
   do 3 iModIntro. iFrame.
   iSplitL "SIinit". { iExists false. iFrame. }

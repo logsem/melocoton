@@ -274,7 +274,7 @@ Inductive repr_lval_out : addr_map → outcome lval → outcome C_intf.val → P
     repr_lval_out θ (OVal lv) (OVal v).
 
 Inductive repr_roots : addr_map → roots_map → memory → Prop :=
-  | repr_roots_emp θ :
+  | repr_roots_empty θ :
     repr_roots θ ∅ ∅
   | repr_roots_elem θ a v w roots mem :
     repr_roots θ roots mem →
@@ -284,15 +284,11 @@ Inductive repr_roots : addr_map → roots_map → memory → Prop :=
     repr_roots θ (<[ a := v ]> roots)
                  (<[ a := Storing w ]> mem).
 
-
-Definition repr_raw (θ : addr_map) (roots : roots_map) (privmem mem memr : memory) : Prop :=
-  repr_roots θ roots memr ∧
-  privmem ##ₘ memr ∧
-  mem = memr ∪ privmem.
-
-Definition repr (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
-  ∃ memr, repr_raw θ roots privmem mem memr.
-
+Definition repr_mem (θ : addr_map) (roots : roots_map) (privmem mem : memory) : Prop :=
+  ∃ memr,
+    repr_roots θ roots memr ∧
+    privmem ##ₘ memr ∧
+    mem = memr ∪ privmem.
 
 (** Block-level representation of ML values and store *)
 Inductive is_val : lloc_map → lstore → val → lval → Prop :=
@@ -1061,7 +1057,7 @@ Proof.
   eapply H2; eauto. by constructor.
 Qed.
 
-Lemma repr_roots_dom θ a b : repr_roots θ a b -> dom a = dom b.
+Lemma repr_roots_dom θ roots mem : repr_roots θ roots mem → dom roots = dom mem.
 Proof.
   induction 1.
   + by do 2 rewrite dom_empty_L.
@@ -1073,14 +1069,14 @@ Proof.
   intros H; simplify_eq; lia.
 Qed.
 
-Lemma repr_lval_inj θ v w w' : repr_lval θ v w -> repr_lval θ v w' -> w = w'.
+Lemma repr_lval_inj θ v w w' : repr_lval θ v w → repr_lval θ v w' → w = w'.
 Proof.
   induction 1; inversion 1.
   + done.
   + rewrite H in H3. injection H3; intros ->; done.
 Qed.
 
-Lemma repr_lval_inj_1 θ v v' w : gmap_inj θ → repr_lval θ v w -> repr_lval θ v' w -> v = v'.
+Lemma repr_lval_inj_1 θ v v' w : gmap_inj θ → repr_lval θ v w → repr_lval θ v' w -> v = v'.
 Proof.
   unfold code_int.
   intros H; induction 1; inversion 1.
@@ -1093,7 +1089,7 @@ Proof.
   inversion 1; simplify_eq; by econstructor.
 Qed.
 
-Lemma repr_lval_mono θ θ' v w: θ ⊆ θ' -> repr_lval θ v w -> repr_lval θ' v w.
+Lemma repr_lval_mono θ θ' v w: θ ⊆ θ' → repr_lval θ v w → repr_lval θ' v w.
 Proof.
   intros H; induction 1; econstructor.
   eapply lookup_weaken; done.
@@ -1102,14 +1098,103 @@ Qed.
 (* The development is generic over the precise encoding of ints *)
 Opaque code_int.
 
-Lemma repr_mono θ θ' roots_m privmem mem : θ ⊆ θ' -> repr θ roots_m privmem mem -> repr θ' roots_m privmem mem.
+Lemma repr_roots_mono θ θ' roots_m mem :
+  θ ⊆ θ' →
+  repr_roots θ roots_m mem →
+  repr_roots θ' roots_m mem.
 Proof.
-  intros Helem (memr&(H1&H2)). exists memr. split; last done.
-  clear H2.
-  induction H1.
+  intros Helem HH. induction HH.
   - econstructor.
-  - econstructor. 1: by eapply IHrepr_roots. 2-3: done.
+  - econstructor. 1: by eapply IHHH. 2-3: done.
     by eapply repr_lval_mono.
+Qed.
+
+Lemma repr_mem_mono θ θ' roots_m privmem mem :
+  θ ⊆ θ' →
+  repr_mem θ roots_m privmem mem →
+  repr_mem θ' roots_m privmem mem.
+Proof.
+  intros Helem (memr&(H1&?&->)). exists memr.
+  split; eauto using repr_roots_mono.
+Qed.
+
+Lemma repr_mem_disj θ roots_m privmem mem :
+  repr_mem θ roots_m privmem mem →
+  dom privmem ## dom roots_m.
+Proof.
+  intros (? & ? & ?%map_disjoint_dom & ->).
+  erewrite repr_roots_dom; eauto.
+Qed.
+
+Lemma repr_mem_empty_roots θ mem :
+  repr_mem θ ∅ mem mem.
+Proof.
+  exists ∅. split_and!.
+  - apply repr_roots_empty.
+  - apply map_disjoint_dom; set_solver.
+  - rewrite left_id_L//.
+Qed.
+
+Lemma repr_roots_empty_inv_1 θ mem :
+  repr_roots θ ∅ mem →
+  mem = ∅.
+Proof.
+  inversion 1; simplify_eq; eauto.
+  by eapply insert_non_empty in H0.
+Qed.
+
+Lemma repr_roots_lookup θ a lv roots mem :
+  roots !! a = Some lv →
+  repr_roots θ roots mem →
+  ∃ w, mem !! a = Some (Storing w) ∧ repr_lval θ lv w.
+Proof.
+  intros Ha Hrepr. revert a lv Ha. induction Hrepr; first by set_solver.
+  intros a' lv' Ha'.
+  destruct (decide (a = a')) as [<-|]; simplify_map_eq; eauto.
+Qed.
+
+Lemma repr_roots_insert θ a lv w roots mem :
+  a ∉ dom roots →
+  repr_lval θ lv w →
+  repr_roots θ roots mem →
+  repr_roots θ (<[a:=lv]> roots) (<[a:=Some (Some w)]> mem).
+Proof.
+  intros Ha Hrepr Hr. constructor; eauto. erewrite <- repr_roots_dom; eauto.
+Qed.
+
+Lemma repr_roots_delete θ a lv roots mem :
+  roots !! a = Some lv →
+  repr_roots θ roots mem →
+  repr_roots θ (delete a roots) (delete a mem).
+Proof.
+  intros Ha Hrepr. revert a lv Ha. induction Hrepr; first by set_solver.
+  intros a' lv' Ha'.
+  destruct (decide (a = a')) as [<-|]; simplify_map_eq.
+  { rewrite !delete_insert_delete//.
+    rewrite !delete_notin//; by apply not_elem_of_dom. }
+  { rewrite !delete_insert_ne //. constructor; eauto.
+    all: rewrite dom_delete_L; set_solver. }
+Qed.
+
+Lemma repr_roots_inj_2 θ roots mem mem' :
+  repr_roots θ roots mem →
+  repr_roots θ roots mem' →
+  mem = mem'.
+Proof.
+  intros Hrepr1. revert mem'. induction Hrepr1.
+  { by intros ? ->%repr_roots_empty_inv_1. }
+  intros mem' Hrepr.
+  edestruct repr_roots_lookup as (w'&Hw'&Hvw');
+    [eapply lookup_insert|eassumption|].
+  apply map_eq_iff. intros i.
+  destruct (decide (i = a)) as [->|]; simplify_map_eq.
+  { by pose proof (repr_lval_inj _ _ _ _ Hvw' H) as ->. }
+  eapply (repr_roots_delete _ a) in Hrepr.
+  2: by eapply lookup_insert.
+  rewrite delete_insert_delete delete_notin in Hrepr.
+  2: by eapply not_elem_of_dom.
+  apply IHHrepr1 in Hrepr; subst mem.
+  rewrite lookup_delete_ne//.
 Qed.
 
 Lemma lval_in_vblock v m tg vs :
@@ -1174,6 +1259,26 @@ Lemma GC_correct_gmap_inj ζ θ :
   gmap_inj θ.
 Proof. intros H; apply H. Qed.
 Global Hint Resolve GC_correct_gmap_inj : core.
+
+Lemma roots_are_live_empty θ : roots_are_live θ ∅.
+Proof. intros ? ?. rewrite lookup_empty//. Qed.
+
+Lemma roots_are_live_insert a lv w θ roots_m :
+  repr_lval θ lv w →
+  roots_are_live θ roots_m →
+  roots_are_live θ (<[a:=lv]> roots_m).
+Proof.
+  intros Hrepr Hlive a' γ Ha'. destruct (decide (a = a')) as [<-|].
+  { simplify_map_eq. inversion Hrepr; simplify_eq. by apply elem_of_dom. }
+  { simplify_map_eq. eapply Hlive; eauto. }
+Qed.
+
+Lemma roots_are_live_delete a θ roots_m :
+  roots_are_live θ roots_m →
+  roots_are_live θ (delete a roots_m).
+Proof.
+  intros Hlive ℓ γ [HH1 HH2]%lookup_delete_Some; by eapply Hlive.
+Qed.
 
 (******************************************************************************)
 (* auxiliary hints & tactics *)
