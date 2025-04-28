@@ -16,9 +16,9 @@ depends: [
   "coq-autosubst" {= "dev"}
 ]
 pin-depends: [
-  [ "coq-iris-transfinite.dev" "git+https://gitlab.mpi-sws.org/simonspies/transfinite-parametric-stepindex.git#simon/parametric-index" ]
-  [ "coq-iris.dev" "git+https://gitlab.mpi-sws.org/simonspies/iris-parametric-index.git#simon/parametric-index" ]
-  [ "coq-iris-heap-lang.dev" "git+https://gitlab.mpi-sws.org/simonspies/iris-parametric-index.git#simon/parametric-index" ]
+  [ "coq-iris-transfinite.dev" "git+https://gitlab.mpi-sws.org/simonspies/transfinite-parametric-stepindex.git#c426f352" ]
+  [ "coq-iris.dev" "git+https://gitlab.mpi-sws.org/simonspies/iris-parametric-index.git#d6e890ee" ]
+  [ "coq-iris-heap-lang.dev" "git+https://gitlab.mpi-sws.org/simonspies/iris-parametric-index.git#d6e890ee" ]
   [ "coq-autosubst.dev" "git+https://github.com/coq-community/autosubst.git#e20eee1" ]
 ]
 build: [
